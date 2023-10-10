@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Table-like Structure with Fixed Top Header</title>
+    <style>
+        /* Container for the table */
+        .table-container {
+            border: 1px solid #e0e0e0;
+            max-height: 200px; /* Adjust the height as needed */
+            overflow-y: auto;
+        }
+
+        /* Table row */
+        .table-row {
+            display: flex;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        /* Table cell (column) */
+        .table-cell {
+            flex: 1;
+            padding: 8px;
+            text-align: left;
+            border-right: 1px solid #e0e0e0;
+        }
+
+        /* Header row */
+        .header-row {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+            z-index: 2; /* Ensure it's rendered above the content */
+        }
+
+        /* Styling for specific columns */
+        .table-cell:nth-child(1),
+        .table-cell:nth-child(2) {
+            width: 150px;
+        }
+    </style>
+</head>
+<body>
+    <div class="table-container">
+        <!-- Header row -->
+        <div class="table-row header-row">
+            <div class="table-cell">Tag</div>
+            <div class="table-cell">Datum</div>
+            <div class="table-cell">Uhrzeit</div>
+            <div class="table-cell">Liga</div>
+            <div class="table-cell">Heimmannschaft</div>
+            <div class="table-cell">Gastmannschaft</div>
+        </div>
+        
+        <!-- Table data rows -->
+        <div class="table-row">
+            <div class="table-cell">Do.</div>
+            <div class="table-cell">Heute</div>
+            <div class="table-cell">19:45</div>
+            <div class="table-cell">H1KK</div>
+            <div class="table-cell">TuS Hiltrup V</div>
+            <div class="table-cell">DJK Borussia Münster IV</div>
+        </div>
+        
+        <!-- Add more rows as needed -->
+    </div>
+</body>
+</html>
