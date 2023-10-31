@@ -1,0 +1,98 @@
+<div class="folder-list">
+  <h2>Position Portal</h2>
+  <ul>
+    <li (click)="goToDocuments()">Documents</li>
+    <li *ngFor="let folder of folders" (click)="onFolderClick(folder.name)">
+      {{ folder.name }}
+    </li>
+  </ul>
+</div>
+
+<div class="file-list" *ngIf="currentFolder">
+  <h2>Position Portal</h2>
+  <div (click)="goToDocuments()">Documents > {{ currentFolder }}</div>
+  <ul>
+    <li *ngFor="let file of documents">
+      {{ file.name }}
+      <button (click)="downloadFile(file.name)">Download</button>
+    </li>
+  </ul>
+</div>
+
+
+
+ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp
+
+
+.folder-list, .file-list {
+  border: 1px solid #ccc;
+  padding: 10px;
+  margin: 10px;
+}
+
+.folder-list ul, .file-list ul {
+  list-style: none;
+  padding: 0;
+}
+
+.folder-list li, .file-list li {
+  cursor: pointer;
+  padding: 5px;
+  border: 1px solid #eee;
+  margin: 5px;
+}
+
+.file-list button {
+  margin-left: 10px;
+}
+pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp
+
+import { Component, OnInit } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+
+@Component({
+  selector: 'app-documents-download',
+  templateUrl: './documents-download.component.html',
+  styleUrls: ['./documents-download.component.css']
+})
+export class DocumentsDownloadComponent implements OnInit {
+  folders: any[] = [];
+  documents: any[] = [];
+  currentFolder: string | null = null;
+
+  constructor(private http: HttpClient) { }
+
+  ngOnInit() {
+    this.getFolderList();
+  }
+
+  getFolderList() {
+    this.http.get('/api/DocumentsDownload/GetFolderList/').subscribe((data: any) => {
+      this.folders = data;
+    });
+  }
+
+  onFolderClick(folderName: string) {
+    this.http.get('/api/DocumentsDownload/GetFileList/' + folderName).subscribe((data: any) => {
+      this.documents = data;
+      this.currentFolder = folderName;
+    });
+  }
+
+  goToDocuments() {
+    this.currentFolder = null;
+  }
+
+  downloadFile(fileName: string) {
+    this.http
+      .get(`api/DocumentsDownload/download/${fileName}`, { responseType: 'blob' })
+      .subscribe((data) => {
+        const a = document.createElement('a');
+        const objectUrl = URL.createObjectURL(data);
+        a.href = objectUrl;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(objectUrl);
+      });
+  }
+}
