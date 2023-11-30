@@ -1,70 +1,108 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Table-like Structure with Fixed Top Header</title>
-    <style>
-        /* Container for the table */
-        .table-container {
-            border: 1px solid #e0e0e0;
-            max-height: 200px; /* Adjust the height as needed */
-            overflow-y: auto;
-        }
 
-        /* Table row */
-        .table-row {
-            display: flex;
-            border-bottom: 1px solid #e0e0e0;
-        }
 
-        /* Table cell (column) */
-        .table-cell {
-            flex: 1;
-            padding: 8px;
-            text-align: left;
-            border-right: 1px solid #e0e0e0;
-        }
 
-        /* Header row */
-        .header-row {
-            background-color: #f5f5f5;
-            font-weight: bold;
-            position: sticky;
-            top: 0;
-            z-index: 2; /* Ensure it's rendered above the content */
-        }
+   switch (state) {
+      case 'AP':
+        return ['Center 1', 'Center 2', 'Center 3', 'Center 4', 'Center 5'];
+      case 'UP':
+        return ['Center 1', 'Center 2', 'Center 3', 'Center 4', 'Center 5', 'Center 6'];
+      case 'TN':
+        return ['Center 1', 'Center 2', 'Center 3', 'Center 4', 'Center 5', 'Center 6', 'Center 7', 'Center 8', 'Center 9', 'Center 10'];
+      case 'KA':
+        return Array.from({ length: 20 }, (_, i) => `Center ${i + 1}`);
+        // return ['Center 1', 'Center 2', 'Center 3', 'Center 4', 'Center 5', 'Center 6', 'Center 7', 'Center 8', 'Center 9', 'Center 10'];
+      default:
+        return [];
+    }
 
-        /* Styling for specific columns */
-        .table-cell:nth-child(1),
-        .table-cell:nth-child(2) {
-            width: 150px;
-        }
-    </style>
-</head>
-<body>
-    <div class="table-container">
-        <!-- Header row -->
-        <div class="table-row header-row">
-            <div class="table-cell">Tag</div>
-            <div class="table-cell">Datum</div>
-            <div class="table-cell">Uhrzeit</div>
-            <div class="table-cell">Liga</div>
-            <div class="table-cell">Heimmannschaft</div>
-            <div class="table-cell">Gastmannschaft</div>
-        </div>
-        
-        <!-- Table data rows -->
-        <div class="table-row">
-            <div class="table-cell">Do.</div>
-            <div class="table-cell">Heute</div>
-            <div class="table-cell">19:45</div>
-            <div class="table-cell">H1KK</div>
-            <div class="table-cell">TuS Hiltrup V</div>
-            <div class="table-cell">DJK Borussia Münster IV</div>
-        </div>
-        
-        <!-- Add more rows as needed -->
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+import { Component, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup, FormArray } from '@angular/forms';
+import { StateService } from './state.service';
+import { CenterService } from './center.service';
+
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.css']
+})
+export class AppComponent implements OnInit {
+  states: string[];
+  centerForm: FormGroup;
+
+  constructor(
+    private formBuilder: FormBuilder,
+    private stateService: StateService,
+    private centerService: CenterService
+  ) {}
+
+  ngOnInit() {
+    this.states = this.stateService.getStates();
+    this.initForm();
+  }
+
+  initForm() {
+    this.centerForm = this.formBuilder.group({
+      state: [''],
+      centers: this.formBuilder.array([]) // No need to cast as FormArray
+    });
+    this.updateCenters();
+  }
+
+  updateCenters() {
+    const state = this.centerForm.get('state').value;
+    const centers = this.centerService.getCenters(state);
+  
+    // Clear existing controls
+    const centerFormArray = this.centerForm.get('centers') as FormArray;
+    centerFormArray.clear();
+    // Add new controls based on the number of centers
+    centers.forEach((center) => {
+      centerFormArray.push(this.formBuilder.control(''));
+    });
+  }
+
+  getFilteredCenters(currentIndex: number): string[] {
+    const state = this.centerForm.get('state').value;
+    const centers = this.centerService.getCenters(state);
+    const selectedCenters = this.centerForm.get('centers').value.filter((value, index) => index !== currentIndex);
+    
+    return centers.filter(center => !selectedCenters.includes(center));
+  }
+
+}
+
+//   isCenterDisabled(center: string, currentIndex: number): boolean {
+//     const centerControls = (this.centerForm.get('centers') as FormArray).controls;
+  
+//     // Check if the center is selected in any other dropdown
+//     return centerControls.some((control, index) => index !== currentIndex && control.value === center);
+//   }
+// }
+============================================================================================================================
+
+
+
+   <form [formGroup]="centerForm">
+    <div>
+      <label for="state">Select State:</label>
+      <select id="state" formControlName="state" (change)="updateCenters()">
+        <option value="" disabled>Select State</option>
+        <option *ngFor="let state of states" [value]="state">{{ state }}</option>
+      </select>
     </div>
-</body>
-</html>
+  
+    <div formArrayName="centers">
+        <div *ngFor="let centerControl of centerForm.get('centers')['controls']; let i = index">
+          <label for="center{{ i }}">Select Center:</label>
+          <select [id]="'center' + i" [formControl]="centerControl">
+            <option value="" disabled>Select Center</option>
+            <!-- <option *ngFor="let center of centerService.getCenters(centerForm.get('state').value)" [value]="center" [disabled]="isCenterDisabled(center, i)">{{ center }}</option> -->
+            <option *ngFor="let center of getFilteredCenters(i)" [value]="center">{{ center }}</option> 
+        </select>
+        </div>
+      </div>
+  </form>
+
