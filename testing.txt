@@ -1,108 +1,145 @@
+"Leadership"
+
+I understand the importance of fostering a collaborative and respectful environment. I actively seek to understand and challenge my own biases to contribute positively to a diverse workplace. I consistently share ideas and insights that positively impact team projects and actively seek feedback from colleagues and superiors, utilizing it as a tool for personal and professional growth. I consistently uphold ethical standards and express appreciation for the efforts of my colleagues, acknowledging their achievements within the scope of our projects.
+
+Change Orientation
+
+I exhibit curiosity by actively seeking new and better ways of working. I support the team's process improvement initiatives by contributing innovative ideas and actively participating in efforts to streamline processes. I effectively manage dynamic and unpredictable challenges with resilience, adapting quickly to changing circumstances and demonstrating flexibility in responses to evolving situations. I pursue leading-edge information to facilitate continuous learning and quick adaptation to new trends and technologies.
+
+Collaboration
+
+ I consistently share relevant information transparently with colleagues, cultivating a culture of openness and collaboration. I prioritize active listening to understand perspectives before responding, fostering effective communication and a deeper understanding of diverse viewpoints. I communicate ideas and information clearly and concisely within the team. I consistently work to build strong professional relationships at all levels, contributing to a positive and supportive work environment.
+
+Judgment
+
+I consistently seek and objectively evaluate information, applying the knowledge gained to solve problems effectively in my role. I carefully balance the needs of key stakeholders, ensuring decisions align with their expectations and contribute to overall satisfaction. I actively seek inputs and recommendations from colleagues and superiors, drawing upon diverse ideas and perspectives to enhance the quality of decisions made in my role.
+
+Results Driven
+
+I consistently take responsibility, ownership, and accountability for achieving given task results, both individually and through effective team collaboration. I prioritize my efforts to deliver the highest impact on projects, ensuring that my contributions align with overall project goals and objectives.
 
 
 
-   switch (state) {
-      case 'AP':
-        return ['Center 1', 'Center 2', 'Center 3', 'Center 4', 'Center 5'];
-      case 'UP':
-        return ['Center 1', 'Center 2', 'Center 3', 'Center 4', 'Center 5', 'Center 6'];
-      case 'TN':
-        return ['Center 1', 'Center 2', 'Center 3', 'Center 4', 'Center 5', 'Center 6', 'Center 7', 'Center 8', 'Center 9', 'Center 10'];
-      case 'KA':
-        return Array.from({ length: 20 }, (_, i) => `Center ${i + 1}`);
-        // return ['Center 1', 'Center 2', 'Center 3', 'Center 4', 'Center 5', 'Center 6', 'Center 7', 'Center 8', 'Center 9', 'Center 10'];
-      default:
-        return [];
-    }
+************************************************************************************
+1. Design and Process Optimization:
 
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Collaborated with Managers and leads to optimize design and improve the development process.
+Prepared design documents, ensuring thorough reviews with Leads.
+2. Unit Testing Excellence:
 
+Achieved the target of keeping Unit Testing defects below 10% of total defects in the quarter.
+Maintained a focus on continuous improvement in unit testing processes.
 
-import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, FormArray } from '@angular/forms';
-import { StateService } from './state.service';
-import { CenterService } from './center.service';
+3. Timely Code Delivery:
 
-@Component({
-  selector: 'app-root',
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.css']
-})
-export class AppComponent implements OnInit {
-  states: string[];
-  centerForm: FormGroup;
+Ensured on-time code delivery with QA, strictly adhering to agreed-upon timelines from the GOC.
+Minimized deviations from the delivery schedule.
 
-  constructor(
-    private formBuilder: FormBuilder,
-    private stateService: StateService,
-    private centerService: CenterService
-  ) {}
+4. Client Escalation Prevention:
 
-  ngOnInit() {
-    this.states = this.stateService.getStates();
-    this.initForm();
-  }
+Ensured zero client escalations due to non-adherence of process, rework, or quality issues.
+Proactively addressed potential escalation points to maintain client satisfaction.
 
-  initForm() {
-    this.centerForm = this.formBuilder.group({
-      state: [''],
-      centers: this.formBuilder.array([]) // No need to cast as FormArray
-    });
-    this.updateCenters();
-  }
+5. Code Review Adherence:
 
-  updateCenters() {
-    const state = this.centerForm.get('state').value;
-    const centers = this.centerService.getCenters(state);
-  
-    // Clear existing controls
-    const centerFormArray = this.centerForm.get('centers') as FormArray;
-    centerFormArray.clear();
-    // Add new controls based on the number of centers
-    centers.forEach((center) => {
-      centerFormArray.push(this.formBuilder.control(''));
-    });
-  }
+Achieved a high rate of code reviews, ensuring that >90% of codes were reviewed by Leads and Peers.
+Incorporated feedback from reviews to enhance code quality.
 
-  getFilteredCenters(currentIndex: number): string[] {
-    const state = this.centerForm.get('state').value;
-    const centers = this.centerService.getCenters(state);
-    const selectedCenters = this.centerForm.get('centers').value.filter((value, index) => index !== currentIndex);
-    
-    return centers.filter(center => !selectedCenters.includes(center));
-  }
+6. Status Reporting and RCA:
 
-}
+Provided timely status updates and Root Cause Analysis (RCA) for any deviations or issues.
+Demonstrated a commitment to transparency and accountability.
 
-//   isCenterDisabled(center: string, currentIndex: number): boolean {
-//     const centerControls = (this.centerForm.get('centers') as FormArray).controls;
-  
-//     // Check if the center is selected in any other dropdown
-//     return centerControls.some((control, index) => index !== currentIndex && control.value === center);
-//   }
-// }
-============================================================================================================================
+7. Meeting Attendance:
+
+Attended meetings regularly and punctually, ensuring active participation and contribution.
 
 
 
-   <form [formGroup]="centerForm">
-    <div>
-      <label for="state">Select State:</label>
-      <select id="state" formControlName="state" (change)="updateCenters()">
-        <option value="" disabled>Select State</option>
-        <option *ngFor="let state of states" [value]="state">{{ state }}</option>
-      </select>
-    </div>
-  
-    <div formArrayName="centers">
-        <div *ngFor="let centerControl of centerForm.get('centers')['controls']; let i = index">
-          <label for="center{{ i }}">Select Center:</label>
-          <select [id]="'center' + i" [formControl]="centerControl">
-            <option value="" disabled>Select Center</option>
-            <!-- <option *ngFor="let center of centerService.getCenters(centerForm.get('state').value)" [value]="center" [disabled]="isCenterDisabled(center, i)">{{ center }}</option> -->
-            <option *ngFor="let center of getFilteredCenters(i)" [value]="center">{{ center }}</option> 
-        </select>
-        </div>
-      </div>
-  </form>
+*****************************************************************************************
+
+
+Innovations, Training, and Ownership Self-Evaluation:
+
+
+1. Code Performance Optimization:
+
+Actively worked towards optimizing current code performance through a continuous process of innovation and research and development (R&D).
+Contributed innovative ideas to enhance code efficiency and functionality.
+
+2. Adherence to Development Practices:
+
+Consistently adhered to standard development practices, ensuring the highest quality in code and continuous housekeeping activities.
+Maintained a commitment to code cleanliness and efficiency.
+
+
+3. Skills Enhancement through Training/Certification:
+
+Completed comprehensive courses on SQL Server and the fundamentals of DevOps on Udemy.
+Acquired in-depth knowledge and practical skills in SQL Server, improving my ability to manage and analyze data effectively.
+Gained insights into the basics of DevOps, enhancing my understanding of collaborative and automated software development processes.
+Demonstrated a proactive approach to continuous learning by actively seeking out relevant courses and certifications.
+Regularly identified and pursued opportunities for professional development to stay current with industry trends and advancements.
+
+
+
+4. Responsibility and Availability:
+
+Demonstrated ownership by consistently being available and taking responsibility for allocated work.
+Ensured that tasks were completed with a high level of quality and within the agreed-upon timelines.
+
+
+*********************************************************************************************************************
+
+
+1. Adherence to Company Processes and Policies:
+
+Maintained 100% adherence to company processes and policies, ensuring compliance with established guidelines.
+Demonstrated a commitment to upholding organizational standards in day-to-day activities.
+2. Timesheet Updates:
+
+Successfully ensured no defaults in timesheet updates, consistently providing accurate and timely records of work hours.
+Contributed to the efficient tracking and management of project timelines.
+3. Feedback and Rating Follow-up:
+
+Proactively followed up with the reporting manager for continuous feedback, fostering a culture of open communication.
+Engaged in Mid-year and employee development rating discussions, actively seeking areas for improvement and professional growth.
+
+4. Customer Satisfaction (CSAT):
+
+Maintained a CSAT rating of 4.6, indicating a high level of customer satisfaction with the delivered products or services.
+Contributed to positive customer relationships and actively addressed any concerns or issues to improve satisfaction levels.
+
+*************************************************************************************************************************************
+
+Quality Self-Evaluation:
+
+1. Build Efficiency:
+
+Successfully adhered to the goal of no more than two builds per story or feature, minimizing disruptions and ensuring efficient development cycles.
+Maintained a commitment to achieving overall 10% or lower UTC defects.
+
+2. Defect Re-Opening Rate:
+
+Successfully achieved the target of less than 5% re-opened defects, demonstrating a thorough approach to issue resolution.
+Contributed to the stability and reliability of the developed features.
+
+3. Coding Style and Standards:
+
+Consistently maintained good coding style, including proper alignment, variable naming, and clear variable/method declaration.
+Upheld coding standards to ensure code readability and maintainability.
+
+Developed and deployed four web applications, showcasing a practical application of acquired skills.
+Successfully implemented complicated code features within these applications, demonstrating a strong understanding of advanced programming concepts.
+Applied the knowledge gained from training to real-world scenarios, contributing to the successful completion of complex development projects.
+
+4. Code Review Practices:
+
+Engaged in both self-code reviews and peer code reviews, fostering a collaborative environment for continuous improvement.
+Actively participated in constructive feedback exchanges to enhance code quality.
+
+5. Unit Testing and Review:
+
+Demonstrated a commitment to quality by preparing and executing unit test cases for all code changes.
+Engaged in thorough reviews of unit testing and impacted testing results with peers or leads before pushing code to QA, ensuring a robust testing process.
 
