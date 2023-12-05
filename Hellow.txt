@@ -1,1 +1,338 @@
-Hello world intro
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Center Selection</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div id="app">
+    <h1>Select State and Centers</h1>
+
+    <label for="state">State:</label>
+    <select id="stateSelect">
+      <option value="" disabled selected>Select State</option>
+      <option value="AP">Andhra Pradesh</option>
+      <option value="UP">Uttar Pradesh</option>
+      <option value="TN">Tamil Nadu</option>
+      <option value="KA">Karnataka</option>
+    </select>
+
+    <div id="centersContainer"></div>
+
+    <button id="resetDropdowns">Reset Dropdowns</button>
+    <button id="showSelected">Show Selected</button>
+  </div>
+
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<script>
+  const states = {
+    AP: "Andhra Pradesh",
+    UP: "Uttar Pradesh",
+    TN: "Tamil Nadu",
+    KA: "Karnataka"
+  };
+
+  const centersByState = {
+    AP: ['Tirupati', 'Visakhapatnam', 'Vijayawada'],
+    UP: ['Agra', 'Lucknow', 'Varanasi'],
+    TN: ['Chennai', 'Madurai', 'Coimbatore'],
+    KA: ['Bengaluru', 'Mysore', 'Mangaluru','Mangaluru-1','Mangaluru-2']
+  };
+
+  let selectedCenters = []; // Stores currently selected centers
+
+  function initForm() {
+    $('#stateSelect').on('change', function () {
+      const state = $(this).val();
+      if (state) {
+        updateCenters(centersByState[state]);
+      } else {
+        $('#centersContainer').empty();
+      }
+    });
+
+    $(document).on('change', '.centerSelect', function () {
+      const selectedCenter = $(this).val();
+      const currentIndex = $(this).data('index');
+
+      selectedCenters[currentIndex] = selectedCenter;
+      updateDropdownOptions(currentIndex, selectedCenter);
+      updateSelectedOptions();
+    });
+
+    $('#resetDropdowns').on('click', function () {
+      resetDropdowns();
+      updateSelectedOptions();
+    });
+
+    $('#showSelected').on('click', function () {
+      console.log('Selected Centers:', selectedCenters);
+    });
+  }
+
+ function updateCenters(centerOptions) {
+  $('#centersContainer').empty();
+
+  for (let i = 0; i < centerOptions.length; i++) {
+    const $select = $('<select>')
+      .attr('id', `centerSelect${i}`)
+      .addClass('centerSelect')
+      .data('index', i)
+      .append('<option value="" disabled selected>Select Center</option>');
+
+    centerOptions.forEach(center => {
+      const $option = $("<option>", {
+        value: center,
+        text: center
+      });
+
+      // Check if this option was previously selected
+      if (selectedCenters[i] === center) {
+        $option.prop('selected', true);
+      }
+
+      $select.append($option);
+    });
+
+    $('#centersContainer').append(`
+      <div class="center">
+        <label for="centerSelect${i}">Select Center:</label>
+      </div>
+    `);
+
+    $('#centersContainer .center:last-child').append($select);
+  }
+}
+
+
+  function updateDropdownOptions(currentIndex, selectedCenter) {
+    $('.centerSelect').each(function () {
+      const index = $(this).data('index');
+
+      if (index !== currentIndex) {
+        $(this).find(`option[value="${selectedCenter}"]`).remove();
+      }
+    });
+  }
+
+$('#resetDropdowns').on('click', function () {
+  resetDropdowns();
+  updateSelectedOptions();
+});
+
+  function resetDropdowns() {
+  $('.centerSelect').each(function () {
+    const index = $(this).data('index');
+    const centerOptions = centersByState[$('#stateSelect').val()];
+
+    // Remove all options
+    $(this).find('option').remove();
+    $(this).append('<option value="" disabled selected>Select Center</option>');
+
+    // Re-add all options
+    centerOptions.forEach(center => {
+      const $option = $("<option>", {
+        value: center,
+        text: center
+      });
+
+      $(this).append($option);
+    });
+
+    // Reset the selected option to the disabled one
+    $(this).val('');
+  });
+
+  // Reset the selected centers array
+  selectedCenters = [];
+}
+
+  function updateSelectedOptions() {
+    selectedCenters = [];
+    $('.centerSelect').each(function () {
+      const selectedCenter = $(this).val();
+      if (selectedCenter) {
+        selectedCenters.push(selectedCenter);
+      }
+    });
+  }
+
+  $(document).ready(function () {
+    initForm();
+  });
+</script>
+
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Center Selection</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div id="app">
+    <h1>Select State and Centers</h1>
+
+    <label for="state">State:</label>
+    <select id="stateSelect">
+      <option value="" disabled selected>Select State</option>
+      <option value="AP">Andhra Pradesh</option>
+      <option value="UP">Uttar Pradesh</option>
+      <option value="TN">Tamil Nadu</option>
+      <option value="KA">Karnataka</option>
+    </select>
+
+    <div id="centersContainer"></div>
+
+    <button id="resetDropdowns">Reset Dropdowns</button>
+    <button id="showSelected">Show Selected</button>
+  </div>
+
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<script>
+  const states = {
+    AP: "Andhra Pradesh",
+    UP: "Uttar Pradesh",
+    TN: "Tamil Nadu",
+    KA: "Karnataka"
+  };
+
+  const centersByState = {
+    AP: ['Tirupati', 'Visakhapatnam', 'Vijayawada'],
+    UP: ['Agra', 'Lucknow', 'Varanasi'],
+    TN: ['Chennai', 'Madurai', 'Coimbatore'],
+    KA: ['Bengaluru', 'Mysore', 'Mangaluru','Mangaluru-1','Mangaluru-2']
+  };
+
+  let selectedCenters = []; // Stores currently selected centers
+
+  function initForm() {
+    $('#stateSelect').on('change', function () {
+      const state = $(this).val();
+      if (state) {
+        updateCenters(centersByState[state]);
+      } else {
+        $('#centersContainer').empty();
+      }
+    });
+
+    $(document).on('change', '.centerSelect', function () {
+      const selectedCenter = $(this).val();
+      const currentIndex = $(this).data('index');
+
+      selectedCenters[currentIndex] = selectedCenter;
+      updateDropdownOptions(currentIndex, selectedCenter);
+      updateSelectedOptions();
+    });
+
+    $('#resetDropdowns').on('click', function () {
+      resetDropdowns();
+      updateSelectedOptions();
+    });
+
+    $('#showSelected').on('click', function () {
+      console.log('Selected Centers:', selectedCenters);
+    });
+  }
+
+ function updateCenters(centerOptions) {
+  $('#centersContainer').empty();
+
+  for (let i = 0; i < centerOptions.length; i++) {
+    const $select = $('<select>')
+      .attr('id', `centerSelect${i}`)
+      .addClass('centerSelect')
+      .data('index', i)
+      .append('<option value="" disabled selected>Select Center</option>');
+
+    centerOptions.forEach(center => {
+      const $option = $("<option>", {
+        value: center,
+        text: center
+      });
+
+      // Check if this option was previously selected
+      if (selectedCenters[i] === center) {
+        $option.prop('selected', true);
+      }
+
+      $select.append($option);
+    });
+
+    $('#centersContainer').append(`
+      <div class="center">
+        <label for="centerSelect${i}">Select Center:</label>
+      </div>
+    `);
+
+    $('#centersContainer .center:last-child').append($select);
+  }
+}
+
+
+  function updateDropdownOptions(currentIndex, selectedCenter) {
+    $('.centerSelect').each(function () {
+      const index = $(this).data('index');
+
+      if (index !== currentIndex) {
+        $(this).find(`option[value="${selectedCenter}"]`).remove();
+      }
+    });
+  }
+
+$('#resetDropdowns').on('click', function () {
+  resetDropdowns();
+  updateSelectedOptions();
+});
+
+  function resetDropdowns() {
+  $('.centerSelect').each(function () {
+    const index = $(this).data('index');
+    const centerOptions = centersByState[$('#stateSelect').val()];
+
+    // Remove all options
+    $(this).find('option').remove();
+    $(this).append('<option value="" disabled selected>Select Center</option>');
+
+    // Re-add all options
+    centerOptions.forEach(center => {
+      const $option = $("<option>", {
+        value: center,
+        text: center
+      });
+
+      $(this).append($option);
+    });
+
+    // Reset the selected option to the disabled one
+    $(this).val('');
+  });
+
+  // Reset the selected centers array
+  selectedCenters = [];
+}
+
+  function updateSelectedOptions() {
+    selectedCenters = [];
+    $('.centerSelect').each(function () {
+      const selectedCenter = $(this).val();
+      if (selectedCenter) {
+        selectedCenters.push(selectedCenter);
+      }
+    });
+  }
+
+  $(document).ready(function () {
+    initForm();
+  });
+</script>
+
+</body>
+</html>
