@@ -1,98 +1,168 @@
-<div class="folder-list">
-  <h2>Position Portal</h2>
-  <ul>
-    <li (click)="goToDocuments()">Documents</li>
-    <li *ngFor="let folder of folders" (click)="onFolderClick(folder.name)">
-      {{ folder.name }}
-    </li>
-  </ul>
-</div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Center Selection</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
 
-<div class="file-list" *ngIf="currentFolder">
-  <h2>Position Portal</h2>
-  <div (click)="goToDocuments()">Documents > {{ currentFolder }}</div>
-  <ul>
-    <li *ngFor="let file of documents">
-      {{ file.name }}
-      <button (click)="downloadFile(file.name)">Download</button>
-    </li>
-  </ul>
-</div>
+  <div id="app">
+    <h1>Select State and Centers</h1>
 
+    <label for="state">State:</label>
+    <select id="stateSelect">
+      <option value="" disabled selected>Select State</option>
+      <option value="AP">Andhra Pradesh</option>
+      <option value="UP">Uttar Pradesh</option>
+      <option value="TN">Tamil Nadu</option>
+      <option value="KA">Karnataka</option>
+    </select>
 
+    <div id="centersContainer"></div>
 
-ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp
+    <button id="resetDropdowns">Reset Dropdowns</button>
+    <button id="showSelected">Show Selected</button>
+  </div>
 
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<script>
+  const states = {
+    AP: "Andhra Pradesh",
+    UP: "Uttar Pradesh",
+    TN: "Tamil Nadu",
+    KA: "Karnataka"
+  };
 
-.folder-list, .file-list {
-  border: 1px solid #ccc;
-  padding: 10px;
-  margin: 10px;
-}
+  const centersByState = {
+    AP: ['Tirupati', 'Visakhapatnam', 'Vijayawada'],
+    UP: ['Agra', 'Lucknow', 'Varanasi'],
+    TN: ['Chennai', 'Madurai', 'Coimbatore'],
+    KA: ['Bengaluru', 'Mysore', 'Mangaluru', 'Mangaluru-1', 'Mangaluru-2']
+  };
 
-.folder-list ul, .file-list ul {
-  list-style: none;
-  padding: 0;
-}
+  let selectedCenters = []; // Stores currently selected centers
 
-.folder-list li, .file-list li {
-  cursor: pointer;
-  padding: 5px;
-  border: 1px solid #eee;
-  margin: 5px;
-}
+  function initForm() {
+    $('#stateSelect').on('change', function () {
+      const state = $(this).val();
+      if (state) {
+        updateCenters(centersByState[state]);
+      } else {
+        $('#centersContainer').empty();
+      }
+    });
 
-.file-list button {
-  margin-left: 10px;
-}
-pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp
+    $(document).on('change', '.centerSelect', function () {
+      const selectedCenter = $(this).val();
+      const currentIndex = $(this).data('index');
 
-import { Component, OnInit } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+      selectedCenters[currentIndex] = selectedCenter;
+      updateDropdownOptions(currentIndex, selectedCenter);
+      updateSelectedOptions();
+    });
 
-@Component({
-  selector: 'app-documents-download',
-  templateUrl: './documents-download.component.html',
-  styleUrls: ['./documents-download.component.css']
-})
-export class DocumentsDownloadComponent implements OnInit {
-  folders: any[] = [];
-  documents: any[] = [];
-  currentFolder: string | null = null;
+    $(document).on('click', '.addDropdown', function () {
+      const centerOptions = centersByState[$('#stateSelect').val()];
+      const currentIndex = $('.centerSelect').length;
 
-  constructor(private http: HttpClient) { }
+      // Check if the maximum number of dropdowns has been reached
+      if (currentIndex < centerOptions.length) {
+        addDynamicDropdown(currentIndex, centerOptions);
+        updateSelectedOptions();
+      }
+    });
 
-  ngOnInit() {
-    this.getFolderList();
-  }
+    $(document).on('click', '.removeDropdown', function () {
+      const currentIndex = $(this).data('index');
+      // Check if the dropdown to be removed is not the first one
+      if (currentIndex > 0) {
+        removeDynamicDropdown(currentIndex);
+        updateSelectedOptions();
+      }
+    });
 
-  getFolderList() {
-    this.http.get('/api/DocumentsDownload/GetFolderList/').subscribe((data: any) => {
-      this.folders = data;
+    $('#resetDropdowns').on('click', function () {
+      resetDropdowns();
+      updateSelectedOptions();
+    });
+
+    $('#showSelected').on('click', function () {
+      console.log('Selected Centers:', selectedCenters);
     });
   }
 
-  onFolderClick(folderName: string) {
-    this.http.get('/api/DocumentsDownload/GetFileList/' + folderName).subscribe((data: any) => {
-      this.documents = data;
-      this.currentFolder = folderName;
-    });
+  function updateCenters(centerOptions) {
+    $('#centersContainer').empty();
+    addDynamicDropdown(0, centerOptions);
   }
 
-  goToDocuments() {
-    this.currentFolder = null;
-  }
+  function addDynamicDropdown(index, centerOptions) {
+    const $select = $('<select>')
+      .addClass('centerSelect')
+      .data('index', index)
+      .append('<option value="" disabled selected>Select Center</option>');
 
-  downloadFile(fileName: string) {
-    this.http
-      .get(`api/DocumentsDownload/download/${fileName}`, { responseType: 'blob' })
-      .subscribe((data) => {
-        const a = document.createElement('a');
-        const objectUrl = URL.createObjectURL(data);
-        a.href = objectUrl;
-        a.download = fileName;
-        a.click();
-        URL.revokeObjectURL(objectUrl);
+    centerOptions.forEach(center => {
+      const $option = $("<option>", {
+        value: center,
+        text: center
       });
+
+      if (selectedCenters.indexOf(center) === -1) {
+        $select.append($option);
+      }
+    });
+
+    const $container = $('<div class="center">')
+      .append(`<label for="centerSelect${index}">Select Center:</label>`)
+      .append($select)
+      .append(`<button class="addDropdown" data-index="${index}">Add</button>`)
+    
+
+    $('#centersContainer').append($container);
   }
-}
+
+  //function removeDynamicDropdown(index) {
+  //  $(`.centerSelect[data-index="${index}"]`).parent().remove();
+ // }
+
+  function updateDropdownOptions(currentIndex, selectedCenter) {
+    $('.centerSelect').each(function () {
+      const index = $(this).data('index');
+
+      if (index !== currentIndex) {
+        $(this).find(`option[value="${selectedCenter}"]`).remove();
+      }
+    });
+  }
+
+  function resetDropdowns() {
+    $('.centerSelect').each(function () {
+      const index = $(this).data('index');
+      $(this).parent().remove();
+    });
+
+    selectedCenters = [];
+    const centerOptions = centersByState[$('#stateSelect').val()];
+    addDynamicDropdown(0, centerOptions);
+  }
+
+  function updateSelectedOptions() {
+    selectedCenters = [];
+    $('.centerSelect').each(function () {
+      const selectedCenter = $(this).val();
+      if (selectedCenter) {
+        selectedCenters.push(selectedCenter);
+      }
+    });
+  }
+
+  $(document).ready(function () {
+    initForm();
+  });
+</script>
+
+</body>
+</html>
