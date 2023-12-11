@@ -28,6 +28,8 @@
 
 <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
 <script>
+
+
   const states = {
     AP: "Andhra Pradesh",
     UP: "Uttar Pradesh",
@@ -44,7 +46,7 @@
 
   let selectedCenters = []; // Stores currently selected centers
 
-  function initForm() {
+  function bindEvents() {
     $('#stateSelect').on('change', function () {
       const state = $(this).val();
       if (state) {
@@ -59,7 +61,7 @@
       const currentIndex = $(this).data('index');
 
       selectedCenters[currentIndex] = selectedCenter;
-      updateDropdownOptions(currentIndex, selectedCenter);
+      updateDropdownOptions();
       updateSelectedOptions();
     });
 
@@ -80,6 +82,8 @@
       if (currentIndex > 0) {
         removeDynamicDropdown(currentIndex);
         updateSelectedOptions();
+        updateDropdownOptions();
+        updateDropdownIndices();
       }
     });
 
@@ -91,6 +95,10 @@
     $('#showSelected').on('click', function () {
       console.log('Selected Centers:', selectedCenters);
     });
+  }
+
+  function initForm() {
+    bindEvents();
   }
 
   function updateCenters(centerOptions) {
@@ -119,22 +127,42 @@
       .append(`<label for="centerSelect${index}">Select Center:</label>`)
       .append($select)
       .append(`<button class="addDropdown" data-index="${index}">Add</button>`)
-    
+      .append(`<button class="removeDropdown" data-index="${index}">Remove</button>`);
 
     $('#centersContainer').append($container);
   }
 
-  //function removeDynamicDropdown(index) {
-  //  $(`.centerSelect[data-index="${index}"]`).parent().remove();
- // }
+  function updateDropdownOptions() {
+    const selectedCenters = $('.centerSelect').map(function () {
+      return $(this).val();
+    }).get();
 
-  function updateDropdownOptions(currentIndex, selectedCenter) {
-    $('.centerSelect').each(function () {
-      const index = $(this).data('index');
+    $('.centerSelect option').prop('disabled', false);
 
-      if (index !== currentIndex) {
-        $(this).find(`option[value="${selectedCenter}"]`).remove();
+    selectedCenters.forEach(function (selectedCenter) {
+      $(`.centerSelect option[value="${selectedCenter}"]:not(:selected)`).prop('disabled', true);
+    });
+  }
+
+  function removeDynamicDropdown(currentIndex) {
+    const $parent = $('#centersContainer');
+    const indexesToRemove = [currentIndex];
+
+    $parent.children('.center').each(function (index, div) {
+      if (indexesToRemove.includes(index)) {
+        $(div).remove();
       }
+    });
+    updateSelectedOptions();
+    updateDropdownIndices();
+    updateDropdownOptions();
+  }
+
+  function updateDropdownIndices() {
+    $('.centerSelect').each(function (index) {
+      $(this).data('index', index);
+      $(this).parent().find('.addDropdown').data('index', index);
+      $(this).parent().find('.removeDropdown').data('index', index);
     });
   }
 
