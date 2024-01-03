@@ -1,145 +1,132 @@
-"Leadership"
-
-I understand the importance of fostering a collaborative and respectful environment. I actively seek to understand and challenge my own biases to contribute positively to a diverse workplace. I consistently share ideas and insights that positively impact team projects and actively seek feedback from colleagues and superiors, utilizing it as a tool for personal and professional growth. I consistently uphold ethical standards and express appreciation for the efforts of my colleagues, acknowledging their achievements within the scope of our projects.
-
-Change Orientation
-
-I exhibit curiosity by actively seeking new and better ways of working. I support the team's process improvement initiatives by contributing innovative ideas and actively participating in efforts to streamline processes. I effectively manage dynamic and unpredictable challenges with resilience, adapting quickly to changing circumstances and demonstrating flexibility in responses to evolving situations. I pursue leading-edge information to facilitate continuous learning and quick adaptation to new trends and technologies.
-
-Collaboration
-
- I consistently share relevant information transparently with colleagues, cultivating a culture of openness and collaboration. I prioritize active listening to understand perspectives before responding, fostering effective communication and a deeper understanding of diverse viewpoints. I communicate ideas and information clearly and concisely within the team. I consistently work to build strong professional relationships at all levels, contributing to a positive and supportive work environment.
-
-Judgment
-
-I consistently seek and objectively evaluate information, applying the knowledge gained to solve problems effectively in my role. I carefully balance the needs of key stakeholders, ensuring decisions align with their expectations and contribute to overall satisfaction. I actively seek inputs and recommendations from colleagues and superiors, drawing upon diverse ideas and perspectives to enhance the quality of decisions made in my role.
-
-Results Driven
-
-I consistently take responsibility, ownership, and accountability for achieving given task results, both individually and through effective team collaboration. I prioritize my efforts to deliver the highest impact on projects, ensuring that my contributions align with overall project goals and objectives.
-
-
-
-************************************************************************************
-1. Design and Process Optimization:
-
-Collaborated with Managers and leads to optimize design and improve the development process.
-Prepared design documents, ensuring thorough reviews with Leads.
-2. Unit Testing Excellence:
-
-Achieved the target of keeping Unit Testing defects below 10% of total defects in the quarter.
-Maintained a focus on continuous improvement in unit testing processes.
-
-3. Timely Code Delivery:
-
-Ensured on-time code delivery with QA, strictly adhering to agreed-upon timelines from the GOC.
-Minimized deviations from the delivery schedule.
-
-4. Client Escalation Prevention:
-
-Ensured zero client escalations due to non-adherence of process, rework, or quality issues.
-Proactively addressed potential escalation points to maintain client satisfaction.
-
-5. Code Review Adherence:
-
-Achieved a high rate of code reviews, ensuring that >90% of codes were reviewed by Leads and Peers.
-Incorporated feedback from reviews to enhance code quality.
-
-6. Status Reporting and RCA:
-
-Provided timely status updates and Root Cause Analysis (RCA) for any deviations or issues.
-Demonstrated a commitment to transparency and accountability.
-
-7. Meeting Attendance:
-
-Attended meetings regularly and punctually, ensuring active participation and contribution.
-
-
-
-*****************************************************************************************
-
-
-Innovations, Training, and Ownership Self-Evaluation:
-
-
-1. Code Performance Optimization:
-
-Actively worked towards optimizing current code performance through a continuous process of innovation and research and development (R&D).
-Contributed innovative ideas to enhance code efficiency and functionality.
-
-2. Adherence to Development Practices:
-
-Consistently adhered to standard development practices, ensuring the highest quality in code and continuous housekeeping activities.
-Maintained a commitment to code cleanliness and efficiency.
-
-
-3. Skills Enhancement through Training/Certification:
-
-Completed comprehensive courses on SQL Server and the fundamentals of DevOps on Udemy.
-Acquired in-depth knowledge and practical skills in SQL Server, improving my ability to manage and analyze data effectively.
-Gained insights into the basics of DevOps, enhancing my understanding of collaborative and automated software development processes.
-Demonstrated a proactive approach to continuous learning by actively seeking out relevant courses and certifications.
-Regularly identified and pursued opportunities for professional development to stay current with industry trends and advancements.
-
-
-
-4. Responsibility and Availability:
-
-Demonstrated ownership by consistently being available and taking responsibility for allocated work.
-Ensured that tasks were completed with a high level of quality and within the agreed-upon timelines.
-
-
-*********************************************************************************************************************
-
-
-1. Adherence to Company Processes and Policies:
-
-Maintained 100% adherence to company processes and policies, ensuring compliance with established guidelines.
-Demonstrated a commitment to upholding organizational standards in day-to-day activities.
-2. Timesheet Updates:
-
-Successfully ensured no defaults in timesheet updates, consistently providing accurate and timely records of work hours.
-Contributed to the efficient tracking and management of project timelines.
-3. Feedback and Rating Follow-up:
-
-Proactively followed up with the reporting manager for continuous feedback, fostering a culture of open communication.
-Engaged in Mid-year and employee development rating discussions, actively seeking areas for improvement and professional growth.
-
-4. Customer Satisfaction (CSAT):
-
-Maintained a CSAT rating of 4.6, indicating a high level of customer satisfaction with the delivered products or services.
-Contributed to positive customer relationships and actively addressed any concerns or issues to improve satisfaction levels.
-
-*************************************************************************************************************************************
-
-Quality Self-Evaluation:
-
-1. Build Efficiency:
-
-Successfully adhered to the goal of no more than two builds per story or feature, minimizing disruptions and ensuring efficient development cycles.
-Maintained a commitment to achieving overall 10% or lower UTC defects.
-
-2. Defect Re-Opening Rate:
-
-Successfully achieved the target of less than 5% re-opened defects, demonstrating a thorough approach to issue resolution.
-Contributed to the stability and reliability of the developed features.
-
-3. Coding Style and Standards:
-
-Consistently maintained good coding style, including proper alignment, variable naming, and clear variable/method declaration.
-Upheld coding standards to ensure code readability and maintainability.
-
-Developed and deployed four web applications, showcasing a practical application of acquired skills.
-Successfully implemented complicated code features within these applications, demonstrating a strong understanding of advanced programming concepts.
-Applied the knowledge gained from training to real-world scenarios, contributing to the successful completion of complex development projects.
-
-4. Code Review Practices:
-
-Engaged in both self-code reviews and peer code reviews, fostering a collaborative environment for continuous improvement.
-Actively participated in constructive feedback exchanges to enhance code quality.
-
-5. Unit Testing and Review:
-
-Demonstrated a commitment to quality by preparing and executing unit test cases for all code changes.
-Engaged in thorough reviews of unit testing and impacted testing results with peers or leads before pushing code to QA, ensuring a robust testing process.
-
+<div class="container" [class.moved-to-top]="isGetReportClicked">
+  <div class="input-section">
+    <label for="storeId">Enter Store ID:</label>
+    <div class="input-container">
+      <input type="text" [(ngModel)]="storeId" id="storeId" />
+      <button (click)="getSalesReport()">Get Sales Report</button>
+    </div>
+  </div>
+
+  <div *ngIf="salesData">
+    <h2>Sales Report</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Region</th>
+          <th>Store Name</th>
+          <th>Collector ID</th>
+          <th>Stock ID</th>
+          <th>Total Stock</th>
+          <th>Total Stock Sold</th>
+          <th>Total Stock Percentage of Sale</th>
+          <th>Total Stock in Inventory</th>
+          <th>Total Stock in Warehouse</th>
+          <th>Total Stock Percentage in Store and Warehouse</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let sale of salesData">
+          <td>{{ sale.region }}</td>
+          <td>{{ sale.storename }}</td>
+          <td>{{ sale.collectorId }}</td>
+          <td>{{ sale.stockId }}</td>
+          <td>{{ sale.totalStock }}</td>
+          <td>{{ sale.totalStockSold }}</td>
+          <td>{{ sale.totalStockPercentageOfSale }}</td>
+          <td>{{ sale.totalStockInInventory }}</td>
+          <td>{{ sale.totalStockInWarehouse }}</td>
+          <td>{{ sale.totalStockPercentageInStoreAndWarehouse }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+*******************************************************
+/* sales-report.component.css */
+
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+  }
+  
+  .container.moved-to-top {
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 20px; /* Add padding for spacing */
+  }
+  
+  .input-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    transition: margin-top 0.3s ease-in-out;
+  }
+  
+  .input-section.moved-to-top {
+    margin-top: 20px; /* Adjust the margin based on your design */
+  }
+  
+  .label-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+  }
+  
+  label {
+    margin-right: 10px;
+  }
+  
+  .input-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+  }
+  
+  input {
+    padding: 8px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-right: 10px;
+  }
+  
+  button {
+    padding: 10px 20px;
+    font-size: 16px;
+    background-color: #007BFF;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  button:hover {
+    background-color: #0056b3;
+  }
+  
+  /* Show the sales report table only if data is available */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+  
+  th, td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+  }
+  
+  th {
+    background-color: #f2f2f2;
+  }
+  **************************************
+
+storeId: string;
+  salesData: any[];
+  isStoreIdEntered = false;
+  isGetReportClicked = false;
