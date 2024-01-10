@@ -1,196 +1,115 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Center Selection</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
+.dimension-report {
+  margin-top: 20px;
+}
 
-  <div id="app">
-    <h1>Select State and Centers</h1>
+.col-md-6 {
+  position: relative;
+}
 
-    <label for="state">State:</label>
-    <select id="stateSelect">
-      <option value="" disabled selected>Select State</option>
-      <option value="AP">Andhra Pradesh</option>
-      <option value="UP">Uttar Pradesh</option>
-      <option value="TN">Tamil Nadu</option>
-      <option value="KA">Karnataka</option>
-    </select>
+.filterdropdown {
+  padding: 5px;
+  cursor: pointer;
+}
 
-    <div id="centersContainer"></div>
+.filterdropdown.active {
+  background-color: #4CAF50; /* Green color when active */
+}
 
-    <button id="resetDropdowns">Reset Dropdowns</button>
-    <button id="showSelected">Show Selected</button>
-  </div>
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  display: none;
+  float: left;
+  min-width: 160px;
+  padding: 5px;
+  margin: 2px 0 0;
+  font-size: 14px;
+  text-align: left;
+  list-style: none;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
+}
 
-<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
-<script>
+.dropdown-menu.prop {
+  width: 250px;
+}
 
+.dropdown-menu a {
+  color: #333;
+  text-decoration: none;
+  display: block;
+  padding: 8px 10px;
+}
 
-  const states = {
-    AP: "Andhra Pradesh",
-    UP: "Uttar Pradesh",
-    TN: "Tamil Nadu",
-    KA: "Karnataka"
-  };
+.dropdown-menu a:hover {
+  background-color: #f5f5f5; /* Grey background on hover */
+}
 
-  const centersByState = {
-    AP: ['Tirupati', 'Visakhapatnam', 'Vijayawada'],
-    UP: ['Agra', 'Lucknow', 'Varanasi'],
-    TN: ['Chennai', 'Madurai', 'Coimbatore'],
-    KA: ['Bengaluru', 'Mysore', 'Mangaluru', 'Mangaluru-1', 'Mangaluru-2']
-  };
+.form-control {
+  display: inline-block;
+  width: 100%;
+  height: 30px;
+  padding: 6px 12px;
+  font-size: 14px;
+  line-height: 1.42857143;
+  color: #555;
+  background-color: #fff;
+  background-image: none;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
+  transition: border-color ease-in-out 0.15s, box-shadow ease-in-out 0.15s;
+}
 
-  let selectedCenters = []; // Stores currently selected centers
+.options {
+  margin-top: 10px;
+}
 
-  function bindEvents() {
-    $('#stateSelect').on('change', function () {
-      const state = $(this).val();
-      if (state) {
-        updateCenters(centersByState[state]);
-      } else {
-        $('#centersContainer').empty();
-      }
-    });
+.options ul {
+  padding: 0;
+  list-style-type: none;
+}
 
-    $(document).on('change', '.centerSelect', function () {
-      const selectedCenter = $(this).val();
-      const currentIndex = $(this).data('index');
+.options li {
+  margin-bottom: 5px;
+}
 
-      selectedCenters[currentIndex] = selectedCenter;
-      updateDropdownOptions();
-      updateSelectedOptions();
-    });
+.filterlink {
+  cursor: pointer;
+  color: #337ab7;
+  text-decoration: none;
+}
 
-    $(document).on('click', '.addDropdown', function () {
-      const centerOptions = centersByState[$('#stateSelect').val()];
-      const currentIndex = $('.centerSelect').length;
+.filterlink:hover {
+  text-decoration: underline;
+}
 
-      // Check if the maximum number of dropdowns has been reached
-      if (currentIndex < centerOptions.length) {
-        addDynamicDropdown(currentIndex, centerOptions);
-        updateSelectedOptions();
-      }
-    });
+.table {
+  width: 100%;
+  max-width: 100%;
+  margin-bottom: 20px;
+}
 
-    $(document).on('click', '.removeDropdown', function () {
-      const currentIndex = $(this).data('index');
-      // Check if the dropdown to be removed is not the first one
-      if (currentIndex > 0) {
-        removeDynamicDropdown(currentIndex);
-        updateSelectedOptions();
-        updateDropdownOptions();
-        updateDropdownIndices();
-      }
-    });
+.table th, .table td {
+  padding: 8px;
+  line-height: 1.42857143;
+  vertical-align: top;
+  border-top: 1px solid #ddd;
+}
 
-    $('#resetDropdowns').on('click', function () {
-      resetDropdowns();
-      updateSelectedOptions();
-    });
+.table th {
+  background-color: #f5f5f5;
+}
 
-    $('#showSelected').on('click', function () {
-      console.log('Selected Centers:', selectedCenters);
-    });
-  }
+.table tbody tr:nth-child(odd) {
+  background-color: #f9f9f9;
+}
 
-  function initForm() {
-    bindEvents();
-  }
-
-  function updateCenters(centerOptions) {
-    $('#centersContainer').empty();
-    addDynamicDropdown(0, centerOptions);
-  }
-
-  function addDynamicDropdown(index, centerOptions) {
-    const $select = $('<select>')
-      .addClass('centerSelect')
-      .data('index', index)
-      .append('<option value="" disabled selected>Select Center</option>');
-
-    centerOptions.forEach(center => {
-      const $option = $("<option>", {
-        value: center,
-        text: center
-      });
-
-      if (selectedCenters.indexOf(center) === -1) {
-        $select.append($option);
-      }
-    });
-
-    const $container = $('<div class="center">')
-      .append(`<label for="centerSelect${index}">Select Center:</label>`)
-      .append($select)
-      .append(`<button class="addDropdown" data-index="${index}">Add</button>`)
-      .append(`<button class="removeDropdown" data-index="${index}">Remove</button>`);
-
-    $('#centersContainer').append($container);
-  }
-
-  function updateDropdownOptions() {
-    const selectedCenters = $('.centerSelect').map(function () {
-      return $(this).val();
-    }).get();
-
-    $('.centerSelect option').prop('disabled', false);
-
-    selectedCenters.forEach(function (selectedCenter) {
-      $(`.centerSelect option[value="${selectedCenter}"]:not(:selected)`).prop('disabled', true);
-    });
-  }
-
-  function removeDynamicDropdown(currentIndex) {
-    const $parent = $('#centersContainer');
-    const indexesToRemove = [currentIndex];
-
-    $parent.children('.center').each(function (index, div) {
-      if (indexesToRemove.includes(index)) {
-        $(div).remove();
-      }
-    });
-    updateSelectedOptions();
-    updateDropdownIndices();
-    updateDropdownOptions();
-  }
-
-  function updateDropdownIndices() {
-    $('.centerSelect').each(function (index) {
-      $(this).data('index', index);
-      $(this).parent().find('.addDropdown').data('index', index);
-      $(this).parent().find('.removeDropdown').data('index', index);
-    });
-  }
-
-  function resetDropdowns() {
-    $('.centerSelect').each(function () {
-      const index = $(this).data('index');
-      $(this).parent().remove();
-    });
-
-    selectedCenters = [];
-    const centerOptions = centersByState[$('#stateSelect').val()];
-    addDynamicDropdown(0, centerOptions);
-  }
-
-  function updateSelectedOptions() {
-    selectedCenters = [];
-    $('.centerSelect').each(function () {
-      const selectedCenter = $(this).val();
-      if (selectedCenter) {
-        selectedCenters.push(selectedCenter);
-      }
-    });
-  }
-
-  $(document).ready(function () {
-    initForm();
-  });
-</script>
-
-</body>
-</html>
+.table-striped tbody tr:nth-child(odd) {
+  background-color: #f9f9f9;
+}
