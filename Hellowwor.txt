@@ -1,52 +1,30 @@
-// app.component.ts
-import { Component, OnInit } from '@angular/core';
-import { TreeView } from './tree-view.model';
-
-@Component({
-  selector: 'app-root',
-  template: `
-    <div *ngFor="let node of treeData">
-      <app-tree-node [node]="node" (nodeClick)="onNodeClick($event)"></app-tree-node>
+<!-- app.component.html -->
+<div class="tree">
+  <div class="node">
+    <span>Question 1</span>
+    <div class="child">
+      <span>Question 2</span>
     </div>
-  `,
-  styleUrls: ['./app.component.css'],
-})
-export class AppComponent implements OnInit {
-  treeData: TreeView[] = [];
+  </div>
+</div>
 
-  ngOnInit(): void {
-    this.treeData = this.getData();
-  }
+/* app.component.css */
+.tree {
+  display: flex;
+  flex-direction: column;
+}
 
-  onNodeClick(node: TreeView): void {
-    console.log('Node Clicked:', node);
-    // Handle click action here
-  }
+.node {
+  display: flex;
+  align-items: center;
+}
 
-  private getData(): TreeView[] {
-    return [
-      {
-        id: 1,
-        text: 'Question 1',
-        children: [
-          {
-            id: 2,
-            text: 'Question 2',
-            children: [
-              {
-                id: 3,
-                text: 'Question 3',
-                children: [],
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: 4,
-        text: 'Question 4',
-        children: [],
-      },
-    ];
-  }
+.node span {
+  margin-right: 10px;
+}
+
+.child {
+  margin-left: 20px;
+  border-left: 1px solid #333;
+  padding-left: 10px;
 }
