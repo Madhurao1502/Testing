@@ -1,34 +1,52 @@
-// tree-node.component.ts
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+// app.component.ts
+import { Component, OnInit } from '@angular/core';
 import { TreeView } from './tree-view.model';
 
 @Component({
-  selector: 'app-tree-node',
+  selector: 'app-root',
   template: `
-    <div class="tree-node">
-      {{ node.text }}
-      <div *ngIf="node.children && node.children.length > 0">
-        <app-tree-node
-          *ngFor="let child of node.children"
-          [node]="child"
-          (nodeClick)="onNodeClick($event)"
-        ></app-tree-node>
-      </div>
+    <div *ngFor="let node of treeData">
+      <app-tree-node [node]="node" (nodeClick)="onNodeClick($event)"></app-tree-node>
     </div>
   `,
-  styles: [
-    `
-      .tree-node {
-        margin-left: 20px; /* Adjust as needed */
-      }
-    `,
-  ],
+  styleUrls: ['./app.component.css'],
 })
-export class TreeNodeComponent {
-  @Input() node: TreeView;
-  @Output() nodeClick = new EventEmitter<TreeView>();
+export class AppComponent implements OnInit {
+  treeData: TreeView[] = [];
+
+  ngOnInit(): void {
+    this.treeData = this.getData();
+  }
 
   onNodeClick(node: TreeView): void {
-    this.nodeClick.emit(node);
+    console.log('Node Clicked:', node);
+    // Handle click action here
+  }
+
+  private getData(): TreeView[] {
+    return [
+      {
+        id: 1,
+        text: 'Question 1',
+        children: [
+          {
+            id: 2,
+            text: 'Question 2',
+            children: [
+              {
+                id: 3,
+                text: 'Question 3',
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 4,
+        text: 'Question 4',
+        children: [],
+      },
+    ];
   }
 }
