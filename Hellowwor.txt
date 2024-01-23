@@ -1,24 +1,3 @@
-/* app.component.css */
-:host {
-  font-family: Arial, sans-serif;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-}
-
-
-/* tree-node.component.css */
-.tree-node {
-  margin-left: 20px;
-  padding: 5px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background-color: #f9f9f9;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.tree-node:hover {
-  background-color: #e0e0e0;
-}
+<div *ngFor="let node of treeData">
+      <app-tree-node [node]="node" (nodeClick)="onNodeClick($event)"></app-tree-node>
+    </div>
