@@ -1,31 +1,25 @@
-// tree-node.component.ts
-import { Component, Input } from '@angular/core';
-import { TreeView } from './tree-view.model';
+/* app.component.css */
+.tree {
+  font-family: 'Arial', sans-serif;
+  padding: 20px;
+  background-color: #f5f5f5;
+  border-radius: 5px;
+  display: inline-block;
+}
 
-@Component({
-  selector: 'app-tree-node',
-  template: `
-    <div class="node" [style.marginLeft.px]="level * 50">
-      <span>{{ node.text }}</span>
-      <div *ngIf="node.children?.length > 0" class="child">
-        <app-tree-node *ngFor="let child of node.children" [node]="child" [level]="level + 1"></app-tree-node>
-      </div>
-    </div>
-  `,
-  styles: [
-    `
-      .node {
-        display: flex;
-        align-items: center;
-        margin-bottom: 10px;
-      }
-      .child {
-        margin-left: 20px;
-      }
-    `,
-  ],
-})
-export class TreeNodeComponent {
-  @Input() node: TreeView;
-  @Input() level: number = 0;
+.node {
+  background-color: #fff;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.3s;
+}
+
+.node:hover {
+  background-color: #e0f7fa;
+}
+
+.child {
+  padding-top: 10px;
 }
