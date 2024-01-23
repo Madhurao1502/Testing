@@ -1,3 +1,31 @@
-<div *ngFor="let node of treeData">
-      <app-tree-node [node]="node" (nodeClick)="onNodeClick($event)"></app-tree-node>
+// tree-node.component.ts
+import { Component, Input } from '@angular/core';
+import { TreeView } from './tree-view.model';
+
+@Component({
+  selector: 'app-tree-node',
+  template: `
+    <div class="node" [style.marginLeft.px]="level * 50">
+      <span>{{ node.text }}</span>
+      <div *ngIf="node.children?.length > 0" class="child">
+        <app-tree-node *ngFor="let child of node.children" [node]="child" [level]="level + 1"></app-tree-node>
+      </div>
     </div>
+  `,
+  styles: [
+    `
+      .node {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .child {
+        margin-left: 20px;
+      }
+    `,
+  ],
+})
+export class TreeNodeComponent {
+  @Input() node: TreeView;
+  @Input() level: number = 0;
+}
