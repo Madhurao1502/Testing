@@ -1,203 +1,54 @@
-<div class="container" [class.moved-to-top]="isGetReportClicked">
-  <div class="input-section">
-    <label for="storeId">Enter Store ID:</label>
-    <div class="input-container">
-      <input type="text" [(ngModel)]="storeId" id="storeId" />
-      <button (click)="getSalesReport()">Get Sales Report</button>
-    </div>
-  </div>
+// ... (previous code)
 
-  <div *ngIf="salesData">
-    <h2>Sales Report</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Region</th>
-          <th>Store Name</th>
-          <th>Collector ID</th>
-          <th>Stock ID</th>
-          <th>Total Stock</th>
-          <th>Total Stock Sold</th>
-          <th>Total Stock Percentage of Sale</th>
-          <th>Total Stock in Inventory</th>
-          <th>Total Stock in Warehouse</th>
-          <th>Total Stock Percentage in Store and Warehouse</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let sale of salesData">
-          <td>{{ sale.region }}</td>
-          <td>{{ sale.storename }}</td>
-          <td>{{ sale.collectorId }}</td>
-          <td>{{ sale.stockId }}</td>
-          <td>{{ sale.totalStock }}</td>
-          <td>{{ sale.totalStockSold }}</td>
-          <td>{{ sale.totalStockPercentageOfSale }}</td>
-          <td>{{ sale.totalStockInInventory }}</td>
-          <td>{{ sale.totalStockInWarehouse }}</td>
-          <td>{{ sale.totalStockPercentageInStoreAndWarehouse }}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-*******************************************************
-/* sales-report.component.css */
+validateFileHeaders(file: File) {
+  const reader = new FileReader();
 
-.container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-  }
-  
-  .container.moved-to-top {
-    align-items: flex-start;
-    justify-content: flex-start;
-    padding: 20px; /* Add padding for spacing */
-  }
-  
-  .input-section {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    margin-bottom: 20px;
-    transition: margin-top 0.3s ease-in-out;
-  }
-  
-  .input-section.moved-to-top {
-    margin-top: 20px; /* Adjust the margin based on your design */
-  }
-  
-  .label-container {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-  }
-  
-  label {
-    margin-right: 10px;
-  }
-  
-  .input-container {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-  }
-  
-  input {
-    padding: 8px;
-    font-size: 16px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    margin-right: 10px;
-  }
-  
-  button {
-    padding: 10px 20px;
-    font-size: 16px;
-    background-color: #007BFF;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-  
-  button:hover {
-    background-color: #0056b3;
-  }
-  
-  /* Show the sales report table only if data is available */
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-  }
-  
-  th, td {
-    border: 1px solid #ddd;
-    padding: 10px;
-    text-align: left;
-  }
-  
-  th {
-    background-color: #f2f2f2;
-  }
-  **************************************
+  reader.onload = (e: any) => {
+    const contents = e.target.result;
+    const lines = contents.split('\n');
+    const headerRow = lines[0].trim(); // Assuming headers are in the first row
 
-storeId: string;
-  salesData: any[];
-  isStoreIdEntered = false;
-  isGetReportClicked = false;
+    const expectedHeaders = 'RequestID|Id|SYS|Vendor|Item|Height|width|depth';
+    const expectedHeadersArray = expectedHeaders.split('|');
+    const fileHeadersArray = headerRow.split('|');
 
-****************
+    if (!this.areArraysEqual(expectedHeadersArray, fileHeadersArray)) {
+      console.error('File headers are not valid');
+      // Handle invalid headers (show error message, etc.)
+      return;
+    }
 
-/* sales.component.css */
+    const jsonDataArray = [];
 
-.header {
-  background-color: #333;
-  color: #fff;
-  text-align: center;
-  padding: 20px 0;
+    // Validate data and convert to JSON
+    for (let i = 1; i < lines.length; i++) {
+      const dataRow = lines[i].trim();
+      if (dataRow !== '') {
+        const dataValues = dataRow.split('|');
+
+        if (dataValues.length === expectedHeadersArray.length) {
+          const rowData = {};
+          for (let j = 0; j < dataValues.length; j++) {
+            const header = expectedHeadersArray[j];
+            const value = dataValues[j].trim();
+            // Add the key-value pair to the rowData object
+            rowData[header] = value;
+          }
+          // Add the rowData object to the JSON array
+          jsonDataArray.push(rowData);
+        } else {
+          console.error(`Invalid data at line ${i + 1}: Number of columns does not match headers`);
+          // Handle invalid data (show error message, etc.)
+          return;
+        }
+      }
+    }
+
+    // If all checks pass, jsonDataArray now contains the JSON representation of the CSV data
+    console.log('JSON data:', jsonDataArray);
+
+    // You can now use the jsonDataArray for further processing or send it to the server
+  };
+
+  reader.readAsText(file);
 }
-
-.container {
-  max-width: 800px;
-  margin: 20px auto;
-  background-color: #fff;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-}
-
-.input-section {
-  margin-bottom: 20px;
-}
-
-.input-container {
-  display: flex;
-  align-items: center;
-}
-
-input {
-  padding: 8px;
-  font-size: 16px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  margin-right: 10px;
-}
-
-button {
-  padding: 10px 20px;
-  font-size: 16px;
-  background-color: #007BFF;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-button:hover {
-  background-color: #0056b3;
-}
-
-.sales-report-section {
-  margin-top: 20px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th, td {
-  border: 1px solid #ddd;
-  padding: 10px;
-  text-align: left;
-}
-
-th {
-  background-color: #f2f2f2;
-}
-
