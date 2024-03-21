@@ -1,54 +1,99 @@
-// ... (previous code)
+<mat-form-field>
+  <input matInput [matAutocomplete]="auto1" placeholder="Sort 1" [(ngModel)]="sortOptions[0]">
+  <mat-autocomplete #auto1="matAutocomplete">
+    <mat-option *ngFor="let option of sortOptionsList" [value]="option.value" [disabled]="isOptionDisabled(option.value, 0)">
+      <span>{{ option.viewValue }}</span>
+      <mat-icon (click)="clearSelection(0)">clear</mat-icon>
+    </mat-option>
+  </mat-autocomplete>
+</mat-form-field>
 
-validateFileHeaders(file: File) {
-  const reader = new FileReader();
+<mat-form-field>
+  <input matInput [matAutocomplete]="auto2" placeholder="Sort 2" [(ngModel)]="sortOptions[1]">
+  <mat-autocomplete #auto2="matAutocomplete">
+    <mat-option *ngFor="let option of sortOptionsList" [value]="option.value" [disabled]="isOptionDisabled(option.value, 1)">
+      <span>{{ option.viewValue }}</span>
+      <mat-icon (click)="clearSelection(1)">clear</mat-icon>
+    </mat-option>
+  </mat-autocomplete>
+</mat-form-field>
 
-  reader.onload = (e: any) => {
-    const contents = e.target.result;
-    const lines = contents.split('\n');
-    const headerRow = lines[0].trim(); // Assuming headers are in the first row
+<mat-form-field>
+  <input matInput [matAutocomplete]="auto3" placeholder="Sort 3" [(ngModel)]="sortOptions[2]">
+  <mat-autocomplete #auto3="matAutocomplete">
+    <mat-option *ngFor="let option of sortOptionsList" [value]="option.value" [disabled]="isOptionDisabled(option.value, 2)">
+      <span>{{ option.viewValue }}</span>
+      <mat-icon (click)="clearSelection(2)">clear</mat-icon>
+    </mat-option>
+  </mat-autocomplete>
+</mat-form-field>
 
-    const expectedHeaders = 'RequestID|Id|SYS|Vendor|Item|Height|width|depth';
-    const expectedHeadersArray = expectedHeaders.split('|');
-    const fileHeadersArray = headerRow.split('|');
 
-    if (!this.areArraysEqual(expectedHeadersArray, fileHeadersArray)) {
-      console.error('File headers are not valid');
-      // Handle invalid headers (show error message, etc.)
-      return;
-    }
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>.
 
-    const jsonDataArray = [];
+  sortOptionsList = [
+    { value: 'nameAsc', viewValue: 'Name (Ascending)', disabled: false },
+    { value: 'nameDesc', viewValue: 'Name (Descending)', disabled: false },
+    { value: 'empIdAsc', viewValue: 'EmployeeID (Ascending)', disabled: false },
+    { value: 'empIdDesc', viewValue: 'EmployeeID (Descending)', disabled: false },
+    { value: 'companyIdAsc', viewValue: 'CompanyID (Ascending)', disabled: false },
+    { value: 'companyIdDesc', viewValue: 'CompanyID (Descending)', disabled: false }
+  ];
 
-    // Validate data and convert to JSON
-    for (let i = 1; i < lines.length; i++) {
-      const dataRow = lines[i].trim();
-      if (dataRow !== '') {
-        const dataValues = dataRow.split('|');
+  sortOptions: string[] = ['', '', '']; // Array to hold selected options
 
-        if (dataValues.length === expectedHeadersArray.length) {
-          const rowData = {};
-          for (let j = 0; j < dataValues.length; j++) {
-            const header = expectedHeadersArray[j];
-            const value = dataValues[j].trim();
-            // Add the key-value pair to the rowData object
-            rowData[header] = value;
-          }
-          // Add the rowData object to the JSON array
-          jsonDataArray.push(rowData);
-        } else {
-          console.error(`Invalid data at line ${i + 1}: Number of columns does not match headers`);
-          // Handle invalid data (show error message, etc.)
-          return;
-        }
+  ngOnInit() {
+    // Set initial selections
+    this.sortOptions[0] = 'nameAsc';
+    this.sortOptions[1] = 'empIdAsc';
+    this.sortOptions[2] = 'companyIdAsc';
+  }
+
+  isOptionDisabled(optionValue: string, index: number): boolean {
+    // Check if the option is already selected in other selects or within the same group
+    const selectedOptions = this.sortOptions.filter((value, i) => i !== index);
+    const optionGroup = this.getOptionGroup(optionValue);
+    const isOptionInGroup = selectedOptions.some(option => this.getOptionGroup(option) === optionGroup);
+    return isOptionInGroup;
+  }
+
+  updateOptions(index: number) {
+    // Update the selected options to prevent duplicates
+    const selectedOption = this.sortOptions[index];
+    this.sortOptions.forEach((option, i) => {
+      if (i !== index && option === selectedOption) {
+        this.sortOptions[i] = ''; // Reset other selects if they have the same selection
       }
+    });
+  }
+
+  clearSelection(index: number) {
+    // Clear the selected option
+    this.sortOptions[index] = '';
+
+    // Enable previously disabled options
+    this.enableAllOptions();
+  }
+
+  enableAllOptions() {
+    // Enable all options
+    this.sortOptionsList.forEach(option => option.disabled = false);
+  }
+
+  getOptionGroup(optionValue: string): string {
+    // Helper function to determine the group of the given option
+    switch (optionValue) {
+      case 'nameAsc':
+      case 'nameDesc':
+        return 'name';
+      case 'empIdAsc':
+      case 'empIdDesc':
+        return 'empId';
+      case 'companyIdAsc':
+      case 'companyIdDesc':
+        return 'companyId';
+      default:
+        return '';
     }
-
-    // If all checks pass, jsonDataArray now contains the JSON representation of the CSV data
-    console.log('JSON data:', jsonDataArray);
-
-    // You can now use the jsonDataArray for further processing or send it to the server
-  };
-
-  reader.readAsText(file);
+  }
 }
