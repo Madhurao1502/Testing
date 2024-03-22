@@ -1,29 +1,8 @@
 <mat-form-field>
-  <input matInput [matAutocomplete]="auto1" placeholder="Sort 1" [(ngModel)]="sortOptions[0]">
-  <mat-autocomplete #auto1="matAutocomplete">
-    <mat-option *ngFor="let option of sortOptionsList" [value]="option.value" [disabled]="isOptionDisabled(option.value, 0)">
-      <span>{{ option.viewValue }}</span>
-      <mat-icon (click)="clearSelection(0)">clear</mat-icon>
-    </mat-option>
-  </mat-autocomplete>
-</mat-form-field>
-
-<mat-form-field>
-  <input matInput [matAutocomplete]="auto2" placeholder="Sort 2" [(ngModel)]="sortOptions[1]">
-  <mat-autocomplete #auto2="matAutocomplete">
-    <mat-option *ngFor="let option of sortOptionsList" [value]="option.value" [disabled]="isOptionDisabled(option.value, 1)">
-      <span>{{ option.viewValue }}</span>
-      <mat-icon (click)="clearSelection(1)">clear</mat-icon>
-    </mat-option>
-  </mat-autocomplete>
-</mat-form-field>
-
-<mat-form-field>
-  <input matInput [matAutocomplete]="auto3" placeholder="Sort 3" [(ngModel)]="sortOptions[2]">
-  <mat-autocomplete #auto3="matAutocomplete">
-    <mat-option *ngFor="let option of sortOptionsList" [value]="option.value" [disabled]="isOptionDisabled(option.value, 2)">
-      <span>{{ option.viewValue }}</span>
-      <mat-icon (click)="clearSelection(2)">clear</mat-icon>
+  <input type="text" [(ngModel)]="searchQuery" (input)="search()" matInput [matAutocomplete]="auto" placeholder="Search stores">
+  <mat-autocomplete #auto="matAutocomplete">
+    <mat-option *ngFor="let store of filteredStores" [value]="store.name">
+      {{ store.name }} {{ store.storeNumber ? '- ' + store.storeNumber : '' }}
     </mat-option>
   </mat-autocomplete>
 </mat-form-field>
@@ -31,69 +10,43 @@
 
 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>.
 
-  sortOptionsList = [
-    { value: 'nameAsc', viewValue: 'Name (Ascending)', disabled: false },
-    { value: 'nameDesc', viewValue: 'Name (Descending)', disabled: false },
-    { value: 'empIdAsc', viewValue: 'EmployeeID (Ascending)', disabled: false },
-    { value: 'empIdDesc', viewValue: 'EmployeeID (Descending)', disabled: false },
-    { value: 'companyIdAsc', viewValue: 'CompanyID (Ascending)', disabled: false },
-    { value: 'companyIdDesc', viewValue: 'CompanyID (Descending)', disabled: false }
-  ];
+import {Component} from '@angular/core';
+interface Store {
+  name: string;
+  storeNumber?: string;
+}
+/**
+ * @title Basic Inputs
+ */
+@Component({
+  selector: 'input-overview-example',
+  styleUrls: ['input-overview-example.css'],
+  templateUrl: 'input-overview-example.html',
+})
+export class InputOverviewExample {   
+  
+  stores: Store[] = [
+  { name: 'Walmart' },
+  { name: 'Walmart Bay' },
+  { name: 'Walmart not' }, 
+  { name: 'Walmart Super', storeNumber: '1005' },
+  { name: 'Walmart Super', storeNumber: '1567' },
+  { name: 'nena Bay' },
+];
 
-  sortOptions: string[] = ['', '', '']; // Array to hold selected options
+filteredStores: Store[] = [];
+searchQuery: string = '';
 
-  ngOnInit() {
-    // Set initial selections
-    this.sortOptions[0] = 'nameAsc';
-    this.sortOptions[1] = 'empIdAsc';
-    this.sortOptions[2] = 'companyIdAsc';
-  }
+constructor() {
+  this.filteredStores = this.stores;
+}
 
-  isOptionDisabled(optionValue: string, index: number): boolean {
-    // Check if the option is already selected in other selects or within the same group
-    const selectedOptions = this.sortOptions.filter((value, i) => i !== index);
-    const optionGroup = this.getOptionGroup(optionValue);
-    const isOptionInGroup = selectedOptions.some(option => this.getOptionGroup(option) === optionGroup);
-    return isOptionInGroup;
-  }
+search(): void {
+  const query = this.searchQuery.toLowerCase().trim();
+  this.filteredStores = this.stores.filter(store =>
+    store.name.toLowerCase().includes(query) ||
+    (store.storeNumber && store.storeNumber.toLowerCase().includes(query))
+  );
+}
 
-  updateOptions(index: number) {
-    // Update the selected options to prevent duplicates
-    const selectedOption = this.sortOptions[index];
-    this.sortOptions.forEach((option, i) => {
-      if (i !== index && option === selectedOption) {
-        this.sortOptions[i] = ''; // Reset other selects if they have the same selection
-      }
-    });
-  }
-
-  clearSelection(index: number) {
-    // Clear the selected option
-    this.sortOptions[index] = '';
-
-    // Enable previously disabled options
-    this.enableAllOptions();
-  }
-
-  enableAllOptions() {
-    // Enable all options
-    this.sortOptionsList.forEach(option => option.disabled = false);
-  }
-
-  getOptionGroup(optionValue: string): string {
-    // Helper function to determine the group of the given option
-    switch (optionValue) {
-      case 'nameAsc':
-      case 'nameDesc':
-        return 'name';
-      case 'empIdAsc':
-      case 'empIdDesc':
-        return 'empId';
-      case 'companyIdAsc':
-      case 'companyIdDesc':
-        return 'companyId';
-      default:
-        return '';
-    }
-  }
 }
