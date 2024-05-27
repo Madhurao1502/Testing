@@ -1,162 +1,69 @@
-<!-- app.component.html -->
-<form [formGroup]="fileUploadForm" (ngSubmit)="uploadFile()">
-  <label for="file">Choose a file:</label>
-  <input type="file" id="file" (change)="onFileSelected($event)" />
-  <button type="submit" [disabled]="fileUploadForm.invalid">Upload</button>
-</form>
+<div class="popup-overlay" (click)="closePopup()"></div>
+<div class="popup-content" cdkDrag>
+  <div class="popup-header" cdkDragHandle>
+    <span class="close-icon" (click)="closePopup()">&times;</span>
+    <h2>Download Information</h2>
+  </div>
+  <p>Download last run Date:</p>
+  <p>Downloads were created on {{ lastRunDate }} for week 1750</p>
+  <p *ngIf="scheduleDate">Tasks were scheduled for Downloads on {{ scheduleDate }}</p>
+  <button (click)="disableDownloads()" class="disable-button">Disable Downloads</button>
+</div>
 
 
-
-// app.component.ts
-import { Component, ElementRef, ViewChild } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
-
-@Component({
-  selector: 'app-root',
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.css']
-})
-export class AppComponent {
-  @ViewChild('fileInput') fileInput: ElementRef;
-
-  fileUploadForm: FormGroup;
-
-  constructor(private fb: FormBuilder, private http: HttpClient) {
-    this.fileUploadForm = this.fb.group({
-      file: [null, Validators.required]
-    });
-  }
-
-  onFileSelected(event: any) {
-    const file = event.target.files[0];
-    this.fileUploadForm.patchValue({ file });
-
-    // Perform validation on file content (Example: Check if it's a CSV file)
-    if (file.type !== 'application/vnd.ms-excel') {
-      console.error('Invalid file type. Please upload a CSV file.');
-      this.fileInput.nativeElement.value = ''; // Clear file input
-      this.fileUploadForm.reset();
-    }
-  }
-
-  uploadFile() {
-    const formData = new FormData();
-    formData.append('file', this.fileUploadForm.get('file').value);
-
-    // You can also include additional data in the FormData
-    // formData.append('additionalData', this.fileUploadForm.get('additionalData').value);
-
-    this.http.post('/api/upload', formData)
-      .subscribe(response => {
-        // Handle successful upload
-        console.log('File uploaded successfully:', response);
-      }, error => {
-        // Handle upload errors
-        console.error('Error uploading file:', error);
-      });
-  }
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
 }
 
+.popup-content {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 1001;
+  width: 300px;
+  border-radius: 8px;
+  text-align: center;
+  position: relative;
+}
 
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: move;
+}
 
+h2 {
+  margin: 0;
+  flex-grow: 1;
+  text-align: center;
+}
 
+.close-icon {
+  font-size: 24px;
+  cursor: pointer;
+}
 
+.disable-button {
+  background-color: #ff4c4c;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-top: 20px;
+}
 
-
-
-
-
-
-
-
-
-
-
-<!-- app.component.html -->
-<form [formGroup]="fileUploadForm" (ngSubmit)="uploadFile()">
-  <label for="file">Choose a file:</label>
-  <input type="file" id="file" (change)="onFileSelected($event)" />
-  <button type="submit" [disabled]="fileUploadForm.invalid">Upload</button>
-</form>
-
-
-
-
-
-
-
-// app.component.ts
-import { Component, ElementRef, ViewChild } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
-import * as Papa from 'papaparse';
-
-@Component({
-  selector: 'app-root',
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.css']
-})
-export class AppComponent {
-  @ViewChild('fileInput') fileInput: ElementRef;
-
-  fileUploadForm: FormGroup;
-
-  constructor(private fb: FormBuilder, private http: HttpClient) {
-    this.fileUploadForm = this.fb.group({
-      file: [null, Validators.required]
-    });
-  }
-
-  onFileSelected(event: any) {
-    const file = event.target.files[0];
-    this.fileUploadForm.patchValue({ file });
-
-    // Perform validation on file content (Example: Check if it's a CSV file)
-    if (file.type !== 'application/vnd.ms-excel') {
-      console.error('Invalid file type. Please upload a CSV file.');
-      this.fileInput.nativeElement.value = ''; // Clear file input
-      this.fileUploadForm.reset();
-    } else {
-      this.validateCSV(file);
-    }
-  }
-
-  validateCSV(file: File) {
-    Papa.parse(file, {
-      complete: (result) => {
-        // You can perform custom validation on the parsed CSV data
-        const csvData = result.data;
-        if (!this.isValidCSVData(csvData)) {
-          console.error('Invalid CSV data. Please check the file content.');
-          this.fileInput.nativeElement.value = ''; // Clear file input
-          this.fileUploadForm.reset();
-        }
-      },
-      header: true // Assumes the first row is a header
-    });
-  }
-
-  isValidCSVData(csvData: any[]): boolean {
-    // Add your custom validation logic here
-    // For example, check if the CSV data has the required columns, etc.
-    return true; // Replace with your validation logic
-  }
-
-  uploadFile() {
-    const formData = new FormData();
-    formData.append('file', this.fileUploadForm.get('file').value);
-
-    // You can also include additional data in the FormData
-    // formData.append('additionalData', this.fileUploadForm.get('additionalData').value);
-
-    this.http.post('/api/upload', formData)
-      .subscribe(response => {
-        // Handle successful upload
-        console.log('File uploaded successfully:', response);
-      }, error => {
-        // Handle upload errors
-        console.error('Error uploading file:', error);
-      });
-  }
+.disable-button:hover {
+  background-color: #e04343;
 }
