@@ -4,9 +4,11 @@
     <span class="close-icon" (click)="closePopup()">&times;</span>
     <h2>Download Information</h2>
   </div>
-  <p>Download last run Date:</p>
-  <p>Downloads were created on {{ lastRunDate }} for week 1750</p>
-  <p *ngIf="scheduleDate">Tasks were scheduled for Downloads on {{ scheduleDate }}</p>
+  <div class="popup-body">
+    <p>Download last run Date:</p>
+    <p>Downloads were created on {{ lastRunDate }} for week 1750</p>
+    <p *ngIf="scheduleDate">Tasks were scheduled for Downloads on {{ scheduleDate }}</p>
+  </div>
   <button (click)="disableDownloads()" class="disable-button">Disable Downloads</button>
 </div>
 
