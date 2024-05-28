@@ -1,338 +1,163 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Center Selection</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
+<!-- custom-form.component.html -->
+<div class="form-container">
+  <form [formGroup]="form" (ngSubmit)="onSubmit()">
+    <div class="form-group">
+      <label for="name">Name / Number:</label>
+      <input id="name" type="text" formControlName="name">
+    </div>
 
-  <div id="app">
-    <h1>Select State and Centers</h1>
+    <div class="form-group">
+      <label for="type">Type:</label>
+      <select id="type" formControlName="type">
+        <option *ngFor="let type of types" [value]="type">{{ type }}</option>
+      </select>
+    </div>
 
-    <label for="state">State:</label>
-    <select id="stateSelect">
-      <option value="" disabled selected>Select State</option>
-      <option value="AP">Andhra Pradesh</option>
-      <option value="UP">Uttar Pradesh</option>
-      <option value="TN">Tamil Nadu</option>
-      <option value="KA">Karnataka</option>
-    </select>
+    <div class="form-group">
+      <label for="description">Description:</label>
+      <input id="description" type="text" formControlName="description">
+    </div>
 
-    <div id="centersContainer"></div>
+    <div class="form-group">
+      <label for="version">Version:</label>
+      <select id="version" formControlName="version" disabled>
+        <option *ngFor="let version of versions" [value]="version">{{ version }}</option>
+      </select>
+    </div>
 
-    <button id="resetDropdowns">Reset Dropdowns</button>
-    <button id="showSelected">Show Selected</button>
-  </div>
+    <div class="form-group">
+      <label for="manager">Manager:</label>
+      <input id="manager" type="text" formControlName="manager">
+    </div>
 
-<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
-<script>
-  const states = {
-    AP: "Andhra Pradesh",
-    UP: "Uttar Pradesh",
-    TN: "Tamil Nadu",
-    KA: "Karnataka"
-  };
+    <div class="form-group">
+      <label for="clientName">Client Name:</label>
+      <select id="clientName" formControlName="clientName">
+        <option *ngFor="let client of clients" [value]="client">{{ client }}</option>
+      </select>
+    </div>
 
-  const centersByState = {
-    AP: ['Tirupati', 'Visakhapatnam', 'Vijayawada'],
-    UP: ['Agra', 'Lucknow', 'Varanasi'],
-    TN: ['Chennai', 'Madurai', 'Coimbatore'],
-    KA: ['Bengaluru', 'Mysore', 'Mangaluru','Mangaluru-1','Mangaluru-2']
-  };
+    <div class="form-group">
+      <label for="contactNumber">Contact Number:</label>
+      <input id="contactNumber" type="text" formControlName="contactNumber" (blur)="formatPhoneNumber()">
+    </div>
 
-  let selectedCenters = []; // Stores currently selected centers
+    <div class="form-group">
+      <label for="isThisAReplacement">Is this a replacement:</label>
+      <input id="isThisAReplacement" type="checkbox" formControlName="isThisAReplacement">
+    </div>
 
-  function initForm() {
-    $('#stateSelect').on('change', function () {
-      const state = $(this).val();
-      if (state) {
-        updateCenters(centersByState[state]);
-      } else {
-        $('#centersContainer').empty();
-      }
-    });
+    <div class="form-group">
+      <label for="vendor">Vendor:</label>
+      <select id="vendor" formControlName="vendor">
+        <option *ngFor="let vendor of vendors" [value]="vendor">{{ vendor }}</option>
+      </select>
+    </div>
 
-    $(document).on('change', '.centerSelect', function () {
-      const selectedCenter = $(this).val();
-      const currentIndex = $(this).data('index');
+    <div class="form-group">
+      <label for="type2">Type:</label>
+      <select id="type2" formControlName="type2">
+        <option *ngFor="let type of types" [value]="type">{{ type }}</option>
+      </select>
+    </div>
 
-      selectedCenters[currentIndex] = selectedCenter;
-      updateDropdownOptions(currentIndex, selectedCenter);
-      updateSelectedOptions();
-    });
+    <button type="submit" [disabled]="form.invalid">Submit</button>
+  </form>
+</div>
+***********************
+// custom-form.component.ts
+import { Component, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 
-    $('#resetDropdowns').on('click', function () {
-      resetDropdowns();
-      updateSelectedOptions();
-    });
+@Component({
+  selector: 'app-custom-form',
+  templateUrl: './custom-form.component.html',
+  styleUrls: ['./custom-form.component.css']
+})
+export class CustomFormComponent implements OnInit {
+  form: FormGroup;
+  types = ['one', 'two'];
+  versions = ['v1.0', 'v2.0'];
+  clients = ['Client A', 'Client B', 'Client C']; // This would ideally come from a function/service
+  vendors = ['Vendor X', 'Vendor Y', 'Vendor Z']; // This would also come from a function/service
 
-    $('#showSelected').on('click', function () {
-      console.log('Selected Centers:', selectedCenters);
-    });
-  }
-
- function updateCenters(centerOptions) {
-  $('#centersContainer').empty();
-
-  for (let i = 0; i < centerOptions.length; i++) {
-    const $select = $('<select>')
-      .attr('id', `centerSelect${i}`)
-      .addClass('centerSelect')
-      .data('index', i)
-      .append('<option value="" disabled selected>Select Center</option>');
-
-    centerOptions.forEach(center => {
-      const $option = $("<option>", {
-        value: center,
-        text: center
-      });
-
-      // Check if this option was previously selected
-      if (selectedCenters[i] === center) {
-        $option.prop('selected', true);
-      }
-
-      $select.append($option);
-    });
-
-    $('#centersContainer').append(`
-      <div class="center">
-        <label for="centerSelect${i}">Select Center:</label>
-      </div>
-    `);
-
-    $('#centersContainer .center:last-child').append($select);
-  }
-}
-
-
-  function updateDropdownOptions(currentIndex, selectedCenter) {
-    $('.centerSelect').each(function () {
-      const index = $(this).data('index');
-
-      if (index !== currentIndex) {
-        $(this).find(`option[value="${selectedCenter}"]`).remove();
-      }
+  constructor(private fb: FormBuilder) {
+    this.form = this.fb.group({
+      name: ['', Validators.required],
+      type: ['', Validators.required],
+      description: ['', Validators.required],
+      version: [{ value: 'v1.0', disabled: true }, Validators.required],
+      manager: ['', Validators.required],
+      clientName: ['', Validators.required],
+      contactNumber: ['', [Validators.required, Validators.pattern(/^\(\d{3}\) \d{3}-\d{4}$/)]], // US phone number format
+      isThisAReplacement: [false],
+      vendor: ['', Validators.required],
+      type2: ['', Validators.required]
     });
   }
 
-$('#resetDropdowns').on('click', function () {
-  resetDropdowns();
-  updateSelectedOptions();
-});
-
-  function resetDropdowns() {
-  $('.centerSelect').each(function () {
-    const index = $(this).data('index');
-    const centerOptions = centersByState[$('#stateSelect').val()];
-
-    // Remove all options
-    $(this).find('option').remove();
-    $(this).append('<option value="" disabled selected>Select Center</option>');
-
-    // Re-add all options
-    centerOptions.forEach(center => {
-      const $option = $("<option>", {
-        value: center,
-        text: center
-      });
-
-      $(this).append($option);
-    });
-
-    // Reset the selected option to the disabled one
-    $(this).val('');
-  });
-
-  // Reset the selected centers array
-  selectedCenters = [];
-}
-
-  function updateSelectedOptions() {
-    selectedCenters = [];
-    $('.centerSelect').each(function () {
-      const selectedCenter = $(this).val();
-      if (selectedCenter) {
-        selectedCenters.push(selectedCenter);
-      }
-    });
+  ngOnInit(): void {
+    // Optionally load clients and vendors from a service
+    // this.loadClients();
+    // this.loadVendors();
   }
 
-  $(document).ready(function () {
-    initForm();
-  });
-</script>
-
-</body>
-</html>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Center Selection</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-
-  <div id="app">
-    <h1>Select State and Centers</h1>
-
-    <label for="state">State:</label>
-    <select id="stateSelect">
-      <option value="" disabled selected>Select State</option>
-      <option value="AP">Andhra Pradesh</option>
-      <option value="UP">Uttar Pradesh</option>
-      <option value="TN">Tamil Nadu</option>
-      <option value="KA">Karnataka</option>
-    </select>
-
-    <div id="centersContainer"></div>
-
-    <button id="resetDropdowns">Reset Dropdowns</button>
-    <button id="showSelected">Show Selected</button>
-  </div>
-
-<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
-<script>
-  const states = {
-    AP: "Andhra Pradesh",
-    UP: "Uttar Pradesh",
-    TN: "Tamil Nadu",
-    KA: "Karnataka"
-  };
-
-  const centersByState = {
-    AP: ['Tirupati', 'Visakhapatnam', 'Vijayawada'],
-    UP: ['Agra', 'Lucknow', 'Varanasi'],
-    TN: ['Chennai', 'Madurai', 'Coimbatore'],
-    KA: ['Bengaluru', 'Mysore', 'Mangaluru','Mangaluru-1','Mangaluru-2']
-  };
-
-  let selectedCenters = []; // Stores currently selected centers
-
-  function initForm() {
-    $('#stateSelect').on('change', function () {
-      const state = $(this).val();
-      if (state) {
-        updateCenters(centersByState[state]);
-      } else {
-        $('#centersContainer').empty();
+  formatPhoneNumber(): void {
+    const phoneControl = this.form.get('contactNumber');
+    if (phoneControl && phoneControl.value) {
+      const cleaned = ('' + phoneControl.value).replace(/\D/g, '');
+      const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
+      if (match) {
+        phoneControl.setValue(`(${match[1]}) ${match[2]}-${match[3]}`);
       }
-    });
-
-    $(document).on('change', '.centerSelect', function () {
-      const selectedCenter = $(this).val();
-      const currentIndex = $(this).data('index');
-
-      selectedCenters[currentIndex] = selectedCenter;
-      updateDropdownOptions(currentIndex, selectedCenter);
-      updateSelectedOptions();
-    });
-
-    $('#resetDropdowns').on('click', function () {
-      resetDropdowns();
-      updateSelectedOptions();
-    });
-
-    $('#showSelected').on('click', function () {
-      console.log('Selected Centers:', selectedCenters);
-    });
+    }
   }
 
- function updateCenters(centerOptions) {
-  $('#centersContainer').empty();
-
-  for (let i = 0; i < centerOptions.length; i++) {
-    const $select = $('<select>')
-      .attr('id', `centerSelect${i}`)
-      .addClass('centerSelect')
-      .data('index', i)
-      .append('<option value="" disabled selected>Select Center</option>');
-
-    centerOptions.forEach(center => {
-      const $option = $("<option>", {
-        value: center,
-        text: center
-      });
-
-      // Check if this option was previously selected
-      if (selectedCenters[i] === center) {
-        $option.prop('selected', true);
-      }
-
-      $select.append($option);
-    });
-
-    $('#centersContainer').append(`
-      <div class="center">
-        <label for="centerSelect${i}">Select Center:</label>
-      </div>
-    `);
-
-    $('#centersContainer .center:last-child').append($select);
+  onSubmit(): void {
+    if (this.form.valid) {
+      console.log(this.form.value);
+    }
   }
 }
+*********************************
 
-
-  function updateDropdownOptions(currentIndex, selectedCenter) {
-    $('.centerSelect').each(function () {
-      const index = $(this).data('index');
-
-      if (index !== currentIndex) {
-        $(this).find(`option[value="${selectedCenter}"]`).remove();
-      }
-    });
-  }
-
-$('#resetDropdowns').on('click', function () {
-  resetDropdowns();
-  updateSelectedOptions();
-});
-
-  function resetDropdowns() {
-  $('.centerSelect').each(function () {
-    const index = $(this).data('index');
-    const centerOptions = centersByState[$('#stateSelect').val()];
-
-    // Remove all options
-    $(this).find('option').remove();
-    $(this).append('<option value="" disabled selected>Select Center</option>');
-
-    // Re-add all options
-    centerOptions.forEach(center => {
-      const $option = $("<option>", {
-        value: center,
-        text: center
-      });
-
-      $(this).append($option);
-    });
-
-    // Reset the selected option to the disabled one
-    $(this).val('');
-  });
-
-  // Reset the selected centers array
-  selectedCenters = [];
+/* custom-form.component.css */
+.form-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  background-color: #f9f9f9;
 }
 
-  function updateSelectedOptions() {
-    selectedCenters = [];
-    $('.centerSelect').each(function () {
-      const selectedCenter = $(this).val();
-      if (selectedCenter) {
-        selectedCenters.push(selectedCenter);
-      }
-    });
-  }
+.form-group {
+  margin-bottom: 15px;
+}
 
-  $(document).ready(function () {
-    initForm();
-  });
-</script>
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
 
-</body>
-</html>
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+}
+
+button:disabled {
+  background-color: #cccccc;
+}
