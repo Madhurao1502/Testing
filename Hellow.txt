@@ -5,180 +5,87 @@
 
 <div class="form-container">
   <form [formGroup]="form" (ngSubmit)="onSubmit()">
-    <mat-card>
-      <mat-card-content>
-        <div class="form-group">
-          <mat-form-field appearance="outline">
-            <mat-label>Name / Number</mat-label>
-            <input matInput formControlName="name">
-          </mat-form-field>
-        </div>
-
-        <div class="form-group">
-          <mat-form-field appearance="outline">
-            <mat-label>Type</mat-label>
-            <mat-select formControlName="type">
-              <mat-option *ngFor="let type of types" [value]="type">{{ type }}</mat-option>
-            </mat-select>
-          </mat-form-field>
-        </div>
-
-        <div class="form-group">
-          <mat-form-field appearance="outline">
-            <mat-label>Description</mat-label>
-            <input matInput formControlName="description">
-          </mat-form-field>
-        </div>
-
-        <div class="form-group">
-          <mat-form-field appearance="outline">
-            <mat-label>Version</mat-label>
-            <mat-select formControlName="version" disabled>
-              <mat-option *ngFor="let version of versions" [value]="version">{{ version }}</mat-option>
-            </mat-select>
-          </mat-form-field>
-        </div>
-
-        <div class="form-group">
-          <mat-form-field appearance="outline">
-            <mat-label>Manager</mat-label>
-            <input matInput formControlName="manager">
-          </mat-form-field>
-        </div>
-
-        <div class="form-group">
-          <mat-form-field appearance="outline">
-            <mat-label>Client Name</mat-label>
-            <mat-select formControlName="clientName">
-              <mat-option *ngFor="let client of clients" [value]="client">{{ client }}</mat-option>
-            </mat-select>
-          </mat-form-field>
-        </div>
-
-        <div class="form-group">
-          <mat-form-field appearance="outline">
-            <mat-label>Contact Number</mat-label>
-            <input matInput formControlName="contactNumber" (blur)="formatPhoneNumber()">
-          </mat-form-field>
-        </div>
-
-        <div class="form-group">
-          <mat-checkbox formControlName="isThisAReplacement">Is this a replacement</mat-checkbox>
-        </div>
-
-        <div class="form-group">
-          <mat-form-field appearance="outline">
-            <mat-label>Vendor</mat-label>
-            <mat-select formControlName="vendor">
-              <mat-option *ngFor="let vendor of vendors" [value]="vendor">{{ vendor }}</mat-option>
-            </mat-select>
-          </mat-form-field>
-        </div>
-
-        <div class="form-group">
-          <mat-form-field appearance="outline">
-            <mat-label>Type</mat-label>
-            <mat-select formControlName="type2">
-              <mat-option *ngFor="let type of types" [value]="type">{{ type }}</mat-option>
-            </mat-select>
-          </mat-form-field>
-        </div>
-
+    <mat-grid-list cols="2" rowHeight="fit" gutterSize="16px">
+      <mat-grid-tile [colspan]="2">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Name / Number</mat-label>
+          <input matInput formControlName="name">
+        </mat-form-field>
+      </mat-grid-tile>
+      <mat-grid-tile>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Type</mat-label>
+          <mat-select formControlName="type">
+            <mat-option *ngFor="let type of types" [value]="type">{{ type }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </mat-grid-tile>
+      <mat-grid-tile>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Description</mat-label>
+          <input matInput formControlName="description">
+        </mat-form-field>
+      </mat-grid-tile>
+      <mat-grid-tile [colspan]="2">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Version</mat-label>
+          <mat-select formControlName="version" disabled>
+            <mat-option *ngFor="let version of versions" [value]="version">{{ version }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </mat-grid-tile>
+      <mat-grid-tile [colspan]="2">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Manager</mat-label>
+          <input matInput formControlName="manager">
+        </mat-form-field>
+      </mat-grid-tile>
+      <mat-grid-tile>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Client Name</mat-label>
+          <mat-select formControlName="clientName">
+            <mat-option *ngFor="let client of clients" [value]="client">{{ client }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </mat-grid-tile>
+      <mat-grid-tile>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Contact Number</mat-label>
+          <input matInput formControlName="contactNumber" (blur)="formatPhoneNumber()">
+        </mat-form-field>
+      </mat-grid-tile>
+      <mat-grid-tile [colspan]="2">
+        <mat-checkbox formControlName="isThisAReplacement">Is this a replacement</mat-checkbox>
+      </mat-grid-tile>
+      <mat-grid-tile>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Vendor</mat-label>
+          <mat-select formControlName="vendor">
+            <mat-option *ngFor="let vendor of vendors" [value]="vendor">{{ vendor }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </mat-grid-tile>
+      <mat-grid-tile>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Type</mat-label>
+          <mat-select formControlName="type2">
+            <mat-option *ngFor="let type of types" [value]="type">{{ type }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </mat-grid-tile>
+      <mat-grid-tile [colspan]="2">
         <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid">Submit</button>
-      </mat-card-content>
-    </mat-card>
+      </mat-grid-tile>
+    </mat-grid-list>
   </form>
 </div>
-
-
-// custom-form.component.ts
-import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { ClientVendorService } from '../client-vendor.service';
-
-@Component({
-  selector: 'app-custom-form',
-  templateUrl: './custom-form.component.html',
-  styleUrls: ['./custom-form.component.css']
-})
-export class CustomFormComponent implements OnInit {
-  form: FormGroup;
-  types = ['one', 'two'];
-  versions = ['v1.0', 'v2.0'];
-  clients: string[] = [];
-  vendors: string[] = [];
-
-  constructor(private fb: FormBuilder, private clientVendorService: ClientVendorService) {
-    this.form = this.fb.group({
-      name: ['', Validators.required],
-      type: ['', Validators.required],
-      description: ['', Validators.required],
-      version: [{ value: 'v1.0', disabled: true }, Validators.required],
-      manager: ['', Validators.required],
-      clientName: ['', Validators.required],
-      contactNumber: ['', [Validators.required, Validators.pattern(/^\(\d{3}\) \d{3}-\d{4}$/)]], // US phone number format
-      isThisAReplacement: [false],
-      vendor: ['', Validators.required],
-      type2: ['', Validators.required]
-    });
-  }
-
-  ngOnInit(): void {
-    this.loadClients();
-    this.loadVendors();
-  }
-
-  loadClients(): void {
-    this.clientVendorService.getClients().subscribe((clients: string[]) => {
-      this.clients = clients;
-    });
-  }
-
-  loadVendors(): void {
-    this.clientVendorService.getVendors().subscribe((vendors: string[]) => {
-      this.vendors = vendors;
-    });
-  }
-
-
-
-  formatPhoneNumber(): void {
-    const phoneControl = this.form.get('contactNumber');
-    if (phoneControl && phoneControl.value) {
-      const cleaned = ('' + phoneControl.value).replace(/\D/g, '');
-      const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
-      if (match) {
-        phoneControl.setValue(`(${match[1]}) ${match[2]}-${match[3]}`);
-      }
-    }
-  }
-
-  onSubmit(): void {
-    if (this.form.valid) {
-      console.log(this.form.value);
-    }
-  }
-}
-
 
 
 /* custom-form.component.css */
 .form-container {
   width: 100%;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #f9f9f9;
-}
-
-form {
-  width: 100%;
-  max-width: 600px;
-}
-
-mat-card {
-  width: 100%;
+  padding: 16px;
+  box-sizing: border-box;
 }
 
 mat-toolbar {
@@ -186,5 +93,18 @@ mat-toolbar {
   top: 0;
   width: 100%;
   z-index: 1000;
+}
+
+mat-card {
+  width: 100%;
+  margin-top: 64px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+mat-grid-tile {
+  padding: 0;
 }
 
