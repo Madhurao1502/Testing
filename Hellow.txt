@@ -1,105 +1,178 @@
 <!-- custom-form.component.html -->
 <mat-toolbar color="primary">
-  <span>Create New</span>
+  <span>Create New Task</span>
 </mat-toolbar>
 
 <div class="form-container">
-  <form [formGroup]="form" (ngSubmit)="onSubmit()">
-    <mat-card>
-      <mat-card-content>
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Name / Number</mat-label>
-          <input matInput formControlName="name">
-        </mat-form-field>
+  <form [formGroup]="taskForm" (ngSubmit)="onSubmit()">
+    <h2>Task Information</h2>
+    <hr>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Task Name/Number</mat-label>
+      <input matInput formControlName="taskNameNumber">
+    </mat-form-field>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Type</mat-label>
-          <mat-select formControlName="type">
-            <mat-option *ngFor="let type of types" [value]="type">{{ type }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Type of Task</mat-label>
+      <mat-select formControlName="taskType">
+        <mat-option value="one">One</mat-option>
+        <mat-option value="two">Two</mat-option>
+      </mat-select>
+    </mat-form-field>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Description</mat-label>
-          <input matInput formControlName="description">
-        </mat-form-field>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Version</mat-label>
+      <mat-select formControlName="version">
+        <mat-option value="v1">Version 1</mat-option>
+        <mat-option value="v2">Version 2</mat-option>
+      </mat-select>
+    </mat-form-field>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Version</mat-label>
-          <mat-select formControlName="version" disabled>
-            <mat-option *ngFor="let version of versions" [value]="version">{{ version }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Task Description</mat-label>
+      <textarea matInput formControlName="taskDescription"></textarea>
+    </mat-form-field>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Manager</mat-label>
-          <input matInput formControlName="manager">
-        </mat-form-field>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Client Name</mat-label>
+      <mat-select formControlName="clientName">
+        <!-- Options will be populated dynamically -->
+      </mat-select>
+    </mat-form-field>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Client Name</mat-label>
-          <mat-select formControlName="clientName">
-            <mat-option *ngFor="let client of clients" [value]="client">{{ client }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Project Manager</mat-label>
+      <input matInput formControlName="projectManager">
+    </mat-form-field>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Contact Number</mat-label>
-          <input matInput formControlName="contactNumber" (blur)="formatPhoneNumber()">
-        </mat-form-field>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Contract Number</mat-label>
+      <input matInput formControlName="contractNumber">
+    </mat-form-field>
 
-        <mat-checkbox formControlName="isThisAReplacement">Is this a replacement</mat-checkbox>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Task Type</mat-label>
+      <mat-select formControlName="taskTypeDropdown">
+        <mat-option value="type1">Type 1</mat-option>
+        <mat-option value="type2">Type 2</mat-option>
+      </mat-select>
+    </mat-form-field>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Vendor</mat-label>
-          <mat-select formControlName="vendor">
-            <mat-option *ngFor="let vendor of vendors" [value]="vendor">{{ vendor }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+    <mat-checkbox formControlName="isReplacementTask">Is this a replacement task?</mat-checkbox>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Type</mat-label>
-          <mat-select formControlName="type2">
-            <mat-option *ngFor="let type of types" [value]="type">{{ type }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Vendor</mat-label>
+      <mat-select formControlName="vendor">
+        <!-- Options will be populated dynamically -->
+      </mat-select>
+    </mat-form-field>
 
-        <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid">Submit</button>
-      </mat-card-content>
-    </mat-card>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Expected Scan Rate</mat-label>
+      <input matInput formControlName="expectedScanRate">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Idle Time</mat-label>
+      <input matInput formControlName="idleTime">
+    </mat-form-field>
+
+    <mat-radio-group formControlName="payType">
+      <mat-radio-button value="time">Time</mat-radio-button>
+      <mat-radio-button value="flat">Flat</mat-radio-button>
+    </mat-radio-group>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Project Status</mat-label>
+      <mat-select formControlName="projectStatus">
+        <mat-option value="active">Active</mat-option>
+        <mat-option value="inactive">Inactive</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Lock Status</mat-label>
+      <input matInput formControlName="lockStatus" disabled>
+    </mat-form-field>
+
+    <h2>Planning</h2>
+    <hr>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Estimated Coll Time</mat-label>
+      <input matInput formControlName="estimatedCollTime">
+    </mat-form-field>
+
+    <mat-checkbox formControlName="popRequired">POP Required</mat-checkbox>
+    <mat-checkbox formControlName="multiWeek">Multi-week</mat-checkbox>
+    <mat-checkbox formControlName="multiVisit">Multi-visit</mat-checkbox>
+
+    <div class="button-container">
+      <button mat-raised-button color="primary" type="submit">Submit</button>
+      <button mat-raised-button color="warn" type="button" (click)="onCancel()">Cancel</button>
+    </div>
   </form>
 </div>
 
 
+implements OnInit {
+  taskForm: FormGroup;
+
+  constructor(private fb: FormBuilder) { }
+
+  ngOnInit(): void {
+    this.taskForm = this.fb.group({
+      taskNameNumber: [''],
+      taskType: [''],
+      version: [''],
+      taskDescription: [''],
+      clientName: [''],
+      projectManager: [''],
+      contractNumber: [''],
+      taskTypeDropdown: [''],
+      isReplacementTask: [false],
+      vendor: [''],
+      expectedScanRate: [''],
+      idleTime: [''],
+      payType: ['time'],
+      projectStatus: [''],
+      lockStatus: [{ value: '', disabled: true }],
+      estimatedCollTime: [''],
+      popRequired: [false],
+      multiWeek: [false],
+      multiVisit: [false]
+    });
+
+    // Populate clientName and vendor dropdowns dynamically if needed
+  }
+
+  onSubmit(): void {
+    if (this.taskForm.valid) {
+      console.log(this.taskForm.value);
+    }
+  }
+
+  onCancel(): void {
+    this.taskForm.reset();
+  }
+
 
 /* custom-form.component.css */
 .form-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: calc(100vh - 64px); /* Adjust for the toolbar height */
-  padding: 16px;
-  box-sizing: border-box;
-}
-
-mat-toolbar {
-  position: fixed;
-  top: 0;
-  width: 100%;
-  z-index: 1000;
-}
-
-mat-card {
-  width: 100%;
-  max-width: 800px; /* Adjust as needed */
+  padding: 20px;
+  max-width: 1200px;
+  margin: auto;
 }
 
 .full-width {
   width: 100%;
 }
 
-mat-card-content {
+.button-container {
+  margin-top: 20px;
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  justify-content: space-between;
+}
+
+h2 {
+  margin-top: 20px;
 }
