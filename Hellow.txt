@@ -1,73 +1,100 @@
 <!-- custom-form.component.html -->
+<mat-toolbar color="primary">
+  <span>Create New</span>
+</mat-toolbar>
+
 <div class="form-container">
   <form [formGroup]="form" (ngSubmit)="onSubmit()">
-    <div class="form-group">
-      <label for="name">Name / Number:</label>
-      <input id="name" type="text" formControlName="name">
-    </div>
+    <mat-card>
+      <mat-card-content>
+        <div class="form-group">
+          <mat-form-field appearance="outline">
+            <mat-label>Name / Number</mat-label>
+            <input matInput formControlName="name">
+          </mat-form-field>
+        </div>
 
-    <div class="form-group">
-      <label for="type">Type:</label>
-      <select id="type" formControlName="type">
-        <option *ngFor="let type of types" [value]="type">{{ type }}</option>
-      </select>
-    </div>
+        <div class="form-group">
+          <mat-form-field appearance="outline">
+            <mat-label>Type</mat-label>
+            <mat-select formControlName="type">
+              <mat-option *ngFor="let type of types" [value]="type">{{ type }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
 
-    <div class="form-group">
-      <label for="description">Description:</label>
-      <input id="description" type="text" formControlName="description">
-    </div>
+        <div class="form-group">
+          <mat-form-field appearance="outline">
+            <mat-label>Description</mat-label>
+            <input matInput formControlName="description">
+          </mat-form-field>
+        </div>
 
-    <div class="form-group">
-      <label for="version">Version:</label>
-      <select id="version" formControlName="version" disabled>
-        <option *ngFor="let version of versions" [value]="version">{{ version }}</option>
-      </select>
-    </div>
+        <div class="form-group">
+          <mat-form-field appearance="outline">
+            <mat-label>Version</mat-label>
+            <mat-select formControlName="version" disabled>
+              <mat-option *ngFor="let version of versions" [value]="version">{{ version }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
 
-    <div class="form-group">
-      <label for="manager">Manager:</label>
-      <input id="manager" type="text" formControlName="manager">
-    </div>
+        <div class="form-group">
+          <mat-form-field appearance="outline">
+            <mat-label>Manager</mat-label>
+            <input matInput formControlName="manager">
+          </mat-form-field>
+        </div>
 
-    <div class="form-group">
-      <label for="clientName">Client Name:</label>
-      <select id="clientName" formControlName="clientName">
-        <option *ngFor="let client of clients" [value]="client">{{ client }}</option>
-      </select>
-    </div>
+        <div class="form-group">
+          <mat-form-field appearance="outline">
+            <mat-label>Client Name</mat-label>
+            <mat-select formControlName="clientName">
+              <mat-option *ngFor="let client of clients" [value]="client">{{ client }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
 
-    <div class="form-group">
-      <label for="contactNumber">Contact Number:</label>
-      <input id="contactNumber" type="text" formControlName="contactNumber" (blur)="formatPhoneNumber()">
-    </div>
+        <div class="form-group">
+          <mat-form-field appearance="outline">
+            <mat-label>Contact Number</mat-label>
+            <input matInput formControlName="contactNumber" (blur)="formatPhoneNumber()">
+          </mat-form-field>
+        </div>
 
-    <div class="form-group">
-      <label for="isThisAReplacement">Is this a replacement:</label>
-      <input id="isThisAReplacement" type="checkbox" formControlName="isThisAReplacement">
-    </div>
+        <div class="form-group">
+          <mat-checkbox formControlName="isThisAReplacement">Is this a replacement</mat-checkbox>
+        </div>
 
-    <div class="form-group">
-      <label for="vendor">Vendor:</label>
-      <select id="vendor" formControlName="vendor">
-        <option *ngFor="let vendor of vendors" [value]="vendor">{{ vendor }}</option>
-      </select>
-    </div>
+        <div class="form-group">
+          <mat-form-field appearance="outline">
+            <mat-label>Vendor</mat-label>
+            <mat-select formControlName="vendor">
+              <mat-option *ngFor="let vendor of vendors" [value]="vendor">{{ vendor }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
 
-    <div class="form-group">
-      <label for="type2">Type:</label>
-      <select id="type2" formControlName="type2">
-        <option *ngFor="let type of types" [value]="type">{{ type }}</option>
-      </select>
-    </div>
+        <div class="form-group">
+          <mat-form-field appearance="outline">
+            <mat-label>Type</mat-label>
+            <mat-select formControlName="type2">
+              <mat-option *ngFor="let type of types" [value]="type">{{ type }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
 
-    <button type="submit" [disabled]="form.invalid">Submit</button>
+        <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid">Submit</button>
+      </mat-card-content>
+    </mat-card>
   </form>
 </div>
-***********************
+
+
 // custom-form.component.ts
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { ClientVendorService } from '../client-vendor.service';
 
 @Component({
   selector: 'app-custom-form',
@@ -78,10 +105,10 @@ export class CustomFormComponent implements OnInit {
   form: FormGroup;
   types = ['one', 'two'];
   versions = ['v1.0', 'v2.0'];
-  clients = ['Client A', 'Client B', 'Client C']; // This would ideally come from a function/service
-  vendors = ['Vendor X', 'Vendor Y', 'Vendor Z']; // This would also come from a function/service
+  clients: string[] = [];
+  vendors: string[] = [];
 
-  constructor(private fb: FormBuilder) {
+  constructor(private fb: FormBuilder, private clientVendorService: ClientVendorService) {
     this.form = this.fb.group({
       name: ['', Validators.required],
       type: ['', Validators.required],
@@ -97,10 +124,23 @@ export class CustomFormComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // Optionally load clients and vendors from a service
-    // this.loadClients();
-    // this.loadVendors();
+    this.loadClients();
+    this.loadVendors();
   }
+
+  loadClients(): void {
+    this.clientVendorService.getClients().subscribe((clients: string[]) => {
+      this.clients = clients;
+    });
+  }
+
+  loadVendors(): void {
+    this.clientVendorService.getVendors().subscribe((vendors: string[]) => {
+      this.vendors = vendors;
+    });
+  }
+
+
 
   formatPhoneNumber(): void {
     const phoneControl = this.form.get('contactNumber');
@@ -119,45 +159,32 @@ export class CustomFormComponent implements OnInit {
     }
   }
 }
-*********************************
+
+
 
 /* custom-form.component.css */
 .form-container {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 20px;
-  border: 1px solid #ccc;
-  border-radius: 10px;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   background-color: #f9f9f9;
 }
 
-.form-group {
-  margin-bottom: 15px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: bold;
-}
-
-.form-group input,
-.form-group select {
+form {
   width: 100%;
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
+  max-width: 600px;
 }
 
-button {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 5px;
-  background-color: #007bff;
-  color: white;
-  cursor: pointer;
+mat-card {
+  width: 100%;
 }
 
-button:disabled {
-  background-color: #cccccc;
+mat-toolbar {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 1000;
 }
+
