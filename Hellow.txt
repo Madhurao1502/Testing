@@ -5,85 +5,79 @@
 
 <div class="form-container">
   <form [formGroup]="form" (ngSubmit)="onSubmit()">
-    <mat-grid-list cols="2" rowHeight="fit" gutterSize="16px">
-      <mat-grid-tile [colspan]="2">
+    <mat-card>
+      <mat-card-content>
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Name / Number</mat-label>
           <input matInput formControlName="name">
         </mat-form-field>
-      </mat-grid-tile>
-      <mat-grid-tile>
+
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Type</mat-label>
           <mat-select formControlName="type">
             <mat-option *ngFor="let type of types" [value]="type">{{ type }}</mat-option>
           </mat-select>
         </mat-form-field>
-      </mat-grid-tile>
-      <mat-grid-tile>
+
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Description</mat-label>
           <input matInput formControlName="description">
         </mat-form-field>
-      </mat-grid-tile>
-      <mat-grid-tile [colspan]="2">
+
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Version</mat-label>
           <mat-select formControlName="version" disabled>
             <mat-option *ngFor="let version of versions" [value]="version">{{ version }}</mat-option>
           </mat-select>
         </mat-form-field>
-      </mat-grid-tile>
-      <mat-grid-tile [colspan]="2">
+
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Manager</mat-label>
           <input matInput formControlName="manager">
         </mat-form-field>
-      </mat-grid-tile>
-      <mat-grid-tile>
+
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Client Name</mat-label>
           <mat-select formControlName="clientName">
             <mat-option *ngFor="let client of clients" [value]="client">{{ client }}</mat-option>
           </mat-select>
         </mat-form-field>
-      </mat-grid-tile>
-      <mat-grid-tile>
+
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Contact Number</mat-label>
           <input matInput formControlName="contactNumber" (blur)="formatPhoneNumber()">
         </mat-form-field>
-      </mat-grid-tile>
-      <mat-grid-tile [colspan]="2">
+
         <mat-checkbox formControlName="isThisAReplacement">Is this a replacement</mat-checkbox>
-      </mat-grid-tile>
-      <mat-grid-tile>
+
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Vendor</mat-label>
           <mat-select formControlName="vendor">
             <mat-option *ngFor="let vendor of vendors" [value]="vendor">{{ vendor }}</mat-option>
           </mat-select>
         </mat-form-field>
-      </mat-grid-tile>
-      <mat-grid-tile>
+
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Type</mat-label>
           <mat-select formControlName="type2">
             <mat-option *ngFor="let type of types" [value]="type">{{ type }}</mat-option>
           </mat-select>
         </mat-form-field>
-      </mat-grid-tile>
-      <mat-grid-tile [colspan]="2">
+
         <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid">Submit</button>
-      </mat-grid-tile>
-    </mat-grid-list>
+      </mat-card-content>
+    </mat-card>
   </form>
 </div>
 
 
+
 /* custom-form.component.css */
 .form-container {
-  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: calc(100vh - 64px); /* Adjust for the toolbar height */
   padding: 16px;
   box-sizing: border-box;
 }
@@ -97,14 +91,15 @@ mat-toolbar {
 
 mat-card {
   width: 100%;
-  margin-top: 64px;
+  max-width: 800px; /* Adjust as needed */
 }
 
 .full-width {
   width: 100%;
 }
 
-mat-grid-tile {
-  padding: 0;
+mat-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
-
