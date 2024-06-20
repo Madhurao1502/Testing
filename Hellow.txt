@@ -1,178 +1,39 @@
-<!-- custom-form.component.html -->
-<mat-toolbar color="primary">
-  <span>Create New Task</span>
-</mat-toolbar>
+Release Notes
+Version: [Your Version Number]
+Date: [Release Date]
 
-<div class="form-container">
-  <form [formGroup]="taskForm" (ngSubmit)="onSubmit()">
-    <h2>Task Information</h2>
-    <hr>
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Task Name/Number</mat-label>
-      <input matInput formControlName="taskNameNumber">
-    </mat-form-field>
+Overview
+This release includes significant updates and enhancements to the data table component within the Angular application. The changes improve data processing, enhance the user interface, and provide better visual feedback. Key improvements include the handling of dynamic headers, conditional icon rendering, and the removal of unnecessary columns.
 
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Type of Task</mat-label>
-      <mat-select formControlName="taskType">
-        <mat-option value="one">One</mat-option>
-        <mat-option value="two">Two</mat-option>
-      </mat-select>
-    </mat-form-field>
+New Features and Enhancements
+Data Processing Enhancements:
 
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Version</mat-label>
-      <mat-select formControlName="version">
-        <mat-option value="v1">Version 1</mat-option>
-        <mat-option value="v2">Version 2</mat-option>
-      </mat-select>
-    </mat-form-field>
+Dynamic Headers: Implemented a mechanism to handle dynamic headers effectively, mapping database column names to user-friendly display names.
+Null Value Handling: Replaced null values in the dataset with empty strings for a cleaner and more consistent display.
+Table Customization:
 
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Task Description</mat-label>
-      <textarea matInput formControlName="taskDescription"></textarea>
-    </mat-form-field>
+Table 1:
+Removed LOC_ID and LOC_Name columns to streamline the data presentation.
+Table 2:
+Filtered out rows where Lo_Name is null, ensuring only relevant data is displayed.
+Table 3:
+Focused on dynamic data columns, filtering out rows where LOC_Name is null for a more meaningful display.
+User Interface Enhancements:
 
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Client Name</mat-label>
-      <mat-select formControlName="clientName">
-        <!-- Options will be populated dynamically -->
-      </mat-select>
-    </mat-form-field>
+Conditional Icons in Headers:
+Icons are now conditionally displayed next to the W1 UP and W2 UP headers based on the values of w1 and w2. This provides clear visual indicators of their statuses.
+Tooltips: Added tooltips to these icons to provide additional context on hover, enhancing user experience with informative labels.
+Status Indication:
+CSS classes are assigned to table cells based on LO_status values, offering visual feedback. For example, a green background for "OK" status and red for other statuses.
+Fixed Issues
+Resolved an issue where icons were not appearing correctly beside the Wave-1 and Wave-2 columns.
+Fixed inconsistencies in displaying headers and values when handling dynamic data.
+Technical Details
+Data Flow: Data is retrieved from the database using a stored procedure (SP), serialized into JSON format in C#, and then sent to the Angular frontend.
+HTML Template: Updated the template to conditionally render icons and tooltips based on the data.
+Code Updates: Enhanced the getData() method and related functions to improve data manipulation and display.
+Deployment
+These updates will be deployed to the test environment by [Deployment Date] for final verification before moving to production.
 
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Project Manager</mat-label>
-      <input matInput formControlName="projectManager">
-    </mat-form-field>
-
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Contract Number</mat-label>
-      <input matInput formControlName="contractNumber">
-    </mat-form-field>
-
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Task Type</mat-label>
-      <mat-select formControlName="taskTypeDropdown">
-        <mat-option value="type1">Type 1</mat-option>
-        <mat-option value="type2">Type 2</mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <mat-checkbox formControlName="isReplacementTask">Is this a replacement task?</mat-checkbox>
-
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Vendor</mat-label>
-      <mat-select formControlName="vendor">
-        <!-- Options will be populated dynamically -->
-      </mat-select>
-    </mat-form-field>
-
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Expected Scan Rate</mat-label>
-      <input matInput formControlName="expectedScanRate">
-    </mat-form-field>
-
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Idle Time</mat-label>
-      <input matInput formControlName="idleTime">
-    </mat-form-field>
-
-    <mat-radio-group formControlName="payType">
-      <mat-radio-button value="time">Time</mat-radio-button>
-      <mat-radio-button value="flat">Flat</mat-radio-button>
-    </mat-radio-group>
-
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Project Status</mat-label>
-      <mat-select formControlName="projectStatus">
-        <mat-option value="active">Active</mat-option>
-        <mat-option value="inactive">Inactive</mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Lock Status</mat-label>
-      <input matInput formControlName="lockStatus" disabled>
-    </mat-form-field>
-
-    <h2>Planning</h2>
-    <hr>
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Estimated Coll Time</mat-label>
-      <input matInput formControlName="estimatedCollTime">
-    </mat-form-field>
-
-    <mat-checkbox formControlName="popRequired">POP Required</mat-checkbox>
-    <mat-checkbox formControlName="multiWeek">Multi-week</mat-checkbox>
-    <mat-checkbox formControlName="multiVisit">Multi-visit</mat-checkbox>
-
-    <div class="button-container">
-      <button mat-raised-button color="primary" type="submit">Submit</button>
-      <button mat-raised-button color="warn" type="button" (click)="onCancel()">Cancel</button>
-    </div>
-  </form>
-</div>
-
-
-implements OnInit {
-  taskForm: FormGroup;
-
-  constructor(private fb: FormBuilder) { }
-
-  ngOnInit(): void {
-    this.taskForm = this.fb.group({
-      taskNameNumber: [''],
-      taskType: [''],
-      version: [''],
-      taskDescription: [''],
-      clientName: [''],
-      projectManager: [''],
-      contractNumber: [''],
-      taskTypeDropdown: [''],
-      isReplacementTask: [false],
-      vendor: [''],
-      expectedScanRate: [''],
-      idleTime: [''],
-      payType: ['time'],
-      projectStatus: [''],
-      lockStatus: [{ value: '', disabled: true }],
-      estimatedCollTime: [''],
-      popRequired: [false],
-      multiWeek: [false],
-      multiVisit: [false]
-    });
-
-    // Populate clientName and vendor dropdowns dynamically if needed
-  }
-
-  onSubmit(): void {
-    if (this.taskForm.valid) {
-      console.log(this.taskForm.value);
-    }
-  }
-
-  onCancel(): void {
-    this.taskForm.reset();
-  }
-
-
-/* custom-form.component.css */
-.form-container {
-  padding: 20px;
-  max-width: 1200px;
-  margin: auto;
-}
-
-.full-width {
-  width: 100%;
-}
-
-.button-container {
-  margin-top: 20px;
-  display: flex;
-  justify-content: space-between;
-}
-
-h2 {
-  margin-top: 20px;
-}
+Acknowledgments
+Thank you to the team for their efforts in making these enhancements possible. Special thanks to [Team Members, if any] for their contributions to this release.
