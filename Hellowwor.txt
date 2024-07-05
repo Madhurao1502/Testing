@@ -1,76 +1,79 @@
-<!-- task-setup.component.html -->
-<div class="task-setup">
-  <mat-toolbar color="primary">Task Setup - Task: {{ taskId }}</mat-toolbar>
-
-  <mat-accordion>
-    <mat-expansion-panel [(expanded)]="panels.general">
-      <mat-expansion-panel-header>
-        <mat-panel-title>General</mat-panel-title>
-      </mat-expansion-panel-header>
-      <div id="tabGeneral"></div>
-    </mat-expansion-panel>
-
-    <mat-expansion-panel [(expanded)]="panels.accounting">
-      <mat-expansion-panel-header>
-        <mat-panel-title>Accounting</mat-panel-title>
-      </mat-expansion-panel-header>
-      <div id="tabTaskAccounting"></div>
-    </mat-expansion-panel>
-
-    <mat-expansion-panel [(expanded)]="panels.schedule">
-      <mat-expansion-panel-header>
-        <mat-panel-title>Schedule</mat-panel-title>
-      </mat-expansion-panel-header>
-      <div id="tabSchedule"></div>
-    </mat-expansion-panel>
-
-    <mat-expansion-panel [(expanded)]="panels.sample">
-      <mat-expansion-panel-header>
-        <mat-panel-title>Sample</mat-panel-title>
-      </mat-expansion-panel-header>
-      <div id="tabSample"></div>
-    </mat-expansion-panel>
-
-    <mat-expansion-panel [(expanded)]="panels.shelf">
-      <mat-expansion-panel-header>
-        <mat-panel-title>Shelf</mat-panel-title>
-      </mat-expansion-panel-header>
-      <div id="tabShelf"></div>
-    </mat-expansion-panel>
-
-    <mat-expansion-panel [(expanded)]="panels.taskQuestions">
-      <mat-expansion-panel-header>
-        <mat-panel-title>Task Questions</mat-panel-title>
-      </mat-expansion-panel-header>
-      <div id="tabTaskQuestions"></div>
-    </mat-expansion-panel>
-
-    <mat-expansion-panel [(expanded)]="panels.taskSpec">
-      <mat-expansion-panel-header>
-        <mat-panel-title>Task Specs</mat-panel-title>
-      </mat-expansion-panel-header>
-      <div id="tabTaskSpec"></div>
-    </mat-expansion-panel>
-
-    <mat-expansion-panel [(expanded)]="panels.customUpcList">
-      <mat-expansion-panel-header>
-        <mat-panel-title>Custom UPC Lists</mat-panel-title>
-      </mat-expansion-panel-header>
-      <div id="tabCustomUpcList"></div>
-    </mat-expansion-panel>
-  </mat-accordion>
-
-  <div id="divProcessing" *ngIf="isProcessing">
-    <p>
-      Processing, please wait . . .
-      <img src="assets/busy.gif" />
-    </p>
-  </div>
-
-  <div>
-    <button mat-raised-button color="primary" (click)="saveTaskInfo()">Save</button>
-    <button mat-raised-button (click)="refresh()">Refresh</button>
-    <button mat-raised-button (click)="createSimulationFiles()">Create Simulation Files</button>
-    <button mat-raised-button (click)="closeWindow()">Close</button>
-  </div>
+<div>
+  <button mat-button (click)="saveTask()">Save</button>
+  <button mat-button (click)="refreshTask()">Refresh</button>
+  <button mat-button (click)="openSimulationDialog()">Create Simulation Files</button>
+  <button mat-button (click)="closeWindow()">Close</button>
 </div>
+
+<mat-accordion>
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title>General</mat-panel-title>
+    </mat-expansion-panel-header>
+    <app-general></app-general>
+  </mat-expansion-panel>
+  
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title>Accounting</mat-panel-title>
+    </mat-expansion-panel-header>
+    <app-accounting></app-accounting>
+  </mat-expansion-panel>
+
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title>Schedule</mat-panel-title>
+    </mat-expansion-panel-header>
+    <app-schedule></app-schedule>
+  </mat-expansion-panel>
+
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title>Sample</mat-panel-title>
+    </mat-expansion-panel-header>
+    <app-sample></app-sample>
+  </mat-expansion-panel>
+
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title>Shelf</mat-panel-title>
+    </mat-expansion-panel-header>
+    <app-shelf></app-shelf>
+  </mat-expansion-panel>
+
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title>Task Questions</mat-panel-title>
+    </mat-expansion-panel-header>
+    <app-questions></app-questions>
+  </mat-expansion-panel>
+
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title>Task Specs</mat-panel-title>
+    </mat-expansion-panel-header>
+    <app-specs></app-specs>
+  </mat-expansion-panel>
+
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title>Custom UPC Lists</mat-panel-title>
+    </mat-expansion-panel-header>
+    <app-custom-upc></app-custom-upc>
+  </mat-expansion-panel>
+</mat-accordion>
+
+<!-- Simulation Dialog -->
+<ng-template #simulationDialog>
+  <h2 mat-dialog-title>Create Task Simulation Files</h2>
+  <mat-dialog-content>
+    <mat-radio-group>
+      <mat-radio-button value="current">Current Task</mat-radio-button>
+    </mat-radio-group>
+    <input matInput placeholder="Task ID" [(ngModel)]="taskId" disabled />
+  </mat-dialog-content>
+  <mat-dialog-actions>
+    <button mat-button (click)="generateSimulationFiles()">Create Simulation Files</button>
+    <button mat-button mat-dialog-close>Close</button>
+  </mat-dialog-actions>
+</ng-template>
