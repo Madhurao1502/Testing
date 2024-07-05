@@ -1,81 +1,71 @@
-<div>
-  <button mat-button (click)="saveTask()">Save</button>
-  <button mat-button (click)="refreshTask()">Refresh</button>
-  <button mat-button (click)="openSimulationDialog()">Create Simulation Files</button>
-  <button mat-button (click)="closeWindow()">Close</button>
-  <button mat-button (click)="expandAll()">Expand All</button>
-  <button mat-button (click)="collapseAll()">Collapse All</button>
-</div>
+/* General styling for the container */
+.container {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
 
-<mat-accordion #accordion>
-  <mat-expansion-panel>
-    <mat-expansion-panel-header>
-      <mat-panel-title>General</mat-panel-title>
-    </mat-expansion-panel-header>
-    <app-general></app-general>
-  </mat-expansion-panel>
-  
-  <mat-expansion-panel>
-    <mat-expansion-panel-header>
-      <mat-panel-title>Accounting</mat-panel-title>
-    </mat-expansion-panel-header>
-    <app-accounting></app-accounting>
-  </mat-expansion-panel>
+/* Styling for buttons */
+button {
+  margin: 5px;
+  background-color: #3f51b5; /* Primary color */
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-size: 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
 
-  <mat-expansion-panel>
-    <mat-expansion-panel-header>
-      <mat-panel-title>Schedule</mat-panel-title>
-    </mat-expansion-panel-header>
-    <app-schedule></app-schedule>
-  </mat-expansion-panel>
+button:hover {
+  background-color: #303f9f; /* Darker primary color */
+}
 
-  <mat-expansion-panel>
-    <mat-expansion-panel-header>
-      <mat-panel-title>Sample</mat-panel-title>
-    </mat-expansion-panel-header>
-    <app-sample></app-sample>
-  </mat-expansion-panel>
+button:active {
+  background-color: #283593; /* Even darker primary color */
+}
 
-  <mat-expansion-panel>
-    <mat-expansion-panel-header>
-      <mat-panel-title>Shelf</mat-panel-title>
-    </mat-expansion-panel-header>
-    <app-shelf></app-shelf>
-  </mat-expansion-panel>
+/* Styling for the expansion panels */
+mat-accordion {
+  width: 100%;
+  max-width: 800px;
+  margin-top: 20px;
+}
 
-  <mat-expansion-panel>
-    <mat-expansion-panel-header>
-      <mat-panel-title>Task Questions</mat-panel-title>
-    </mat-expansion-panel-header>
-    <app-questions></app-questions>
-  </mat-expansion-panel>
+mat-expansion-panel {
+  margin-bottom: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
 
-  <mat-expansion-panel>
-    <mat-expansion-panel-header>
-      <mat-panel-title>Task Specs</mat-panel-title>
-    </mat-expansion-panel-header>
-    <app-specs></app-specs>
-  </mat-expansion-panel>
+mat-expansion-panel-header {
+  background-color: #f5f5f5; /* Light gray background */
+  font-size: 18px;
+  font-weight: bold;
+}
 
-  <mat-expansion-panel>
-    <mat-expansion-panel-header>
-      <mat-panel-title>Custom UPC Lists</mat-panel-title>
-    </mat-expansion-panel-header>
-    <app-custom-upc></app-custom-upc>
-  </mat-expansion-panel>
-</mat-accordion>
+mat-expansion-panel-body {
+  padding: 20px;
+}
 
-<!-- Simulation Dialog -->
-<ng-template #simulationDialog>
-  <h2 mat-dialog-title>Create Task Simulation Files</h2>
-  <mat-dialog-content>
-    <mat-radio-group>
-      <mat-radio-button value="current">Current Task</mat-radio-button>
-    </mat-radio-group>
-    <input matInput placeholder="Task ID" [(ngModel)]="taskId" disabled />
-  </mat-dialog-content>
-  <mat-dialog-actions>
-    <button mat-button (click)="generateSimulationFiles()">Create Simulation Files</button>
-    <button mat-button mat-dialog-close>Close</button>
-  </mat-dialog-actions>
-</ng-template>
+/* Dialog styling */
+mat-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+mat-dialog-actions {
+  display: flex;
+  justify-content: space-between;
+}
+
+mat-radio-group {
+  display: flex;
+  flex-direction: column;
+}
+
+mat-radio-button {
+  margin-bottom: 10px;
+}
