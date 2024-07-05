@@ -1,71 +1,76 @@
-<div class="popup-overlay" (click)="closePopup()"></div>
-<div class="popup-content" cdkDrag>
-  <div class="popup-header" cdkDragHandle>
-    <span class="close-icon" (click)="closePopup()">&times;</span>
-    <h2>Download Information</h2>
+<!-- task-setup.component.html -->
+<div class="task-setup">
+  <mat-toolbar color="primary">Task Setup - Task: {{ taskId }}</mat-toolbar>
+
+  <mat-accordion>
+    <mat-expansion-panel [(expanded)]="panels.general">
+      <mat-expansion-panel-header>
+        <mat-panel-title>General</mat-panel-title>
+      </mat-expansion-panel-header>
+      <div id="tabGeneral"></div>
+    </mat-expansion-panel>
+
+    <mat-expansion-panel [(expanded)]="panels.accounting">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Accounting</mat-panel-title>
+      </mat-expansion-panel-header>
+      <div id="tabTaskAccounting"></div>
+    </mat-expansion-panel>
+
+    <mat-expansion-panel [(expanded)]="panels.schedule">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Schedule</mat-panel-title>
+      </mat-expansion-panel-header>
+      <div id="tabSchedule"></div>
+    </mat-expansion-panel>
+
+    <mat-expansion-panel [(expanded)]="panels.sample">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Sample</mat-panel-title>
+      </mat-expansion-panel-header>
+      <div id="tabSample"></div>
+    </mat-expansion-panel>
+
+    <mat-expansion-panel [(expanded)]="panels.shelf">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Shelf</mat-panel-title>
+      </mat-expansion-panel-header>
+      <div id="tabShelf"></div>
+    </mat-expansion-panel>
+
+    <mat-expansion-panel [(expanded)]="panels.taskQuestions">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Task Questions</mat-panel-title>
+      </mat-expansion-panel-header>
+      <div id="tabTaskQuestions"></div>
+    </mat-expansion-panel>
+
+    <mat-expansion-panel [(expanded)]="panels.taskSpec">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Task Specs</mat-panel-title>
+      </mat-expansion-panel-header>
+      <div id="tabTaskSpec"></div>
+    </mat-expansion-panel>
+
+    <mat-expansion-panel [(expanded)]="panels.customUpcList">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Custom UPC Lists</mat-panel-title>
+      </mat-expansion-panel-header>
+      <div id="tabCustomUpcList"></div>
+    </mat-expansion-panel>
+  </mat-accordion>
+
+  <div id="divProcessing" *ngIf="isProcessing">
+    <p>
+      Processing, please wait . . .
+      <img src="assets/busy.gif" />
+    </p>
   </div>
-  <div class="popup-body">
-    <p>Download last run Date:</p>
-    <p>Downloads were created on {{ lastRunDate }} for week 1750</p>
-    <p *ngIf="scheduleDate">Tasks were scheduled for Downloads on {{ scheduleDate }}</p>
+
+  <div>
+    <button mat-raised-button color="primary" (click)="saveTaskInfo()">Save</button>
+    <button mat-raised-button (click)="refresh()">Refresh</button>
+    <button mat-raised-button (click)="createSimulationFiles()">Create Simulation Files</button>
+    <button mat-raised-button (click)="closeWindow()">Close</button>
   </div>
-  <button (click)="disableDownloads()" class="disable-button">Disable Downloads</button>
 </div>
-
-
-.popup-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 1000;
-}
-
-.popup-content {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: #fff;
-  padding: 20px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  z-index: 1001;
-  width: 300px;
-  border-radius: 8px;
-  text-align: center;
-  position: relative;
-}
-
-.popup-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: move;
-}
-
-h2 {
-  margin: 0;
-  flex-grow: 1;
-  text-align: center;
-}
-
-.close-icon {
-  font-size: 24px;
-  cursor: pointer;
-}
-
-.disable-button {
-  background-color: #ff4c4c;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 5px;
-  cursor: pointer;
-  margin-top: 20px;
-}
-
-.disable-button:hover {
-  background-color: #e04343;
-}
