@@ -1,77 +1,48 @@
-<div class="container">
-  <div>
-    <button mat-button (click)="saveTask()">Save</button>
-    <button mat-button (click)="refreshTask()">Refresh</button>
-    <button mat-button (click)="openSimulationDialog()">Create Simulation Files</button>
-    <button mat-button (click)="closeWindow()">Close</button>
-    <button mat-button (click)="expandAll()">Expand All</button>
-    <button mat-button (click)="collapseAll()">Collapse All</button>
-  </div>
+/* Container and button group styles */
+.container {
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
 
-  <mat-accordion #accordion>
-    <mat-expansion-panel>
-      <mat-expansion-panel-header>
-        <mat-panel-title>General</mat-panel-title>
-      </mat-expansion-panel-header>
-      <app-general></app-general>
-    </mat-expansion-panel>
-    
-    <mat-expansion-panel>
-      <mat-expansion-panel-header>
-        <mat-panel-title>Accounting</mat-panel-title>
-      </mat-expansion-panel-header>
-      <app-accounting></app-accounting>
-    </mat-expansion-panel>
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
 
-    <mat-expansion-panel>
-      <mat-expansion-panel-header>
-        <mat-panel-title>Schedule</mat-panel-title>
-      </mat-expansion-panel-header>
-      <app-schedule></app-schedule>
-    </mat-expansion-panel>
+/* Button styling */
+button {
+  min-width: 120px;
+  font-size: 14px;
+}
 
-    <mat-expansion-panel>
-      <mat-expansion-panel-header>
-        <mat-panel-title>Sample</mat-panel-title>
-      </mat-expansion-panel-header>
-      <app-sample></app-sample>
-    </mat-expansion-panel>
+/* Dialog content and radio button group */
+mat-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
-    <mat-expansion-panel>
-      <mat-expansion-panel-header>
-        <mat-panel-title>Shelf</mat-panel-title>
-      </mat-expansion-panel-header>
-      <app-shelf></app-shelf>
-    </mat-expansion-panel>
+mat-radio-group {
+  display: flex;
+  flex-direction: column;
+}
 
-    <mat-expansion-panel>
-      <mat-expansion-panel-header>
-        <mat-panel-title>Task Questions</mat-panel-title>
-      </mat-expansion-panel-header>
-      <app-questions></app-questions>
-    </mat-expansion-panel>
 
-    <mat-expansion-panel>
-      <mat-expansion-panel-header>
-        <mat-panel-title>Task Specs</mat-panel-title>
-      </mat-expansion-panel-header>
-      <app-specs></app-component>
-    </mat-expansion-panel>
-
-    <mat-expansion-panel>
-      <mat-expansion-panel-header>
-        <mat-panel-title>Custom UPC Lists</mat-panel-title>
-      </mat-expansion-panel-header>
-      <app-custom-upc></app-custom-upc>
-    </mat-expansion-panel>
-  </mat-accordion>
-
-  <!-- Simulation Dialog -->
+<!-- Simulation Dialog -->
   <ng-template #simulationDialog>
     <h2 mat-dialog-title>Create Task Simulation Files</h2>
     <mat-dialog-content>
-      <mat-radio-group>
+      <mat-radio-group [(ngModel)]="selectedTaskType">
         <mat-radio-button value="current">Current Task</mat-radio-button>
+        <!-- Add other options if needed -->
       </mat-radio-group>
       <input matInput placeholder="Task ID" [(ngModel)]="taskId" disabled />
     </mat-dialog-content>
@@ -80,4 +51,6 @@
       <button mat-button mat-dialog-close>Close</button>
     </mat-dialog-actions>
   </ng-template>
-</div>
+mat-radio-button {
+  font-size: 14px;
+}
