@@ -1,79 +1,41 @@
-<div>
-  <button mat-button (click)="saveTask()">Save</button>
-  <button mat-button (click)="refreshTask()">Refresh</button>
-  <button mat-button (click)="openSimulationDialog()">Create Simulation Files</button>
-  <button mat-button (click)="closeWindow()">Close</button>
-</div>
+import { Component, ViewChild } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
+import { TaskService } from './task.service';
 
-<mat-accordion>
-  <mat-expansion-panel>
-    <mat-expansion-panel-header>
-      <mat-panel-title>General</mat-panel-title>
-    </mat-expansion-panel-header>
-    <app-general></app-general>
-  </mat-expansion-panel>
-  
-  <mat-expansion-panel>
-    <mat-expansion-panel-header>
-      <mat-panel-title>Accounting</mat-panel-title>
-    </mat-expansion-panel-header>
-    <app-accounting></app-accounting>
-  </mat-expansion-panel>
+@Component({
+  selector: 'app-main',
+  templateUrl: './main.component.html',
+  styleUrls: ['./main.component.css']
+})
+export class MainComponent {
+  taskId = 1; // Example task ID
+  @ViewChild('simulationDialog') simulationDialog: any;
 
-  <mat-expansion-panel>
-    <mat-expansion-panel-header>
-      <mat-panel-title>Schedule</mat-panel-title>
-    </mat-expansion-panel-header>
-    <app-schedule></app-schedule>
-  </mat-expansion-panel>
+  constructor(private taskService: TaskService, public dialog: MatDialog) {}
 
-  <mat-expansion-panel>
-    <mat-expansion-panel-header>
-      <mat-panel-title>Sample</mat-panel-title>
-    </mat-expansion-panel-header>
-    <app-sample></app-sample>
-  </mat-expansion-panel>
+  saveTask() {
+    // Implement save task logic
+    console.log('Save Task');
+  }
 
-  <mat-expansion-panel>
-    <mat-expansion-panel-header>
-      <mat-panel-title>Shelf</mat-panel-title>
-    </mat-expansion-panel-header>
-    <app-shelf></app-shelf>
-  </mat-expansion-panel>
+  refreshTask() {
+    // Implement refresh task logic
+    console.log('Refresh Task');
+  }
 
-  <mat-expansion-panel>
-    <mat-expansion-panel-header>
-      <mat-panel-title>Task Questions</mat-panel-title>
-    </mat-expansion-panel-header>
-    <app-questions></app-questions>
-  </mat-expansion-panel>
+  openSimulationDialog() {
+    this.dialog.open(this.simulationDialog);
+  }
 
-  <mat-expansion-panel>
-    <mat-expansion-panel-header>
-      <mat-panel-title>Task Specs</mat-panel-title>
-    </mat-expansion-panel-header>
-    <app-specs></app-specs>
-  </mat-expansion-panel>
+  generateSimulationFiles() {
+    // Implement generate simulation files logic
+    console.log('Generate Simulation Files');
+    this.dialog.closeAll();
+  }
 
-  <mat-expansion-panel>
-    <mat-expansion-panel-header>
-      <mat-panel-title>Custom UPC Lists</mat-panel-title>
-    </mat-expansion-panel-header>
-    <app-custom-upc></app-custom-upc>
-  </mat-expansion-panel>
-</mat-accordion>
-
-<!-- Simulation Dialog -->
-<ng-template #simulationDialog>
-  <h2 mat-dialog-title>Create Task Simulation Files</h2>
-  <mat-dialog-content>
-    <mat-radio-group>
-      <mat-radio-button value="current">Current Task</mat-radio-button>
-    </mat-radio-group>
-    <input matInput placeholder="Task ID" [(ngModel)]="taskId" disabled />
-  </mat-dialog-content>
-  <mat-dialog-actions>
-    <button mat-button (click)="generateSimulationFiles()">Create Simulation Files</button>
-    <button mat-button mat-dialog-close>Close</button>
-  </mat-dialog-actions>
-</ng-template>
+  closeWindow() {
+    if (confirm('Are you sure you want to close the window?')) {
+      window.close();
+    }
+  }
+}
