@@ -4,75 +4,72 @@ import { Directive, HostListener, ElementRef } from '@angular/core';
   selector: '[appDecimalOnly]'
 })
 export class DecimalOnlyDirective {
+  private allowedKeys = [
+    'Backspace', 'Delete', 'Tab', 'Escape', 'Enter', '.', 'ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp'
+  ];
 
-  constructor(private el: ElementRef) { }
+  constructor(private el: ElementRef) {}
 
   @HostListener('keydown', ['$event'])
   onKeyDown(event: KeyboardEvent) {
-    const allowedKeys = [46, 8, 9, 27, 13, 110, 190]; // Backspace, delete, tab, escape, enter, dot
-    const ctrlA = event.key === 'a' && event.ctrlKey;
-    const navigationKeys = event.key >= 'Home' && event.key <= 'ArrowDown';
-
     if (
-      allowedKeys.includes(event.keyCode) ||
-      ctrlA ||
-      navigationKeys
+      this.allowedKeys.includes(event.key) ||
+      (event.key === 'a' && event.ctrlKey === true) || // Ctrl+A
+      (event.key >= '0' && event.key <= '9') || // Numbers
+      (event.key >= 'Numpad0' && event.key <= 'Numpad9') // Numpad numbers
     ) {
-      return;
+      return; // Allow the key event
     }
-
-    if (
-      (event.shiftKey || event.keyCode < 48 || event.keyCode > 57) &&
-      (event.keyCode < 96 || event.keyCode > 105)
-    ) {
-      event.preventDefault();
-    }
+    
+    event.preventDefault();
   }
 
   @HostListener('blur', ['$event'])
   onBlur(event: FocusEvent) {
-    const inputElement = event.target as HTMLInputElement;
-    const val = parseFloat(inputElement.value);
-
-    if (val > 199.99) {
+    const input = this.el.nativeElement.value;
+    if (input && parseFloat(input) > 199.99) {
       alert("Cannot exceed 199.99 seconds");
-      inputElement.select();
-      inputElement.focus();
-      inputElement.value = '';
+      this.el.nativeElement.focus();
+      this.el.nativeElement.value = '';
     }
   }
 }
 
 
-++++++++++++++++++++++++
-
++++++++++++++++++
 import { Directive, HostListener, ElementRef } from '@angular/core';
 
 @Directive({
   selector: '[appIntegerOnly]'
 })
 export class IntegerOnlyDirective {
+  constructor(private el: ElementRef) {}
 
-  constructor(private el: ElementRef) { }
-
-  @HostListener('keypress', ['$event'])
-  onKeyPress(event: KeyboardEvent) {
-    const charCode = event.which ? event.which : event.keyCode;
-    if (charCode < 48 || charCode > 57) {
-      event.preventDefault();
+  @HostListener('keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent) {
+    const allowedKeys = [
+      'Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp'
+    ];
+    
+    if (
+      allowedKeys.includes(event.key) ||
+      (event.key === 'a' && event.ctrlKey === true) || // Ctrl+A
+      (event.key >= '0' && event.key <= '9') || // Numbers
+      (event.key >= 'Numpad0' && event.key <= 'Numpad9') // Numpad numbers
+    ) {
+      return; // Allow the key event
     }
+
+    event.preventDefault();
   }
 
   @HostListener('change', ['$event'])
   onChange(event: Event) {
-    const inputElement = event.target as HTMLInputElement;
-    const val = parseInt(inputElement.value, 10);
-
-    if (val === 0) {
+    const input = (event.target as HTMLInputElement).value;
+    if (input === '0') {
       alert("Value should be greater than 0 minutes");
-      inputElement.select();
-      inputElement.focus();
-      inputElement.value = '';
+      (event.target as HTMLInputElement).focus();
+      (event.target as HTMLInputElement).value = '';
     }
   }
 }
