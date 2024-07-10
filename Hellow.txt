@@ -1,39 +1,78 @@
-Release Notes
-Version: [Your Version Number]
-Date: [Release Date]
+import { Directive, HostListener, ElementRef } from '@angular/core';
 
-Overview
-This release includes significant updates and enhancements to the data table component within the Angular application. The changes improve data processing, enhance the user interface, and provide better visual feedback. Key improvements include the handling of dynamic headers, conditional icon rendering, and the removal of unnecessary columns.
+@Directive({
+  selector: '[appDecimalOnly]'
+})
+export class DecimalOnlyDirective {
 
-New Features and Enhancements
-Data Processing Enhancements:
+  constructor(private el: ElementRef) { }
 
-Dynamic Headers: Implemented a mechanism to handle dynamic headers effectively, mapping database column names to user-friendly display names.
-Null Value Handling: Replaced null values in the dataset with empty strings for a cleaner and more consistent display.
-Table Customization:
+  @HostListener('keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent) {
+    const allowedKeys = [46, 8, 9, 27, 13, 110, 190]; // Backspace, delete, tab, escape, enter, dot
+    const ctrlA = event.key === 'a' && event.ctrlKey;
+    const navigationKeys = event.key >= 'Home' && event.key <= 'ArrowDown';
 
-Table 1:
-Removed LOC_ID and LOC_Name columns to streamline the data presentation.
-Table 2:
-Filtered out rows where Lo_Name is null, ensuring only relevant data is displayed.
-Table 3:
-Focused on dynamic data columns, filtering out rows where LOC_Name is null for a more meaningful display.
-User Interface Enhancements:
+    if (
+      allowedKeys.includes(event.keyCode) ||
+      ctrlA ||
+      navigationKeys
+    ) {
+      return;
+    }
 
-Conditional Icons in Headers:
-Icons are now conditionally displayed next to the W1 UP and W2 UP headers based on the values of w1 and w2. This provides clear visual indicators of their statuses.
-Tooltips: Added tooltips to these icons to provide additional context on hover, enhancing user experience with informative labels.
-Status Indication:
-CSS classes are assigned to table cells based on LO_status values, offering visual feedback. For example, a green background for "OK" status and red for other statuses.
-Fixed Issues
-Resolved an issue where icons were not appearing correctly beside the Wave-1 and Wave-2 columns.
-Fixed inconsistencies in displaying headers and values when handling dynamic data.
-Technical Details
-Data Flow: Data is retrieved from the database using a stored procedure (SP), serialized into JSON format in C#, and then sent to the Angular frontend.
-HTML Template: Updated the template to conditionally render icons and tooltips based on the data.
-Code Updates: Enhanced the getData() method and related functions to improve data manipulation and display.
-Deployment
-These updates will be deployed to the test environment by [Deployment Date] for final verification before moving to production.
+    if (
+      (event.shiftKey || event.keyCode < 48 || event.keyCode > 57) &&
+      (event.keyCode < 96 || event.keyCode > 105)
+    ) {
+      event.preventDefault();
+    }
+  }
 
-Acknowledgments
-Thank you to the team for their efforts in making these enhancements possible. Special thanks to [Team Members, if any] for their contributions to this release.
+  @HostListener('blur', ['$event'])
+  onBlur(event: FocusEvent) {
+    const inputElement = event.target as HTMLInputElement;
+    const val = parseFloat(inputElement.value);
+
+    if (val > 199.99) {
+      alert("Cannot exceed 199.99 seconds");
+      inputElement.select();
+      inputElement.focus();
+      inputElement.value = '';
+    }
+  }
+}
+
+
+++++++++++++++++++++++++
+
+import { Directive, HostListener, ElementRef } from '@angular/core';
+
+@Directive({
+  selector: '[appIntegerOnly]'
+})
+export class IntegerOnlyDirective {
+
+  constructor(private el: ElementRef) { }
+
+  @HostListener('keypress', ['$event'])
+  onKeyPress(event: KeyboardEvent) {
+    const charCode = event.which ? event.which : event.keyCode;
+    if (charCode < 48 || charCode > 57) {
+      event.preventDefault();
+    }
+  }
+
+  @HostListener('change', ['$event'])
+  onChange(event: Event) {
+    const inputElement = event.target as HTMLInputElement;
+    const val = parseInt(inputElement.value, 10);
+
+    if (val === 0) {
+      alert("Value should be greater than 0 minutes");
+      inputElement.select();
+      inputElement.focus();
+      inputElement.value = '';
+    }
+  }
+}
