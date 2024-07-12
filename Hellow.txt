@@ -1,15 +1,82 @@
-days = [
-    { text: 'None', value: '-1' },
-    { text: 'Monday', value: '1' },
-    { text: 'Tuesday', value: '2' },
-    { text: 'Wednesday', value: '3' },
-    { text: 'Thursday', value: '4' },
-    { text: 'Friday', value: '5' },
-    { text: 'Saturday', value: '6' },
-    { text: 'Sunday', value: '7' }
-  ];
+<fieldset>
+      <legend>Due Date</legend>
+      <div class="form-group row">
+        <label class="col-sm-2 col-form-label">Complete by Day:</label>
+        <div class="col-sm-4">
+          <mat-form-field appearance="fill" class="full-width">
+            <mat-label>Complete by Day</mat-label>
+            <mat-select formControlName="selectedDay">
+              <mat-option *ngFor="let day of days" [value]="day.value">{{ day.text }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+        <label class="col-sm-2 col-form-label">Complete by Time:</label>
+        <div class="col-sm-4">
+          <mat-form-field appearance="fill" class="full-width">
+            <mat-label>Complete by Time</mat-label>
+            <input matInput formControlName="completeByTime" disabled>
+          </mat-form-field>
+        </div>
+      </div>
 
-  completionTypes = [
-    { text: 'During Week', value: '1' },
-    { text: 'After Week', value: '2' }
-  ];
+      <div class="form-group row">
+        <label class="col-sm-2 col-form-label">Completion:</label>
+        <div class="col-sm-4">
+          <mat-form-field appearance="fill" class="full-width">
+            <mat-label>Completion</mat-label>
+            <mat-select formControlName="completionType">
+              <mat-option *ngFor="let type of completionTypes" [value]="type.value">{{ type.text }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+      </div>
+      
+      <div *ngIf="dueDateForm.get('completionType')?.value == '2'" class="form-group row">
+        <div class="col-sm-12">
+          <button mat-raised-button color="primary" (click)="showMultiWeekOptions()">Show Multi Week Options</button>
+        </div>
+      </div>
+
+      <div *ngIf="dueDateForm.get('completionType')?.value == '2'" id="tdMulWeekSch">
+        <div class="form-group row">
+          <div class="col-sm-12">
+            <table id="WaveScheduleGrid" class="table table-bordered"></table>
+            <div id="WaveScheduleGridpager"></div>
+          </div>
+        </div>
+        <div class="form-group row">
+          <div class="col-sm-12">
+            <button mat-raised-button color="accent" (click)="createWave()">Create Wave</button>
+          </div>
+        </div>
+        <div class="form-group row">
+          <div class="col-sm-12">
+            <table id="SummaryMultiWeekGrid" class="table table-bordered"></table>
+            <div id="SummaryMultiWeekGridpager"></div>
+          </div>
+        </div>
+      </div>
+    </fieldset>
+
+    <div id="DueDateModel" class="mt-5">
+      <fieldset>
+        <legend>Select Due Date and Time</legend>
+        <div class="form-group row">
+          <label class="col-sm-2 col-form-label">Select Date:</label>
+          <div class="col-sm-4">
+            <mat-form-field appearance="fill" class="full-width">
+              <mat-label>Select Date</mat-label>
+              <input matInput [matDatepicker]="picker" formControlName="dueDate">
+              <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+              <mat-datepicker #picker></mat-datepicker>
+            </mat-form-field>
+          </div>
+          <label class="col-sm-2 col-form-label">Select Time:</label>
+          <div class="col-sm-4">
+            <mat-form-field appearance="fill" class="full-width">
+              <mat-label>Select Time</mat-label>
+              <input matInput formControlName="dueTime" disabled>
+            </mat-form-field>
+          </div>
+        </div>
+      </fieldset>
