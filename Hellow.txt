@@ -1,75 +1,15 @@
-import { Directive, HostListener, ElementRef } from '@angular/core';
-
-@Directive({
-  selector: '[appDecimalOnly]'
-})
-export class DecimalOnlyDirective {
-  private allowedKeys = [
-    'Backspace', 'Delete', 'Tab', 'Escape', 'Enter', '.', 'ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp'
+days = [
+    { text: 'None', value: '-1' },
+    { text: 'Monday', value: '1' },
+    { text: 'Tuesday', value: '2' },
+    { text: 'Wednesday', value: '3' },
+    { text: 'Thursday', value: '4' },
+    { text: 'Friday', value: '5' },
+    { text: 'Saturday', value: '6' },
+    { text: 'Sunday', value: '7' }
   ];
 
-  constructor(private el: ElementRef) {}
-
-  @HostListener('keydown', ['$event'])
-  onKeyDown(event: KeyboardEvent) {
-    if (
-      this.allowedKeys.includes(event.key) ||
-      (event.key === 'a' && event.ctrlKey === true) || // Ctrl+A
-      (event.key >= '0' && event.key <= '9') || // Numbers
-      (event.key >= 'Numpad0' && event.key <= 'Numpad9') // Numpad numbers
-    ) {
-      return; // Allow the key event
-    }
-    
-    event.preventDefault();
-  }
-
-  @HostListener('blur', ['$event'])
-  onBlur(event: FocusEvent) {
-    const input = this.el.nativeElement.value;
-    if (input && parseFloat(input) > 199.99) {
-      alert("Cannot exceed 199.99 seconds");
-      this.el.nativeElement.focus();
-      this.el.nativeElement.value = '';
-    }
-  }
-}
-
-
-+++++++++++++++++
-import { Directive, HostListener, ElementRef } from '@angular/core';
-
-@Directive({
-  selector: '[appIntegerOnly]'
-})
-export class IntegerOnlyDirective {
-  constructor(private el: ElementRef) {}
-
-  @HostListener('keydown', ['$event'])
-  onKeyDown(event: KeyboardEvent) {
-    const allowedKeys = [
-      'Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp'
-    ];
-    
-    if (
-      allowedKeys.includes(event.key) ||
-      (event.key === 'a' && event.ctrlKey === true) || // Ctrl+A
-      (event.key >= '0' && event.key <= '9') || // Numbers
-      (event.key >= 'Numpad0' && event.key <= 'Numpad9') // Numpad numbers
-    ) {
-      return; // Allow the key event
-    }
-
-    event.preventDefault();
-  }
-
-  @HostListener('change', ['$event'])
-  onChange(event: Event) {
-    const input = (event.target as HTMLInputElement).value;
-    if (input === '0') {
-      alert("Value should be greater than 0 minutes");
-      (event.target as HTMLInputElement).focus();
-      (event.target as HTMLInputElement).value = '';
-    }
-  }
-}
+  completionTypes = [
+    { text: 'During Week', value: '1' },
+    { text: 'After Week', value: '2' }
+  ];
