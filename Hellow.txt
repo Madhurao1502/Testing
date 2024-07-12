@@ -1,82 +1,65 @@
-<fieldset>
-      <legend>Due Date</legend>
-      <div class="form-group row">
-        <label class="col-sm-2 col-form-label">Complete by Day:</label>
-        <div class="col-sm-4">
-          <mat-form-field appearance="fill" class="full-width">
-            <mat-label>Complete by Day</mat-label>
-            <mat-select formControlName="selectedDay">
-              <mat-option *ngFor="let day of days" [value]="day.value">{{ day.text }}</mat-option>
+ <mat-card-content>
+        <h4>Sample Type</h4>
+        <form [formGroup]="sampleForm">
+          <mat-form-field>
+            <mat-label>Sample Type</mat-label>
+            <mat-select formControlName="sampleType">
+              <mat-option value="FIX">Fixed</mat-option>
+              <mat-option value="ROT">Rotation</mat-option>
+              <mat-option value="MAN">Manual</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field *ngIf="sampleForm.get('sampleType').value === 'FIX'">
+            <mat-label>Number of Stores</mat-label>
+            <input matInput formControlName="numberOfStores" type="number">
+          </mat-form-field>
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card>
+      <mat-card-content>
+        <div *ngIf="sampleForm.get('sampleType').value === 'FIX'">
+          <h4>Fixed Assignment</h4>
+          <mat-form-field>
+            <mat-label>Select a Sample</mat-label>
+            <mat-select>
+              <mat-option>--SELECT--</mat-option>
+              <!-- Add options dynamically here -->
+            </mat-select>
+          </mat-form-field>
+          <button mat-raised-button color="primary" style="width: 100%;">Apply Fixed Samples</button>
+        </div>
+
+        <div *ngIf="sampleForm.get('sampleType').value === 'ROT'">
+          <h4>Rotation Assignment</h4>
+          <mat-form-field>
+            <mat-label>Select a Rotation</mat-label>
+            <mat-select>
+              <mat-option>--SELECT--</mat-option>
+              <!-- Add options dynamically here -->
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Starting Sample</mat-label>
+            <mat-select>
+              <mat-option>--SELECT--</mat-option>
+              <!-- Add options dynamically here -->
+            </mat-select>
+          </mat-form-field>
+          <button mat-raised-button color="primary" style="width: 100%;">Apply Rotational Samples</button>
+        </div>
+
+        <div *ngIf="sampleForm.get('sampleType').value === 'MAN'">
+          <h4>Manual Assignment</h4>
+          <mat-form-field>
+            <mat-label>Select a Sample</mat-label>
+            <mat-select multiple>
+              <mat-option>--SELECT--</mat-option>
+              <!-- Add options dynamically here -->
             </mat-select>
           </mat-form-field>
         </div>
-        <label class="col-sm-2 col-form-label">Complete by Time:</label>
-        <div class="col-sm-4">
-          <mat-form-field appearance="fill" class="full-width">
-            <mat-label>Complete by Time</mat-label>
-            <input matInput formControlName="completeByTime" disabled>
-          </mat-form-field>
-        </div>
-      </div>
-
-      <div class="form-group row">
-        <label class="col-sm-2 col-form-label">Completion:</label>
-        <div class="col-sm-4">
-          <mat-form-field appearance="fill" class="full-width">
-            <mat-label>Completion</mat-label>
-            <mat-select formControlName="completionType">
-              <mat-option *ngFor="let type of completionTypes" [value]="type.value">{{ type.text }}</mat-option>
-            </mat-select>
-          </mat-form-field>
-        </div>
-      </div>
-      
-      <div *ngIf="dueDateForm.get('completionType')?.value == '2'" class="form-group row">
-        <div class="col-sm-12">
-          <button mat-raised-button color="primary" (click)="showMultiWeekOptions()">Show Multi Week Options</button>
-        </div>
-      </div>
-
-      <div *ngIf="dueDateForm.get('completionType')?.value == '2'" id="tdMulWeekSch">
-        <div class="form-group row">
-          <div class="col-sm-12">
-            <table id="WaveScheduleGrid" class="table table-bordered"></table>
-            <div id="WaveScheduleGridpager"></div>
-          </div>
-        </div>
-        <div class="form-group row">
-          <div class="col-sm-12">
-            <button mat-raised-button color="accent" (click)="createWave()">Create Wave</button>
-          </div>
-        </div>
-        <div class="form-group row">
-          <div class="col-sm-12">
-            <table id="SummaryMultiWeekGrid" class="table table-bordered"></table>
-            <div id="SummaryMultiWeekGridpager"></div>
-          </div>
-        </div>
-      </div>
-    </fieldset>
-
-    <div id="DueDateModel" class="mt-5">
-      <fieldset>
-        <legend>Select Due Date and Time</legend>
-        <div class="form-group row">
-          <label class="col-sm-2 col-form-label">Select Date:</label>
-          <div class="col-sm-4">
-            <mat-form-field appearance="fill" class="full-width">
-              <mat-label>Select Date</mat-label>
-              <input matInput [matDatepicker]="picker" formControlName="dueDate">
-              <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
-              <mat-datepicker #picker></mat-datepicker>
-            </mat-form-field>
-          </div>
-          <label class="col-sm-2 col-form-label">Select Time:</label>
-          <div class="col-sm-4">
-            <mat-form-field appearance="fill" class="full-width">
-              <mat-label>Select Time</mat-label>
-              <input matInput formControlName="dueTime" disabled>
-            </mat-form-field>
-          </div>
-        </div>
-      </fieldset>
+      </mat-card-content>
+    </mat-card>
+  </div>
