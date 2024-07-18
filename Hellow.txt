@@ -1,71 +1,37 @@
-<div class="container">
-  <form [formGroup]="taskSpecForm" (ngSubmit)="onSubmit()">
-    <div>
-      <mat-checkbox formControlName="collectOnDisplay">
-        This task is Day Specific. This task is to be collected on the same day as your Weekly Display task.
-      </mat-checkbox><br />
-      <mat-checkbox formControlName="collectOnBFD">
-        This task is Day Specific. This task is to be collected on or within 48 hours after the Best Food Day.
-      </mat-checkbox><br />
-      <mat-checkbox formControlName="notSampleStore">
-        If this is not a sample store, collect on or within 48 hours after the chain's Best Food Day.
-      </mat-checkbox><br />
-      <br />
-      <label>This is a day-specific task. Collect on:</label><br />
-      <textarea formControlName="collectOnDay" cols="125" rows="3"></textarea>
-      <hr />
-    </div>
+implements OnInit {
+  taskSpecForm: FormGroup;
+  visibleSection: string = '';
 
-    <button type="button" (click)="toggleSection('projectOverview')">Project Overview</button>
-    <div *ngIf="visibleSection === 'projectOverview'">
-      <h3>Project Overview</h3>
-      <angular-editor formControlName="projectOverview"></angular-editor>
-    </div>
+  constructor(private fb: FormBuilder) {}
 
-    <button type="button" (click)="toggleSection('locationsToCollect')">Location to Collect</button>
-    <div *ngIf="visibleSection === 'locationsToCollect'">
-      <h3>Location to Collect</h3>
-      <angular-editor formControlName="locationsToCollect"></angular-editor>
-    </div>
+  ngOnInit() {
+    this.taskSpecForm = this.fb.group({
+      collectOnDisplay: [false],
+      collectOnBFD: [false],
+      notSampleStore: [false],
+      collectOnDay: [''],
+      projectOverview: [''],
+      locationsToCollect: [''],
+      collectionSteps: [''],
+      alerts: [''],
+      definitions: [''],
+      changes: [''],
+      miscName: [''],
+      misc: [''],
+      collCatDetails: ['']
+    });
+  }
 
-    <button type="button" (click)="toggleSection('collectionSteps')">Collection Steps</button>
-    <div *ngIf="visibleSection === 'collectionSteps'">
-      <h3>Collection Steps</h3>
-      <angular-editor formControlName="collectionSteps"></angular-editor>
-    </div>
+  toggleSection(section: string) {
+    if (this.visibleSection === section) {
+      this.visibleSection = '';
+    } else {
+      this.visibleSection = section;
+    }
+  }
 
-    <button type="button" (click)="toggleSection('alerts')">Alerts</button>
-    <div *ngIf="visibleSection === 'alerts'">
-      <h3>Alerts</h3>
-      <angular-editor formControlName="alerts"></angular-editor>
-    </div>
-
-    <button type="button" (click)="toggleSection('definitions')">Task Specific Definitions</button>
-    <div *ngIf="visibleSection === 'definitions'">
-      <h3>Task Specific Definitions</h3>
-      <angular-editor formControlName="definitions"></angular-editor>
-    </div>
-
-    <button type="button" (click)="toggleSection('changes')">Changes From Last Collection</button>
-    <div *ngIf="visibleSection === 'changes'">
-      <h3>Changes From Last Collection</h3>
-      <angular-editor formControlName="changes"></angular-editor>
-    </div>
-
-    <button type="button" (click)="toggleSection('misc')">Miscellaneous</button>
-    <div *ngIf="visibleSection === 'misc'">
-      <h3>Miscellaneous</h3>
-      <label>Section Name for Specs:</label><br />
-      <input formControlName="miscName" type="text" /><br />
-      <angular-editor formControlName="misc"></angular-editor>
-    </div>
-
-    <button type="button" (click)="toggleSection('collCatDetails')">Collection Category Details</button>
-    <div *ngIf="visibleSection === 'collCatDetails'">
-      <h3>Collection Category Details</h3>
-      <angular-editor formControlName="collCatDetails"></angular-editor>
-    </div>
-
-    <button type="submit" mat-raised-button color="primary">Save Task Specs</button>
-  </form>
-</div>
+  onSubmit() {
+    console.log(this.taskSpecForm.value);
+    // Handle form submission
+  }
+}
