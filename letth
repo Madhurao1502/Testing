@@ -1,23 +1,14 @@
-private currentLang: string = 'en';
-  private translations: any = {};
+import { Pipe, PipeTransform } from '@angular/core';
+import { TranslationService } from '../services/translation.service';
 
-  constructor(private http: HttpClient) {}
+@Pipe({
+  name: 'translate',
+  pure: false
+})
+export class TranslatePipe implements PipeTransform {
+  constructor(private translationService: TranslationService) {}
 
-  loadTranslations(lang: string): Observable<any> {
-    return this.http.get(`/assets/i18n/${lang}.json`).pipe(
-      map((translations: any) => {
-        this.translations = translations;
-        this.currentLang = lang;
-        return translations;
-      })
-    );
-  }
-
-  translate(key: string): string {
-    return this.translations[key] || key;
-  }
-
-  getCurrentLang(): string {
-    return this.currentLang;
+  transform(value: string): string {
+    return this.translationService.translate(value);
   }
 }
