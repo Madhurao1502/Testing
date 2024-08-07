@@ -1,37 +1,12 @@
-implements OnInit {
-  taskSpecForm: FormGroup;
-  visibleSection: string = '';
+var builder = WebApplication.CreateBuilder(args);
 
-  constructor(private fb: FormBuilder) {}
+builder.Services.AddControllers();
+builder.Services.AddHttpClient();
 
-  ngOnInit() {
-    this.taskSpecForm = this.fb.group({
-      collectOnDisplay: [false],
-      collectOnBFD: [false],
-      notSampleStore: [false],
-      collectOnDay: [''],
-      projectOverview: [''],
-      locationsToCollect: [''],
-      collectionSteps: [''],
-      alerts: [''],
-      definitions: [''],
-      changes: [''],
-      miscName: [''],
-      misc: [''],
-      collCatDetails: ['']
-    });
-  }
+var app = builder.Build();
 
-  toggleSection(section: string) {
-    if (this.visibleSection === section) {
-      this.visibleSection = '';
-    } else {
-      this.visibleSection = section;
-    }
-  }
+app.UseHttpsRedirection();
+app.UseAuthorization();
+app.MapControllers();
 
-  onSubmit() {
-    console.log(this.taskSpecForm.value);
-    // Handle form submission
-  }
-}
+app.Run();
