@@ -1,14 +1,22 @@
-var builder = WebApplication.CreateBuilder(args);
+using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
-builder.Services.AddControllers();
-builder.Services.AddHttpClient();
-builder.Services.AddDbContext<MyDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+public class MyDbContext : DbContext
+{
+    public MyDbContext(DbContextOptions<MyDbContext> options) : base(options) { }
 
-var app = builder.Build();
+    public DbSet<YourModel> YourModels { get; set; }
 
-app.UseHttpsRedirection();
-app.UseAuthorization();
-app.MapControllers();
+    public async Task<List<YourModel>> CallStoredProcedureAsync(string parameter)
+    {
+        return await YourModels.FromSqlRaw("EXEC YourStoredProcedure {0}", parameter).ToListAsync();
+    }
+}
 
-app.Run();
+public class YourModel
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    // Add other properties
+}
