@@ -1,26 +1,14 @@
-[ApiController]
-[Route("[controller]")]
-public class AuthController : ControllerBase
-{
-    private readonly IHttpClientFactory _httpClientFactory;
+var builder = WebApplication.CreateBuilder(args);
 
-    public AuthController(IHttpClientFactory httpClientFactory)
-    {
-        _httpClientFactory = httpClientFactory;
-    }
+builder.Services.AddControllers();
+builder.Services.AddHttpClient();
+builder.Services.AddDbContext<MyDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-    [HttpGet("authenticate")]
-    public async Task<IActionResult> Authenticate()
-    {
-        var client = _httpClientFactory.CreateClient();
-        var response = await client.GetAsync("https://www.madhuleo.com/authenticate");
-        
-        if (response.IsSuccessStatusCode)
-        {
-            var userToken = await response.Content.ReadAsStringAsync();
-            return Ok(new { token = userToken });
-        }
+var app = builder.Build();
 
-        return Unauthorized();
-    }
-}
+app.UseHttpsRedirection();
+app.UseAuthorization();
+app.MapControllers();
+
+app.Run();
