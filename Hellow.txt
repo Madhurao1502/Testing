@@ -1,44 +1,22 @@
-using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
-using System.Xml.Serialization;
-using System.IO;
+var builder = WebApplication.CreateBuilder(args);
 
-[ApiController]
-[Route("[controller]")]
-public class DataController : ControllerBase
+builder.Services.AddControllers();
+builder.Services.AddHttpClient();
+builder.Services.AddDbContext<MyDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
 {
-    private readonly MyDbContext _context;
-
-    public DataController(MyDbContext context)
-    {
-        _context = context;
-    }
-
-    [HttpGet("getdata")]
-    public async Task<IActionResult> GetData(string parameter, string format = "json")
-    {
-        var result = await _context.CallStoredProcedureAsync(parameter);
-
-        if (format.ToLower() == "xml")
-        {
-            return new ContentResult
-            {
-                Content = SerializeToXml(result),
-                ContentType = "application/xml",
-                StatusCode = 200
-            };
-        }
-
-        return Ok(result);
-    }
-
-    private string SerializeToXml(object data)
-    {
-        using (var stringwriter = new StringWriter())
-        {
-            var serializer = new XmlSerializer(data.GetType());
-            serializer.Serialize(stringwriter, data);
-            return stringwriter.ToString();
-        }
-    }
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
+
+app.UseHttpsRedirection();
+app.UseAuthorization();
+app.MapControllers();
+
+app.Run();
