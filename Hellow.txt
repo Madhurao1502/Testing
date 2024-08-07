@@ -1,42 +1,26 @@
- private readonly IConfiguration _configuration;
+var builder = WebApplication.CreateBuilder(args);
 
-    public YourRepository(IConfiguration configuration)
-    {
-        _configuration = configuration;
-    }
+// Add services to the container.
+builder.Services.AddControllers()
+                .AddXmlSerializerFormatters(); // Add this line to support XML format.
 
-    public async Task<List<YourModel>> GetDataAsync()
-    {
-        var result = new List<YourModel>();
-        var connectionString = _configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddSingleton<YourRepository>(); // Register the repository
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
-        using (var connection = new SqlConnection(connectionString))
-        {
-            using (var command = new SqlCommand("YourStoredProcedure", connection))
-            {
-                command.CommandType = CommandType.StoredProcedure;
+var app = builder.Build();
 
-                await connection.OpenAsync();
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
-                using (var adapter = new SqlDataAdapter(command))
-                {
-                    var dataTable = new DataTable();
-                    adapter.Fill(dataTable);
+app.UseHttpsRedirection();
 
-                    foreach (DataRow row in dataTable.Rows)
-                    {
-                        var model = new YourModel
-                        {
-                            Id = Convert.ToInt32(row["Id"]),
-                            Name = row["Name"].ToString(),
-                            // Map other properties
-                        };
+app.UseAuthorization();
 
-                        result.Add(model);
-                    }
-                }
-            }
-        }
+app.MapControllers();
 
-        return result;
-    }
+app.Run();
