@@ -1,41 +1,28 @@
+/* app.component.css */
 .custom-select .mat-form-field-wrapper {
   padding: 0;
 }
 
-.custom-select .mat-form-field-outline {
-  border-color: #007bff;
-}
-
-.custom-select .mat-select {
-  border: 1px solid;
-  border-radius: .25rem;
-  color: #007bff;
-  cursor: pointer;
-  display: inline-block;
-  font-weight: 400;
-  line-height: 1.5;
+.custom-select .mat-select-trigger {
   padding: .375rem .75rem;
-  text-align: center;
-  text-decoration: none;
-  vertical-align: middle;
-  white-space: nowrap;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #007bff;
   background-color: transparent;
-  border-color: #007bff;
+  border: 1px solid #007bff;
+  border-radius: .25rem;
+  display: inline-block;
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
 }
 
-.custom-select .mat-select .mat-select-trigger {
-  padding: 0;
-}
-
-.custom-select .mat-select .mat-select-value-text {
-  padding: 0;
+.custom-select .mat-select-arrow {
+  color: #007bff;
 }
 
 .custom-select.mat-form-field-outline .mat-form-field-outline-start,
-.custom-select.mat-form-field-outline .mat-form-field-outline-end {
-  background: transparent;
-}
-
+.custom-select.mat-form-field-outline .mat-form-field-outline-end,
 .custom-select.mat-form-field-outline .mat-form-field-outline-gap {
   background: transparent;
   border: none;
@@ -47,12 +34,11 @@
 }
 
 .custom-select .mat-select:focus {
-  color: #0056b3;
-  border-color: #0056b3;
+  outline: none;
+  box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
 }
 
-.custom-select .mat-select.mat-select-disabled {
-  color: #6c757d;
-  background-color: transparent;
-  border-color: #6c757d;
+.custom-select .mat-select .mat-select-value-text {
+  margin: 0;
+  padding: 0;
 }
