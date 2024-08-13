@@ -1,15 +1,45 @@
-Key	English	Spanish	Greek	Dutch	French	Italian
-Final	Final	Final	Τελικός	Final	Final	Finale
-Initial	Initial	Inicial	Αρχικός	Initieel	Initial	Iniziale
-Scheduled	Scheduled	Programado	Προγραμματισμένο	Gepland	Programmé	Programmato
-Task Number	Task Number	Número de tarea	Αριθμός εργασίας	Taaknummer	Numéro de tâche	Numero dell'attività
-Task Name	Task Name	Nombre de tarea	Όνομα εργασίας	Taaknaam	Nom de la tâche	Nome dell'attività
-Client	Client	Cliente	Πελάτης	Klant	Client	Cliente
-Sample	Sample	Muestra	Δείγμα	Monster	Échantillon	Campione
-Task Type	Task Type	Tipo de tarea	Τύπος εργασίας	Taaktype	Type de tâche	Tipo di attività
-Filter by task type	Filter by task type	Filtrar por tipo de tarea	Φιλτράρισμα ανά τύπο εργασίας	Filter op taaktype	Filtrer par type de tâche	Filtra per tipo di attività
-Search	Search	Buscar	Αναζήτηση	Zoeken	Recherche	Cerca
-Reset	Reset	Restablecer	Επαναφορά	Reset	Réinitialiser	Ripristina
-Sort By	Sort By	Ordenar por	Ταξινόμηση κατά	Sorteren op	Trier par	Ordina per
-Create New Task	Create New Task	Crear nueva tarea	Δημιουργία νέας εργασίας	Nieuwe taak maken	Créer une nouvelle tâche	Crea nuova attività
-Dictionary Release Process	Dictionary Release Process	Proceso de liberación de diccionario	Διαδικασία έκδοσης λεξικού	Woordenboek vrijgave proces	Processus de publication du dictionnaire	Processo di rilascio del dizionario
+private translations: any = {};
+  private currentLang: BehaviorSubject<string> = new BehaviorSubject<string>('en');
+  private languages: BehaviorSubject<string[]> = new BehaviorSubject<string[]>([]);
+
+  constructor(private http: HttpClient) {}
+
+  loadTranslations(fileUrl: string) {
+    this.http.get(fileUrl, { responseType: 'arraybuffer' }).subscribe(data => {
+      const workbook: XLSX.WorkBook = XLSX.read(data, { type: 'array' });
+      const sheetName: string = workbook.SheetNames[0];
+      const worksheet: XLSX.WorkSheet = workbook.Sheets[sheetName];
+      const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+      const headers = jsonData[0];
+      this.languages.next(headers.slice(1));
+
+      jsonData.slice(1).forEach(row => {
+        const key = row[0];
+        headers.slice(1).forEach((lang, index) => {
+          if (!this.translations[lang]) {
+            this.translations[lang] = {};
+          }
+          this.translations[lang][key] = row[index + 1];
+        });
+      });
+    });
+  }
+
+  translate(key: string): string {
+    const lang = this.currentLang.value;
+    return this.translations[lang][key] || key;
+  }
+
+  setCurrentLang(lang: string) {
+    this.currentLang.next(lang);
+  }
+
+  getCurrentLang(): Observable<string> {
+    return this.currentLang.asObservable();
+  }
+
+  getLanguages(): Observable<string[]> {
+    return this.languages.asObservable();
+  }
+}
