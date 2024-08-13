@@ -1,14 +1,49 @@
-import { Pipe, PipeTransform } from '@angular/core';
-import { TranslationService } from '../services/translation.service';
+private translations: any = {};
+  private currentLang: BehaviorSubject<string> = new BehaviorSubject<string>('en'); // Default to English
+  private languages: BehaviorSubject<string[]> = new BehaviorSubject<string[]>([]);
 
-@Pipe({
-  name: 'translate',
-  pure: false
-})
-export class TranslatePipe implements PipeTransform {
-  constructor(private translationService: TranslationService) {}
+  constructor(private http: HttpClient) {}
 
-  transform(value: string): string {
-    return this.translationService.translate(value);
+  loadTranslations(fileUrl: string) {
+    this.http.get(fileUrl, { responseType: 'arraybuffer' }).subscribe({
+      next: (data) => {
+        const workbook: XLSX.WorkBook = XLSX.read(data, { type: 'array' });
+        const sheetName: string = workbook.SheetNames[0];
+        const worksheet: XLSX.WorkSheet = workbook.Sheets[sheetName];
+        const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        const headers = jsonData[0];
+        this.languages.next(headers.slice(1));
+
+        jsonData.slice(1).forEach(row => {
+          const key = row[0];
+          headers.slice(1).forEach((lang, index) => {
+            if (!this.translations[lang]) {
+              this.translations[lang] = {};
+            }
+            this.translations[lang][key] = row[index + 1];
+          });
+        });
+      },
+      error: (err) => {
+        console.error('Error loading translations', err);
+      }
+    });
   }
-}
+
+  translate(key: string): string {
+    const lang = this.currentLang.value;
+    return this.translations[lang]?.[key] || key;
+  }
+
+  setCurrentLang(lang: string) {
+    this.currentLang.next(lang);
+  }
+
+  getCurrentLang(): Observable<string> {
+    return this.currentLang.asObservable();
+  }
+
+  getLanguages(): Observable<string[]> {
+    return this.languages.asObservable();
+  }
