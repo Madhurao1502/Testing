@@ -1,44 +1,15 @@
-/* app.component.css */
-.custom-select .mat-form-field-wrapper {
-  padding: 0;
-}
-
-.custom-select .mat-select-trigger {
-  padding: .375rem .75rem;
-  font-size: 1rem;
-  line-height: 1.5;
-  color: #007bff;
-  background-color: transparent;
-  border: 1px solid #007bff;
-  border-radius: .25rem;
-  display: inline-block;
-  cursor: pointer;
-  text-align: center;
-  white-space: nowrap;
-}
-
-.custom-select .mat-select-arrow {
-  color: #007bff;
-}
-
-.custom-select.mat-form-field-outline .mat-form-field-outline-start,
-.custom-select.mat-form-field-outline .mat-form-field-outline-end,
-.custom-select.mat-form-field-outline .mat-form-field-outline-gap {
-  background: transparent;
-  border: none;
-}
-
-.custom-select .mat-select:hover {
-  color: #0056b3;
-  border-color: #0056b3;
-}
-
-.custom-select .mat-select:focus {
-  outline: none;
-  box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
-}
-
-.custom-select .mat-select .mat-select-value-text {
-  margin: 0;
-  padding: 0;
-}
+Key	English	Spanish	Greek	Dutch	French	Italian
+Final	Final	Final	Τελικός	Final	Final	Finale
+Initial	Initial	Inicial	Αρχικός	Initieel	Initial	Iniziale
+Scheduled	Scheduled	Programado	Προγραμματισμένο	Gepland	Programmé	Programmato
+Task Number	Task Number	Número de tarea	Αριθμός εργασίας	Taaknummer	Numéro de tâche	Numero dell'attività
+Task Name	Task Name	Nombre de tarea	Όνομα εργασίας	Taaknaam	Nom de la tâche	Nome dell'attività
+Client	Client	Cliente	Πελάτης	Klant	Client	Cliente
+Sample	Sample	Muestra	Δείγμα	Monster	Échantillon	Campione
+Task Type	Task Type	Tipo de tarea	Τύπος εργασίας	Taaktype	Type de tâche	Tipo di attività
+Filter by task type	Filter by task type	Filtrar por tipo de tarea	Φιλτράρισμα ανά τύπο εργασίας	Filter op taaktype	Filtrer par type de tâche	Filtra per tipo di attività
+Search	Search	Buscar	Αναζήτηση	Zoeken	Recherche	Cerca
+Reset	Reset	Restablecer	Επαναφορά	Reset	Réinitialiser	Ripristina
+Sort By	Sort By	Ordenar por	Ταξινόμηση κατά	Sorteren op	Trier par	Ordina per
+Create New Task	Create New Task	Crear nueva tarea	Δημιουργία νέας εργασίας	Nieuwe taak maken	Créer une nouvelle tâche	Crea nuova attività
+Dictionary Release Process	Dictionary Release Process	Proceso de liberación de diccionario	Διαδικασία έκδοσης λεξικού	Woordenboek vrijgave proces	Processus de publication du dictionnaire	Processo di rilascio del dizionario
