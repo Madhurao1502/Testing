@@ -1,15 +1,2 @@
-private translation: string = '';
-
-  constructor(private translationService: TranslationService) {}
-
-  transform(value: string): Observable<string> {
-    return combineLatest([
-      this.translationService.getCurrentLang(),
-      this.translationService.getLanguages()
-    ]).pipe(
-      map(([currentLang, _]) => {
-        const translations = this.translationService.translations[currentLang];
-        return translations ? translations[value] || value : value;
-      })
-    );
-  }
+Enable/Disable Downloads	Enable/Disable Downloads	Activar/Desactivar descargas	Ενεργοποίηση/Απενεργοποίηση λήψεων	Inschakelen/uitschakelen downloads	Activer/Désactiver les téléchargements	Abilita/disabilita download
+Task Schedule by IRI Week	Task Schedule by IRI Week	Programación de tareas por semana IRI	Προγραμματισμός εργασιών ανά εβδομάδα IRI	Taakplanning per IRI-week	Planification des tâches par semaine IRI	Pianificazione delle attività per settimana IRI
