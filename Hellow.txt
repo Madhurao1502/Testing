@@ -1,2 +1,1 @@
-Enable/Disable Downloads	Enable/Disable Downloads	Activar/Desactivar descargas	Ενεργοποίηση/Απενεργοποίηση λήψεων	Inschakelen/uitschakelen downloads	Activer/Désactiver les téléchargements	Abilita/disabilita download
-Task Schedule by IRI Week	Task Schedule by IRI Week	Programación de tareas por semana IRI	Προγραμματισμός εργασιών ανά εβδομάδα IRI	Taakplanning per IRI-week	Planification des tâches par semaine IRI	Pianificazione delle attività per settimana IRI
+Filter by Week	Filter by Week	Filtrar por semana	Φίλτρο ανά εβδομάδα	Filter op week	Filtrer par semaine	Filtra per settimana
