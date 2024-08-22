@@ -1,1 +1,6 @@
-Filter by Week	Filter by Week	Filtrar por semana	Φίλτρο ανά εβδομάδα	Filter op week	Filtrer par semaine	Filtra per settimana
+English	Status
+Spanish	Estado
+Greek	Κατάσταση
+Dutch	Status
+French	Statut
+Italian	Stato
