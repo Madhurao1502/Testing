@@ -1,6 +1,53 @@
-English	Status
-Spanish	Estado
-Greek	Κατάσταση
-Dutch	Status
-French	Statut
-Italian	Stato
+ onSave(): void {
+    this.isGlobalError = false;
+
+    const accountingObj = {
+      Barcode: this.accountingForm.get('barcode')?.value || 0,
+      Basic: this.accountingForm.get('basic')?.value || 0,
+      Complex: this.accountingForm.get('complex')?.value || 0,
+      Medium: this.accountingForm.get('medium')?.value || 0,
+      Simple: this.accountingForm.get('simple')?.value || 0,
+      Image: this.accountingForm.get('image')?.value || 0
+    };
+
+    const outletAdditionalMin = {
+      Club_minutes: this.outletForm.get('clubMinutes')?.value || 0,
+      Conv_minutes: this.outletForm.get('convMinutes')?.value || 0,
+      Drug_minutes: this.outletForm.get('drugMinutes')?.value || 0,
+      Groc_minutes: this.outletForm.get('grocMinutes')?.value || 0,
+      Mass_minutes: this.outletForm.get('massMinutes')?.value || 0,
+      WalMart_minutes: this.outletForm.get('walmartMinutes')?.value || 0,
+      Petco_minutes: this.outletForm.get('petcoMinutes')?.value || 0,
+      Liquor_minutes: this.outletForm.get('liquorMinutes')?.value || 0
+    };
+
+    // Save accounting data
+    this.accountingService.saveAccountingData(accountingObj, this.taskId).subscribe(
+      (response) => {
+        if (response === 'success') {
+          this.afterSaveActions();
+        }
+      },
+      (error) => {
+        alert('An error occurred while saving accounting details');
+        this.isGlobalError = true;
+      }
+    );
+
+    // Save outlet additional minutes
+    this.accountingService.saveOutletAdditionalMinutes(outletAdditionalMin, this.taskId).subscribe(
+      (response) => {
+        if (response === 'success') {
+          this.afterSaveActions();
+          this.getOutletAdditionalMinutes(this.taskId);
+        }
+      },
+      (error) => {
+        alert('An error occurred while saving outlet details');
+        this.isGlobalError = true;
+      }
+    );
+
+    // Reload saved data
+    this.getOutletAdditionalMinutes(this.taskId);
+  }
