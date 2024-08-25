@@ -1,53 +1,83 @@
- onSave(): void {
-    this.isGlobalError = false;
+public class Task
+{
+    [JsonProperty("task_number")]
+    public int TaskNumber { get; set; }
 
-    const accountingObj = {
-      Barcode: this.accountingForm.get('barcode')?.value || 0,
-      Basic: this.accountingForm.get('basic')?.value || 0,
-      Complex: this.accountingForm.get('complex')?.value || 0,
-      Medium: this.accountingForm.get('medium')?.value || 0,
-      Simple: this.accountingForm.get('simple')?.value || 0,
-      Image: this.accountingForm.get('image')?.value || 0
-    };
+    [JsonProperty("task_name")]
+    public string TaskName { get; set; }
 
-    const outletAdditionalMin = {
-      Club_minutes: this.outletForm.get('clubMinutes')?.value || 0,
-      Conv_minutes: this.outletForm.get('convMinutes')?.value || 0,
-      Drug_minutes: this.outletForm.get('drugMinutes')?.value || 0,
-      Groc_minutes: this.outletForm.get('grocMinutes')?.value || 0,
-      Mass_minutes: this.outletForm.get('massMinutes')?.value || 0,
-      WalMart_minutes: this.outletForm.get('walmartMinutes')?.value || 0,
-      Petco_minutes: this.outletForm.get('petcoMinutes')?.value || 0,
-      Liquor_minutes: this.outletForm.get('liquorMinutes')?.value || 0
-    };
+    [JsonProperty("task_short_name")]
+    public string TaskShortName { get; set; }
 
-    // Save accounting data
-    this.accountingService.saveAccountingData(accountingObj, this.taskId).subscribe(
-      (response) => {
-        if (response === 'success') {
-          this.afterSaveActions();
-        }
-      },
-      (error) => {
-        alert('An error occurred while saving accounting details');
-        this.isGlobalError = true;
-      }
-    );
+    [JsonProperty("client_name")]
+    public string ClientName { get; set; }
 
-    // Save outlet additional minutes
-    this.accountingService.saveOutletAdditionalMinutes(outletAdditionalMin, this.taskId).subscribe(
-      (response) => {
-        if (response === 'success') {
-          this.afterSaveActions();
-          this.getOutletAdditionalMinutes(this.taskId);
-        }
-      },
-      (error) => {
-        alert('An error occurred while saving outlet details');
-        this.isGlobalError = true;
-      }
-    );
+    [JsonProperty("version_code")]
+    public string VersionCode { get; set; }
 
-    // Reload saved data
-    this.getOutletAdditionalMinutes(this.taskId);
-  }
+    [JsonProperty("task_type")]
+    public string TaskType { get; set; }
+
+    [JsonProperty("prj_coordinator")]
+    public string PrjCoordinator { get; set; }
+
+    [JsonProperty("data_delivery_type")]
+    public string DataDeliveryType { get; set; }
+
+    [JsonProperty("data_delivery_format")]
+    public byte DataDeliveryFormat { get; set; }
+
+    [JsonProperty("estd_coll_time")]
+    public int EstdCollTime { get; set; }
+
+    [JsonProperty("multi_week_prj")]
+    public string MultiWeekPrj { get; set; }
+
+    [JsonProperty("multi_visit")]
+    public byte MultiVisit { get; set; }
+
+    [JsonProperty("pop_flag")]
+    public string PopFlag { get; set; }
+
+    [JsonProperty("pv_number")]
+    public int PvNumber { get; set; }
+
+    [JsonProperty("project_status")]
+    public string ProjectStatus { get; set; }
+
+    [JsonProperty("activity_code")]
+    public string ActivityCode { get; set; }
+
+    [JsonProperty("client_code")]
+    public string ClientCode { get; set; }
+
+    [JsonProperty("project_code")]
+    public string ProjectCode { get; set; }
+
+    [JsonProperty("product_code")]
+    public string ProductCode { get; set; }
+
+    [JsonProperty("assignment_required")]
+    public int AssignmentRequired { get; set; }
+
+    [JsonProperty("primary_task_number")]
+    public int PrimaryTaskNumber { get; set; }
+
+    [JsonProperty("min_category_nbr")]
+    public bool MinCategoryNbr { get; set; }
+
+    [JsonProperty("selected_vendors")]
+    public string SelectedVendors { get; set; }
+
+    [JsonProperty("manual_time")]
+    public int ManualTime { get; set; }
+
+    [JsonProperty("idle_time")]
+    public decimal IdleTime { get; set; }
+
+    [JsonProperty("flat_rate")]
+    public decimal FlatRate { get; set; }
+
+    [JsonProperty("exp_scan_rate")]
+    public int ExpScanRate { get; set; }
+}
