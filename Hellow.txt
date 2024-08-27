@@ -1,83 +1,267 @@
-public class Task
-{
-    [JsonProperty("task_number")]
-    public int TaskNumber { get; set; }
+import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterOutlet } from '@angular/router';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { FormBuilder, FormGroup, FormsModule, Validators } from '@angular/forms';   
+import { MatTableModule } from '@angular/material/table';
+import { ReactiveFormsModule } from '@angular/forms';
 
-    [JsonProperty("task_name")]
-    public string TaskName { get; set; }
 
-    [JsonProperty("task_short_name")]
-    public string TaskShortName { get; set; }
 
-    [JsonProperty("client_name")]
-    public string ClientName { get; set; }
 
-    [JsonProperty("version_code")]
-    public string VersionCode { get; set; }
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  imports: [CommonModule, RouterOutlet,MatFormFieldModule,MatInputModule,MatSelectModule,MatTabsModule,MatExpansionModule,MatCheckboxModule,FormsModule,MatTableModule,ReactiveFormsModule],
+  templateUrl: './app.component.html',
+  styleUrl: './app.component.css'
+})
+export class  AppComponent implements OnInit {
+  form: FormGroup;
+  date = [
+    {"monthYear": "Aug24", "StartWeek": 2348, "StartDate": "08/26/2024", "endDate": "09/01/2024"},
+    {"monthYear": "Sep24", "StartWeek": 2349, "StartDate": "09/02/2024", "endDate": "09/08/2024"},
+    {"monthYear": "Oct24", "StartWeek": 2350, "StartDate": "09/09/2024", "endDate": "09/15/2024"},
+    {"monthYear": "Nov24", "StartWeek": 2351, "StartDate": "09/16/2024", "endDate": "09/22/2024"},
+    {"monthYear": "Dec24", "StartWeek": 2352, "StartDate": "09/23/2024", "endDate": "09/29/2024"},
+    {"monthYear": "Jan25", "StartWeek": 2353, "StartDate": "09/30/2024", "endDate": "10/06/2024"},
+    {"monthYear": "Feb25", "StartWeek": 2354, "StartDate": "10/07/2024", "endDate": "10/13/2024"},
+    {"monthYear": "Mar25", "StartWeek": 2355, "StartDate": "10/14/2024", "endDate": "10/20/2024"},
+    {"monthYear": "Apr25", "StartWeek": 2356, "StartDate": "10/21/2024", "endDate": "10/27/2024"},
+    {"monthYear": "May25", "StartWeek": 2357, "StartDate": "10/28/2024", "endDate": "11/03/2024"},
+    {"monthYear": "Jun25", "StartWeek": 2358, "StartDate": "11/04/2024", "endDate": "11/10/2024"},
+    {"monthYear": "Jul25", "StartWeek": 2359, "StartDate": "11/11/2024", "endDate": "11/17/2024"}
+  ];
+  samples = [
+    {"SampleName": "12016", "description": "testing"},
+    {"SampleName": "12017", "description": "testing2"},
+    {"SampleName": "12018", "description": "testing3"},
+    {"SampleName": "12019", "description": "testing4"},
+    {"SampleName": "12020", "description": "testing5"},
+    {"SampleName": "12021", "description": "testing6"},
+    {"SampleName": "12022", "description": "testing7"},
+    {"SampleName": "12023", "description": "testing8"},
+    {"SampleName": "12024", "description": "testing9"},
+    {"SampleName": "12025", "description": "testing10"}
+  ];
+  rotation = [
+    {"RotationName": "rot", "SampleName": "12016", "seqNumber": 0},
+    {"RotationName": "rot", "SampleName": "12017", "seqNumber": 1},
+    {"RotationName": "rot", "SampleName": "12018", "seqNumber": 2},
+    {"RotationName": "rot", "SampleName": "12019", "seqNumber": 3},
+    {"RotationName": "rot", "SampleName": "12020", "seqNumber": 4},
+    {"RotationName": "rot1", "SampleName": "12021", "seqNumber": 0},
+    {"RotationName": "rot1", "SampleName": "12022", "seqNumber": 1},
+    {"RotationName": "rot1", "SampleName": "12023", "seqNumber": 2},
+    {"RotationName": "rot2", "SampleName": "12024", "seqNumber": 0},
+    {"RotationName": "rot2", "SampleName": "12025", "seqNumber": 1}
+  ];
+  availableSamples: string[] = [];
+  displayedData: any[] = [];
+  displayedColumns: string[] = ['MMYY', 'Start_Week', 'Start_Date', 'End_Date', 'Selected_Sample'];
 
-    [JsonProperty("task_type")]
-    public string TaskType { get; set; }
 
-    [JsonProperty("prj_coordinator")]
-    public string PrjCoordinator { get; set; }
+  constructor(private fb: FormBuilder) {}
 
-    [JsonProperty("data_delivery_type")]
-    public string DataDeliveryType { get; set; }
+  ngOnInit() {
+    this.form = this.fb.group({
+      scheduleType: ['Weekly'],
+      startWeek: [''],
+      endWeek: [''],
+      noEndDate: [false],
+      scheduleEvery: [2, [Validators.min(2), Validators.max(51)]],
+      selectedWeeks: [[]],
+      sampleType: ['Fixed'],
+      selectedSample: [''],
+      selectedRotation: ['']
+    });
 
-    [JsonProperty("data_delivery_format")]
-    public byte DataDeliveryFormat { get; set; }
+    this.form.get('scheduleType')?.valueChanges.subscribe(() => this.updateGridData());
+    this.form.get('startWeek')?.valueChanges.subscribe(() => this.updateGridData());
+    this.form.get('endWeek')?.valueChanges.subscribe(() => this.updateGridData());
+    this.form.get('noEndDate')?.valueChanges.subscribe(() => this.updateGridData());
+    this.form.get('scheduleEvery')?.valueChanges.subscribe(() => this.updateGridData());
+    this.form.get('selectedWeeks')?.valueChanges.subscribe(() => this.updateGridData());
+    this.form.get('sampleType')?.valueChanges.subscribe(() => this.updateGridData());
+    this.form.get('selectedSample')?.valueChanges.subscribe(() => this.updateGridData());
+    this.form.get('selectedRotation')?.valueChanges.subscribe(() => this.updateGridData());
+  
+    this.updateAvailableSamples();
+    this.updateGridData();
+  }
 
-    [JsonProperty("estd_coll_time")]
-    public int EstdCollTime { get; set; }
+  onScheduleTypeChange() {
+    this.displayedData = []; // Reset grid data
+    this.updateAvailableSamples();
+    this.updateGridData();
+  }
 
-    [JsonProperty("multi_week_prj")]
-    public string MultiWeekPrj { get; set; }
 
-    [JsonProperty("multi_visit")]
-    public byte MultiVisit { get; set; }
+  getUniqueRotationNames() {
+    return [...new Set(this.rotation.map(item => item.RotationName))];
+  }
 
-    [JsonProperty("pop_flag")]
-    public string PopFlag { get; set; }
+  onSampleTypeChange() {
+    if (this.form.get('sampleType')?.value === 'Manual' && this.form.get('scheduleType')?.value !== 'SelectWeeks') {
+      alert("Manual sample assignment is available only if schedule type is 'Select Weeks'.");
+    } else {
+      this.updateAvailableSamples();
+      this.updateGridData();
+    }
+  }
 
-    [JsonProperty("pv_number")]
-    public int PvNumber { get; set; }
+  onWeekChange() {
+    if (this.form.get('scheduleType')?.value === 'Periodic') {
+      this.calculatePeriodicWeeks();
+    }
+    this.updateGridData();
+  }
 
-    [JsonProperty("project_status")]
-    public string ProjectStatus { get; set; }
+  onNoEndDateChange() {
+    if (this.form.get('noEndDate')?.value) {
+      this.form.get('endWeek')?.setValue('');
+    }
+    this.updateGridData();
+  }
 
-    [JsonProperty("activity_code")]
-    public string ActivityCode { get; set; }
+  onRotationChange() {
+    this.updateAvailableSamples();
+    this.updateGridData();
+  }
 
-    [JsonProperty("client_code")]
-    public string ClientCode { get; set; }
+  onSampleChange(element: any) {
+    // Handle sample change for each week in the grid when rotation is selected
+  }
 
-    [JsonProperty("project_code")]
-    public string ProjectCode { get; set; }
+  calculatePeriodicWeeks() {
+    this.form.get('selectedWeeks')?.setValue([]);
+    const startIndex = this.date.indexOf(this.form.get('startWeek')?.value);
+    const endIndex = this.form.get('endWeek')?.value ? this.date.indexOf(this.form.get('endWeek')?.value) : this.date.length - 1;
 
-    [JsonProperty("product_code")]
-    public string ProductCode { get; set; }
+    if (this.form.get('startWeek')?.value && this.form.get('scheduleEvery')?.value) {
+      for (let i = startIndex; i <= endIndex; i += this.form.get('scheduleEvery')?.value) {
+        this.form.get('selectedWeeks')?.value.push(this.date[i]);
+      }
+    }
+  }
 
-    [JsonProperty("assignment_required")]
-    public int AssignmentRequired { get; set; }
+updateAvailableSamples() {
+  if (this.form.get('sampleType')?.value === 'Rotation' && this.form.get('selectedRotation')?.value) {
+    this.availableSamples = this.rotation
+      .filter(item => item.RotationName === this.form.get('selectedRotation')?.value)
+      .map(item => item.SampleName);
+  } else {
+    this.availableSamples = this.samples.map(sample => sample.SampleName);
+  }
+}
 
-    [JsonProperty("primary_task_number")]
-    public int PrimaryTaskNumber { get; set; }
 
-    [JsonProperty("min_category_nbr")]
-    public bool MinCategoryNbr { get; set; }
 
-    [JsonProperty("selected_vendors")]
-    public string SelectedVendors { get; set; }
+updateGridData() {
+  this.displayedData = [];
 
-    [JsonProperty("manual_time")]
-    public int ManualTime { get; set; }
+  const scheduleType = this.form.get('scheduleType')?.value;
+  const startWeek = this.form.get('startWeek')?.value;
+  const endWeek = this.form.get('endWeek')?.value;
+  const noEndDate = this.form.get('noEndDate')?.value;
+  const selectedWeeks = this.form.get('selectedWeeks')?.value;
+  const sampleType = this.form.get('sampleType')?.value;
+  const selectedSample = this.form.get('selectedSample')?.value;
+  const selectedRotation = this.form.get('selectedRotation')?.value;
+  const scheduleEvery = this.form.get('scheduleEvery')?.value;
 
-    [JsonProperty("idle_time")]
-    public decimal IdleTime { get; set; }
+  const dateMap = new Map(this.date.map(d => [d.StartWeek, d]));
 
-    [JsonProperty("flat_rate")]
-    public decimal FlatRate { get; set; }
+  if (scheduleType === 'Weekly' || scheduleType === 'Periodic') {
+      const startIndex = this.date.findIndex(d => d.StartWeek === startWeek);
+      const endIndex = noEndDate ? this.date.length - 1 : this.date.findIndex(d => d.StartWeek === endWeek);
 
-    [JsonProperty("exp_scan_rate")]
-    public int ExpScanRate { get; set; }
+      if (scheduleType === 'Periodic') {
+          // Calculate periods based on scheduleEvery
+          const periodIndexes = [];
+          for (let i = startIndex; i <= endIndex; i += scheduleEvery) {
+              periodIndexes.push(i);
+          }
+
+          periodIndexes.forEach(i => {
+              const weekData = this.date[i];
+              if (weekData) {
+                  let row = {
+                      MMYY: weekData.monthYear,
+                      Start_Week: weekData.StartWeek,
+                      Start_Date: weekData.StartDate,
+                      End_Date: weekData.endDate,
+                      selectedSample: sampleType === 'Fixed' ? selectedSample : ''
+                  };
+
+                  if (sampleType === 'Rotation') {
+                      row.selectedSample = this.rotation
+                          .filter(r => r.RotationName === selectedRotation)
+                          .find((r, idx) => r.seqNumber === i % this.rotation.filter(r => r.RotationName === selectedRotation).length)?.SampleName || '';
+                  }
+
+                  this.displayedData.push(row);
+              }
+          });
+      } else {
+          // Handle Weekly and SelectWeeks as before
+          for (let i = startIndex; i <= endIndex; i++) {
+              if (scheduleType === 'Periodic' && !selectedWeeks.includes(this.date[i].StartWeek)) {
+                  continue;
+              }
+
+              const weekData = this.date[i];
+              if (weekData) {
+                  let row = {
+                      MMYY: weekData.monthYear,
+                      Start_Week: weekData.StartWeek,
+                      Start_Date: weekData.StartDate,
+                      End_Date: weekData.endDate,
+                      selectedSample: sampleType === 'Fixed' ? selectedSample : ''
+                  };
+
+                  if (sampleType === 'Rotation') {
+                      row.selectedSample = this.rotation
+                          .filter(r => r.RotationName === selectedRotation)
+                          .find((r, idx) => r.seqNumber === i % this.rotation.filter(r => r.RotationName === selectedRotation).length)?.SampleName || '';
+                  }
+
+                  this.displayedData.push(row);
+              }
+          }
+      }
+  } else if (scheduleType === 'SelectWeeks') {
+      selectedWeeks.forEach(week => {
+          const weekData = this.date.find(d => d.StartWeek === week);
+          if (weekData) {
+              let row = {            
+                  MMYY: weekData.monthYear,
+                  Start_Week: weekData.StartWeek,
+                  Start_Date: weekData.StartDate,
+                  End_Date: weekData.endDate,
+                  selectedSample: sampleType === 'Fixed' ? selectedSample : ''
+              };
+
+              if (sampleType === 'Rotation') {
+                  row.selectedSample = this.rotation
+                      .filter(r => r.RotationName === selectedRotation)
+                      .find((r, idx) => r.seqNumber === selectedWeeks.indexOf(week) % this.rotation.filter(r => r.RotationName === selectedRotation).length)?.SampleName || '';
+              }
+
+              this.displayedData.push(row);
+          }
+      });
+  }
+}
+
+
+  submitForm() {
+    console.log(this.form.value);
+    console.log(this.displayedData)
+  }
 }
