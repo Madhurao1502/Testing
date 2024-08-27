@@ -1,56 +1,170 @@
-/* Container and button group styles */
-.container {
-  width: 100%;
-  height: 100%;
-  padding: 20px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
+<form [formGroup]="form" (ngSubmit)="submitForm()" class="form-container">
+  <div class="form-layout">
+    <!-- Dropdowns Section -->
+    <div class="dropdowns-section">
+      <mat-accordion>
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>Schedule and Sample</mat-panel-title>
+          </mat-expansion-panel-header>
 
-.button-group {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 20px;
-}
+          <mat-tab-group>
+            <mat-tab label="Schedule Week and Sample">
+              <div class="dropdown-content">
+                <!-- Schedule Type -->
+                <mat-form-field appearance="fill" class="form-field">
+                  <mat-label>Schedule Type</mat-label>
+                  <mat-select formControlName="scheduleType" (selectionChange)="onScheduleTypeChange()">
+                    <mat-option value="Weekly">Weekly</mat-option>
+                    <mat-option value="Periodic">Periodic</mat-option>
+                    <mat-option value="SelectWeeks">Select Weeks</mat-option>
+                  </mat-select>
+                </mat-form-field>
 
-/* Button styling */
-button {
-  min-width: 120px;
-  font-size: 14px;
-}
+                <!-- Weekly Schedule -->
+                <div *ngIf="form.get('scheduleType')?.value === 'Weekly'" class="schedule-section">
+                  <mat-form-field appearance="fill" class="form-field">
+                    <mat-label>Start Week</mat-label>
+                    <mat-select formControlName="startWeek" (selectionChange)="onWeekChange()">
+                      <mat-option *ngFor="let week of date" [value]="week.StartWeek">{{ week.StartWeek }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
 
-/* Dialog content and radio button group */
-mat-dialog-content {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
+                  <mat-checkbox formControlName="noEndDate" (change)="onNoEndDateChange()">No End Date</mat-checkbox>
 
-mat-radio-group {
-  display: flex;
-  flex-direction: column;
-}
+                  <mat-form-field appearance="fill" *ngIf="!form.get('noEndDate')?.value" class="form-field">
+                    <mat-label>End Week</mat-label>
+                    <mat-select formControlName="endWeek">
+                      <mat-option *ngFor="let week of date" [value]="week.StartWeek" [disabled]="week.StartWeek <= form.get('startWeek')?.value">{{ week.StartWeek }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                </div>
 
+                <!-- Periodic Schedule -->
+                <div *ngIf="form.get('scheduleType')?.value === 'Periodic'" class="schedule-section">
+                  <mat-form-field appearance="fill" class="form-field">
+                    <mat-label>Start Week</mat-label>
+                    <mat-select formControlName="startWeek" (selectionChange)="onWeekChange()">
+                      <mat-option *ngFor="let week of date" [value]="week.StartWeek">{{ week.StartWeek }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
 
-<!-- Simulation Dialog -->
-  <ng-template #simulationDialog>
-    <h2 mat-dialog-title>Create Task Simulation Files</h2>
-    <mat-dialog-content>
-      <mat-radio-group [(ngModel)]="selectedTaskType">
-        <mat-radio-button value="current">Current Task</mat-radio-button>
-        <!-- Add other options if needed -->
-      </mat-radio-group>
-      <input matInput placeholder="Task ID" [(ngModel)]="taskId" disabled />
-    </mat-dialog-content>
-    <mat-dialog-actions>
-      <button mat-button (click)="generateSimulationFiles()">Create Simulation Files</button>
-      <button mat-button mat-dialog-close>Close</button>
-    </mat-dialog-actions>
-  </ng-template>
-mat-radio-button {
-  font-size: 14px;
-}
+                  <mat-form-field appearance="fill" *ngIf="!form.get('noEndDate')?.value" class="form-field">
+                    <mat-label>End Week</mat-label>
+                    <mat-select formControlName="endWeek">
+                      <mat-option>
+                        <mat-checkbox formControlName="noEndDate" (change)="onNoEndDateChange()">No End Date</mat-checkbox>
+                      </mat-option>
+                      <mat-option *ngFor="let week of date" [value]="week.StartWeek" [disabled]="week <= form.get('startWeek')?.value">{{ week.StartWeek }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+
+                  <mat-form-field appearance="fill" class="form-field">
+                    <mat-label>Schedule Every (weeks)</mat-label>
+                    <input matInput type="number" formControlName="scheduleEvery" min="2" max="51" (ngModelChange)="onWeekChange()">
+                  </mat-form-field>
+                </div>
+
+                <!-- Select Weeks -->
+                <div *ngIf="form.get('scheduleType')?.value === 'SelectWeeks'" class="schedule-section">
+                  <mat-form-field appearance="fill" class="form-field">
+                    <mat-label>Select Weeks</mat-label>
+                    <mat-select multiple formControlName="selectedWeeks" (selectionChange)="updateGridData()">
+                      <mat-option *ngFor="let week of date" [value]="week.StartWeek">{{ week.StartWeek }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+
+                <!-- Sample Type -->
+                <mat-form-field appearance="fill" class="form-field">
+                  <mat-label>Sample Type</mat-label>
+                  <mat-select formControlName="sampleType" (selectionChange)="onSampleTypeChange()">
+                    <mat-option value="Fixed">Fixed</mat-option>
+                    <mat-option value="Rotation">Rotation</mat-option>
+                    <mat-option value="Manual">Manual</mat-option>
+                  </mat-select>
+                </mat-form-field>
+
+                <!-- Sample Fixed -->
+                <div *ngIf="form.get('sampleType')?.value === 'Fixed'" class="sample-section">
+                  <mat-form-field appearance="fill" class="form-field">
+                    <mat-label>Select Sample</mat-label>
+                    <mat-select formControlName="selectedSample">
+                      <mat-option *ngFor="let sample of samples" [value]="sample.SampleName">{{ sample.SampleName }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+
+                <!-- Sample Rotation -->
+                <div *ngIf="form.get('sampleType')?.value === 'Rotation'" class="sample-section">
+                  <mat-form-field appearance="fill" class="form-field">
+                    <mat-label>Select Rotation</mat-label>
+                    <mat-select formControlName="selectedRotation" (selectionChange)="onRotationChange()">
+                      <mat-option *ngFor="let rotationName of getUniqueRotationNames()" [value]="rotationName">{{ rotationName }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+
+                <!-- Manual Sample Error -->
+                <mat-error *ngIf="form.get('sampleType')?.value === 'Manual' && form.get('scheduleType')?.value !== 'SelectWeeks'" class="error-message">
+                  Manual sample assignment is available only if schedule type is selected as 'Select Weeks'.
+                </mat-error>
+                <button mat-raised-button color="primary" type="submit" class="submit-button">Submit</button>
+              </div>
+            </mat-tab>
+
+            <mat-tab label="Schedule Due Date">
+              <div class="tab-content">
+                <!-- Add additional UI elements and logic here -->
+              </div>
+            </mat-tab>
+          </mat-tab-group>
+        </mat-expansion-panel>
+      </mat-accordion>
+    </div>
+
+    <!-- Data Grid Section -->
+    <div class="data-grid">
+      <table mat-table [dataSource]="displayedData" class="mat-elevation-z8">
+        <ng-container matColumnDef="MMYY">
+          <th mat-header-cell *matHeaderCellDef>MMYY</th>
+          <td mat-cell *matCellDef="let element">{{ element.MMYY }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="Start_Week">
+          <th mat-header-cell *matHeaderCellDef>Start Week</th>
+          <td mat-cell *matCellDef="let element">{{ element.Start_Week }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="Start_Date">
+          <th mat-header-cell *matHeaderCellDef>Start Date</th>
+          <td mat-cell *matCellDef="let element">{{ element.Start_Date }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="End_Date">
+          <th mat-header-cell *matHeaderCellDef>End Date</th>
+          <td mat-cell *matCellDef="let element">{{ element.End_Date }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="Selected_Sample">
+          <th mat-header-cell *matHeaderCellDef>Selected Sample</th>
+          <td mat-cell *matCellDef="let element">
+            <ng-container *ngIf="form.get('sampleType')?.value === 'Fixed'; else rotationSample">
+              {{ form.get('selectedSample')?.value }}
+            </ng-container>
+            <ng-template #rotationSample>
+              <mat-form-field appearance="fill" class="form-field">
+                <mat-select [(value)]="element.selectedSample" (selectionChange)="onSampleChange(element)">
+                  <mat-option *ngFor="let sample of availableSamples" [value]="sample">{{ sample }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </ng-template>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+      </table>
+    </div>
+  </div>
+</form>
