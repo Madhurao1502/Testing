@@ -175,90 +175,62 @@ updateGridData() {
   const selectedRotation = this.form.get('selectedRotation')?.value;
   const scheduleEvery = this.form.get('scheduleEvery')?.value;
 
-  const dateMap = new Map(this.date.map(d => [d.StartWeek, d]));
+  const rotationSamples = this.rotation.filter(r => r.RotationName === selectedRotation);
+
+  const startIndex = this.date.findIndex(d => d.StartWeek === startWeek);
+  const endIndex = noEndDate ? this.date.length - 1 : this.date.findIndex(d => d.StartWeek === endWeek);
 
   if (scheduleType === 'Weekly' || scheduleType === 'Periodic') {
-      const startIndex = this.date.findIndex(d => d.StartWeek === startWeek);
-      const endIndex = noEndDate ? this.date.length - 1 : this.date.findIndex(d => d.StartWeek === endWeek);
+    const periodIndexes = [];
+    for (let i = startIndex; i <= endIndex; i += scheduleEvery || 1) {
+      periodIndexes.push(i);
+    }
 
-      if (scheduleType === 'Periodic') {
-          // Calculate periods based on scheduleEvery
-          const periodIndexes = [];
-          for (let i = startIndex; i <= endIndex; i += scheduleEvery) {
-              periodIndexes.push(i);
-          }
+    periodIndexes.forEach(i => {
+      const weekData = this.date[i];
+      if (weekData) {
+        let row = {
+          MMYY: weekData.monthYear,
+          Start_Week: weekData.StartWeek,
+          Start_Date: weekData.StartDate,
+          End_Date: weekData.endDate,
+          selectedSample: ''
+        };
 
-          periodIndexes.forEach(i => {
-              const weekData = this.date[i];
-              if (weekData) {
-                  let row = {
-                      MMYY: weekData.monthYear,
-                      Start_Week: weekData.StartWeek,
-                      Start_Date: weekData.StartDate,
-                      End_Date: weekData.endDate,
-                      selectedSample: sampleType === 'Fixed' ? selectedSample : ''
-                  };
+        if (sampleType === 'Fixed') {
+          row.selectedSample = selectedSample;
+        } else if (sampleType === 'Rotation') {
+          const rotationIndex = (i - startIndex) % rotationSamples.length;
+          row.selectedSample = rotationSamples[rotationIndex]?.SampleName || '';
+        }
 
-                  if (sampleType === 'Rotation') {
-                      row.selectedSample = this.rotation
-                          .filter(r => r.RotationName === selectedRotation)
-                          .find((r, idx) => r.seqNumber === i % this.rotation.filter(r => r.RotationName === selectedRotation).length)?.SampleName || '';
-                  }
-
-                  this.displayedData.push(row);
-              }
-          });
-      } else {
-          // Handle Weekly and SelectWeeks as before
-          for (let i = startIndex; i <= endIndex; i++) {
-              if (scheduleType === 'Periodic' && !selectedWeeks.includes(this.date[i].StartWeek)) {
-                  continue;
-              }
-
-              const weekData = this.date[i];
-              if (weekData) {
-                  let row = {
-                      MMYY: weekData.monthYear,
-                      Start_Week: weekData.StartWeek,
-                      Start_Date: weekData.StartDate,
-                      End_Date: weekData.endDate,
-                      selectedSample: sampleType === 'Fixed' ? selectedSample : ''
-                  };
-
-                  if (sampleType === 'Rotation') {
-                      row.selectedSample = this.rotation
-                          .filter(r => r.RotationName === selectedRotation)
-                          .find((r, idx) => r.seqNumber === i % this.rotation.filter(r => r.RotationName === selectedRotation).length)?.SampleName || '';
-                  }
-
-                  this.displayedData.push(row);
-              }
-          }
+        this.displayedData.push(row);
       }
+    });
   } else if (scheduleType === 'SelectWeeks') {
-      selectedWeeks.forEach(week => {
-          const weekData = this.date.find(d => d.StartWeek === week);
-          if (weekData) {
-              let row = {            
-                  MMYY: weekData.monthYear,
-                  Start_Week: weekData.StartWeek,
-                  Start_Date: weekData.StartDate,
-                  End_Date: weekData.endDate,
-                  selectedSample: sampleType === 'Fixed' ? selectedSample : ''
-              };
+    selectedWeeks.forEach((week, idx) => {
+      const weekData = this.date.find(d => d.StartWeek === week);
+      if (weekData) {
+        let row = {
+          MMYY: weekData.monthYear,
+          Start_Week: weekData.StartWeek,
+          Start_Date: weekData.StartDate,
+          End_Date: weekData.endDate,
+          selectedSample: ''
+        };
 
-              if (sampleType === 'Rotation') {
-                  row.selectedSample = this.rotation
-                      .filter(r => r.RotationName === selectedRotation)
-                      .find((r, idx) => r.seqNumber === selectedWeeks.indexOf(week) % this.rotation.filter(r => r.RotationName === selectedRotation).length)?.SampleName || '';
-              }
+        if (sampleType === 'Fixed') {
+          row.selectedSample = selectedSample;
+        } else if (sampleType === 'Rotation') {
+          const rotationIndex = idx % rotationSamples.length;
+          row.selectedSample = rotationSamples[rotationIndex]?.SampleName || '';
+        }
 
-              this.displayedData.push(row);
-          }
-      });
+        this.displayedData.push(row);
+      }
+    });
   }
 }
-
 
   submitForm() {
     console.log(this.form.value);
