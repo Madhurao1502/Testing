@@ -1,239 +1,93 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { RouterOutlet } from '@angular/router';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatExpansionModule } from '@angular/material/expansion';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { FormBuilder, FormGroup, FormsModule, Validators } from '@angular/forms';   
-import { MatTableModule } from '@angular/material/table';
-import { ReactiveFormsModule } from '@angular/forms';
-
-
-
-
-@Component({
-  selector: 'app-root',
-  standalone: true,
-  imports: [CommonModule, RouterOutlet,MatFormFieldModule,MatInputModule,MatSelectModule,MatTabsModule,MatExpansionModule,MatCheckboxModule,FormsModule,MatTableModule,ReactiveFormsModule],
-  templateUrl: './app.component.html',
-  styleUrl: './app.component.css'
-})
-export class  AppComponent implements OnInit {
-  form: FormGroup;
-  date = [
-    {"monthYear": "Aug24", "StartWeek": 2348, "StartDate": "08/26/2024", "endDate": "09/01/2024"},
-    {"monthYear": "Sep24", "StartWeek": 2349, "StartDate": "09/02/2024", "endDate": "09/08/2024"},
-    {"monthYear": "Oct24", "StartWeek": 2350, "StartDate": "09/09/2024", "endDate": "09/15/2024"},
-    {"monthYear": "Nov24", "StartWeek": 2351, "StartDate": "09/16/2024", "endDate": "09/22/2024"},
-    {"monthYear": "Dec24", "StartWeek": 2352, "StartDate": "09/23/2024", "endDate": "09/29/2024"},
-    {"monthYear": "Jan25", "StartWeek": 2353, "StartDate": "09/30/2024", "endDate": "10/06/2024"},
-    {"monthYear": "Feb25", "StartWeek": 2354, "StartDate": "10/07/2024", "endDate": "10/13/2024"},
-    {"monthYear": "Mar25", "StartWeek": 2355, "StartDate": "10/14/2024", "endDate": "10/20/2024"},
-    {"monthYear": "Apr25", "StartWeek": 2356, "StartDate": "10/21/2024", "endDate": "10/27/2024"},
-    {"monthYear": "May25", "StartWeek": 2357, "StartDate": "10/28/2024", "endDate": "11/03/2024"},
-    {"monthYear": "Jun25", "StartWeek": 2358, "StartDate": "11/04/2024", "endDate": "11/10/2024"},
-    {"monthYear": "Jul25", "StartWeek": 2359, "StartDate": "11/11/2024", "endDate": "11/17/2024"}
-  ];
-  samples = [
-    {"SampleName": "12016", "description": "testing"},
-    {"SampleName": "12017", "description": "testing2"},
-    {"SampleName": "12018", "description": "testing3"},
-    {"SampleName": "12019", "description": "testing4"},
-    {"SampleName": "12020", "description": "testing5"},
-    {"SampleName": "12021", "description": "testing6"},
-    {"SampleName": "12022", "description": "testing7"},
-    {"SampleName": "12023", "description": "testing8"},
-    {"SampleName": "12024", "description": "testing9"},
-    {"SampleName": "12025", "description": "testing10"}
-  ];
-  rotation = [
-    {"RotationName": "rot", "SampleName": "12016", "seqNumber": 0},
-    {"RotationName": "rot", "SampleName": "12017", "seqNumber": 1},
-    {"RotationName": "rot", "SampleName": "12018", "seqNumber": 2},
-    {"RotationName": "rot", "SampleName": "12019", "seqNumber": 3},
-    {"RotationName": "rot", "SampleName": "12020", "seqNumber": 4},
-    {"RotationName": "rot1", "SampleName": "12021", "seqNumber": 0},
-    {"RotationName": "rot1", "SampleName": "12022", "seqNumber": 1},
-    {"RotationName": "rot1", "SampleName": "12023", "seqNumber": 2},
-    {"RotationName": "rot2", "SampleName": "12024", "seqNumber": 0},
-    {"RotationName": "rot2", "SampleName": "12025", "seqNumber": 1}
-  ];
-  availableSamples: string[] = [];
-  displayedData: any[] = [];
-  displayedColumns: string[] = ['MMYY', 'Start_Week', 'Start_Date', 'End_Date', 'Selected_Sample'];
-
-
-  constructor(private fb: FormBuilder) {}
-
-  ngOnInit() {
-    this.form = this.fb.group({
-      scheduleType: ['Weekly'],
-      startWeek: [''],
-      endWeek: [''],
-      noEndDate: [false],
-      scheduleEvery: [2, [Validators.min(2), Validators.max(51)]],
-      selectedWeeks: [[]],
-      sampleType: ['Fixed'],
-      selectedSample: [''],
-      selectedRotation: ['']
-    });
-
-    this.form.get('scheduleType')?.valueChanges.subscribe(() => this.updateGridData());
-    this.form.get('startWeek')?.valueChanges.subscribe(() => this.updateGridData());
-    this.form.get('endWeek')?.valueChanges.subscribe(() => this.updateGridData());
-    this.form.get('noEndDate')?.valueChanges.subscribe(() => this.updateGridData());
-    this.form.get('scheduleEvery')?.valueChanges.subscribe(() => this.updateGridData());
-    this.form.get('selectedWeeks')?.valueChanges.subscribe(() => this.updateGridData());
-    this.form.get('sampleType')?.valueChanges.subscribe(() => this.updateGridData());
-    this.form.get('selectedSample')?.valueChanges.subscribe(() => this.updateGridData());
-    this.form.get('selectedRotation')?.valueChanges.subscribe(() => this.updateGridData());
+<mat-tab-group>
+  <!-- Existing Tabs -->
   
-    this.updateAvailableSamples();
-    this.updateGridData();
-  }
+  <!-- Create New Wave Tab -->
+  <mat-tab label="Create New Wave">
+    <form [formGroup]="multiweekForm">
+      <div class="wave-container">
+        <div class="grid-container">
+          <!-- Left Grid: Select Weeks -->
+          <div class="left-grid">
+            <table mat-table [dataSource]="availableWeeks" class="mat-elevation-z8">
+              <!-- Select Checkbox -->
+              <ng-container matColumnDef="select">
+                <th mat-header-cell *matHeaderCellDef></th>
+                <td mat-cell *matCellDef="let week">
+                  <mat-checkbox (change)="onWeekSelectionChange($event, week)" [checked]="isWeekSelected(week)">
+                  </mat-checkbox>
+                </td>
+              </ng-container>
 
-  onScheduleTypeChange() {
-    this.displayedData = []; // Reset grid data
-    this.updateAvailableSamples();
-    this.updateGridData();
-  }
+              <!-- MM -->
+              <ng-container matColumnDef="MM">
+                <th mat-header-cell *matHeaderCellDef>MM</th>
+                <td mat-cell *matCellDef="let week">{{ week.monthYear }}</td>
+              </ng-container>
 
+              <!-- Week -->
+              <ng-container matColumnDef="Week">
+                <th mat-header-cell *matHeaderCellDef>Week</th>
+                <td mat-cell *matCellDef="let week">{{ week.StartWeek }}</td>
+              </ng-container>
 
-  getUniqueRotationNames() {
-    return [...new Set(this.rotation.map(item => item.RotationName))];
-  }
+              <!-- Start Date -->
+              <ng-container matColumnDef="StartDate">
+                <th mat-header-cell *matHeaderCellDef>Start Date</th>
+                <td mat-cell *matCellDef="let week">{{ week.StartDate }}</td>
+              </ng-container>
 
-  onSampleTypeChange() {
-    if (this.form.get('sampleType')?.value === 'Manual' && this.form.get('scheduleType')?.value !== 'SelectWeeks') {
-      alert("Manual sample assignment is available only if schedule type is 'Select Weeks'.");
-    } else {
-      this.updateAvailableSamples();
-      this.updateGridData();
-    }
-  }
+              <!-- End Date -->
+              <ng-container matColumnDef="EndDate">
+                <th mat-header-cell *matHeaderCellDef>End Date</th>
+                <td mat-cell *matCellDef="let week">{{ week.endDate }}</td>
+              </ng-container>
 
-  onWeekChange() {
-    if (this.form.get('scheduleType')?.value === 'Periodic') {
-      this.calculatePeriodicWeeks();
-    }
-    this.updateGridData();
-  }
+              <tr mat-header-row *matHeaderRowDef="leftGridColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: leftGridColumns;"></tr>
+            </table>
+          </div>
 
-  onNoEndDateChange() {
-    if (this.form.get('noEndDate')?.value) {
-      this.form.get('endWeek')?.setValue('');
-    }
-    this.updateGridData();
-  }
+          <!-- Right Grid: Wave Details -->
+          <div class="right-grid">
+            <table mat-table [dataSource]="waveData" class="mat-elevation-z8">
+              <!-- Start Week -->
+              <ng-container matColumnDef="StartWeek">
+                <th mat-header-cell *matHeaderCellDef>Start Week</th>
+                <td mat-cell *matCellDef="let wave">{{ wave.StartWeek }}</td>
+              </ng-container>
 
-  onRotationChange() {
-    this.updateAvailableSamples();
-    this.updateGridData();
-  }
+              <!-- End Week -->
+              <ng-container matColumnDef="EndWeek">
+                <th mat-header-cell *matHeaderCellDef>End Week</th>
+                <td mat-cell *matCellDef="let wave">{{ wave.EndWeek }}</td>
+              </ng-container>
 
-  onSampleChange(element: any) {
-    // Handle sample change for each week in the grid when rotation is selected
-  }
+              <!-- Due Date -->
+              <ng-container matColumnDef="DueDate">
+                <th mat-header-cell *matHeaderCellDef>Due Date</th>
+                <td mat-cell *matCellDef="let wave">
+                  <input matInput [matDatepicker]="picker" formControlName="dueDate" (dateChange)="onDueDateChange(wave, $event)">
+                  <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+                  <mat-datepicker #picker></mat-datepicker>
+                </td>
+              </ng-container>
 
-  calculatePeriodicWeeks() {
-    this.form.get('selectedWeeks')?.setValue([]);
-    const startIndex = this.date.indexOf(this.form.get('startWeek')?.value);
-    const endIndex = this.form.get('endWeek')?.value ? this.date.indexOf(this.form.get('endWeek')?.value) : this.date.length - 1;
+              <!-- Action -->
+              <ng-container matColumnDef="Action">
+                <th mat-header-cell *matHeaderCellDef>Action</th>
+                <td mat-cell *matCellDef="let wave">
+                  <button mat-button (click)="removeWave(wave)">Remove</button>
+                </td>
+              </ng-container>
 
-    if (this.form.get('startWeek')?.value && this.form.get('scheduleEvery')?.value) {
-      for (let i = startIndex; i <= endIndex; i += this.form.get('scheduleEvery')?.value) {
-        this.form.get('selectedWeeks')?.value.push(this.date[i]);
-      }
-    }
-  }
+              <tr mat-header-row *matHeaderRowDef="rightGridColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: rightGridColumns;"></tr>
+            </table>
+          </div>
+        </div>
 
-updateAvailableSamples() {
-  if (this.form.get('sampleType')?.value === 'Rotation' && this.form.get('selectedRotation')?.value) {
-    this.availableSamples = this.rotation
-      .filter(item => item.RotationName === this.form.get('selectedRotation')?.value)
-      .map(item => item.SampleName);
-  } else {
-    this.availableSamples = this.samples.map(sample => sample.SampleName);
-  }
-}
-
-
-
-updateGridData() {
-  this.displayedData = [];
-
-  const scheduleType = this.form.get('scheduleType')?.value;
-  const startWeek = this.form.get('startWeek')?.value;
-  const endWeek = this.form.get('endWeek')?.value;
-  const noEndDate = this.form.get('noEndDate')?.value;
-  const selectedWeeks = this.form.get('selectedWeeks')?.value;
-  const sampleType = this.form.get('sampleType')?.value;
-  const selectedSample = this.form.get('selectedSample')?.value;
-  const selectedRotation = this.form.get('selectedRotation')?.value;
-  const scheduleEvery = this.form.get('scheduleEvery')?.value;
-
-  const rotationSamples = this.rotation.filter(r => r.RotationName === selectedRotation);
-
-  const startIndex = this.date.findIndex(d => d.StartWeek === startWeek);
-  const endIndex = noEndDate ? this.date.length - 1 : this.date.findIndex(d => d.StartWeek === endWeek);
-
-  if (scheduleType === 'Weekly' || scheduleType === 'Periodic') {
-    const periodIndexes = [];
-    for (let i = startIndex; i <= endIndex; i += scheduleEvery || 1) {
-      periodIndexes.push(i);
-    }
-
-    periodIndexes.forEach(i => {
-      const weekData = this.date[i];
-      if (weekData) {
-        let row = {
-          MMYY: weekData.monthYear,
-          Start_Week: weekData.StartWeek,
-          Start_Date: weekData.StartDate,
-          End_Date: weekData.endDate,
-          selectedSample: ''
-        };
-
-        if (sampleType === 'Fixed') {
-          row.selectedSample = selectedSample;
-        } else if (sampleType === 'Rotation') {
-          const rotationIndex = (i - startIndex) % rotationSamples.length;
-          row.selectedSample = rotationSamples[rotationIndex]?.SampleName || '';
-        }
-
-        this.displayedData.push(row);
-      }
-    });
-  } else if (scheduleType === 'SelectWeeks') {
-    selectedWeeks.forEach((week, idx) => {
-      const weekData = this.date.find(d => d.StartWeek === week);
-      if (weekData) {
-        let row = {
-          MMYY: weekData.monthYear,
-          Start_Week: weekData.StartWeek,
-          Start_Date: weekData.StartDate,
-          End_Date: weekData.endDate,
-          selectedSample: ''
-        };
-
-        if (sampleType === 'Fixed') {
-          row.selectedSample = selectedSample;
-        } else if (sampleType === 'Rotation') {
-          const rotationIndex = idx % rotationSamples.length;
-          row.selectedSample = rotationSamples[rotationIndex]?.SampleName || '';
-        }
-
-        this.displayedData.push(row);
-      }
-    });
-  }
-}
-
-  submitForm() {
-    console.log(this.form.value);
-    console.log(this.displayedData)
-  }
-}
+        <button mat-raised-button color="primary" (click)="createWave()">Create Wave</button>
+      </div>
+    </form>
+  </mat-tab>
+</mat-tab-group>
