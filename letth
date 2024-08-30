@@ -1,14 +1,36 @@
-import { Pipe, PipeTransform } from '@angular/core';
-import { TranslationService } from '../services/translation.service';
+createWave() {
+  // Collect selected weeks from displayedData
+  this.selectedWeeks = this.displayedData.filter(d => d.selected);
 
-@Pipe({
-  name: 'translate',
-  pure: false
-})
-export class TranslatePipe implements PipeTransform {
-  constructor(private translationService: TranslationService) {}
-
-  transform(value: string): string {
-    return this.translationService.translate(value);
+  if (this.selectedWeeks.length < 2) {
+    alert("Only 1 week is selected, a wave must contain at least 2 weeks.");
+    return;
   }
+
+  const startWeek = this.selectedWeeks[0];
+  const endWeek = this.selectedWeeks[this.selectedWeeks.length - 1];
+
+  const wave = {
+    startWeek: startWeek.Start_Week,
+    startDate: startWeek.Start_Date,
+    endWeek: endWeek.Start_Week,
+    endDate: endWeek.End_Date,
+    minDueDate: this.getMinDueDate(endWeek),
+    maxDueDate: this.getMaxDueDate(endWeek),
+    dueDate: ''
+  };
+
+  this.createdWaves.push(wave);
+  
+  // Optionally, you can clear the selectedWeeks array if needed
+  this.selectedWeeks = [];
+}
+
+removeWave(wave: any) {
+  // Add the removed weeks back to displayedData
+  const removedWeeks = this.date.filter(d => d.StartWeek >= wave.startWeek && d.StartWeek <= wave.endWeek);
+  this.displayedData.push(...removedWeeks);
+
+  // Remove the wave from createdWaves
+  this.createdWaves = this.createdWaves.filter(w => w !== wave);
 }
