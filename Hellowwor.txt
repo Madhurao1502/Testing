@@ -17,28 +17,41 @@ removeWave(wave: any) {
   this.rightGridData = this.rightGridData.filter(w => w !== wave);
 }
 
-
 createWave() {
+  // Check if the number of selected weeks is less than 2
   if (this.selection.selected.length < 2) {
     this.errorMessage = 'Please select at least two weeks to create a wave.';
     return;
   }
 
-  // Ensure selected weeks are continuous
-  const selectedWeeks = this.selection.selected.map(row => row.Start_Week).sort((a, b) => a - b);
-  const isContinuous = selectedWeeks.every((week, i) => i === 0 || week === selectedWeeks[i - 1] + 1);
+  // Get the selected weeks
+  const selectedWeeks = this.selection.selected.map(row => ({
+    MMYY: row.MMYY,
+    Start_Week: row.Start_Week,
+    Start_Date: row.Start_Date,
+    End_Date: row.End_Date,
+  }));
 
-  if (!isContinuous) {
-    this.errorMessage = 'Selected weeks must be continuous.';
-    return;
+  // Sort the selected weeks by Start_Week to check for consecutive selection
+  selectedWeeks.sort((a, b) => a.Start_Week - b.Start_Week);
+
+  // Check for consecutive weeks
+  for (let i = 1; i < selectedWeeks.length; i++) {
+    if (selectedWeeks[i].Start_Week !== selectedWeeks[i - 1].Start_Week + 1) {
+      this.errorMessage = 'Please select consecutive weeks only to create a wave.';
+      return;
+    }
   }
 
-  const minWeek = Math.min(...selectedWeeks);
-  const maxWeek = Math.max(...selectedWeeks);
+  // Calculate min and max week
+  const minWeek = selectedWeeks[0].Start_Week;
+  const maxWeek = selectedWeeks[selectedWeeks.length - 1].Start_Week;
 
-  const minDate = new Date(this.date.find(d => d.StartWeek === minWeek).StartDate);
-  const maxDate = new Date(this.date.find(d => d.StartWeek === maxWeek).EndDate);
+  // Get min and max dates for the selected weeks
+  const minDate = new Date(selectedWeeks[0].Start_Date);
+  const maxDate = new Date(selectedWeeks[selectedWeeks.length - 1].End_Date);
 
+  // Create a new wave object
   const newWave = {
     Start_Week: minWeek,
     End_Week: maxWeek,
@@ -47,8 +60,13 @@ createWave() {
     maxDate: new Date(maxDate.setDate(maxDate.getDate() + 7))
   };
 
+  // Add the new wave to the right grid
   this.rightGridData.push(newWave);
+
+  // Remove the selected weeks from the left grid
   this.leftGridData = this.leftGridData.filter(week => !this.selection.selected.includes(week));
+
+  // Clear the selection and reset the error message
   this.selection.clear();
   this.errorMessage = '';
 }
