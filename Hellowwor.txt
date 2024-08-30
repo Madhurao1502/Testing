@@ -1,22 +1,30 @@
 removeWave(wave: any) {
-  const waveWeeks = this.date.filter(d => d.StartWeek >= wave.Start_Week && d.StartWeek <= wave.End_Week);
+  // Find the start and end weeks in the original left grid data
+  const startWeekIndex = this.leftGridData.findIndex(
+    d => d.Start_Week === wave.Start_Week
+  );
+  
+  const endWeekIndex = this.leftGridData.findIndex(
+    d => d.Start_Week === wave.End_Week
+  );
 
-  // Map waveWeeks to original positions and insert back into leftGridData
-  waveWeeks.forEach((week, idx) => {
-    const originalIndex = wave.originalIndices[idx];
-    if (originalIndex !== undefined) {
-      this.leftGridData.splice(originalIndex, 0, {
-        MMYY: week.monthYear,
-        Start_Week: week.StartWeek,
-        Start_Date: week.StartDate,
-        End_Date: week.endDate
-      });
-    }
+  // Get the original rows based on start and end weeks
+  const originalRows = this.date.slice(startWeekIndex, endWeekIndex + 1);
+
+  // Re-insert each original row back into the left grid data in its original position
+  originalRows.forEach((row, index) => {
+    const insertIndex = startWeekIndex + index;
+    this.leftGridData.splice(insertIndex, 0, {
+      MMYY: row.monthYear,
+      Start_Week: row.StartWeek,
+      Start_Date: row.StartDate,
+      End_Date: row.endDate
+    });
   });
 
+  // Remove the wave from the right grid
   this.rightGridData = this.rightGridData.filter(w => w !== wave);
 }
-
 createWave() {
   // Check if the number of selected weeks is less than 2
   if (this.selection.selected.length < 2) {
