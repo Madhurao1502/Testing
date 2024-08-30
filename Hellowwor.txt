@@ -1,84 +1,26 @@
-import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, FormControl, FormArray, Validators } from '@angular/forms';
+removeWave(wave: any) {
+  // Find the original index in the left grid data where the wave should be inserted back
+  const originalIndex = this.date.findIndex(d => d.StartWeek === wave.Start_Week);
 
-@Component({
-  selector: 'app-root',
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.css']
-})
-export class AppComponent implements OnInit {
-  form: FormGroup;
-  multiweekForm: FormGroup;
-  availableWeeks: any[] = [];
-  waveData: any[] = [];
-  leftGridColumns: string[] = ['select', 'MM', 'Week', 'StartDate', 'EndDate'];
-  rightGridColumns: string[] = ['StartWeek', 'EndWeek', 'DueDate', 'Action'];
+  // Construct the wave object to add back
+  const waveToAdd = {
+    MMYY: this.date[originalIndex]?.monthYear, // Use optional chaining in case find returns undefined
+    Start_Week: wave.Start_Week,
+    Start_Date: this.date[originalIndex]?.StartDate,
+    End_Date: this.date.find(d => d.StartWeek === wave.End_Week)?.endDate
+  };
 
-  constructor(private fb: FormBuilder) {
-    this.form = this.fb.group({
-      // Other controls from your main form...
-    });
-
-    this.multiweekForm = this.fb.group({
-      selectedWeeks: this.fb.array([], Validators.minLength(2)),
-      dueDate: new FormControl('')
-    });
+  // Add wave back to the exact index in the left grid
+  if (originalIndex > -1) {
+    this.leftGridData.splice(originalIndex, 0, waveToAdd); // Insert the waveToAdd back into the correct index
+  } else {
+    // Fallback if original index is not found, just push to the end
+    this.leftGridData.push(waveToAdd);
   }
 
-  ngOnInit() {
-    // Initialize available weeks with the dates data
-    this.availableWeeks = [
-      // Example data
-      {"monthYear": "Aug24", "StartWeek": 2348, "StartDate": "08/26/2024", "endDate": "09/01/2024"},
-      // ... populate with your actual data
-    ];
-  }
+  // Remove wave from right grid
+  this.rightGridData = this.rightGridData.filter(w => w !== wave);
 
-  get selectedWeeks(): FormArray {
-    return this.multiweekForm.get('selectedWeeks') as FormArray;
-  }
-
-  onWeekSelectionChange(event: any, week: any) {
-    if (event.checked) {
-      this.selectedWeeks.push(new FormControl(week));
-    } else {
-      const index = this.selectedWeeks.controls.findIndex(ctrl => ctrl.value.StartWeek === week.StartWeek);
-      this.selectedWeeks.removeAt(index);
-    }
-  }
-
-  isWeekSelected(week: any): boolean {
-    return this.selectedWeeks.controls.some(ctrl => ctrl.value.StartWeek === week.StartWeek);
-  }
-
-  createWave() {
-    if (this.selectedWeeks.length < 2) {
-      alert('Only 1 week is selected, a wave must contain at least 2 weeks');
-      return;
-    }
-
-    const selectedWeekRange = this.selectedWeeks.value.map((week: any) => week.StartWeek).sort((a: number, b: number) => a - b);
-
-    this.waveData.push({
-      StartWeek: selectedWeekRange[0],
-      EndWeek: selectedWeekRange[selectedWeekRange.length - 1],
-      DueDate: '',
-      waveWeeks: [...this.selectedWeeks.value]
-    });
-
-    // Remove selected weeks from available weeks
-    this.selectedWeeks.clear();
-  }
-
-  removeWave(wave: any) {
-    // Add the weeks back to the available weeks
-    wave.waveWeeks.forEach((week: any) => this.selectedWeeks.push(new FormControl(week)));
-
-    // Remove the wave from the waveData
-    this.waveData = this.waveData.filter(w => w !== wave);
-  }
-
-  onDueDateChange(wave: any, event: any) {
-    wave.DueDate = event.value;
-  }
+  // Clear selection
+  this.selection.clear();
 }
