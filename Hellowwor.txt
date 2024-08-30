@@ -1,20 +1,18 @@
 removeWave(wave: any) {
-  // Add back to left grid while preserving the original order
   const waveWeeks = this.date.filter(d => d.StartWeek >= wave.Start_Week && d.StartWeek <= wave.End_Week);
-  
-  // Sort the waveWeeks based on the original indices
-  waveWeeks.sort((a, b) => {
-    const aIndex = this.leftGridData.findIndex(week => week.Start_Week === a.StartWeek);
-    const bIndex = this.leftGridData.findIndex(week => week.Start_Week === b.StartWeek);
-    return aIndex - bIndex;
-  });
 
-  this.leftGridData.splice(0, 0, ...waveWeeks.map(week => ({
-    MMYY: week.monthYear,
-    Start_Week: week.StartWeek,
-    Start_Date: week.StartDate,
-    End_Date: week.endDate
-  })));
+  // Map waveWeeks to original positions and insert back into leftGridData
+  waveWeeks.forEach((week, idx) => {
+    const originalIndex = wave.originalIndices[idx];
+    if (originalIndex !== undefined) {
+      this.leftGridData.splice(originalIndex, 0, {
+        MMYY: week.monthYear,
+        Start_Week: week.StartWeek,
+        Start_Date: week.StartDate,
+        End_Date: week.endDate
+      });
+    }
+  });
 
   this.rightGridData = this.rightGridData.filter(w => w !== wave);
 }
