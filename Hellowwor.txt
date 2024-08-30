@@ -1,93 +1,81 @@
-removeWave(wave: any) {
-  // Find the start and end weeks in the original left grid data
-  const startWeekIndex = this.leftGridData.findIndex(
-    d => d.Start_Week === wave.Start_Week
-  );
-  
-  const endWeekIndex = this.leftGridData.findIndex(
-    d => d.Start_Week === wave.End_Week
-  );
-
-  // Get the original rows based on start and end weeks
-  const originalRows = this.date.slice(startWeekIndex, endWeekIndex + 1);
-
-  // Re-insert each original row back into the left grid data in its original position
-  originalRows.forEach((row, index) => {
-    const insertIndex = startWeekIndex + index;
-    this.leftGridData.splice(insertIndex, 0, {
-      MMYY: row.monthYear,
-      Start_Week: row.StartWeek,
-      Start_Date: row.StartDate,
-      End_Date: row.endDate
-    });
-  });
-
-  // Remove the wave from the right grid
-  this.rightGridData = this.rightGridData.filter(w => w !== wave);
-}
 createWave() {
-  // Ensure there are at least two selected weeks
-  if (this.selection.selected.length < 2) {
-    this.errorMessage = 'Please select at least two weeks to create a wave.';
+  const selectedIds = this.getSelectedWeekIds(); // Implement this method to get selected weeks
+  if (selectedIds.length < 2) {
+    alert('Please select a minimum of 2 weeks to create a Wave');
     return;
   }
 
-  // Extract and sort the selected weeks
-  const selectedWeeks = this.selection.selected.map(row => ({
-    MMYY: row.MMYY,
-    Start_Week: row.Start_Week,
-    Start_Date: row.Start_Date,
-    End_Date: row.End_Date,
-  }));
+  selectedIds.sort((a, b) => a - b);
 
-  // Sort selected weeks by Start_Week for consecutive check
-  selectedWeeks.sort((a, b) => a.Start_Week - b.Start_Week);
-
-  // Check for consecutive weeks
-  for (let i = 1; i < selectedWeeks.length; i++) {
-    if (selectedWeeks[i].Start_Week !== selectedWeeks[i - 1].Start_Week + 1) {
-      this.errorMessage = 'Please select consecutive weeks only to create a wave.';
-      return;
-    }
+  if (!this.areWeeksContinuous(selectedIds)) {
+    alert('Please select weeks in a continuous sequence');
+    return;
   }
 
-  // Determine the range of the new wave
-  const minWeek = selectedWeeks[0].Start_Week;
-  const maxWeek = selectedWeeks[selectedWeeks.length - 1].Start_Week;
+  const [startWeek, endWeek] = this.getStartAndEndWeeks(selectedIds);
 
-  // Get min and max dates for the selected weeks
-  const minDate = new Date(selectedWeeks[0].Start_Date);
-  const maxDate = new Date(selectedWeeks[selectedWeeks.length - 1].End_Date);
+  if (this.isOverlappingExistingWave(startWeek, endWeek)) {
+    alert('The selected weeks overlap a currently defined Wave. Re-select schedule weeks and try again');
+    return;
+  }
 
-  // Create a new wave object
+  // Create new wave object
   const newWave = {
-    Start_Week: minWeek,
-    End_Week: maxWeek,
-    Due_Date: '',
-    minDate: new Date(minDate.setDate(minDate.getDate() - 7)),
-    maxDate: new Date(maxDate.setDate(maxDate.getDate() + 7))
+    startWeek,
+    endWeek,
+    startDate: this.getDateRange(startWeek), // Implement to get date range for the week
+    endDate: this.getDateRange(endWeek),
+    dueDate: null,
+    waveNumber: this.generateWaveNumber()
   };
 
-  // Ensure rightGridData is properly initialized
-  if (!Array.isArray(this.rightGridData)) {
-    this.rightGridData = [];
-  }
-
-  // Add the new wave to the right grid
-  this.rightGridData.push(newWave);
-
-  // Remove the selected weeks from the left grid
-  this.leftGridData = this.leftGridData.filter(week => !this.selection.selected.includes(week));
-
-  // Debugging: Log state after operation
-  console.log('New Wave Added:', newWave);
-  console.log('Updated rightGridData:', this.rightGridData);
-  console.log('Updated leftGridData:', this.leftGridData);
-
-  // Clear the selection and reset the error message
-  this.selection.clear();
-  this.errorMessage = '';
+  this.waveSchedule.push(newWave);
+  this.updateGrids();
 }
 
-constructor(private cdr: ChangeDetectorRef) {}
-import { Component, ChangeDetectorRef } from '@angular/core';
+private areWeeksContinuous(selectedIds: number[]): boolean {
+  for (let i = 1; i < selectedIds.length; i++) {
+    if (selectedIds[i] !== selectedIds[i - 1] + 1) {
+      return false;
+    }
+  }
+  return true;
+}
+
+private getStartAndEndWeeks(selectedIds: number[]): [number, number] {
+  const startWeek = this.getWeekById(selectedIds[0]); // Implement this method
+  const endWeek = this.getWeekById(selectedIds[selectedIds.length - 1]);
+  return [startWeek, endWeek];
+}
+
+private isOverlappingExistingWave(startWeek: number, endWeek: number): boolean {
+  return this.waveSchedule.some(wave =>
+    (startWeek >= wave.startWeek && startWeek <= wave.endWeek) ||
+    (endWeek >= wave.startWeek && endWeek <= wave.endWeek) ||
+    (startWeek <= wave.startWeek && endWeek >= wave.endWeek)
+  );
+}
+
+
+removeWave(startWeek: number, endWeek: number) {
+  if (this.taskLockOutID !== this.currentUser) return;
+
+  // Find and remove the wave
+  this.waveSchedule = this.waveSchedule.filter(wave => wave.startWeek !== startWeek);
+
+  // Add back to multi-week data
+  const weeksToAddBack = this.mainTempWaveData.filter(week => 
+    startWeek <= week.startWeek && week.startWeek <= endWeek
+  );
+
+  this.multiWeekData.push(...weeksToAddBack);
+  this.multiWeekData.sort((a, b) => a.startWeek - b.startWeek);
+
+  this.updateGrids();
+}
+
+private updateGrids() {
+  // Update your grids accordingly, for example using a service or directly in the component
+  this.waveScheduleGridDataSource = [...this.waveSchedule];
+  this.multiWeekGridDataSource = [...this.multiWeekData];
+}
