@@ -26,13 +26,13 @@ removeWave(wave: any) {
   this.rightGridData = this.rightGridData.filter(w => w !== wave);
 }
 createWave() {
-  // Check if the number of selected weeks is less than 2
+  // Ensure there are at least two selected weeks
   if (this.selection.selected.length < 2) {
     this.errorMessage = 'Please select at least two weeks to create a wave.';
     return;
   }
 
-  // Get the selected weeks
+  // Extract and sort the selected weeks
   const selectedWeeks = this.selection.selected.map(row => ({
     MMYY: row.MMYY,
     Start_Week: row.Start_Week,
@@ -40,7 +40,7 @@ createWave() {
     End_Date: row.End_Date,
   }));
 
-  // Sort the selected weeks by Start_Week to check for consecutive selection
+  // Sort selected weeks by Start_Week for consecutive check
   selectedWeeks.sort((a, b) => a.Start_Week - b.Start_Week);
 
   // Check for consecutive weeks
@@ -51,7 +51,7 @@ createWave() {
     }
   }
 
-  // Calculate min and max week
+  // Determine the range of the new wave
   const minWeek = selectedWeeks[0].Start_Week;
   const maxWeek = selectedWeeks[selectedWeeks.length - 1].Start_Week;
 
@@ -68,13 +68,26 @@ createWave() {
     maxDate: new Date(maxDate.setDate(maxDate.getDate() + 7))
   };
 
+  // Ensure rightGridData is properly initialized
+  if (!Array.isArray(this.rightGridData)) {
+    this.rightGridData = [];
+  }
+
   // Add the new wave to the right grid
   this.rightGridData.push(newWave);
 
   // Remove the selected weeks from the left grid
   this.leftGridData = this.leftGridData.filter(week => !this.selection.selected.includes(week));
 
+  // Debugging: Log state after operation
+  console.log('New Wave Added:', newWave);
+  console.log('Updated rightGridData:', this.rightGridData);
+  console.log('Updated leftGridData:', this.leftGridData);
+
   // Clear the selection and reset the error message
   this.selection.clear();
   this.errorMessage = '';
 }
+
+constructor(private cdr: ChangeDetectorRef) {}
+import { Component, ChangeDetectorRef } from '@angular/core';
