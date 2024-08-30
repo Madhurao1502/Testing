@@ -16,3 +16,39 @@ removeWave(wave: any) {
 
   this.rightGridData = this.rightGridData.filter(w => w !== wave);
 }
+
+
+createWave() {
+  if (this.selection.selected.length < 2) {
+    this.errorMessage = 'Please select at least two weeks to create a wave.';
+    return;
+  }
+
+  // Ensure selected weeks are continuous
+  const selectedWeeks = this.selection.selected.map(row => row.Start_Week).sort((a, b) => a - b);
+  const isContinuous = selectedWeeks.every((week, i) => i === 0 || week === selectedWeeks[i - 1] + 1);
+
+  if (!isContinuous) {
+    this.errorMessage = 'Selected weeks must be continuous.';
+    return;
+  }
+
+  const minWeek = Math.min(...selectedWeeks);
+  const maxWeek = Math.max(...selectedWeeks);
+
+  const minDate = new Date(this.date.find(d => d.StartWeek === minWeek).StartDate);
+  const maxDate = new Date(this.date.find(d => d.StartWeek === maxWeek).EndDate);
+
+  const newWave = {
+    Start_Week: minWeek,
+    End_Week: maxWeek,
+    Due_Date: '',
+    minDate: new Date(minDate.setDate(minDate.getDate() - 7)),
+    maxDate: new Date(maxDate.setDate(maxDate.getDate() + 7))
+  };
+
+  this.rightGridData.push(newWave);
+  this.leftGridData = this.leftGridData.filter(week => !this.selection.selected.includes(week));
+  this.selection.clear();
+  this.errorMessage = '';
+}
