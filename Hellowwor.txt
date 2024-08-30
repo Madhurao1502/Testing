@@ -1,26 +1,20 @@
 removeWave(wave: any) {
-  // Find the original index in the left grid data where the wave should be inserted back
-  const originalIndex = this.date.findIndex(d => d.StartWeek === wave.Start_Week);
+  // Add back to left grid while preserving the original order
+  const waveWeeks = this.date.filter(d => d.StartWeek >= wave.Start_Week && d.StartWeek <= wave.End_Week);
+  
+  // Sort the waveWeeks based on the original indices
+  waveWeeks.sort((a, b) => {
+    const aIndex = this.leftGridData.findIndex(week => week.Start_Week === a.StartWeek);
+    const bIndex = this.leftGridData.findIndex(week => week.Start_Week === b.StartWeek);
+    return aIndex - bIndex;
+  });
 
-  // Construct the wave object to add back
-  const waveToAdd = {
-    MMYY: this.date[originalIndex]?.monthYear, // Use optional chaining in case find returns undefined
-    Start_Week: wave.Start_Week,
-    Start_Date: this.date[originalIndex]?.StartDate,
-    End_Date: this.date.find(d => d.StartWeek === wave.End_Week)?.endDate
-  };
+  this.leftGridData.splice(0, 0, ...waveWeeks.map(week => ({
+    MMYY: week.monthYear,
+    Start_Week: week.StartWeek,
+    Start_Date: week.StartDate,
+    End_Date: week.endDate
+  })));
 
-  // Add wave back to the exact index in the left grid
-  if (originalIndex > -1) {
-    this.leftGridData.splice(originalIndex, 0, waveToAdd); // Insert the waveToAdd back into the correct index
-  } else {
-    // Fallback if original index is not found, just push to the end
-    this.leftGridData.push(waveToAdd);
-  }
-
-  // Remove wave from right grid
   this.rightGridData = this.rightGridData.filter(w => w !== wave);
-
-  // Clear selection
-  this.selection.clear();
 }
