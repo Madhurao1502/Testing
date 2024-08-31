@@ -1,73 +1,52 @@
-updateGridData() {
-    this.displayedData = [];
-    const scheduleType = this.scheduleAndSampleForm.get('scheduleType')?.value;
-    const startWeek = this.scheduleAndSampleForm.get('startWeek')?.value;
-    const endWeek = this.scheduleAndSampleForm.get('endWeek')?.value;
-    const noEndDate = this.scheduleAndSampleForm.get('noEndDate')?.value;
-    const selectedWeeks = this.scheduleAndSampleForm.get('manualSelection')?.value;
-    const selectedVendors = this.generalForm.get('vendor')?.value;
-    const vendorMap = new Map(this.vendorList.map(vendor => [vendor.value, vendor.text]));
-    const selectedRotation = this.scheduleAndSampleForm.get('selectedRotation')?.value;
-    const rotationSamples = this.rotationData.filter(r => r.rotationName === selectedRotation);
+<form [formGroup]="scheduleAndSampleForm">
+  <div *ngFor="let vendor of selectedVendors; let i = index" class="vendor-section">
+    <div class="vendor-header">{{ vendorList[i].text }}</div>
+    
+    <!-- Fixed Sample Dropdown for each Vendor -->
+    <div>
+      <label for="sampleDropdown-{{i}}">Select Fixed Sample</label>
+      <select id="sampleDropdown-{{i}}" formControlName="selectedSample" (change)="onSampleChange(i, $event.target.value)">
+        <option *ngFor="let sample of availableSamples[i]" [value]="sample">{{ sample }}</option>
+      </select>
+      <div *ngIf="sampleErrors[i]" class="error">Sample already selected for another vendor in the same week</div>
+    </div>
 
-    const startIndex = this.scheduleInfoByWeek.findIndex(d => d.startWeek === startWeek);
-    const endIndex = noEndDate ? this.scheduleInfoByWeek.length - 1 : this.scheduleInfoByWeek.findIndex(d => d.startWeek === endWeek);
-    let weeksToDisplay = [];
+    <!-- Rotation Dropdown for each Vendor -->
+    <div>
+      <label for="rotationDropdown-{{i}}">Select Rotation</label>
+      <select id="rotationDropdown-{{i}}" formControlName="selectedRotation" (change)="onRotationChange(i, $event.target.value)">
+        <option *ngFor="let rotation of rotationOptions" [value]="rotation">{{ rotation }}</option>
+      </select>
+      <div *ngIf="rotationErrors[i]" class="error">Rotation sample already selected for another vendor in the same week</div>
+    </div>
 
-    if (scheduleType === '1' || scheduleType === '2') {
-        const periodIndexes = [];
+    <hr>
+  </div>
 
-        if (scheduleType === '1') {
-            for (let i = startIndex; i <= endIndex; i += 1) {
-                periodIndexes.push(i);
-            }
-        } else {
-            for (let i = startIndex; i <= endIndex; i += this.scheduleAndSampleForm.get('periodicValue')?.value) {
-                periodIndexes.push(i);
-            }
-        }
+  <!-- Submit Button -->
+  <button type="button" (click)="updateGridData()">Submit</button>
+</form>
 
-        weeksToDisplay = periodIndexes.map(i => this.scheduleInfoByWeek[i]?.startWeek);
-    } else if (scheduleType === '3') {
-        weeksToDisplay = selectedWeeks;
-    }
-
-    const totalWeeks = weeksToDisplay.length;
-    const vendorWeekData = new Map<string, string[]>();  // To track selected samples per week
-
-    selectedVendors.forEach(vendor => {
-        weeksToDisplay.forEach(week => {
-            const weekData = this.scheduleInfoByWeek.find(d => d.startWeek === week);
-            if (weekData) {
-                const sampleOptions = [...this.sampleOptions];  // Clone the sample options for dropdown
-                const selectedSamplesForWeek = vendorWeekData.get(week) || [];
-                const filteredSampleOptions = sampleOptions.filter(opt => !selectedSamplesForWeek.includes(opt));
-
-                let sample = '';  // This will be set based on user selection
-                const vendorName = vendorMap.get(vendor);
-
-                // Assume `sampleSelectionForm` is a form array containing the sample dropdown for each vendor
-                sample = this.sampleSelectionForm.get(vendor)?.get(week)?.value;
-
-                if (sample) {
-                    // Update the week data with the selected sample
-                    selectedSamplesForWeek.push(sample);
-                    vendorWeekData.set(week, selectedSamplesForWeek);
-                }
-
-                let row = {
-                    MMYY: weekData.monthYear,
-                    Start_Week: weekData.startWeek,
-                    Start_Date: weekData.startDate,
-                    End_Date: weekData.endDate,
-                    selectedSample: sample,
-                    Vendor: vendorName
-                };
-
-                this.displayedData.push(row);
-            }
-        });
-    });
-
-    this.leftGridData = this.displayedData;
-}
+<!-- Grid Displaying the Scheduled Data -->
+<table>
+  <thead>
+    <tr>
+      <th>MMYY</th>
+      <th>Start Week</th>
+      <th>Start Date</th>
+      <th>End Date</th>
+      <th>Vendor</th>
+      <th>Selected Sample</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let row of displayedData">
+      <td>{{ row.MMYY }}</td>
+      <td>{{ row.Start_Week }}</td>
+      <td>{{ row.Start_Date }}</td>
+      <td>{{ row.End_Date }}</td>
+      <td>{{ row.Vendor }}</td>
+      <td>{{ row.selectedSample }}</td>
+    </tr>
+  </tbody>
+</table>
