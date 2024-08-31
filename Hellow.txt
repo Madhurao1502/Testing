@@ -5,14 +5,11 @@ updateGridData() {
     const endWeek = this.scheduleAndSampleForm.get('endWeek')?.value;
     const noEndDate = this.scheduleAndSampleForm.get('noEndDate')?.value;
     const selectedWeeks = this.scheduleAndSampleForm.get('manualSelection')?.value;
-    const sampleType = this.scheduleAndSampleForm.get('sampleType')?.value;
-    const selectedSample = this.scheduleAndSampleForm.get('selectedSample')?.value;
-    const selectedRotation = this.scheduleAndSampleForm.get('selectedRotation')?.value;
-    const scheduleEvery = this.scheduleAndSampleForm.get('periodicValue')?.value;
     const selectedVendors = this.generalForm.get('vendor')?.value;
     const vendorMap = new Map(this.vendorList.map(vendor => [vendor.value, vendor.text]));
-
+    const selectedRotation = this.scheduleAndSampleForm.get('selectedRotation')?.value;
     const rotationSamples = this.rotationData.filter(r => r.rotationName === selectedRotation);
+
     const startIndex = this.scheduleInfoByWeek.findIndex(d => d.startWeek === startWeek);
     const endIndex = noEndDate ? this.scheduleInfoByWeek.length - 1 : this.scheduleInfoByWeek.findIndex(d => d.startWeek === endWeek);
     let weeksToDisplay = [];
@@ -25,7 +22,7 @@ updateGridData() {
                 periodIndexes.push(i);
             }
         } else {
-            for (let i = startIndex; i <= endIndex; i += scheduleEvery) {
+            for (let i = startIndex; i <= endIndex; i += this.scheduleAndSampleForm.get('periodicValue')?.value) {
                 periodIndexes.push(i);
             }
         }
@@ -36,30 +33,29 @@ updateGridData() {
     }
 
     const totalWeeks = weeksToDisplay.length;
-    const totalVendors = selectedVendors.length;
-    const vendorWeekDistribution = Array.from({ length: totalWeeks * totalVendors }, (_, idx) => weeksToDisplay[idx % totalWeeks]);
+    const vendorWeekData = new Map<string, string[]>();  // To track selected samples per week
 
-    let vendorIndex = 0;
-    vendorWeekDistribution.forEach((week, idx) => {
-        const weekData = this.scheduleInfoByWeek.find(d => d.startWeek === week);
-        if (weekData) {
-            const vendorValue = selectedVendors[vendorIndex];
-            const vendorName = vendorMap.get(vendorValue);
-            let sample = '';
+    selectedVendors.forEach(vendor => {
+        weeksToDisplay.forEach(week => {
+            const weekData = this.scheduleInfoByWeek.find(d => d.startWeek === week);
+            if (weekData) {
+                let sample = '';  // This will be set based on user selection
+                const vendorName = vendorMap.get(vendor);
+                const sampleOptions = [...this.sampleOptions];  // Clone the sample options for dropdown
 
-            if (sampleType === 'FIX') {
-                sample = selectedSample;
-            } else if (sampleType === 'ROT') {
-                const rotationIndex = idx % rotationSamples.length;
-                sample = rotationSamples[rotationIndex]?.sampleName || '';
-            }
+                // Filter out samples already selected by other vendors for the same week
+                const selectedSamplesForWeek = vendorWeekData.get(week) || [];
+                sampleOptions = sampleOptions.filter(opt => !selectedSamplesForWeek.includes(opt));
 
-            // Validation: Check for duplicate sample for the same week and vendor
-            const isDuplicate = this.displayedData.some(data => 
-                data.Start_Week === weekData.startWeek && data.Vendor === vendorName && data.selectedSample === sample
-            );
+                // Assume `sampleSelectionForm` is a form array containing the sample dropdown for each vendor
+                sample = this.sampleSelectionForm.get(vendor)?.get(week)?.value;
 
-            if (!isDuplicate) {
+                if (sample) {
+                    // Update the week data with the selected sample
+                    selectedSamplesForWeek.push(sample);
+                    vendorWeekData.set(week, selectedSamplesForWeek);
+                }
+
                 let row = {
                     MMYY: weekData.monthYear,
                     Start_Week: weekData.startWeek,
@@ -68,13 +64,10 @@ updateGridData() {
                     selectedSample: sample,
                     Vendor: vendorName
                 };
+
                 this.displayedData.push(row);
             }
-
-            if ((idx + 1) % totalWeeks === 0) { 
-                vendorIndex = (vendorIndex + 1) % totalVendors; 
-            }
-        }
+        });
     });
 
     this.leftGridData = this.displayedData;
