@@ -39,13 +39,12 @@ updateGridData() {
         weeksToDisplay.forEach(week => {
             const weekData = this.scheduleInfoByWeek.find(d => d.startWeek === week);
             if (weekData) {
+                const sampleOptions = [...this.sampleOptions];  // Clone the sample options for dropdown
+                const selectedSamplesForWeek = vendorWeekData.get(week) || [];
+                const filteredSampleOptions = sampleOptions.filter(opt => !selectedSamplesForWeek.includes(opt));
+
                 let sample = '';  // This will be set based on user selection
                 const vendorName = vendorMap.get(vendor);
-                const sampleOptions = [...this.sampleOptions];  // Clone the sample options for dropdown
-
-                // Filter out samples already selected by other vendors for the same week
-                const selectedSamplesForWeek = vendorWeekData.get(week) || [];
-                sampleOptions = sampleOptions.filter(opt => !selectedSamplesForWeek.includes(opt));
 
                 // Assume `sampleSelectionForm` is a form array containing the sample dropdown for each vendor
                 sample = this.sampleSelectionForm.get(vendor)?.get(week)?.value;
