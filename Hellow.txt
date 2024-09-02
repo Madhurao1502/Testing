@@ -1,48 +1,351 @@
-  <div fxFlex="50%">
-    <table mat-table [dataSource]="tableData" class="mat-elevation-z8" [trackBy]="trackByFn">
+ selectedRotations: { [key: number]: string } = {}; // Store selected rotation per vendor
+  selectedFixedSamples: { [key: number]: string } = {}; // Store selected fixed sample per vendor
+  displayedColumns: string[] = ['monthYear', 'startWeek', 'startDate', 'endDate', 'selectSample', 'selectedVendor'];
+  tableData: any[] = [];
+  filteredEndWeeks: Week[] = [];
+  leftGridData:MatTableDataSource<any>;
+  rightGridData = new MatTableDataSource<any>([]);
+  selection = new SelectionModel<any>(true, []);
+  rightDisplayedColumns: string[] = ['startWeek', 'endWeek', 'dueDate', 'remove'];
+  leftdisplayedColumns: string[] = ['select', 'MM', 'Week', 'startDate', 'endDate'];
 
-      <ng-container matColumnDef="monthYear">
-        <th mat-header-cell *matHeaderCellDef> Month/Year </th>
-        <td mat-cell *matCellDef="let row"> {{ row.monthYear }} </td>
-      </ng-container>
+  errorMessage: string = '';
+  constructor(private fb: FormBuilder) { }
 
-      <ng-container matColumnDef="startWeek">
-        <th mat-header-cell *matHeaderCellDef> Start Week </th>
-        <td mat-cell *matCellDef="let row"> {{ row.startWeek }} </td>
-      </ng-container>
+  ngOnInit(): void {
+    this.scheduleForm = this.fb.group({
+      scheduleType: [1, Validators.required],
+      startWeek: ['', Validators.required],
+      endWeek: ['', Validators.required],
+      noEndWeek: [false],
+      sampleType: ['FIX', Validators.required],
+      vendor: [[], Validators.required],
+      selectedWeeks: [[]],
+      scheduleEvery: [{ value: 2, disabled: true }, [Validators.min(2), Validators.max(51)]],
+    });
 
-      <ng-container matColumnDef="startDate">
-        <th mat-header-cell *matHeaderCellDef> Start Date </th>
-        <td mat-cell *matCellDef="let row"> {{ row.startDate }} </td>
-      </ng-container>
+    
 
-      <ng-container matColumnDef="endDate">
-        <th mat-header-cell *matHeaderCellDef> End Date </th>
-        <td mat-cell *matCellDef="let row"> {{ row.endDate }} </td>
-      </ng-container>
+    this.scheduleForm.controls['scheduleType'].valueChanges.subscribe(value => {
+      if (value === 2) {
+        this.scheduleForm.controls['scheduleEvery'].enable();
+        this.scheduleForm.controls['scheduleEvery'].setValue(2);
+      } else {
+        this.scheduleForm.controls['scheduleEvery'].disable();
+        this.scheduleForm.controls['scheduleEvery'].setValue(2);
+      }
+    });
 
-      <ng-container matColumnDef="selectSample">
-        <th mat-header-cell *matHeaderCellDef> Select Sample </th>
-        <td mat-cell *matCellDef="let row;let i = index">
-          <mat-form-field appearance="fill" *ngIf="!isSelectSampleDisabled(row)">
-            <mat-select (selectionChange)="onSampleChange($event.value, i)">
-              <mat-option *ngFor="let sample of row.sampleOptions" [value]="sample" [disabled]="isSampleDisabled(sample, row)">
-                {{ sample }}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
-          <span *ngIf="isSelectSampleDisabled(row)">
-            {{ row.selectSample }}
-          </span>
-        </td>
-      </ng-container>
+    this.scheduleForm.valueChanges.subscribe(() => {
+      this.generateTable();
+      this.checkSampleTypeCompatibility();
+    });
 
-      <ng-container matColumnDef="selectedVendor">
-        <th mat-header-cell *matHeaderCellDef> Selected Vendor </th>
-        <td mat-cell *matCellDef="let row"> {{ row.selectedVendor }} </td>
-      </ng-container>
+    this.scheduleForm.get('noEndWeek')?.valueChanges.subscribe(value => {
+      const endWeekControl = this.scheduleForm.get('endWeek');
+      if (value) {
+        endWeekControl?.setValue(this.weeks[this.weeks.length - 1].StartWeek);
+        endWeekControl?.disable();
+      } else {
+        endWeekControl?.enable();
+      }
+    });
 
-      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-    </table>
-  </div>
+    this.scheduleForm.get('startWeek')?.valueChanges.subscribe(value => {
+      this.updateFilteredEndWeeks(value);
+    });
+  }
+
+
+  updatePeriodicSelection(startWeek: number, endWeek: number, scheduleEvery: number) {
+    const periodIndexes = [];
+    const weeksInRange = this.weeks.filter(week => week.StartWeek >= startWeek);
+  
+    if (endWeek) {
+      const endIndex = weeksInRange.findIndex(week => week.StartWeek === endWeek);
+      if (endIndex === -1) {
+        console.warn('End week not found in the available weeks.');
+        return;
+      }
+      for (let i = startWeek; i <= endWeek; i += scheduleEvery) {
+        periodIndexes.push(i);
+      }
+    } else {
+      for (let i = startWeek; i <= weeksInRange[weeksInRange.length - 1].StartWeek; i += scheduleEvery) {
+        periodIndexes.push(i);
+      }
+    }
+  
+    console.log('Selected Weeks:', periodIndexes);
+    // Update the tableData or perform any other necessary actions here
+  }
+  
+
+  updateFilteredEndWeeks(startWeekNumber: number) {
+    if (startWeekNumber) {
+      this.filteredEndWeeks = this.weeks.filter(week => week.StartWeek > startWeekNumber);
+      // Reset endWeek if the current value is not in the new filtered list
+      const endWeekControl = this.scheduleForm.get('endWeek');
+      if (endWeekControl && !this.filteredEndWeeks.some(week => week.StartWeek === endWeekControl.value)) {
+        endWeekControl.setValue(null);
+      }
+    } else {
+      this.filteredEndWeeks = [...this.weeks];
+    }
+  }
+  
+
+  getUniqueRotations(): string[] {
+    return [...new Set(this.rotation.map(rot => rot.RotationName))];
+  }
+
+  checkSampleTypeCompatibility() {
+    const { scheduleType, sampleType } = this.scheduleForm.value;
+
+    if ((scheduleType === 1 || scheduleType === 2) && sampleType === 'MAN') {
+      this.scheduleForm.patchValue({ sampleType: 'FIX' });
+      alert('Warning! The current sample assignment selection (Manual) is incompatible with this type of scheduling. The sample assignment for this task has been reset to (Fixed).');
+    }
+  }
+
+  generateTable() {
+    const { scheduleType, startWeek, endWeek, noEndWeek, vendor, sampleType, selectedWeeks, scheduleEvery } = this.scheduleForm.value;
+    
+    this.tableData = [];
+    let selectedWeekObjects: Week[] = [];
+    
+    if (scheduleType === 3) {
+      selectedWeekObjects = this.weeks.filter(week => selectedWeeks.includes(week.StartWeek));
+      selectedWeekObjects.sort((a, b) => a.StartWeek - b.StartWeek);
+    } else if (scheduleType === 2) {
+      const periodIndexes = this.calculatePeriodicWeeks(startWeek, endWeek, noEndWeek, scheduleEvery);
+      selectedWeekObjects = this.weeks.filter(week => periodIndexes.includes(week.StartWeek));
+    } else {
+      // Handle "No End Week" scenario for weekly scheduling
+      if (noEndWeek) {
+        const startIndex = this.weeks.findIndex(week => week.StartWeek === startWeek);
+        selectedWeekObjects = this.weeks.slice(startIndex);
+      } else {
+        const startIndex = this.weeks.findIndex(week => week.StartWeek === startWeek);
+        const endIndex = this.weeks.findIndex(week => week.StartWeek === endWeek);
+        if (startIndex !== -1 && endIndex !== -1) {
+          selectedWeekObjects = this.weeks.slice(startIndex, endIndex + 1);
+        }
+      }
+    }
+  
+    vendor.forEach((vendorId: number) => {
+      let rotationCounter = 0;
+      selectedWeekObjects.forEach((week, index) => {
+        let sampleName = '';
+        let sampleOptions: string[] = [];
+  
+        if (sampleType === 'FIX') {
+          sampleName = this.selectedFixedSamples[vendorId] || '';
+          sampleOptions = this.samples.map(s => s.SampleName);
+        } else if (sampleType === 'ROT') {
+          const rotationName = this.selectedRotations[vendorId];
+          if (rotationName) {
+            const rotationSamples = this.rotation.filter(rot => rot.RotationName === rotationName);
+            if (rotationSamples.length > 0) {
+              sampleName = rotationSamples[rotationCounter % rotationSamples.length].SampleName;
+              sampleOptions = rotationSamples.map(rs => rs.SampleName);
+              rotationCounter++;
+            }
+          }
+        } else if (sampleType === 'MAN') {
+          sampleOptions = this.samples.map(s => s.SampleName);
+        }
+  
+        this.tableData.push({
+          monthYear: week.mothnYear,
+          startWeek: week.StartWeek,
+          startDate: week.StartDate,
+          endDate: week.endDate,
+          selectSample: sampleName,
+          sampleOptions: sampleOptions,
+          selectedVendor: vendorId
+        });
+      });
+    });
+    this.leftGridData = new MatTableDataSource<any>(this.tableData);
+    this.validateSampleSelections();
+  }
+  
+  calculatePeriodicWeeks(startWeek: number, endWeek: number, noEndWeek: boolean, scheduleEvery: number): number[] {
+    const periodIndexes = [];
+    const weeksInRange = this.weeks.filter(week => week.StartWeek >= startWeek);
+  
+    if (noEndWeek) {
+      const lastWeek = weeksInRange[weeksInRange.length - 1].StartWeek;
+      for (let i = startWeek; i <= lastWeek; i += scheduleEvery) {
+        periodIndexes.push(i);
+      }
+    } else {
+      if (endWeek) {
+        const endIndex = weeksInRange.findIndex(week => week.StartWeek === endWeek);
+        if (endIndex === -1) {
+          console.warn('End week not found in the available weeks.');
+          return [];
+        }
+        for (let i = startWeek; i <= endWeek; i += scheduleEvery) {
+          periodIndexes.push(i);
+        }
+      } else {
+        for (let i = startWeek; i <= weeksInRange[weeksInRange.length - 1].StartWeek; i += scheduleEvery) {
+          periodIndexes.push(i);
+        }
+      }
+    }
+  
+    return periodIndexes;
+  }
+
+ 
+
+  onRotationChange(rotationName: string, vendorId: number) {
+    this.selectedRotations[vendorId] = rotationName;
+    this.generateTable();
+  }
+
+  onFixedSampleChange(sampleName: string, vendorId: number) {
+    this.selectedFixedSamples[vendorId] = sampleName;
+    this.generateTable();
+  }
+
+  onSampleChange(value: string, rowIndex: number) {
+    const selectedRow = this.tableData[rowIndex];
+    const { startWeek, selectedVendor } = selectedRow;
+
+    const duplicateSample = this.tableData.some(row =>
+      row.startWeek === startWeek &&
+      row.selectedVendor !== selectedVendor &&
+      row.selectSample === value
+    );
+
+    if (duplicateSample) {
+      alert(`Sample ${value} is already selected for another vendor in week ${startWeek}. Please choose a different sample.`);
+      selectedRow.selectSample = '';
+    } else {
+      selectedRow.selectSample = value;
+    }
+  }
+
+  validateSampleSelections() {
+    this.tableData.forEach(row => {
+      const duplicateSample = this.tableData.some(otherRow =>
+        otherRow !== row &&
+        otherRow.startWeek === row.startWeek &&
+        otherRow.selectSample === row.selectSample
+      );
+      row.hasError = duplicateSample;
+    });
+  }
+
+  isSampleDisabled(sampleName: string, row: any): boolean {
+    const { startWeek, selectedVendor } = row;
+    return this.tableData.some(otherRow =>
+      otherRow.startWeek === startWeek &&
+      otherRow.selectedVendor !== selectedVendor &&
+      otherRow.selectSample === sampleName
+    );
+  }
+
+  isSelectSampleDisabled(row: any): boolean {
+    const { sampleType } = this.scheduleForm.value;
+    if (sampleType === 'FIX') {
+      return true;
+    }
+    if (sampleType === 'ROT') {
+      const rotationName = this.selectedRotations[row.selectedVendor];
+      return !rotationName;
+    }
+    return false;
+  }
+
+  trackByFn(index: number, item: any) {
+    return index;
+  }
+
+  createWave(): void {
+    const selectedWeeks = this.selection.selected;
+  
+    if (selectedWeeks.length < 2) {
+      this.errorMessage = "Only 1 week is selected, a wave must contain at least 2 weeks.";
+      return;
+    }
+  
+    // Sort selected weeks by their original index in the left grid
+    const sortedWeeks = selectedWeeks.sort((a, b) => this.leftGridData.data.indexOf(a) - this.leftGridData.data.indexOf(b));
+  
+    // Check if rows are consecutive
+    for (let i = 1; i < sortedWeeks.length; i++) {
+      const previousIndex = this.leftGridData.data.indexOf(sortedWeeks[i - 1]);
+      const currentIndex = this.leftGridData.data.indexOf(sortedWeeks[i]);
+      if (currentIndex !== previousIndex + 1) {
+        this.errorMessage = "Weeks must be consecutive.";
+        return;
+      }
+    }
+  
+    this.errorMessage = '';  // Reset error message
+    const startWeek = sortedWeeks[0].startWeek;
+    const endWeek = sortedWeeks[sortedWeeks.length - 1].startWeek;
+  
+    // Move weeks to right grid
+    const wave = {
+      startWeek: startWeek,
+      endWeek: endWeek,
+      startDate: sortedWeeks[0].startDate,
+      endDate: sortedWeeks[sortedWeeks.length - 1].endDate,
+      dueDate: ''
+    };
+  
+    this.rightGridData.data = [...this.rightGridData.data, wave];
+    this.leftGridData.data = this.leftGridData.data.filter(item => !this.selection.isSelected(item));
+    this.selection.clear();
+  }
+
+  removeWave(wave: any): void {
+    // Store removed rows with their original index
+    const weeksToReturn = this.leftGridData.data.filter(week => 
+      parseInt(week.startWeek, 10) >= parseInt(wave.startWeek, 10) && 
+      parseInt(week.startWeek, 10) <= parseInt(wave.endWeek, 10)
+    );
+  
+    // Determine where to reinsert the rows
+    const startIndex = this.leftGridData.data.findIndex(item => item.startWeek === wave.startWeek);
+    
+    // Update left grid data at the original index
+    const updatedLeftGridData = [...this.leftGridData.data];
+    updatedLeftGridData.splice(startIndex, 0, ...weeksToReturn);
+  
+    this.leftGridData.data = updatedLeftGridData;
+    this.rightGridData.data = this.rightGridData.data.filter(item => item !== wave);
+
+    console.log(this.leftGridData.data)
+    console.log(this.rightGridData.data )
+  }
+
+  getMinDate(endDate: string): string {
+    const date = new Date(endDate);
+    date.setDate(date.getDate() - 7);
+    return date.toISOString().split('T')[0];
+  }
+  
+  getMaxDate(endDate: string): string {
+    const date = new Date(endDate);
+    date.setDate(date.getDate() + 7);
+    return date.toISOString().split('T')[0];
+  }
+
+  isAllSelected() {
+    const numSelected = this.selection.selected.length;
+    const numRows = this.leftGridData.data.length;
+    return numSelected === numRows;
+  }
+
+  masterToggle() {
+    this.isAllSelected() ? this.selection.clear() : this.leftGridData.data.forEach(row => this.selection.select(row));
+  }
+}
