@@ -1,52 +1,77 @@
-<form [formGroup]="scheduleAndSampleForm">
-  <div *ngFor="let vendor of selectedVendors; let i = index" class="vendor-section">
-    <div class="vendor-header">{{ vendorList[i].text }}</div>
-    
-    <!-- Fixed Sample Dropdown for each Vendor -->
-    <div>
-      <label for="sampleDropdown-{{i}}">Select Fixed Sample</label>
-      <select id="sampleDropdown-{{i}}" formControlName="selectedSample" (change)="onSampleChange(i, $event.target.value)">
-        <option *ngFor="let sample of availableSamples[i]" [value]="sample">{{ sample }}</option>
-      </select>
-      <div *ngIf="sampleErrors[i]" class="error">Sample already selected for another vendor in the same week</div>
-    </div>
+            <!-- Conditional Fields Based on Schedule Type -->
+            <ng-container [ngSwitch]="scheduleForm.value.scheduleType">
+              <ng-container *ngSwitchCase="3">
+                <mat-form-field appearance="fill">
+                  <mat-label>Select Weeks</mat-label>
+                  <mat-select formControlName="selectedWeeks" multiple>
+                    <mat-option *ngFor="let week of weeks" [value]="week.StartWeek">
+                      {{ week.StartWeek }} ({{ week.StartDate }} - {{ week.endDate }})
+                    </mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </ng-container>
+              <ng-container *ngSwitchDefault>
+                <mat-form-field appearance="fill">
+                  <mat-label>Start Week</mat-label>
+                  <mat-select formControlName="startWeek">
+                    <mat-option *ngFor="let week of weeks" [value]="week.StartWeek">
+                      {{ week.StartWeek }} ({{ week.StartDate }})
+                    </mat-option>
+                  </mat-select>
+                </mat-form-field>
 
-    <!-- Rotation Dropdown for each Vendor -->
-    <div>
-      <label for="rotationDropdown-{{i}}">Select Rotation</label>
-      <select id="rotationDropdown-{{i}}" formControlName="selectedRotation" (change)="onRotationChange(i, $event.target.value)">
-        <option *ngFor="let rotation of rotationOptions" [value]="rotation">{{ rotation }}</option>
-      </select>
-      <div *ngIf="rotationErrors[i]" class="error">Rotation sample already selected for another vendor in the same week</div>
-    </div>
+                <mat-form-field appearance="fill">
+                  <mat-label>End Week</mat-label>
+                  <mat-select formControlName="endWeek" [disabled]="scheduleForm.value.noEndWeek">
+                    <mat-option *ngFor="let week of filteredEndWeeks" [value]="week.StartWeek">
+                      {{ week.StartWeek }} ({{ week.endDate }})
+                    </mat-option>
+                  </mat-select>
+                </mat-form-field>
 
-    <hr>
-  </div>
+                <mat-checkbox formControlName="noEndWeek">No End Week</mat-checkbox>
+              </ng-container>
+            </ng-container>
 
-  <!-- Submit Button -->
-  <button type="button" (click)="updateGridData()">Submit</button>
-</form>
+            <!-- New Schedule Every Field -->
+            <mat-form-field appearance="fill">
+              <mat-label>Schedule this task every</mat-label>
+              <input matInput formControlName="scheduleEvery" type="number" [min]="2" [max]="51" />
+            </mat-form-field>
 
-<!-- Grid Displaying the Scheduled Data -->
-<table>
-  <thead>
-    <tr>
-      <th>MMYY</th>
-      <th>Start Week</th>
-      <th>Start Date</th>
-      <th>End Date</th>
-      <th>Vendor</th>
-      <th>Selected Sample</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr *ngFor="let row of displayedData">
-      <td>{{ row.MMYY }}</td>
-      <td>{{ row.Start_Week }}</td>
-      <td>{{ row.Start_Date }}</td>
-      <td>{{ row.End_Date }}</td>
-      <td>{{ row.Vendor }}</td>
-      <td>{{ row.selectedSample }}</td>
-    </tr>
-  </tbody>
-</table>
+            <mat-form-field appearance="fill">
+              <mat-label>Select Vendor(s)</mat-label>
+              <mat-select formControlName="vendor" multiple>
+                <mat-option *ngFor="let vendor of vendors" [value]="vendor.value">
+                  {{ vendor.label }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <!-- Conditional Vendor Selections Based on Sample Type -->
+            <ng-container [ngSwitch]="scheduleForm.value.sampleType">
+              <ng-container *ngSwitchCase="'ROT'">
+                <div *ngFor="let vendorId of scheduleForm.value.vendor">
+                  <mat-form-field appearance="fill">
+                    <mat-label>Select Rotation for Vendor {{ vendorId }}</mat-label>
+                    <mat-select (selectionChange)="onRotationChange($event.value, vendorId)" [(value)]="selectedRotations[vendorId]">
+                      <mat-option *ngFor="let rotation of getUniqueRotations()" [value]="rotation">
+                        {{ rotation }}
+                      </mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+              </ng-container>
+              <ng-container *ngSwitchCase="'FIX'">
+                <div *ngFor="let vendorId of scheduleForm.value.vendor">
+                  <mat-form-field appearance="fill">
+                    <mat-label>Select Sample for Vendor {{ vendorId }}</mat-label>
+                    <mat-select (selectionChange)="onFixedSampleChange($event.value, vendorId)" [(value)]="selectedFixedSamples[vendorId]">
+                      <mat-option *ngFor="let sample of samples" [value]="sample.SampleName">
+                        {{ sample.SampleName }}
+                      </mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+              </ng-container>
+            </ng-container>
