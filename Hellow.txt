@@ -1,77 +1,48 @@
-            <!-- Conditional Fields Based on Schedule Type -->
-            <ng-container [ngSwitch]="scheduleForm.value.scheduleType">
-              <ng-container *ngSwitchCase="3">
-                <mat-form-field appearance="fill">
-                  <mat-label>Select Weeks</mat-label>
-                  <mat-select formControlName="selectedWeeks" multiple>
-                    <mat-option *ngFor="let week of weeks" [value]="week.StartWeek">
-                      {{ week.StartWeek }} ({{ week.StartDate }} - {{ week.endDate }})
-                    </mat-option>
-                  </mat-select>
-                </mat-form-field>
-              </ng-container>
-              <ng-container *ngSwitchDefault>
-                <mat-form-field appearance="fill">
-                  <mat-label>Start Week</mat-label>
-                  <mat-select formControlName="startWeek">
-                    <mat-option *ngFor="let week of weeks" [value]="week.StartWeek">
-                      {{ week.StartWeek }} ({{ week.StartDate }})
-                    </mat-option>
-                  </mat-select>
-                </mat-form-field>
+  <div fxFlex="50%">
+    <table mat-table [dataSource]="tableData" class="mat-elevation-z8" [trackBy]="trackByFn">
 
-                <mat-form-field appearance="fill">
-                  <mat-label>End Week</mat-label>
-                  <mat-select formControlName="endWeek" [disabled]="scheduleForm.value.noEndWeek">
-                    <mat-option *ngFor="let week of filteredEndWeeks" [value]="week.StartWeek">
-                      {{ week.StartWeek }} ({{ week.endDate }})
-                    </mat-option>
-                  </mat-select>
-                </mat-form-field>
+      <ng-container matColumnDef="monthYear">
+        <th mat-header-cell *matHeaderCellDef> Month/Year </th>
+        <td mat-cell *matCellDef="let row"> {{ row.monthYear }} </td>
+      </ng-container>
 
-                <mat-checkbox formControlName="noEndWeek">No End Week</mat-checkbox>
-              </ng-container>
-            </ng-container>
+      <ng-container matColumnDef="startWeek">
+        <th mat-header-cell *matHeaderCellDef> Start Week </th>
+        <td mat-cell *matCellDef="let row"> {{ row.startWeek }} </td>
+      </ng-container>
 
-            <!-- New Schedule Every Field -->
-            <mat-form-field appearance="fill">
-              <mat-label>Schedule this task every</mat-label>
-              <input matInput formControlName="scheduleEvery" type="number" [min]="2" [max]="51" />
-            </mat-form-field>
+      <ng-container matColumnDef="startDate">
+        <th mat-header-cell *matHeaderCellDef> Start Date </th>
+        <td mat-cell *matCellDef="let row"> {{ row.startDate }} </td>
+      </ng-container>
 
-            <mat-form-field appearance="fill">
-              <mat-label>Select Vendor(s)</mat-label>
-              <mat-select formControlName="vendor" multiple>
-                <mat-option *ngFor="let vendor of vendors" [value]="vendor.value">
-                  {{ vendor.label }}
-                </mat-option>
-              </mat-select>
-            </mat-form-field>
+      <ng-container matColumnDef="endDate">
+        <th mat-header-cell *matHeaderCellDef> End Date </th>
+        <td mat-cell *matCellDef="let row"> {{ row.endDate }} </td>
+      </ng-container>
 
-            <!-- Conditional Vendor Selections Based on Sample Type -->
-            <ng-container [ngSwitch]="scheduleForm.value.sampleType">
-              <ng-container *ngSwitchCase="'ROT'">
-                <div *ngFor="let vendorId of scheduleForm.value.vendor">
-                  <mat-form-field appearance="fill">
-                    <mat-label>Select Rotation for Vendor {{ vendorId }}</mat-label>
-                    <mat-select (selectionChange)="onRotationChange($event.value, vendorId)" [(value)]="selectedRotations[vendorId]">
-                      <mat-option *ngFor="let rotation of getUniqueRotations()" [value]="rotation">
-                        {{ rotation }}
-                      </mat-option>
-                    </mat-select>
-                  </mat-form-field>
-                </div>
-              </ng-container>
-              <ng-container *ngSwitchCase="'FIX'">
-                <div *ngFor="let vendorId of scheduleForm.value.vendor">
-                  <mat-form-field appearance="fill">
-                    <mat-label>Select Sample for Vendor {{ vendorId }}</mat-label>
-                    <mat-select (selectionChange)="onFixedSampleChange($event.value, vendorId)" [(value)]="selectedFixedSamples[vendorId]">
-                      <mat-option *ngFor="let sample of samples" [value]="sample.SampleName">
-                        {{ sample.SampleName }}
-                      </mat-option>
-                    </mat-select>
-                  </mat-form-field>
-                </div>
-              </ng-container>
-            </ng-container>
+      <ng-container matColumnDef="selectSample">
+        <th mat-header-cell *matHeaderCellDef> Select Sample </th>
+        <td mat-cell *matCellDef="let row;let i = index">
+          <mat-form-field appearance="fill" *ngIf="!isSelectSampleDisabled(row)">
+            <mat-select (selectionChange)="onSampleChange($event.value, i)">
+              <mat-option *ngFor="let sample of row.sampleOptions" [value]="sample" [disabled]="isSampleDisabled(sample, row)">
+                {{ sample }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+          <span *ngIf="isSelectSampleDisabled(row)">
+            {{ row.selectSample }}
+          </span>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="selectedVendor">
+        <th mat-header-cell *matHeaderCellDef> Selected Vendor </th>
+        <td mat-cell *matCellDef="let row"> {{ row.selectedVendor }} </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
+  </div>
