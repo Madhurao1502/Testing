@@ -1,4 +1,22 @@
- selectedRotations: { [key: number]: string } = {}; // Store selected rotation per vendor
+interface Week {
+  mothnYear: string;
+  StartWeek: number;
+  StartDate: string;
+  endDate: string;
+}
+
+interface Sample {
+  SampleName: string;
+  description: string;
+}
+
+interface Rotation {
+  RotationName: string;
+  SampleName: string;
+  seqNumver: number;
+}
+
+selectedRotations: { [key: number]: string } = {}; // Store selected rotation per vendor
   selectedFixedSamples: { [key: number]: string } = {}; // Store selected fixed sample per vendor
   displayedColumns: string[] = ['monthYear', 'startWeek', 'startDate', 'endDate', 'selectSample', 'selectedVendor'];
   tableData: any[] = [];
