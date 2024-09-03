@@ -1,145 +1,34 @@
-  createWave(): void {
-    const selectedWeeks = this.selection.selected;
-
-    if (selectedWeeks.length < 2) {
-        this.errorMessage = "A wave must contain at least 2 weeks.";
-        return;
-    }
-
-    // Sort selected weeks by their original index in the left grid
-    const sortedWeeks = selectedWeeks.sort((a, b) => this.leftGridData.data.indexOf(a) - this.leftGridData.data.indexOf(b));
-
-    // Check if selected weeks are consecutive without gaps
-    for (let i = 1; i < sortedWeeks.length; i++) {
-        const previousWeek = parseInt(sortedWeeks[i - 1].startWeek, 10);
-        const currentWeek = parseInt(sortedWeeks[i].startWeek, 10);
-
-        if (currentWeek !== previousWeek + 1) {
-            this.errorMessage = `Selected weeks must be consecutive without any gaps. Please select weeks in order.`;
-            return;
-        }
-    }
-
-    // Additional check to prevent selecting weeks out of order
-    const selectedIndices = sortedWeeks.map(week => this.leftGridData.data.indexOf(week));
-    const maxIndex = Math.max(...selectedIndices);
-    const minIndex = Math.min(...selectedIndices);
-
-    for (let i = minIndex; i <= maxIndex; i++) {
-        if (!selectedIndices.includes(i)) {
-            this.errorMessage = "You cannot skip weeks or select weeks out of order.";
-            return;
-        }
-    }
-
-    this.errorMessage = '';  // Reset error message
-    const startWeek = sortedWeeks[0].startWeek;
-    const endWeek = sortedWeeks[sortedWeeks.length - 1].startWeek;
-
-    const maxDueDate = new Date(sortedWeeks[sortedWeeks.length - 1].endDate);
-    maxDueDate.setDate(maxDueDate.getDate() + 7);
-    const minDueDate = new Date(sortedWeeks[sortedWeeks.length - 1].endDate);
-    minDueDate.setDate(minDueDate.getDate() - 7);
-
-    const formatToDateTimeString = (date: Date): string => {
-      const isoString = date.toISOString();
-      return isoString.slice(0, 16);  // Extract 'YYYY-MM-DDTHH:MM' portion
-  };
-
-    const wave = {
-        startWeek: `${startWeek} (${sortedWeeks[0].startDate} - ${sortedWeeks[0].endDate})`,
-        endWeek: `${endWeek} (${sortedWeeks[sortedWeeks.length - 1].startDate} - ${sortedWeeks[sortedWeeks.length - 1].endDate})`,
-        startDate: sortedWeeks[0].startDate,
-        endDate: sortedWeeks[sortedWeeks.length - 1].endDate,
-        dueDate: '',
-        minDueDate: formatToDateTimeString(minDueDate),
-        maxDueDate: formatToDateTimeString(maxDueDate)
-    };
-
-    this.rightGridData.data = [...this.rightGridData.data, wave];
-    this.leftGridData.data = this.leftGridData.data.filter(item => !this.selection.isSelected(item));
-    this.selection.clear();
-}
-
-  
-removeWave(wave: any): void {
-  const removedRows = this.tableData.filter(row =>
-      parseInt(row.startWeek, 10) >= parseInt(wave.startWeek, 10) &&
-      parseInt(row.startWeek, 10) <= parseInt(wave.endWeek, 10)
-  );
-
-  this.rightGridData.data = this.rightGridData.data.filter(item => item !== wave);
-
-  removedRows.forEach(row => {
-      const index = this.leftGridData.data.findIndex(item => parseInt(item.startWeek, 10) > parseInt(row.startWeek, 10));
-      
-      // Check for duplicates before adding
-      if (!this.leftGridData.data.find(item => item.startWeek === row.startWeek)) {
-          if (index === -1) {
-              this.leftGridData.data.push(row);
-          } else {
-              this.leftGridData.data.splice(index, 0, row);
-          }
-      }
-  });
-
-  this.leftGridData = new MatTableDataSource<any>(this.leftGridData.data);
-  this.selection.clear();
-}
-
-
-
-  getMinDate(endDate: string): string {
-    const date = new Date(endDate);
-    date.setDate(date.getDate() - 7);
-    return date.toISOString().split('T')[0];
-  }
-  
-  getMaxDate(endDate: string): string {
-    const date = new Date(endDate);
-    date.setDate(date.getDate() + 7);
-    return date.toISOString().split('T')[0];
-  }
-
-  isAllSelected() {
-    const numSelected = this.selection.selected.length;
-    const numRows = this.leftGridData.data.length;
-    return numSelected === numRows;
-  }
-
-  masterToggle() {
-    this.isAllSelected() ? this.selection.clear() : this.leftGridData.data.forEach(row => this.selection.select(row));
-  }
-  validateDueDate(element: any): void {
-    try {
-      const endDate = new Date(element.endDate);
-      const minDate = new Date(endDate);
-      minDate.setDate(endDate.getDate() - 7); // Adjust here for your specific requirement
-    
-      const maxDate = new Date(endDate);
-      maxDate.setDate(endDate.getDate() + 7);
-    
-      const dueDate = new Date(element.dueDate);
-    
-      if (dueDate < minDate || dueDate > maxDate) {
-        element.dueDate = null; // Reset the due date if it's out of the allowed range
-        
-        // Formatting dates in YYYY-MM-DDTHH:MM format
-        const formatDate = (date: Date): string => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        return `${year}-${month}-${day}T${hours}:${minutes}`;
-        };
-        
-        this.errorMessage = `Due date must be between ${formatDate(minDate)} and ${formatDate(maxDate)}.`;
-      } else {
-        this.errorMessage = ''; // Clear the error message if the due date is valid
-      }
-    } catch (error) {
-      console.error('Error validating due date:', error);
-      this.errorMessage = 'An error occurred while validating the due date.';
+setCompleteDayDropdown(completeDay: number) {
+    switch (completeDay) {
+      case 1:
+      case 8:
+        this.selectedCompleteDay = '1';
+        break;
+      case 2:
+      case 9:
+        this.selectedCompleteDay = '2';
+        break;
+      case 3:
+      case 10:
+        this.selectedCompleteDay = '3';
+        break;
+      case 4:
+      case 11:
+        this.selectedCompleteDay = '4';
+        break;
+      case 5:
+      case 12:
+        this.selectedCompleteDay = '5';
+        break;
+      case 6:
+      case 13:
+        this.selectedCompleteDay = '6';
+        break;
+      case 7:
+      case 14:
+        this.selectedCompleteDay = '7';
+        break;
+      default:
+        this.selectedCompleteDay = '-1';
     }
   }
