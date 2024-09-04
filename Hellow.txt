@@ -6,15 +6,13 @@ createWave(): void {
         return;
     }
 
-    // Sort selected rows by their original index in the left grid
+    // Get the indices of the selected rows in the left grid
     const sortedRows = selectedRows.sort((a, b) => this.leftGridData.data.indexOf(a) - this.leftGridData.data.indexOf(b));
-    
-    // Get indices of the sorted rows
     const indices = sortedRows.map(row => this.leftGridData.data.indexOf(row));
     const minIndex = Math.min(...indices);
     const maxIndex = Math.max(...indices);
 
-    // Check if selected rows form a consecutive block
+    // Check if the selected rows form a consecutive block
     for (let i = minIndex; i <= maxIndex; i++) {
         if (!indices.includes(i)) {
             this.errorMessage = "Selected rows must be consecutive without gaps.";
@@ -22,8 +20,12 @@ createWave(): void {
         }
     }
 
-    // Check for any additional selected rows not in the current block
-    const additionalSelections = selectedRows.filter(row => {
+    // Get existing selections from the left grid that are not in the current block
+    const existingRows = this.leftGridData.data.filter(row => !selectedRows.includes(row));
+    const existingIndices = existingRows.map(row => this.leftGridData.data.indexOf(row));
+    
+    // Ensure that any new selections do not disrupt the consecutive block rule
+    const additionalSelections = existingRows.filter(row => {
         const rowIndex = this.leftGridData.data.indexOf(row);
         return rowIndex < minIndex || rowIndex > maxIndex;
     });
@@ -33,7 +35,7 @@ createWave(): void {
         return;
     }
 
-    // Prepare the wave data
+    // Proceed with wave creation
     const startRow = sortedRows[0];
     const endRow = sortedRows[sortedRows.length - 1];
 
