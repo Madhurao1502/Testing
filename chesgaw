@@ -1,5 +1,7 @@
-selectedBlocks: { startWeek: number; endWeek: number }[] = []; // Array to track selected blocks
+// Array to track selected blocks
+selectedBlocks: { startWeek: number; endWeek: number }[] = [];
 
+// Function to create a wave
 createWave(): void {
   const selectedWeeks = this.selection.selected;
 
@@ -15,26 +17,16 @@ createWave(): void {
   const startWeek = parseInt(sortedWeeks[0].startWeek, 10);
   const endWeek = parseInt(sortedWeeks[sortedWeeks.length - 1].startWeek, 10);
 
-  // Check if selected weeks are consecutive without gaps
-  for (let i = 1; i < sortedWeeks.length; i++) {
-    const previousWeek = parseInt(sortedWeeks[i - 1].startWeek, 10);
-    const currentWeek = parseInt(sortedWeeks[i].startWeek, 10);
+  // Check if new selection falls between any existing blocks
+  const newBlockStart = Math.min(...selectedWeeks.map(week => parseInt(week.startWeek, 10)));
+  const newBlockEnd = Math.max(...selectedWeeks.map(week => parseInt(week.startWeek, 10)));
 
-    if (currentWeek !== previousWeek + 1) {
-      this.errorMessage = "Selected weeks must be consecutive without any gaps. Please select weeks in order.";
-      return;
-    }
-  }
-
-  // Check if new selection is a contiguous block or can extend existing blocks
-  const isContiguousOrExtendable = this.selectedBlocks.some(block =>
-    (startWeek >= block.startWeek && endWeek <= block.endWeek) || // Within an existing block
-    (startWeek <= block.endWeek + 1 && endWeek >= block.endWeek) || // Extends an existing block
-    (endWeek >= block.startWeek - 1 && startWeek <= block.startWeek) // Extends to or overlaps the start of an existing block
+  const isValidSelection = this.selectedBlocks.every(block => 
+    newBlockEnd < block.startWeek || newBlockStart > block.endWeek
   );
 
-  if (!isContiguousOrExtendable) {
-    this.errorMessage = "Selected weeks must be contiguous with or extend existing selections without creating gaps.";
+  if (!isValidSelection) {
+    this.errorMessage = "Selected weeks cannot fall between existing selected blocks.";
     return;
   }
 
