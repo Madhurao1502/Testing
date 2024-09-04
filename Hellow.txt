@@ -1,55 +1,86 @@
+// Variable to keep track of all selected weeks grouped into waves
+selectedWeeks: Set<string> = new Set<string>();
+
 createWave(): void {
-  const selectedRows = this.selection.selected;
-
-  if (selectedRows.length < 2) {
-    this.errorMessage = "A wave must contain at least 2 consecutive rows.";
-    return;
-  }
-
-  // Get indices of the selected rows
-  const sortedRows = selectedRows.sort((a, b) => this.leftGridData.data.indexOf(a) - this.leftGridData.data.indexOf(b));
-  const indices = sortedRows.map(row => this.leftGridData.data.indexOf(row));
-  const minIndex = Math.min(...indices);
-  const maxIndex = Math.max(...indices);
-
-  // Check if selected rows form a consecutive block
-  for (let i = minIndex; i <= maxIndex; i++) {
-    if (!indices.includes(i)) {
-      this.errorMessage = "Selected rows must be consecutive without gaps.";
-      return;
+    const selectedRows = this.selection.selected;
+    
+    if (selectedRows.length < 2) {
+        this.errorMessage = "A wave must contain at least 2 consecutive weeks.";
+        return;
     }
-  }
 
-  // Prepare the wave data
-  const startRow = sortedRows[0];
-  const endRow = sortedRows[sortedRows.length - 1];
+    // Convert selected rows to week numbers for easier comparison
+    const selectedWeeks = selectedRows.map(row => row.startWeek);
+    const sortedWeeks = selectedWeeks.sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
 
-  const startWeek = startRow.startWeek;
-  const endWeek = endRow.startWeek;
+    // Check if any of the selected weeks overlap with existing selected weeks
+    for (const week of sortedWeeks) {
+        if (this.selectedWeeks.has(week)) {
+            this.errorMessage = `Week ${week} is already part of an existing wave.`;
+            return;
+        }
+    }
 
-  const maxDueDate = new Date(endRow.endDate);
-  maxDueDate.setDate(maxDueDate.getDate() + 7);
-  const minDueDate = new Date(startRow.startDate);
-  minDueDate.setDate(minDueDate.getDate() - 7);
+    // Add selected weeks to the tracked set
+    sortedWeeks.forEach(week => this.selectedWeeks.add(week));
 
-  const formatToDateTimeString = (date: Date): string => {
-    return date.toISOString().slice(0, 16); // Extract 'YYYY-MM-DDTHH:MM' portion
-  };
+    // Check if selected weeks form a consecutive block
+    for (let i = 1; i < sortedWeeks.length; i++) {
+        const previousWeek = parseInt(sortedWeeks[i - 1], 10);
+        const currentWeek = parseInt(sortedWeeks[i], 10);
 
-  const wave = {
-    startWeek: `${startWeek} (${startRow.startDate} - ${startRow.endDate})`,
-    endWeek: `${endWeek} (${endRow.startDate} - ${endRow.endDate})`,
-    startDate: startRow.startDate,
-    endDate: endRow.endDate,
-    dueDate: '',
-    minDueDate: formatToDateTimeString(minDueDate),
-    maxDueDate: formatToDateTimeString(maxDueDate)
-  };
+        if (currentWeek !== previousWeek + 1) {
+            this.errorMessage = "Selected weeks must be consecutive without gaps.";
+            return;
+        }
+    }
 
-  // Update the right grid with the new wave
-  this.rightGridData.data = [...this.rightGridData.data, wave];
-  // Remove selected rows from the left grid
-  this.leftGridData.data = this.leftGridData.data.filter(item => !this.selection.isSelected(item));
-  // Clear the selection
-  this.selection.clear();
+    // Prepare the wave data
+    const startRow = selectedRows[0];
+    const endRow = selectedRows[selectedRows.length - 1];
+
+    const startWeek = startRow.startWeek;
+    const endWeek = endRow.startWeek;
+
+    const maxDueDate = new Date(endRow.endDate);
+    maxDueDate.setDate(maxDueDate.getDate() + 7);
+    const minDueDate = new Date(startRow.startDate);
+    minDueDate.setDate(minDueDate.getDate() - 7);
+
+    const formatToDateTimeString = (date: Date): string => {
+        return date.toISOString().slice(0, 16);  // Extract 'YYYY-MM-DDTHH:MM' portion
+    };
+
+    const wave = {
+        startWeek: `${startWeek} (${startRow.startDate} - ${startRow.endDate})`,
+        endWeek: `${endWeek} (${endRow.startDate} - ${endRow.endDate})`,
+        startDate: startRow.startDate,
+        endDate: endRow.endDate,
+        dueDate: '',
+        minDueDate: formatToDateTimeString(minDueDate),
+        maxDueDate: formatToDateTimeString(maxDueDate)
+    };
+
+    // Update the right grid with the new wave
+    this.rightGridData.data = [...this.rightGridData.data, wave];
+    // Remove selected rows from the left grid
+    this.leftGridData.data = this.leftGridData.data.filter(item => !this.selection.isSelected(item));
+    // Clear the selection
+    this.selection.clear();
+}
+
+addSelection(newSelection: any[]): void {
+    // Convert new selection rows to week numbers
+    const newWeeks = newSelection.map(row => row.startWeek);
+
+    // Validate that new selection does not overlap with existing waves
+    for (const week of newWeeks) {
+        if (this.selectedWeeks.has(week)) {
+            this.errorMessage = `Week ${week} is already part of an existing wave.`;
+            return;
+        }
+    }
+
+    // Add new weeks to the tracked set
+    newWeeks.forEach(week => this.selectedWeeks.add(week));
 }
