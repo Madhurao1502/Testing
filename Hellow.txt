@@ -1,77 +1,55 @@
 createWave(): void {
-    const selectedRows = this.selection.selected;
+  const selectedRows = this.selection.selected;
 
-    if (selectedRows.length < 2) {
-        this.errorMessage = "A wave must contain at least 2 consecutive rows.";
-        return;
+  if (selectedRows.length < 2) {
+    this.errorMessage = "A wave must contain at least 2 consecutive rows.";
+    return;
+  }
+
+  // Get indices of the selected rows
+  const sortedRows = selectedRows.sort((a, b) => this.leftGridData.data.indexOf(a) - this.leftGridData.data.indexOf(b));
+  const indices = sortedRows.map(row => this.leftGridData.data.indexOf(row));
+  const minIndex = Math.min(...indices);
+  const maxIndex = Math.max(...indices);
+
+  // Check if selected rows form a consecutive block
+  for (let i = minIndex; i <= maxIndex; i++) {
+    if (!indices.includes(i)) {
+      this.errorMessage = "Selected rows must be consecutive without gaps.";
+      return;
     }
+  }
 
-    // Get indices of the selected rows
-    const sortedRows = selectedRows.sort((a, b) => this.leftGridData.data.indexOf(a) - this.leftGridData.data.indexOf(b));
-    const indices = sortedRows.map(row => this.leftGridData.data.indexOf(row));
-    const minIndex = Math.min(...indices);
-    const maxIndex = Math.max(...indices);
+  // Prepare the wave data
+  const startRow = sortedRows[0];
+  const endRow = sortedRows[sortedRows.length - 1];
 
-    // Check if selected rows form a consecutive block
-    for (let i = minIndex; i <= maxIndex; i++) {
-        if (!indices.includes(i)) {
-            this.errorMessage = "Selected rows must be consecutive without gaps.";
-            return;
-        }
-    }
+  const startWeek = startRow.startWeek;
+  const endWeek = endRow.startWeek;
 
-    // Check if new selections are consecutive with respect to existing selection
-    const allIndices = this.leftGridData.data.map((row, index) => ({ row, index }));
-    const selectedIndices = sortedRows.map(row => this.leftGridData.data.indexOf(row));
+  const maxDueDate = new Date(endRow.endDate);
+  maxDueDate.setDate(maxDueDate.getDate() + 7);
+  const minDueDate = new Date(startRow.startDate);
+  minDueDate.setDate(minDueDate.getDate() - 7);
 
-    const allSelectedIndices = allIndices.filter(item => selectedIndices.includes(item.index));
-    const existingBlockIndices = allSelectedIndices.map(item => item.index);
-    
-    // Ensure all selected indices are consecutive
-    const blockStartIndex = Math.min(...existingBlockIndices);
-    const blockEndIndex = Math.max(...existingBlockIndices);
+  const formatToDateTimeString = (date: Date): string => {
+    return date.toISOString().slice(0, 16); // Extract 'YYYY-MM-DDTHH:MM' portion
+  };
 
-    // Validate additional selections
-    const newSelections = this.leftGridData.data.filter((row, index) => !selectedRows.includes(row));
-    const newSelectionIndices = newSelections.map(row => this.leftGridData.data.indexOf(row));
-    
-    const isValidBlock = newSelectionIndices.every(index => index >= blockStartIndex && index <= blockEndIndex);
+  const wave = {
+    startWeek: `${startWeek} (${startRow.startDate} - ${startRow.endDate})`,
+    endWeek: `${endWeek} (${endRow.startDate} - ${endRow.endDate})`,
+    startDate: startRow.startDate,
+    endDate: endRow.endDate,
+    dueDate: '',
+    minDueDate: formatToDateTimeString(minDueDate),
+    maxDueDate: formatToDateTimeString(maxDueDate)
+  };
 
-    if (!isValidBlock) {
-        this.errorMessage = "You cannot select non-consecutive rows outside of the current block.";
-        return;
-    }
-
-    // Prepare the wave data
-    const startRow = sortedRows[0];
-    const endRow = sortedRows[sortedRows.length - 1];
-
-    const startWeek = startRow.startWeek;
-    const endWeek = endRow.startWeek;
-
-    const maxDueDate = new Date(endRow.endDate);
-    maxDueDate.setDate(maxDueDate.getDate() + 7);
-    const minDueDate = new Date(startRow.startDate);
-    minDueDate.setDate(minDueDate.getDate() - 7);
-
-    const formatToDateTimeString = (date: Date): string => {
-      return date.toISOString().slice(0, 16);  // Extract 'YYYY-MM-DDTHH:MM' portion
-    };
-
-    const wave = {
-        startWeek: `${startWeek} (${startRow.startDate} - ${startRow.endDate})`,
-        endWeek: `${endWeek} (${endRow.startDate} - ${endRow.endDate})`,
-        startDate: startRow.startDate,
-        endDate: endRow.endDate,
-        dueDate: '',
-        minDueDate: formatToDateTimeString(minDueDate),
-        maxDueDate: formatToDateTimeString(maxDueDate)
-    };
-
-    // Update the right grid with the new wave
-    this.rightGridData.data = [...this.rightGridData.data, wave];
-    // Remove selected rows from the left grid
-    this.leftGridData.data = this.leftGridData.data.filter(item => !this.selection.isSelected(item));
-    // Clear the selection
-    this.selection.clear();
+  // Update the right grid with the new wave
+  this.rightGridData.data = [...this.rightGridData.data, wave];
+  // Remove selected rows from the left grid
+  this.leftGridData.data = this.leftGridData.data.filter(item => !this.selection.isSelected(item));
+  // Clear the selection
+  this.selection.clear();
 }
