@@ -26,22 +26,23 @@ createWave(): void {
     }
   }
 
-  // Check if the new selection is either consecutive with existing blocks or within existing blocks
+  // Check if new selection overlaps or extends the existing blocks
   const isValidSelection = this.selectedBlocks.some(block => 
     (startWeek >= block.startWeek && endWeek <= block.endWeek) || // Within an existing block
-    (startWeek === block.endWeek + 1) || // Consecutive to the end of an existing block
-    (endWeek === block.startWeek - 1) // Consecutive to the start of an existing block
+    (startWeek <= block.endWeek + 1 && endWeek >= block.endWeek) || // Extends an existing block
+    (endWeek >= block.startWeek - 1 && startWeek <= block.startWeek) // Extends to or overlaps the start of an existing block
   );
 
   if (!isValidSelection) {
-    this.errorMessage = "Selected weeks must be consecutive with or within existing selections.";
+    this.errorMessage = "Selected weeks must be within or extend existing selections without breaking continuity.";
     return;
   }
 
-  this.errorMessage = '';  // Reset error message
-
   // Add the new block to the selected blocks
   this.selectedBlocks.push({ startWeek, endWeek });
+
+  // Reset error message
+  this.errorMessage = '';
 
   const maxDueDate = new Date(sortedWeeks[sortedWeeks.length - 1].endDate);
   maxDueDate.setDate(maxDueDate.getDate() + 7);
