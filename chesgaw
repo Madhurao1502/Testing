@@ -1,3 +1,6 @@
+// Array to track selected blocks
+selectedBlocks: { startWeek: number; endWeek: number }[] = [];
+
 createWave(): void {
   const selectedWeeks = this.selection.selected;
 
@@ -9,52 +12,44 @@ createWave(): void {
   // Sort selected weeks by their original index in the left grid
   const sortedWeeks = selectedWeeks.sort((a, b) => this.leftGridData.data.indexOf(a) - this.leftGridData.data.indexOf(b));
 
-  // Extract week numbers for easier comparison
-  const selectedWeekNumbers = sortedWeeks.map(week => parseInt(week.startWeek, 10));
+  // Get start and end week from sorted weeks
+  const startWeek = parseInt(sortedWeeks[0].startWeek, 10);
+  const endWeek = parseInt(sortedWeeks[sortedWeeks.length - 1].startWeek, 10);
 
-  // Track the selected blocks
-  const selectedBlockStart = Math.min(...selectedWeekNumbers);
-  const selectedBlockEnd = Math.max(...selectedWeekNumbers);
+  // Check if new selection overlaps or fits with existing blocks
+  const newBlockStart = Math.min(...selectedWeeks.map(week => parseInt(week.startWeek, 10)));
+  const newBlockEnd = Math.max(...selectedWeeks.map(week => parseInt(week.startWeek, 10)));
 
-  // Validate new selections
+  // Check for gaps between selected weeks
   const isValidSelection = this.selectedBlocks.every(block => 
-    selectedBlockEnd < block.startWeek || selectedBlockStart > block.endWeek
+    (newBlockEnd < block.startWeek || newBlockStart > block.endWeek) || // New block is separate from existing blocks
+    (newBlockStart <= block.endWeek + 1 && newBlockEnd >= block.startWeek - 1) // New block is contiguous or overlaps with existing blocks
   );
 
-  // Check if there are gaps between the selected weeks and existing blocks
-  const hasGap = selectedWeekNumbers.some(weekNum => 
-    this.selectedBlocks.some(block => 
-      weekNum > block.startWeek && weekNum < block.endWeek
-    )
-  );
-
-  if (!isValidSelection || hasGap) {
-    this.errorMessage = "Selected weeks must be contiguous and cannot fall in between existing blocks.";
+  if (!isValidSelection) {
+    this.errorMessage = "Selected weeks cannot skip over or break the continuity of existing selected blocks.";
     return;
   }
 
   // Add the new block to the selected blocks
-  this.selectedBlocks.push({ startWeek: selectedBlockStart, endWeek: selectedBlockEnd });
+  this.selectedBlocks.push({ startWeek, endWeek });
 
   // Reset error message
   this.errorMessage = '';
 
-  // Compute due dates
   const maxDueDate = new Date(sortedWeeks[sortedWeeks.length - 1].endDate);
   maxDueDate.setDate(maxDueDate.getDate() + 7);
   const minDueDate = new Date(sortedWeeks[0].startDate);
   minDueDate.setDate(minDueDate.getDate() - 7);
 
-  // Format dates
   const formatToDateTimeString = (date: Date): string => {
     const isoString = date.toISOString();
     return isoString.slice(0, 16);  // Extract 'YYYY-MM-DDTHH:MM' portion
   };
 
-  // Create the wave object
   const wave = {
-    startWeek: `${selectedBlockStart} (${sortedWeeks[0].startDate} - ${sortedWeeks[0].endDate})`,
-    endWeek: `${selectedBlockEnd} (${sortedWeeks[sortedWeeks.length - 1].startDate} - ${sortedWeeks[sortedWeeks.length - 1].endDate})`,
+    startWeek: `${startWeek} (${sortedWeeks[0].startDate} - ${sortedWeeks[0].endDate})`,
+    endWeek: `${endWeek} (${sortedWeeks[sortedWeeks.length - 1].startDate} - ${sortedWeeks[sortedWeeks.length - 1].endDate})`,
     startDate: sortedWeeks[0].startDate,
     endDate: sortedWeeks[sortedWeeks.length - 1].endDate,
     dueDate: '',
@@ -62,7 +57,6 @@ createWave(): void {
     maxDueDate: formatToDateTimeString(maxDueDate)
   };
 
-  // Update grid data
   this.rightGridData.data = [...this.rightGridData.data, wave];
   this.leftGridData.data = this.leftGridData.data.filter(item => !this.selection.isSelected(item));
   this.selection.clear();
