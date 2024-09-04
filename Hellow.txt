@@ -1,50 +1,36 @@
 createWave(): void {
-    const selectedWeeks = this.selection.selected;
+    const selectedRows = this.selection.selected;
 
-    if (selectedWeeks.length < 2) {
-        this.errorMessage = "A wave must contain at least 2 weeks.";
+    if (selectedRows.length < 2) {
+        this.errorMessage = "A wave must contain at least 2 consecutive rows.";
         return;
     }
 
-    // Sort the selected weeks by their week number
-    const sortedWeeks = selectedWeeks.sort((a, b) => parseInt(a.startWeek, 10) - parseInt(b.startWeek, 10));
+    // Sort selected rows by their original index in the left grid
+    const sortedRows = selectedRows.sort((a, b) => this.leftGridData.data.indexOf(a) - this.leftGridData.data.indexOf(b));
+    
+    // Check if all selected rows form a consecutive block
+    const indices = sortedRows.map(row => this.leftGridData.data.indexOf(row));
+    const minIndex = Math.min(...indices);
+    const maxIndex = Math.max(...indices);
 
-    // Find the longest consecutive block
-    let longestConsecutiveBlock: any[] = [];
-    let currentBlock: any[] = [sortedWeeks[0]];
-
-    for (let i = 1; i < sortedWeeks.length; i++) {
-        const previousWeek = parseInt(sortedWeeks[i - 1].startWeek, 10);
-        const currentWeek = parseInt(sortedWeeks[i].startWeek, 10);
-
-        if (currentWeek === previousWeek + 1) {
-            currentBlock.push(sortedWeeks[i]);
-        } else {
-            if (currentBlock.length > longestConsecutiveBlock.length) {
-                longestConsecutiveBlock = currentBlock;
-            }
-            currentBlock = [sortedWeeks[i]];
+    for (let i = minIndex; i <= maxIndex; i++) {
+        if (!indices.includes(i)) {
+            this.errorMessage = "Selected rows must be consecutive without gaps.";
+            return;
         }
     }
 
-    // Final check for the last block
-    if (currentBlock.length > longestConsecutiveBlock.length) {
-        longestConsecutiveBlock = currentBlock;
-    }
-
-    // If no consecutive block is found
-    if (longestConsecutiveBlock.length < 2) {
-        this.errorMessage = "Selected weeks must contain at least 2 consecutive weeks to create a wave.";
-        return;
-    }
-
     // Prepare the wave data
-    const startWeek = longestConsecutiveBlock[0].startWeek;
-    const endWeek = longestConsecutiveBlock[longestConsecutiveBlock.length - 1].startWeek;
+    const startRow = sortedRows[0];
+    const endRow = sortedRows[sortedRows.length - 1];
 
-    const maxDueDate = new Date(longestConsecutiveBlock[longestConsecutiveBlock.length - 1].endDate);
+    const startWeek = startRow.startWeek;
+    const endWeek = endRow.startWeek;
+
+    const maxDueDate = new Date(endRow.endDate);
     maxDueDate.setDate(maxDueDate.getDate() + 7);
-    const minDueDate = new Date(longestConsecutiveBlock[0].startDate);
+    const minDueDate = new Date(startRow.startDate);
     minDueDate.setDate(minDueDate.getDate() - 7);
 
     const formatToDateTimeString = (date: Date): string => {
@@ -52,10 +38,10 @@ createWave(): void {
     };
 
     const wave = {
-        startWeek: `${startWeek} (${longestConsecutiveBlock[0].startDate} - ${longestConsecutiveBlock[0].endDate})`,
-        endWeek: `${endWeek} (${longestConsecutiveBlock[longestConsecutiveBlock.length - 1].startDate} - ${longestConsecutiveBlock[longestConsecutiveBlock.length - 1].endDate})`,
-        startDate: longestConsecutiveBlock[0].startDate,
-        endDate: longestConsecutiveBlock[longestConsecutiveBlock.length - 1].endDate,
+        startWeek: `${startWeek} (${startRow.startDate} - ${startRow.endDate})`,
+        endWeek: `${endWeek} (${endRow.startDate} - ${endRow.endDate})`,
+        startDate: startRow.startDate,
+        endDate: endRow.endDate,
         dueDate: '',
         minDueDate: formatToDateTimeString(minDueDate),
         maxDueDate: formatToDateTimeString(maxDueDate)
@@ -63,7 +49,7 @@ createWave(): void {
 
     // Update the right grid with the new wave
     this.rightGridData.data = [...this.rightGridData.data, wave];
-    // Remove selected weeks from the left grid
+    // Remove selected rows from the left grid
     this.leftGridData.data = this.leftGridData.data.filter(item => !this.selection.isSelected(item));
     // Clear the selection
     this.selection.clear();
