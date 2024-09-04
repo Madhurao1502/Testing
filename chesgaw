@@ -1,0 +1,69 @@
+selectedBlocks: { startWeek: number; endWeek: number }[] = []; // Array to track selected blocks
+
+createWave(): void {
+  const selectedWeeks = this.selection.selected;
+
+  if (selectedWeeks.length < 2) {
+    this.errorMessage = "A wave must contain at least 2 weeks.";
+    return;
+  }
+
+  // Sort selected weeks by their original index in the left grid
+  const sortedWeeks = selectedWeeks.sort((a, b) => this.leftGridData.data.indexOf(a) - this.leftGridData.data.indexOf(b));
+
+  // Get start and end week from sorted weeks
+  const startWeek = parseInt(sortedWeeks[0].startWeek, 10);
+  const endWeek = parseInt(sortedWeeks[sortedWeeks.length - 1].startWeek, 10);
+
+  // Check if selected weeks are consecutive without gaps
+  for (let i = 1; i < sortedWeeks.length; i++) {
+    const previousWeek = parseInt(sortedWeeks[i - 1].startWeek, 10);
+    const currentWeek = parseInt(sortedWeeks[i].startWeek, 10);
+
+    if (currentWeek !== previousWeek + 1) {
+      this.errorMessage = "Selected weeks must be consecutive without any gaps. Please select weeks in order.";
+      return;
+    }
+  }
+
+  // Check if the new selection is either consecutive with existing blocks or within existing blocks
+  const isValidSelection = this.selectedBlocks.some(block => 
+    (startWeek >= block.startWeek && endWeek <= block.endWeek) || // Within an existing block
+    (startWeek === block.endWeek + 1) || // Consecutive to the end of an existing block
+    (endWeek === block.startWeek - 1) // Consecutive to the start of an existing block
+  );
+
+  if (!isValidSelection) {
+    this.errorMessage = "Selected weeks must be consecutive with or within existing selections.";
+    return;
+  }
+
+  this.errorMessage = '';  // Reset error message
+
+  // Add the new block to the selected blocks
+  this.selectedBlocks.push({ startWeek, endWeek });
+
+  const maxDueDate = new Date(sortedWeeks[sortedWeeks.length - 1].endDate);
+  maxDueDate.setDate(maxDueDate.getDate() + 7);
+  const minDueDate = new Date(sortedWeeks[0].startDate);
+  minDueDate.setDate(minDueDate.getDate() - 7);
+
+  const formatToDateTimeString = (date: Date): string => {
+    const isoString = date.toISOString();
+    return isoString.slice(0, 16);  // Extract 'YYYY-MM-DDTHH:MM' portion
+  };
+
+  const wave = {
+    startWeek: `${startWeek} (${sortedWeeks[0].startDate} - ${sortedWeeks[0].endDate})`,
+    endWeek: `${endWeek} (${sortedWeeks[sortedWeeks.length - 1].startDate} - ${sortedWeeks[sortedWeeks.length - 1].endDate})`,
+    startDate: sortedWeeks[0].startDate,
+    endDate: sortedWeeks[sortedWeeks.length - 1].endDate,
+    dueDate: '',
+    minDueDate: formatToDateTimeString(minDueDate),
+    maxDueDate: formatToDateTimeString(maxDueDate)
+  };
+
+  this.rightGridData.data = [...this.rightGridData.data, wave];
+  this.leftGridData.data = this.leftGridData.data.filter(item => !this.selection.isSelected(item));
+  this.selection.clear();
+}
