@@ -1,63 +1,14 @@
-// Array to track selected blocks
-selectedBlocks: { startWeek: number; endWeek: number }[] = [];
+  const newStartWeek = parseInt(sortedWeeks[0].startWeek, 10);
+  const newEndWeek = parseInt(sortedWeeks[sortedWeeks.length - 1].startWeek, 10);
 
-createWave(): void {
-  const selectedWeeks = this.selection.selected;
+  const overlapsExistingWave = this.rightGridData.data.some(wave => {
+    const existingStartWeek = parseInt(wave.startWeek, 10);
+    const existingEndWeek = parseInt(wave.endWeek, 10);
+    return (newStartWeek >= existingStartWeek && newStartWeek <= existingEndWeek) ||
+           (newEndWeek >= existingStartWeek && newEndWeek <= existingEndWeek);
+  });
 
-  if (selectedWeeks.length < 2) {
-    this.errorMessage = "A wave must contain at least 2 weeks.";
+  if (overlapsExistingWave) {
+    this.errorMessage = "New selection cannot overlap with existing waves.";
     return;
   }
-
-  // Sort selected weeks by their original index in the left grid
-  const sortedWeeks = selectedWeeks.sort((a, b) => this.leftGridData.data.indexOf(a) - this.leftGridData.data.indexOf(b));
-
-  // Get start and end week from sorted weeks
-  const startWeek = parseInt(sortedWeeks[0].startWeek, 10);
-  const endWeek = parseInt(sortedWeeks[sortedWeeks.length - 1].startWeek, 10);
-
-  // Check if new selection overlaps or fits with existing blocks
-  const newBlockStart = Math.min(...selectedWeeks.map(week => parseInt(week.startWeek, 10)));
-  const newBlockEnd = Math.max(...selectedWeeks.map(week => parseInt(week.startWeek, 10)));
-
-  // Check for gaps between selected weeks
-  const isValidSelection = this.selectedBlocks.every(block => 
-    (newBlockEnd < block.startWeek || newBlockStart > block.endWeek) || // New block is separate from existing blocks
-    (newBlockStart <= block.endWeek + 1 && newBlockEnd >= block.startWeek - 1) // New block is contiguous or overlaps with existing blocks
-  );
-
-  if (!isValidSelection) {
-    this.errorMessage = "Selected weeks cannot skip over or break the continuity of existing selected blocks.";
-    return;
-  }
-
-  // Add the new block to the selected blocks
-  this.selectedBlocks.push({ startWeek, endWeek });
-
-  // Reset error message
-  this.errorMessage = '';
-
-  const maxDueDate = new Date(sortedWeeks[sortedWeeks.length - 1].endDate);
-  maxDueDate.setDate(maxDueDate.getDate() + 7);
-  const minDueDate = new Date(sortedWeeks[0].startDate);
-  minDueDate.setDate(minDueDate.getDate() - 7);
-
-  const formatToDateTimeString = (date: Date): string => {
-    const isoString = date.toISOString();
-    return isoString.slice(0, 16);  // Extract 'YYYY-MM-DDTHH:MM' portion
-  };
-
-  const wave = {
-    startWeek: `${startWeek} (${sortedWeeks[0].startDate} - ${sortedWeeks[0].endDate})`,
-    endWeek: `${endWeek} (${sortedWeeks[sortedWeeks.length - 1].startDate} - ${sortedWeeks[sortedWeeks.length - 1].endDate})`,
-    startDate: sortedWeeks[0].startDate,
-    endDate: sortedWeeks[sortedWeeks.length - 1].endDate,
-    dueDate: '',
-    minDueDate: formatToDateTimeString(minDueDate),
-    maxDueDate: formatToDateTimeString(maxDueDate)
-  };
-
-  this.rightGridData.data = [...this.rightGridData.data, wave];
-  this.leftGridData.data = this.leftGridData.data.filter(item => !this.selection.isSelected(item));
-  this.selection.clear();
-}
