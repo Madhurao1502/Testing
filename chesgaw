@@ -26,15 +26,15 @@ createWave(): void {
     }
   }
 
-  // Check if new selection overlaps or extends the existing blocks
-  const isValidSelection = this.selectedBlocks.some(block => 
+  // Check if new selection is a contiguous block or can extend existing blocks
+  const isContiguousOrExtendable = this.selectedBlocks.some(block =>
     (startWeek >= block.startWeek && endWeek <= block.endWeek) || // Within an existing block
     (startWeek <= block.endWeek + 1 && endWeek >= block.endWeek) || // Extends an existing block
     (endWeek >= block.startWeek - 1 && startWeek <= block.startWeek) // Extends to or overlaps the start of an existing block
   );
 
-  if (!isValidSelection) {
-    this.errorMessage = "Selected weeks must be within or extend existing selections without breaking continuity.";
+  if (!isContiguousOrExtendable) {
+    this.errorMessage = "Selected weeks must be contiguous with or extend existing selections without creating gaps.";
     return;
   }
 
