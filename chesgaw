@@ -9,32 +9,52 @@ createWave(): void {
   // Sort selected weeks by their original index in the left grid
   const sortedWeeks = selectedWeeks.sort((a, b) => this.leftGridData.data.indexOf(a) - this.leftGridData.data.indexOf(b));
 
-  // Check if selected weeks are in order
-  const indices = sortedWeeks.map(week => this.leftGridData.data.indexOf(week));
-  const isOrdered = indices.every((value, index) => index === 0 || value > indices[index - 1]);
+  // Extract week numbers for easier comparison
+  const selectedWeekNumbers = sortedWeeks.map(week => parseInt(week.startWeek, 10));
 
-  if (!isOrdered) {
-    this.errorMessage = "Selected weeks must be in the correct order.";
+  // Track the selected blocks
+  const selectedBlockStart = Math.min(...selectedWeekNumbers);
+  const selectedBlockEnd = Math.max(...selectedWeekNumbers);
+
+  // Validate new selections
+  const isValidSelection = this.selectedBlocks.every(block => 
+    selectedBlockEnd < block.startWeek || selectedBlockStart > block.endWeek
+  );
+
+  // Check if there are gaps between the selected weeks and existing blocks
+  const hasGap = selectedWeekNumbers.some(weekNum => 
+    this.selectedBlocks.some(block => 
+      weekNum > block.startWeek && weekNum < block.endWeek
+    )
+  );
+
+  if (!isValidSelection || hasGap) {
+    this.errorMessage = "Selected weeks must be contiguous and cannot fall in between existing blocks.";
     return;
   }
 
-  this.errorMessage = '';  // Reset error message
-  const startWeek = sortedWeeks[0].startWeek;
-  const endWeek = sortedWeeks[sortedWeeks.length - 1].startWeek;
+  // Add the new block to the selected blocks
+  this.selectedBlocks.push({ startWeek: selectedBlockStart, endWeek: selectedBlockEnd });
 
+  // Reset error message
+  this.errorMessage = '';
+
+  // Compute due dates
   const maxDueDate = new Date(sortedWeeks[sortedWeeks.length - 1].endDate);
   maxDueDate.setDate(maxDueDate.getDate() + 7);
   const minDueDate = new Date(sortedWeeks[0].startDate);
   minDueDate.setDate(minDueDate.getDate() - 7);
 
+  // Format dates
   const formatToDateTimeString = (date: Date): string => {
     const isoString = date.toISOString();
     return isoString.slice(0, 16);  // Extract 'YYYY-MM-DDTHH:MM' portion
   };
 
+  // Create the wave object
   const wave = {
-    startWeek: `${startWeek} (${sortedWeeks[0].startDate} - ${sortedWeeks[0].endDate})`,
-    endWeek: `${endWeek} (${sortedWeeks[sortedWeeks.length - 1].startDate} - ${sortedWeeks[sortedWeeks.length - 1].endDate})`,
+    startWeek: `${selectedBlockStart} (${sortedWeeks[0].startDate} - ${sortedWeeks[0].endDate})`,
+    endWeek: `${selectedBlockEnd} (${sortedWeeks[sortedWeeks.length - 1].startDate} - ${sortedWeeks[sortedWeeks.length - 1].endDate})`,
     startDate: sortedWeeks[0].startDate,
     endDate: sortedWeeks[sortedWeeks.length - 1].endDate,
     dueDate: '',
@@ -42,6 +62,7 @@ createWave(): void {
     maxDueDate: formatToDateTimeString(maxDueDate)
   };
 
+  // Update grid data
   this.rightGridData.data = [...this.rightGridData.data, wave];
   this.leftGridData.data = this.leftGridData.data.filter(item => !this.selection.isSelected(item));
   this.selection.clear();
