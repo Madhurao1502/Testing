@@ -1,34 +1,21 @@
-Copy code
-handleStartEndWeekChange() {
-  const { startWeek, endWeek, noEndWeek } = this.scheduleForm.value;
+handleWeekSelectionChange(selectedWeeks: number[]): void {
+  const removedWeeks = this.detectRemovedWeeks(selectedWeeks);
 
-  // Generate the new set of weeks between startWeek and endWeek
-  this.generateTable();
+  // Check for weeks that are part of a wave
+  const weeksWithWaves = removedWeeks.filter(weekToRemove => {
+    const weekEntry = this.tableData.find(week => week.startWeek === weekToRemove);
+    return weekEntry && weekEntry.waveNumber;
+  });
 
-  // If any of the removed weeks were part of a wave, prompt for confirmation
-  const removedWeeks = this.detectRemovedWeeks([startWeek, endWeek]);
-
-  if (removedWeeks.length > 0) {
-    removedWeeks.forEach(weekToRemove => {
-      const weekEntry = this.tableData.find(week => week.startWeek === weekToRemove);
-
-      if (weekEntry && weekEntry.waveNumber) {
-        const confirmation = confirm(`Week ${weekToRemove} is part of wave ${weekEntry.waveNumber}. Do you want to remove the wave entirely or just the week? 
-        Press OK to remove the wave, or Cancel to remove just the week.`);
-
-        if (confirmation) {
-          // Remove the entire wave and re-add the weeks back to the left grid
-          this.removeWave(weekEntry.waveNumber);
-        } else {
-          // Remove just the selected week and reset its wave number
-          weekEntry.waveNumber = null;
-        }
-      } else {
-        // Remove the week from the table if no wave is associated
-        this.tableData = this.tableData.filter(week => week.startWeek !== weekToRemove);
-      }
-    });
-
-    this.leftGridData = new MatTableDataSource<any>(this.tableData);
+  if (weeksWithWaves.length > 0) {
+    // Inform the user that the weeks are part of a wave and they need to remove the wave first
+    alert("Some of the selected weeks are part of an existing wave. Please remove the wave before removing the weeks.");
+    
+    // Prevent further action
+    return;
   }
+
+  // Proceed with week removal if no associated wave is found
+  this.tableData = this.tableData.filter(week => !removedWeeks.includes(week.startWeek));
+  this.leftGridData = new MatTableDataSource<any>(this.tableData);
 }
