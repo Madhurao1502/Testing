@@ -1,26 +1,22 @@
 handleWeekSelectionChange(selectedWeeks: number[]) {
   const removedWeeks = this.detectRemovedWeeks(selectedWeeks);
-  
+
   if (removedWeeks.length > 0) {
     removedWeeks.forEach(weekToRemove => {
       const weekEntry = this.tableData.find(week => week.startWeek === weekToRemove);
-      
-      if (weekEntry && weekEntry.waveNumber) {
-        // Show confirmation dialog before removing weeks that are part of a wave
-        const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
-          width: '250px',
-          data: { week: weekEntry }
-        });
 
-        dialogRef.afterClosed().subscribe(result => {
-          if (result === 'removeWave') {
-            // Remove the entire wave
-            this.removeWave(weekEntry.waveNumber);
-          } else if (result === 'removeWeek') {
-            // Remove just the selected week
-            this.tableData = this.tableData.filter(week => week.startWeek !== weekToRemove);
-          }
-        });
+      if (weekEntry && weekEntry.waveNumber) {
+        // Use a simple confirmation prompt for removing the wave
+        const confirmation = confirm(`Week ${weekToRemove} is part of wave ${weekEntry.waveNumber}. Do you want to remove the wave entirely or just the week? 
+        Press OK to remove the wave, or Cancel to remove just the week.`);
+
+        if (confirmation) {
+          // Remove the entire wave
+          this.removeWave(weekEntry.waveNumber);
+        } else {
+          // Remove just the selected week
+          this.tableData = this.tableData.filter(week => week.startWeek !== weekToRemove);
+        }
       } else {
         // If no wave is associated, just remove the week
         this.tableData = this.tableData.filter(week => week.startWeek !== weekToRemove);
@@ -33,30 +29,24 @@ handleWeekSelectionChange(selectedWeeks: number[]) {
 
 handleStartEndWeekChange() {
   const { startWeek, endWeek, noEndWeek } = this.scheduleForm.value;
-  
-  // Generate the new set of weeks between startWeek and endWeek
+
   this.generateTable();
 
-  // If any of the removed weeks were part of a wave, prompt for confirmation
   const removedWeeks = this.detectRemovedWeeks([startWeek, endWeek]);
 
   if (removedWeeks.length > 0) {
     removedWeeks.forEach(weekToRemove => {
       const weekEntry = this.tableData.find(week => week.startWeek === weekToRemove);
-      
-      if (weekEntry && weekEntry.waveNumber) {
-        const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
-          width: '250px',
-          data: { week: weekEntry }
-        });
 
-        dialogRef.afterClosed().subscribe(result => {
-          if (result === 'removeWave') {
-            this.removeWave(weekEntry.waveNumber);
-          } else if (result === 'removeWeek') {
-            this.tableData = this.tableData.filter(week => week.startWeek !== weekToRemove);
-          }
-        });
+      if (weekEntry && weekEntry.waveNumber) {
+        const confirmation = confirm(`Week ${weekToRemove} is part of wave ${weekEntry.waveNumber}. Do you want to remove the wave entirely or just the week? 
+        Press OK to remove the wave, or Cancel to remove just the week.`);
+
+        if (confirmation) {
+          this.removeWave(weekEntry.waveNumber);
+        } else {
+          this.tableData = this.tableData.filter(week => week.startWeek !== weekToRemove);
+        }
       } else {
         this.tableData = this.tableData.filter(week => week.startWeek !== weekToRemove);
       }
@@ -64,16 +54,4 @@ handleStartEndWeekChange() {
 
     this.leftGridData = new MatTableDataSource<any>(this.tableData);
   }
-}
-
-previousSelectedWeeks: number[] = [];
-
-detectRemovedWeeks(currentSelectedWeeks: number[]): number[] {
-  // Find weeks that were in the previous selection but are no longer selected
-  const removedWeeks = this.previousSelectedWeeks.filter(week => !currentSelectedWeeks.includes(week));
-  
-  // Update previous selection for future comparisons
-  this.previousSelectedWeeks = currentSelectedWeeks;
-  
-  return removedWeeks;
 }
