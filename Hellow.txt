@@ -1,18 +1,39 @@
 function convertDateString(input: string): string {
-    // Parse the input string assuming format `MM/DD/YY hh:mmAM/PM`
-    const datePattern = /(\d{2})\/(\d{2})\/(\d{2})\s(\d{1,2}):(\d{2})(AM|PM)/;
-    const match = input.match(datePattern);
-    
+    // Define patterns for different possible formats
+    const patterns = [
+        /(\d{2})\/(\d{2})\/(\d{2})\s(\d{1,2}):(\d{2})(AM|PM)/, // MM/DD/YY hh:mmAM/PM
+        /(\d{2})\/(\d{2})\/(\d{4})\s(\d{1,2}):(\d{2})(AM|PM)/, // MM/DD/YYYY hh:mmAM/PM
+        /(\d{2})\/(\d{2})\/(\d{2})/, // MM/DD/YY (no time)
+        /(\d{2})\/(\d{2})\/(\d{4})/  // MM/DD/YYYY (no time)
+    ];
+
+    let match: RegExpMatchArray | null = null;
+
+    // Try to match the input with each pattern
+    for (const pattern of patterns) {
+        match = input.match(pattern);
+        if (match) break;
+    }
+
     if (!match) {
         throw new Error("Invalid date format");
     }
-    
+
     // Extract date components from the match
     let [, month, day, year, hour, minute, period] = match;
-    
-    // Convert year to four digits
-    year = `20${year}`;
-    
+
+    // Convert year to four digits if necessary
+    if (year.length === 2) {
+        year = `20${year}`;
+    }
+
+    // Handle default time of 11:59 PM if time is missing
+    if (hour === undefined || minute === undefined || period === undefined) {
+        hour = '11';
+        minute = '59';
+        period = 'PM';
+    }
+
     // Convert hour to 24-hour format
     let hour24 = parseInt(hour, 10);
     if (period === "PM" && hour24 < 12) {
@@ -27,8 +48,3 @@ function convertDateString(input: string): string {
     // Format the date in ISO 8601 format: YYYY-MM-DDTHH:MM
     return `${year}-${month}-${day}T${formattedHour}:${minute}`;
 }
-
-// Example usage:
-const inputDate = "10/09/24 11:59PM";
-const convertedDate = convertDateString(inputDate);
-console.log(convertedDate); // Outputs: "2024-10-09T23:59"
