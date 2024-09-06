@@ -1,34 +1,34 @@
 handleWeekSelectionChange(selectedWeeks: number[]) {
-  const removedWeeks = this.detectRemovedWeeks(selectedWeeks);
+  // Get the current selected weeks from the form control
+  const currentSelectedWeeks = this.scheduleForm.get('selectedWeeks')?.value || [];
 
-  // Array to keep valid weeks (prevents unchecking weeks that are part of waves)
-  let validWeeks = [...selectedWeeks]; // Copy the current selected weeks
+  // Detect weeks that the user tried to uncheck (weeks removed from the selection)
+  const removedWeeks = currentSelectedWeeks.filter(week => !selectedWeeks.includes(week));
 
   if (removedWeeks.length > 0) {
+    // Create a copy of the valid weeks (that should remain selected)
+    let validWeeks = [...selectedWeeks];
+
     removedWeeks.forEach(weekToRemove => {
+      // Find the week in tableData
       const weekEntry = this.tableData.find(week => week.startWeek === weekToRemove);
 
       if (weekEntry && weekEntry.waveNumber) {
-        // Inform the user that the wave must be removed before the week can be unselected
+        // Show alert that the wave needs to be removed before the week can be unselected
         alert(`Week ${weekToRemove} is part of wave ${weekEntry.waveNumber}. Please remove the wave before removing the week.`);
 
-        // Revert the user's attempt to uncheck the week
-        validWeeks.push(weekToRemove); // Add the week back to valid selection
+        // Re-add the week back to the selection
+        validWeeks.push(weekToRemove);
       } else {
-        // Remove the week from tableData if no wave is associated
+        // If no wave is associated, proceed with removing the week from the tableData
         this.tableData = this.tableData.filter(week => week.startWeek !== weekToRemove);
       }
     });
 
-    // Set form control back to the valid weeks, preventing unselection of wave weeks
+    // Re-set the form control value to the valid weeks, preventing invalid unchecks
     this.scheduleForm.get('selectedWeeks')?.setValue(validWeeks, { emitEvent: false });
 
     // Update the left grid after the modification
     this.leftGridData = new MatTableDataSource<any>(this.tableData);
   }
-}
-
-detectRemovedWeeks(selectedWeeks: number[]): number[] {
-  const currentSelectedWeeks = this.scheduleForm.get('selectedWeeks')?.value || [];
-  return currentSelectedWeeks.filter(week => !selectedWeeks.includes(week));
 }
