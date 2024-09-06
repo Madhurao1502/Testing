@@ -1,8 +1,10 @@
 function convertDateString(input: string): string {
-    // Define patterns for different possible formats
+    // Define patterns for different possible formats with optional space before AM/PM
     const patterns = [
-        /(\d{2})\/(\d{2})\/(\d{2})\s(\d{1,2}):(\d{2})(AM|PM)/, // MM/DD/YY hh:mmAM/PM
-        /(\d{2})\/(\d{2})\/(\d{4})\s(\d{1,2}):(\d{2})(AM|PM)/, // MM/DD/YYYY hh:mmAM/PM
+        /(\d{2})\/(\d{2})\/(\d{2})\s(\d{1,2}):(\d{2})(?:\s?)(AM|PM)/, // MM/DD/YY hh:mmAM/PM or hh:mmAM/PM
+        /(\d{2})\/(\d{2})\/(\d{4})\s(\d{1,2}):(\d{2})(?:\s?)(AM|PM)/, // MM/DD/YYYY hh:mmAM/PM or hh:mmAM/PM
+        /(\d{2})\/(\d{2})\/(\d{2})(?:\s?)(\d{1,2}):(\d{2})(?:\s?)(AM|PM)/, // MM/DD/YY hh:mmAM/PM or hh:mmAM/PM without space
+        /(\d{2})\/(\d{2})\/(\d{4})(?:\s?)(\d{1,2}):(\d{2})(?:\s?)(AM|PM)/, // MM/DD/YYYY hh:mmAM/PM or hh:mmAM/PM without space
         /(\d{2})\/(\d{2})\/(\d{2})/, // MM/DD/YY (no time)
         /(\d{2})\/(\d{2})\/(\d{4})/  // MM/DD/YYYY (no time)
     ];
@@ -48,3 +50,16 @@ function convertDateString(input: string): string {
     // Format the date in ISO 8601 format: YYYY-MM-DDTHH:MM
     return `${year}-${month}-${day}T${formattedHour}:${minute}`;
 }
+
+// Example usage:
+const input1 = "10/07/24 8:30PM";
+const input2 = "10/07/2024";
+const input3 = "10/07/2024 9:00AM";
+const input4 = "10/07/24 9:00AM";
+const input5 = "10/07/2024 09:00PM";
+
+console.log(convertDateString(input1)); // Outputs: "2024-10-07T20:30"
+console.log(convertDateString(input2)); // Outputs: "2024-10-07T23:59"
+console.log(convertDateString(input3)); // Outputs: "2024-10-07T09:00"
+console.log(convertDateString(input4)); // Outputs: "2024-10-07T09:00"
+console.log(convertDateString(input5)); // Outputs: "2024-10-07T21:00"
