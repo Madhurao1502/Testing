@@ -1,39 +1,15 @@
-previousSelectedWeeks: number[] = []; // Store the previous selection
-
-handleWeekSelectionChange(selectedWeeks: number[]) {
-  const removedWeeks = this.detectRemovedWeeks(selectedWeeks);
-
-  if (removedWeeks.length > 0) {
-    const validWeeks = [...selectedWeeks]; // Clone the selected weeks
-
-    removedWeeks.forEach(weekToRemove => {
-      const weekEntry = this.tableData.find(week => week.startWeek === weekToRemove);
-
-      if (weekEntry && weekEntry.waveNumber) {
-        // Alert the user about the wave
-        alert(`Week ${weekToRemove} is part of wave ${weekEntry.waveNumber}. Please remove the wave before unchecking this week.`);
-
-        // Prevent unchecking by re-adding the week to the valid selection
-        validWeeks.push(weekToRemove); 
-      } else {
-        // Proceed with removing weeks that are not part of a wave
-        this.tableData = this.tableData.filter(week => week.startWeek !== weekToRemove);
-      }
-    });
-
-    // Update the form control to reflect only the valid selections
-    this.scheduleForm.get('selectedWeeks')?.setValue(validWeeks);
-
-    // Update the left grid with modified table data
-    this.leftGridData = new MatTableDataSource<any>(this.tableData);
-  }
-
-  // Save the current selection as the new previous selection for the next interaction
-  this.previousSelectedWeeks = [...selectedWeeks];
-}
-
-detectRemovedWeeks(selectedWeeks: number[]): number[] {
-  // Detect removed weeks by comparing the new selection with the previous selection
-  const removedWeeks = this.previousSelectedWeeks.filter(week => !selectedWeeks.includes(week));
-  return removedWeeks;
+function extractEndDate(input: string): string | null {
+    // Define a regular expression to match the date in the format MM/DD/YYYY
+    const datePattern = /(\d{2}\/\d{2}\/\d{4})\s-\s(\d{2}\/\d{2}\/\d{4})/;
+    
+    // Match the input string against the pattern
+    const match = input.match(datePattern);
+    
+    if (match && match[2]) {
+        // Return the end date (second match group)
+        return match[2];
+    }
+    
+    // Return null if no match was found
+    return null;
 }
