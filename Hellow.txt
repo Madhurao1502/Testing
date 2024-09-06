@@ -1,28 +1,34 @@
 handleWeekSelectionChange(selectedWeeks: number[]) {
   const removedWeeks = this.detectRemovedWeeks(selectedWeeks);
 
+  // Array to keep valid weeks (prevents unchecking weeks that are part of waves)
+  let validWeeks = [...selectedWeeks]; // Copy the current selected weeks
+
   if (removedWeeks.length > 0) {
     removedWeeks.forEach(weekToRemove => {
       const weekEntry = this.tableData.find(week => week.startWeek === weekToRemove);
 
       if (weekEntry && weekEntry.waveNumber) {
-        // Inform user that the wave must be removed before the week can be unselected
+        // Inform the user that the wave must be removed before the week can be unselected
         alert(`Week ${weekToRemove} is part of wave ${weekEntry.waveNumber}. Please remove the wave before removing the week.`);
 
-        // Immediately revert the user's attempt to uncheck the week
-        this.selection.select(
-          this.leftGridData.data.find(week => week.startWeek === weekToRemove)
-        );
-
-        // Prevent further execution since the wave needs to be removed first
-        return;
+        // Revert the user's attempt to uncheck the week
+        validWeeks.push(weekToRemove); // Add the week back to valid selection
       } else {
-        // If no wave is associated, proceed with removing the week
+        // Remove the week from tableData if no wave is associated
         this.tableData = this.tableData.filter(week => week.startWeek !== weekToRemove);
       }
     });
 
+    // Set form control back to the valid weeks, preventing unselection of wave weeks
+    this.scheduleForm.get('selectedWeeks')?.setValue(validWeeks, { emitEvent: false });
+
     // Update the left grid after the modification
     this.leftGridData = new MatTableDataSource<any>(this.tableData);
   }
+}
+
+detectRemovedWeeks(selectedWeeks: number[]): number[] {
+  const currentSelectedWeeks = this.scheduleForm.get('selectedWeeks')?.value || [];
+  return currentSelectedWeeks.filter(week => !selectedWeeks.includes(week));
 }
