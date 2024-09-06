@@ -12,7 +12,7 @@ handleWeekSelectionChange(selectedWeeks: number[]) {
         // Find all weeks that are part of the same wave
         const waveRows = this.tableData.filter(week => week.waveNumber === weekEntry.waveNumber);
 
-        // Remove all rows belonging to the wave
+        // Remove all rows belonging to the wave from tableData (which is the left grid data)
         this.tableData = this.tableData.filter(week => week.waveNumber !== weekEntry.waveNumber);
 
         // Reset the wave number for each affected row
@@ -32,7 +32,15 @@ handleWeekSelectionChange(selectedWeeks: number[]) {
           }
         });
 
+        // Update both left and right grids
         this.leftGridData = new MatTableDataSource<any>(this.leftGridData.data);
+
+        // Update the right grid by removing the rows with the same waveNumber
+        this.rightGridData = new MatTableDataSource<any>(
+          this.rightGridData.data.filter(item => item.waveNumber !== weekEntry.waveNumber)
+        );
+
+        // Clear any selections to avoid inconsistency
         this.selection.clear();
 
         // Return early, since we don't want to proceed with week removal
