@@ -1,16 +1,34 @@
-calculateMinDueDate(endDate: string): string {
-  const date = new Date(endDate);
-  date.setDate(date.getDate() - 7);
-  return this.formatToDateTimeString(date);
+function convertDateString(input: string): string {
+    // Parse the input string assuming format `MM/DD/YY hh:mmAM/PM`
+    const datePattern = /(\d{2})\/(\d{2})\/(\d{2})\s(\d{1,2}):(\d{2})(AM|PM)/;
+    const match = input.match(datePattern);
+    
+    if (!match) {
+        throw new Error("Invalid date format");
+    }
+    
+    // Extract date components from the match
+    let [, month, day, year, hour, minute, period] = match;
+    
+    // Convert year to four digits
+    year = `20${year}`;
+    
+    // Convert hour to 24-hour format
+    let hour24 = parseInt(hour, 10);
+    if (period === "PM" && hour24 < 12) {
+        hour24 += 12;
+    } else if (period === "AM" && hour24 === 12) {
+        hour24 = 0;
+    }
+
+    // Format hour to two digits
+    const formattedHour = hour24.toString().padStart(2, '0');
+
+    // Format the date in ISO 8601 format: YYYY-MM-DDTHH:MM
+    return `${year}-${month}-${day}T${formattedHour}:${minute}`;
 }
 
-calculateMaxDueDate(endDate: string): string {
-  const date = new Date(endDate);
-  date.setDate(date.getDate() + 7);
-  return this.formatToDateTimeString(date);
-}
-
-formatToDateTimeString(date: Date): string {
-  const isoString = date.toISOString();
-  return isoString.slice(0, 16);  // Extract 'YYYY-MM-DDTHH:MM' portion
-}
+// Example usage:
+const inputDate = "10/09/24 11:59PM";
+const convertedDate = convertDateString(inputDate);
+console.log(convertedDate); // Outputs: "2024-10-09T23:59"
