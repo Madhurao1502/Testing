@@ -1,3 +1,11 @@
+given an array of prices where price[D] is the price of product onthe Dth day, you want to maximize your profit by choosing a single day to buy only one stock and choose a diffret day in the future to seel that stock retun the max profit you can achive from the trascation if you cannot make any profit return 0
+
+example 
+price =[7,1,5,3,6,4]
+output =5
+explnation : buy on day 2 price = 1 and sell on day 5 price = 6 prfit 6-1=5
+note that buying on day 2 and sellig on day 1 is not allowed 
+
 function maxProfit(prices:Array<number>) {
     if (prices.length < 2) {
         return 0; // Not enough data to make a profit
