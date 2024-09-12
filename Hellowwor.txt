@@ -1,35 +1,54 @@
 <ng-container matColumnDef="selectSample">
-        <th mat-header-cell *matHeaderCellDef> Select Sample </th>
-        <td mat-cell *matCellDef="let row; let i = index">
-          <mat-form-field appearance="fill" *ngIf="!isSelectSampleDisabled(row)">
-            <ng-container *ngIf="scheduleForm.get('sampleType').value === 'MAN'; else sampleSelect">
-              <input matInput placeholder="Type sample" [(ngModel)]="row.selectSample" [matAutocomplete]="auto" />
-              <mat-autocomplete #auto="matAutocomplete">
-                <mat-option *ngFor="let sample of filteredSamples(row.selectSample)" [value]="sample">
-                  {{ sample }}
-                </mat-option>
-              </mat-autocomplete>
-            </ng-container>
-            <ng-template #sampleSelect>
-              <mat-select (selectionChange)="onSampleChange($event.value, i)">
-                <mat-option *ngFor="let sample of row.sampleOptions" [value]="sample" [disabled]="isSampleDisabled(sample, row)">
-                  {{ sample }}
-                </mat-option>
-              </mat-select>
-            </ng-template>
-          </mat-form-field>
-          <span *ngIf="isSelectSampleDisabled(row)">
-            {{ row.selectSample }}
-          </span>
-        </td>
-      </ng-container>
+  <th mat-header-cell *matHeaderCellDef> Select Sample </th>
+  <td mat-cell *matCellDef="let row; let i = index">
+    <mat-form-field appearance="fill" *ngIf="!isSelectSampleDisabled(row)">
+      <input type="text" 
+             placeholder="Select sample"
+             aria-label="Sample" 
+             matInput 
+             [matAutocomplete]="auto"
+             [formControl]="sampleControl[i]">
+      
+      <mat-autocomplete #auto="matAutocomplete" (optionSelected)="onSampleChange($event.option.value, i)">
+        <mat-option *ngFor="let sample of filteredSamples[i] | async" [value]="sample">
+          {{ sample }}
+        </mat-option>
+      </mat-autocomplete>
+    </mat-form-field>
 
-  filteredSamples(input: string): string[] {
-    if (!input) {
-      return this.samples.map(sample => sample.SampleName);
-    }
-    const filterValue = input.toLowerCase();
-    return this.samples
-      .map(sample => sample.SampleName)
-      .filter(sampleName => sampleName.toLowerCase().includes(filterValue));
+    <span *ngIf="isSelectSampleDisabled(row)">
+      {{ row.selectSample }}
+    </span>
+  </td>
+</ng-container>
+
+ sampleControl: FormControl[] = [];
+  filteredSamples: Observable<string[]>[] = [];
+
+  ngOnInit() {
+    // Initialize form controls and filtered options for each row
+    this.tableData.forEach((row, index) => {
+      const control = new FormControl();
+      this.sampleControl.push(control);
+
+      this.filteredSamples[index] = control.valueChanges.pipe(
+        startWith(''),
+        map(value => this.filterSamples(value, row.sampleOptions))
+      );
+    });
+  }
+
+  filterSamples(value: string, options: string[]): string[] {
+    const filterValue = value.toLowerCase();
+    return options.filter(option => option.toLowerCase().includes(filterValue));
+  }
+
+  onSampleChange(selectedSample: string, rowIndex: number) {
+    // Handle sample change
+    this.tableData[rowIndex].selectedSample = selectedSample;
+  }
+
+  isSelectSampleDisabled(row: any): boolean {
+    // Your logic to check if sample selection is disabled
+    return false; // Replace with actual condition
   }
