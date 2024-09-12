@@ -23,3 +23,13 @@
           </span>
         </td>
       </ng-container>
+
+  filteredSamples(input: string): string[] {
+    if (!input) {
+      return this.samples.map(sample => sample.SampleName);
+    }
+    const filterValue = input.toLowerCase();
+    return this.samples
+      .map(sample => sample.SampleName)
+      .filter(sampleName => sampleName.toLowerCase().includes(filterValue));
+  }
