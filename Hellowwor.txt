@@ -2,53 +2,115 @@
   <th mat-header-cell *matHeaderCellDef> Select Sample </th>
   <td mat-cell *matCellDef="let row; let i = index">
     <mat-form-field appearance="fill" *ngIf="!isSelectSampleDisabled(row)">
-      <input type="text" 
-             placeholder="Select sample"
-             aria-label="Sample" 
-             matInput 
-             [matAutocomplete]="auto"
-             [formControl]="sampleControl[i]">
-      
-      <mat-autocomplete #auto="matAutocomplete" (optionSelected)="onSampleChange($event.option.value, i)">
-        <mat-option *ngFor="let sample of filteredSamples[i] | async" [value]="sample">
+      <mat-label>Sample</mat-label>
+      <input matInput (input)="onInputChange($event, i)" placeholder="Type to filter">
+      <mat-select (selectionChange)="onOptionSelect($event.value, i)">
+        <mat-option *ngFor="let sample of filteredOptions[i] || row.sampleOptions" [value]="sample" [disabled]="isSampleDisabled(sample, row)">
           {{ sample }}
         </mat-option>
-      </mat-autocomplete>
+      </mat-select>
     </mat-form-field>
-
     <span *ngIf="isSelectSampleDisabled(row)">
       {{ row.selectSample }}
     </span>
   </td>
 </ng-container>
 
- sampleControl: FormControl[] = [];
-  filteredSamples: Observable<string[]>[] = [];
+filteredOptions: { [key: number]: string[] } = {}; // Stores filtered options for each row
+  inputValues: { [key: number]: string } = {}; //
 
-  ngOnInit() {
-    // Initialize form controls and filtered options for each row
-    this.tableData.forEach((row, index) => {
-      const control = new FormControl();
-      this.sampleControl.push(control);
+filterOptions(rowIndex: number, inputValue: string) {
+    const allOptions = this.tableData[rowIndex]?.sampleOptions || [];
+    this.filteredOptions[rowIndex] = allOptions.filter(option =>
+      option.toLowerCase().includes(inputValue.toLowerCase())
+    );
+  }
 
-      this.filteredSamples[index] = control.valueChanges.pipe(
-        startWith(''),
-        map(value => this.filterSamples(value, row.sampleOptions))
-      );
+  // Method to handle input change
+  onInputChange(event: Event, rowIndex: number) {
+    const input = event.target as HTMLInputElement;
+    const inputValue = input.value;
+    this.inputValues[rowIndex] = inputValue;
+    this.filterOptions(rowIndex, inputValue);
+  }
+
+  // Method to handle option selection
+  onOptionSelect(selectedOption: string, rowIndex: number) {
+    this.tableData[rowIndex].selectSample = selectedOption;
+  }
+
+
+generateTable() {
+  const { scheduleType, startWeek, endWeek, noEndWeek, vendor, sampleType, selectedWeeks, scheduleEvery } = this.scheduleForm.value;
+  const waveNumberMap:{[Key:string]:number|null}={};
+  this.tableData.forEach(r => { if (r.waveNumber != null) { waveNumberMap[r.startWeek] = r.waveNumber } });
+
+  this.tableData = [];
+  let selectedWeekObjects: Week[] = [];
+
+  if (scheduleType === 3) {
+    selectedWeekObjects = this.weeks.filter(week => selectedWeeks.includes(week.StartWeek));
+    selectedWeekObjects.sort((a, b) => a.StartWeek - b.StartWeek);
+  } else if (scheduleType === 2) {
+    const periodIndexes = this.calculatePeriodicWeeks(startWeek, endWeek, noEndWeek, scheduleEvery);
+    selectedWeekObjects = this.weeks.filter(week => periodIndexes.includes(week.StartWeek));
+  } else {
+    if (noEndWeek) {
+      const startIndex = this.weeks.findIndex(week => week.StartWeek === startWeek);
+      selectedWeekObjects = this.weeks.slice(startIndex);
+    } else {
+      const startIndex = this.weeks.findIndex(week => week.StartWeek === startWeek);
+      const endIndex = this.weeks.findIndex(week => week.StartWeek === endWeek);
+      if (startIndex !== -1 && endIndex !== -1) {
+        selectedWeekObjects = this.weeks.slice(startIndex, endIndex + 1);
+      }
+    }
+  }
+
+  vendor.forEach((vendorId: number) => {
+    let rotationCounter = 0;
+    selectedWeekObjects.forEach((week, index) => {
+      let sampleName = '';
+      let sampleOptions: string[] = [];
+
+      if (sampleType === 'FIX') {
+        sampleName = this.selectedFixedSamples[vendorId] || '';
+        sampleOptions = this.samples.map(s => s.SampleName);
+      } else if (sampleType === 'ROT') {
+        const rotationName = this.selectedRotations[vendorId];
+        
+        if (rotationName) {
+          const rotationSamples = this.rotation.filter(rot => rot.RotationName === rotationName);
+          if (rotationSamples.length > 0) {
+            // Automatically select the sample based on the rotation sequence number
+            sampleName = rotationSamples[rotationCounter % rotationSamples.length].SampleName;
+            sampleOptions = rotationSamples.map(rs => rs.SampleName);
+            rotationCounter++;
+          }
+        }
+      } else if (sampleType === 'MAN') {
+        sampleOptions = this.samples.map(s => s.SampleName);
+      }
+
+      this.tableData.push({
+        monthYear: week.mothnYear,
+        startWeek: week.StartWeek,
+        startDate: week.StartDate,
+        endDate: week.endDate,
+        selectSample: sampleName,
+        sampleOptions: sampleOptions,
+        selectedVendor: vendorId,
+        waveNumber: null,
+      });
     });
-  }
+  });
 
-  filterSamples(value: string, options: string[]): string[] {
-    const filterValue = value.toLowerCase();
-    return options.filter(option => option.toLowerCase().includes(filterValue));
-  }
+  // Initialize filteredOptions for each row
+  this.filteredOptions = this.tableData.reduce((acc, row, index) => {
+    acc[index] = row.sampleOptions; // Initialize with full options
+    return acc;
+  }, {} as { [key: number]: string[] });
 
-  onSampleChange(selectedSample: string, rowIndex: number) {
-    // Handle sample change
-    this.tableData[rowIndex].selectedSample = selectedSample;
-  }
-
-  isSelectSampleDisabled(row: any): boolean {
-    // Your logic to check if sample selection is disabled
-    return false; // Replace with actual condition
-  }
+  this.leftGridData = new MatTableDataSource<any>(this.tableData);
+  this.validateSampleSelections();
+}
