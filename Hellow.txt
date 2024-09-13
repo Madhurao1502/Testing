@@ -1,33 +1,40 @@
-this.setupFormInteractions();
-  }
-
-  setupFormInteractions(): void {
+setupFormInteractions(): void {
     // Collect on Display Checkbox
     this.taskSpecForm.get('collectOnDisplay')?.valueChanges.subscribe((checked) => {
+      if (this.isUpdating) return;  // Avoid recursive updates
+      this.isUpdating = true;
+
       if (checked) {
         this.taskSpecForm.get('collectOnBFD')?.disable();
         this.taskSpecForm.get('notSampleStore')?.enable();
-        this.taskSpecForm.get('notSampleStore')?.setValue(false);
+        this.taskSpecForm.get('notSampleStore')?.setValue(false, { emitEvent: false });
       } else {
         this.taskSpecForm.get('collectOnBFD')?.enable();
         this.taskSpecForm.get('notSampleStore')?.enable();
-        this.taskSpecForm.get('notSampleStore')?.setValue(false);
+        this.taskSpecForm.get('notSampleStore')?.setValue(false, { emitEvent: false });
         this.taskSpecForm.get('collectOnDisplay')?.disable(); // Optionally disable this after unchecking
       }
+
+      this.isUpdating = false;
     });
 
     // Collect on BFD Checkbox
     this.taskSpecForm.get('collectOnBFD')?.valueChanges.subscribe((checked) => {
+      if (this.isUpdating) return;  // Avoid recursive updates
+      this.isUpdating = true;
+
       if (checked) {
         this.taskSpecForm.get('collectOnDisplay')?.disable();
         this.taskSpecForm.get('notSampleStore')?.enable();
-        this.taskSpecForm.get('notSampleStore')?.setValue(false);
+        this.taskSpecForm.get('notSampleStore')?.setValue(false, { emitEvent: false });
       } else {
         this.taskSpecForm.get('collectOnDisplay')?.enable();
         this.taskSpecForm.get('notSampleStore')?.enable();
-        this.taskSpecForm.get('notSampleStore')?.setValue(false);
+        this.taskSpecForm.get('notSampleStore')?.setValue(false, { emitEvent: false });
         this.taskSpecForm.get('collectOnBFD')?.disable(); // Optionally disable this after unchecking
       }
+
+      this.isUpdating = false;
     });
   }
 }
