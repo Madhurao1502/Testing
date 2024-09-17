@@ -1,40 +1,88 @@
-setupFormInteractions(): void {
-    // Collect on Display Checkbox
-    this.taskSpecForm.get('collectOnDisplay')?.valueChanges.subscribe((checked) => {
-      if (this.isUpdating) return;  // Avoid recursive updates
-      this.isUpdating = true;
+generateTable() {
+  const { scheduleType, startWeek, endWeek, noEndWeek, vendor, sampleType, selectedWeeks, scheduleEvery } = this.scheduleForm.value;
+  const waveNumberMap: { [Key: string]: number | null } = {};
+  this.tableData.forEach(r => { if (r.waveNumber != null) { waveNumberMap[r.startWeek] = r.waveNumber; } });
 
-      if (checked) {
-        this.taskSpecForm.get('collectOnBFD')?.disable();
-        this.taskSpecForm.get('notSampleStore')?.enable();
-        this.taskSpecForm.get('notSampleStore')?.setValue(false, { emitEvent: false });
-      } else {
-        this.taskSpecForm.get('collectOnBFD')?.enable();
-        this.taskSpecForm.get('notSampleStore')?.enable();
-        this.taskSpecForm.get('notSampleStore')?.setValue(false, { emitEvent: false });
-        this.taskSpecForm.get('collectOnDisplay')?.disable(); // Optionally disable this after unchecking
+  // Save the existing samples for weeks before the current week
+  const existingTableData = [...this.tableData];
+
+  this.tableData = [];
+  let selectedWeekObjects: Week[] = [];
+
+  if (scheduleType === 3) {
+    selectedWeekObjects = this.weeks.filter(week => selectedWeeks.includes(week.StartWeek));
+    selectedWeekObjects.sort((a, b) => a.StartWeek - b.StartWeek);
+  } else if (scheduleType === 2) {
+    const periodIndexes = this.calculatePeriodicWeeks(startWeek, endWeek, noEndWeek, scheduleEvery);
+    selectedWeekObjects = this.weeks.filter(week => periodIndexes.includes(week.StartWeek));
+  } else {
+    if (noEndWeek) {
+      const startIndex = this.weeks.findIndex(week => week.StartWeek === startWeek);
+      selectedWeekObjects = this.weeks.slice(startIndex);
+    } else {
+      const startIndex = this.weeks.findIndex(week => week.StartWeek === startWeek);
+      const endIndex = this.weeks.findIndex(week => week.StartWeek === endWeek);
+      if (startIndex !== -1 && endIndex !== -1) {
+        selectedWeekObjects = this.weeks.slice(startIndex, endIndex + 1);
       }
-
-      this.isUpdating = false;
-    });
-
-    // Collect on BFD Checkbox
-    this.taskSpecForm.get('collectOnBFD')?.valueChanges.subscribe((checked) => {
-      if (this.isUpdating) return;  // Avoid recursive updates
-      this.isUpdating = true;
-
-      if (checked) {
-        this.taskSpecForm.get('collectOnDisplay')?.disable();
-        this.taskSpecForm.get('notSampleStore')?.enable();
-        this.taskSpecForm.get('notSampleStore')?.setValue(false, { emitEvent: false });
-      } else {
-        this.taskSpecForm.get('collectOnDisplay')?.enable();
-        this.taskSpecForm.get('notSampleStore')?.enable();
-        this.taskSpecForm.get('notSampleStore')?.setValue(false, { emitEvent: false });
-        this.taskSpecForm.get('collectOnBFD')?.disable(); // Optionally disable this after unchecking
-      }
-
-      this.isUpdating = false;
-    });
+    }
   }
+
+  vendor.forEach((vendorId: number) => {
+    let rotationCounter = 0;
+
+    selectedWeekObjects.forEach((week, index) => {
+      let sampleName = '';
+      let sampleOptions: string[] = [];
+      
+      // Ensure no changes are made to weeks below currentWeek + 1
+      if (week.StartWeek < this.currentWeek + 1) {
+        // Disable manual changes for weeks below currentWeek + 1
+        const existingWeekData = existingTableData.find(td => td.startWeek === week.StartWeek && td.selectedVendor === vendorId);
+        if (existingWeekData) {
+          sampleName = existingWeekData.selectSample;
+          sampleOptions = existingWeekData.sampleOptions;
+        }
+      } else {
+        // Assign samples for weeks >= currentWeek + 1 based on the sampleType
+        if (sampleType === 'FIX') {
+          sampleName = this.selectedFixedSamples[vendorId] || '';
+          sampleOptions = this.samples.map(s => s.SampleName);
+        } else if (sampleType === 'ROT') {
+          // Rotation: Start assigning from currentWeek + 1 onwards
+          const rotationName = this.selectedRotations[vendorId];
+          
+          if (rotationName) {
+            const rotationSamples = this.rotation.filter(rot => rot.RotationName === rotationName);
+            if (rotationSamples.length > 0 && week.StartWeek >= this.currentWeek + 1) {
+              // Start rotation sequence for weeks >= currentWeek + 1
+              sampleName = rotationSamples[rotationCounter % rotationSamples.length].SampleName;
+              sampleOptions = rotationSamples.map(rs => rs.SampleName);
+              rotationCounter++;
+            }
+          }
+        } else if (sampleType === 'MAN') {
+          // Manual: Only allow selection for weeks >= currentWeek + 1
+          if (week.StartWeek >= this.currentWeek + 1) {
+            sampleOptions = this.samples.map(s => s.SampleName);
+          }
+        }
+      }
+
+      // Push the week data to tableData
+      this.tableData.push({
+        monthYear: week.mothnYear,
+        startWeek: week.StartWeek,
+        startDate: week.StartDate,
+        endDate: week.endDate,
+        selectSample: sampleName,
+        sampleOptions: sampleOptions,
+        selectedVendor: vendorId,
+        waveNumber: waveNumberMap[week.StartWeek] || null,
+      });
+    });
+  });
+
+  this.leftGridData = new MatTableDataSource<any>(this.tableData);
+  this.validateSampleSelections();
 }
