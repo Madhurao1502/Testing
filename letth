@@ -1,74 +1,56 @@
-<div>
-  <h3>Available Weeks</h3>
-  <table mat-table [dataSource]="leftGridData" class="mat-elevation-z8">
-    <ng-container matColumnDef="select">
-      <th mat-header-cell *matHeaderCellDef>
-        <mat-checkbox (change)="$event ? masterToggle() : null" [checked]="isAllSelected()" [indeterminate]="isIndeterminate()"></mat-checkbox>
-      </th>
-      <td mat-cell *matCellDef="let row">
-        <mat-checkbox (click)="$event.stopPropagation()" (change)="$event ? toggleRow(row) : null" [checked]="selection.isSelected(row)"></mat-checkbox>
-      </td>
-    </ng-container>
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
 
-    <ng-container matColumnDef="MMYY">
-      <th mat-header-cell *matHeaderCellDef>MMYY</th>
-      <td mat-cell *matCellDef="let element">{{ element.MMYY }}</td>
-    </ng-container>
+var builder = WebApplication.CreateBuilder(args);
 
-    <ng-container matColumnDef="Start_Week">
-      <th mat-header-cell *matHeaderCellDef>Start Week</th>
-      <td mat-cell *matCellDef="let element">{{ element.Start_Week }}</td>
-    </ng-container>
+// Add services to the container.
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("MyPolicy", builder =>
+    {
+        builder.AllowAnyOrigin()
+               .AllowAnyMethod()
+               .AllowAnyHeader();
+    });
+});
+builder.Services.AddControllersWithViews();
+builder.Services.AddSpaStaticFiles(configuration =>
+{
+    configuration.RootPath = "ClientApp/dist"; // Adjust as necessary
+});
+builder.Services.AddScoped<Data.DataContext>();
 
-    <ng-container matColumnDef="Start_Date">
-      <th mat-header-cell *matHeaderCellDef>Start Date</th>
-      <td mat-cell *matCellDef="let element">{{ element.Start_Date }}</td>
-    </ng-container>
+// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
-    <ng-container matColumnDef="End_Date">
-      <th mat-header-cell *matHeaderCellDef>End Date</th>
-      <td mat-cell *matCellDef="let element">{{ element.End_Date }}</td>
-    </ng-container>
+var app = builder.Build();
 
-    <tr mat-header-row *matHeaderRowDef="leftGridDisplayedColumns"></tr>
-    <tr mat-row *matRowDef="let row; columns: leftGridDisplayedColumns;"></tr>
-  </table>
+// Configure the HTTP request pipeline.
+app.UseCors("MyPolicy");
 
-  <button mat-raised-button color="primary" (click)="createWave()">Create Wave</button>
-  <div *ngIf="errorMessage" class="error">{{ errorMessage }}</div>
-</div>
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+else
+{
+    app.UseExceptionHandler("/Error");
+}
 
-<!-- Right Grid: Displays created waves -->
-<div>
-  <h3>Created Waves</h3>
-  <table mat-table [dataSource]="rightGridData" class="mat-elevation-z8">
-    <ng-container matColumnDef="Start_Week">
-      <th mat-header-cell *matHeaderCellDef>Start Week</th>
-      <td mat-cell *matCellDef="let element">{{ element.Start_Week }}</td>
-    </ng-container>
+app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseSpaStaticFiles();
 
-    <ng-container matColumnDef="End_Week">
-      <th mat-header-cell *matHeaderCellDef>End Week</th>
-      <td mat-cell *matCellDef="let element">{{ element.End_Week }}</td>
-    </ng-container>
+app.UseRouting();
 
-    <ng-container matColumnDef="Due_Date">
-      <th mat-header-cell *matHeaderCellDef>Due Date</th>
-      <td mat-cell *matCellDef="let element">
-        <input matInput [matDatepicker]="picker" [(ngModel)]="element.Due_Date">
-        <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
-        <mat-datepicker #picker [startAt]="element.minDate" [endAt]="element.maxDate"></mat-datepicker>
-      </td>
-    </ng-container>
+app.UseAuthorization();
 
-    <ng-container matColumnDef="action">
-      <th mat-header-cell *matHeaderCellDef>Action</th>
-      <td mat-cell *matCellDef="let element">
-        <button mat-raised-button color="warn" (click)="removeWave(element)">Remove</button>
-      </td>
-    </ng-container>
+app.MapControllers();
+app.MapFallbackToFile("/index.html"); // Ensure this matches your Angular build output
 
-    <tr mat-header-row *matHeaderRowDef="rightGridDisplayedColumns"></tr>
-    <tr mat-row *matRowDef="let row; columns: rightGridDisplayedColumns;"></tr>
-  </table>
-</div>
+app.Run();
