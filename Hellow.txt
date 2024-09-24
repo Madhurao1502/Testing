@@ -1,88 +1,66 @@
-generateTable() {
-  const { scheduleType, startWeek, endWeek, noEndWeek, vendor, sampleType, selectedWeeks, scheduleEvery } = this.scheduleForm.value;
-  const waveNumberMap: { [Key: string]: number | null } = {};
-  this.tableData.forEach(r => { if (r.waveNumber != null) { waveNumberMap[r.startWeek] = r.waveNumber; } });
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
+using Data; // Adjust this according to your actual namespace for DataContext
 
-  // Save the existing samples for weeks before the current week
-  const existingTableData = [...this.tableData];
+var builder = WebApplication.CreateBuilder(args);
 
-  this.tableData = [];
-  let selectedWeekObjects: Week[] = [];
+// Add services to the container
+builder.Services.AddCors(p => p.AddPolicy("MyPolicy", builder =>
+{
+    builder.AllowAnyOrigin()
+           .AllowAnyMethod()
+           .AllowAnyHeader();
+}));
 
-  if (scheduleType === 3) {
-    selectedWeekObjects = this.weeks.filter(week => selectedWeeks.includes(week.StartWeek));
-    selectedWeekObjects.sort((a, b) => a.StartWeek - b.StartWeek);
-  } else if (scheduleType === 2) {
-    const periodIndexes = this.calculatePeriodicWeeks(startWeek, endWeek, noEndWeek, scheduleEvery);
-    selectedWeekObjects = this.weeks.filter(week => periodIndexes.includes(week.StartWeek));
-  } else {
-    if (noEndWeek) {
-      const startIndex = this.weeks.findIndex(week => week.StartWeek === startWeek);
-      selectedWeekObjects = this.weeks.slice(startIndex);
-    } else {
-      const startIndex = this.weeks.findIndex(week => week.StartWeek === startWeek);
-      const endIndex = this.weeks.findIndex(week => week.StartWeek === endWeek);
-      if (startIndex !== -1 && endIndex !== -1) {
-        selectedWeekObjects = this.weeks.slice(startIndex, endIndex + 1);
-      }
-    }
-  }
+builder.Services.AddControllersWithViews();
+builder.Services.AddSpaStaticFiles(configuration =>
+{
+    configuration.RootPath = "ClientApp/dist";
+});
+builder.Services.AddScoped<DataContext>(); // Register DataContext as a scoped service
 
-  vendor.forEach((vendorId: number) => {
-    let rotationCounter = 0;
+var app = builder.Build();
 
-    selectedWeekObjects.forEach((week, index) => {
-      let sampleName = '';
-      let sampleOptions: string[] = [];
-      
-      // Ensure no changes are made to weeks below currentWeek + 1
-      if (week.StartWeek < this.currentWeek + 1) {
-        // Disable manual changes for weeks below currentWeek + 1
-        const existingWeekData = existingTableData.find(td => td.startWeek === week.StartWeek && td.selectedVendor === vendorId);
-        if (existingWeekData) {
-          sampleName = existingWeekData.selectSample;
-          sampleOptions = existingWeekData.sampleOptions;
-        }
-      } else {
-        // Assign samples for weeks >= currentWeek + 1 based on the sampleType
-        if (sampleType === 'FIX') {
-          sampleName = this.selectedFixedSamples[vendorId] || '';
-          sampleOptions = this.samples.map(s => s.SampleName);
-        } else if (sampleType === 'ROT') {
-          // Rotation: Start assigning from currentWeek + 1 onwards
-          const rotationName = this.selectedRotations[vendorId];
-          
-          if (rotationName) {
-            const rotationSamples = this.rotation.filter(rot => rot.RotationName === rotationName);
-            if (rotationSamples.length > 0 && week.StartWeek >= this.currentWeek + 1) {
-              // Start rotation sequence for weeks >= currentWeek + 1
-              sampleName = rotationSamples[rotationCounter % rotationSamples.length].SampleName;
-              sampleOptions = rotationSamples.map(rs => rs.SampleName);
-              rotationCounter++;
-            }
-          }
-        } else if (sampleType === 'MAN') {
-          // Manual: Only allow selection for weeks >= currentWeek + 1
-          if (week.StartWeek >= this.currentWeek + 1) {
-            sampleOptions = this.samples.map(s => s.SampleName);
-          }
-        }
-      }
+// Configure the HTTP request pipeline
+app.UseCors("MyPolicy");
 
-      // Push the week data to tableData
-      this.tableData.push({
-        monthYear: week.mothnYear,
-        startWeek: week.StartWeek,
-        startDate: week.StartDate,
-        endDate: week.endDate,
-        selectSample: sampleName,
-        sampleOptions: sampleOptions,
-        selectedVendor: vendorId,
-        waveNumber: waveNumberMap[week.StartWeek] || null,
-      });
-    });
-  });
-
-  this.leftGridData = new MatTableDataSource<any>(this.tableData);
-  this.validateSampleSelections();
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
 }
+else
+{
+    app.UseExceptionHandler("/Error");
+}
+
+app.UseStaticFiles();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSpaStaticFiles();
+}
+
+app.UseRouting();
+
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapControllerRoute(
+        name: "default",
+        pattern: "{controller}/{action=Index}/{id?}");
+});
+
+// Serve Angular app
+app.UseSpa(spa =>
+{
+    spa.Options.SourcePath = "ClientApp";
+
+    if (app.Environment.IsDevelopment())
+    {
+        spa.UseAngularCliServer(npmScript: "start");
+    }
+});
+
+app.Run();
