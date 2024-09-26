@@ -1,66 +1,171 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Configuration;
-using Data; // Adjust this according to your actual namespace for DataContext
-
-var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container
-builder.Services.AddCors(p => p.AddPolicy("MyPolicy", builder =>
-{
-    builder.AllowAnyOrigin()
-           .AllowAnyMethod()
-           .AllowAnyHeader();
-}));
-
-builder.Services.AddControllersWithViews();
-builder.Services.AddSpaStaticFiles(configuration =>
-{
-    configuration.RootPath = "ClientApp/dist";
-});
-builder.Services.AddScoped<DataContext>(); // Register DataContext as a scoped service
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline
-app.UseCors("MyPolicy");
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseDeveloperExceptionPage();
+export interface StoreData {
+  region: string;
+  storeNumber: number;
+  storeName: string;
+  address: string;
+  city: string;
+  state: string;
+  taskName: string;
+  fsr: string;
+  gurdMiles: number;
+  week1Collector: string;
+  week1Closest: string;
+  week2Collector: string;
+  week2Closest: string;
 }
-else
-{
-    app.UseExceptionHandler("/Error");
+ // Define the columns to be displayed in the table
+  displayedColumns: string[] = [
+    'region', 
+    'storeNumber', 
+    'storeName', 
+    'address', 
+    'city', 
+    'state', 
+    'taskName', 
+    'fsr', 
+    'gurdMiles',
+    'week1Collector', 
+    'week1Closest',
+    'week2Collector', 
+    'week2Closest'
+  ];
+
+  // Define the MatTableDataSource which will hold your data
+  dataSource = new MatTableDataSource<StoreData>();
+
+  constructor() { }
+
+  ngOnInit(): void {
+    // Placeholder data until the SP fetches actual data
+    const testData: StoreData[] = [
+      {
+        region: 'North',
+        storeNumber: 1001,
+        storeName: 'Store A',
+        address: '123 Street',
+        city: 'City A',
+        state: 'State A',
+        taskName: 'Inventory Check',
+        fsr: 'John Doe',
+        gurdMiles: 50,
+        week1Collector: 'Collector 1',
+        week1Closest: 'Closest 1',
+        week2Collector: 'Collector 2',
+        week2Closest: 'Closest 2'
+      },
+      {
+        region: 'South',
+        storeNumber: 1002,
+        storeName: 'Store B',
+        address: '456 Avenue',
+        city: 'City B',
+        state: 'State B',
+        taskName: 'Sales Check',
+        fsr: 'Jane Doe',
+        gurdMiles: 40,
+        week1Collector: 'Collector 3',
+        week1Closest: 'Closest 3',
+        week2Collector: 'Collector 4',
+        week2Closest: 'Closest 4'
+      }
+    ];
+
+    // Assign the testData to the dataSource
+    this.dataSource.data = testData;
+  }
+
+<div class="mat-elevation-z8">
+  <table mat-table [dataSource]="dataSource" class="mat-table">
+
+    <!-- Region Column -->
+    <ng-container matColumnDef="region">
+      <th mat-header-cell *matHeaderCellDef> Region </th>
+      <td mat-cell *matCellDef="let element"> {{element.region}} </td>
+    </ng-container>
+
+    <!-- Store Number Column -->
+    <ng-container matColumnDef="storeNumber">
+      <th mat-header-cell *matHeaderCellDef> Store Number </th>
+      <td mat-cell *matCellDef="let element"> {{element.storeNumber}} </td>
+    </ng-container>
+
+    <!-- Store Name Column -->
+    <ng-container matColumnDef="storeName">
+      <th mat-header-cell *matHeaderCellDef> Store Name </th>
+      <td mat-cell *matCellDef="let element"> {{element.storeName}} </td>
+    </ng-container>
+
+    <!-- Address Column -->
+    <ng-container matColumnDef="address">
+      <th mat-header-cell *matHeaderCellDef> Address </th>
+      <td mat-cell *matCellDef="let element"> {{element.address}} </td>
+    </ng-container>
+
+    <!-- City Column -->
+    <ng-container matColumnDef="city">
+      <th mat-header-cell *matHeaderCellDef> City </th>
+      <td mat-cell *matCellDef="let element"> {{element.city}} </td>
+    </ng-container>
+
+    <!-- State Column -->
+    <ng-container matColumnDef="state">
+      <th mat-header-cell *matHeaderCellDef> State </th>
+      <td mat-cell *matCellDef="let element"> {{element.state}} </td>
+    </ng-container>
+
+    <!-- TaskName Column -->
+    <ng-container matColumnDef="taskName">
+      <th mat-header-cell *matHeaderCellDef> Task Name </th>
+      <td mat-cell *matCellDef="let element"> {{element.taskName}} </td>
+    </ng-container>
+
+    <!-- FSR Column -->
+    <ng-container matColumnDef="fsr">
+      <th mat-header-cell *matHeaderCellDef> FSR </th>
+      <td mat-cell *matCellDef="let element"> {{element.fsr}} </td>
+    </ng-container>
+
+    <!-- GurdMiles Column -->
+    <ng-container matColumnDef="gurdMiles">
+      <th mat-header-cell *matHeaderCellDef> Gurd Miles </th>
+      <td mat-cell *matCellDef="let element"> {{element.gurdMiles}} </td>
+    </ng-container>
+
+    <!-- Week1 Collector Column -->
+    <ng-container matColumnDef="week1Collector">
+      <th mat-header-cell *matHeaderCellDef> Week 1 - Collector </th>
+      <td mat-cell *matCellDef="let element"> {{element.week1Collector}} </td>
+    </ng-container>
+
+    <!-- Week1 Closest Column -->
+    <ng-container matColumnDef="week1Closest">
+      <th mat-header-cell *matHeaderCellDef> Week 1 - Closest </th>
+      <td mat-cell *matCellDef="let element"> {{element.week1Closest}} </td>
+    </ng-container>
+
+    <!-- Week2 Collector Column -->
+    <ng-container matColumnDef="week2Collector">
+      <th mat-header-cell *matHeaderCellDef> Week 2 - Collector </th>
+      <td mat-cell *matCellDef="let element"> {{element.week2Collector}} </td>
+    </ng-container>
+
+    <!-- Week2 Closest Column -->
+    <ng-container matColumnDef="week2Closest">
+      <th mat-header-cell *matHeaderCellDef> Week 2 - Closest </th>
+      <td mat-cell *matCellDef="let element"> {{element.week2Closest}} </td>
+    </ng-container>
+
+    <!-- Table Header -->
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <!-- Table Row -->
+    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+  </table>
+</div>
+.mat-header-cell {
+  font-weight: bold;
 }
 
-app.UseStaticFiles();
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseSpaStaticFiles();
+.mat-cell, .mat-header-cell {
+  padding: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
 }
-
-app.UseRouting();
-
-app.UseEndpoints(endpoints =>
-{
-    endpoints.MapControllerRoute(
-        name: "default",
-        pattern: "{controller}/{action=Index}/{id?}");
-});
-
-// Serve Angular app
-app.UseSpa(spa =>
-{
-    spa.Options.SourcePath = "ClientApp";
-
-    if (app.Environment.IsDevelopment())
-    {
-        spa.UseAngularCliServer(npmScript: "start");
-    }
-});
-
-app.Run();
