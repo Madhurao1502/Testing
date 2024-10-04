@@ -1,171 +1,143 @@
-export interface StoreData {
-  region: string;
-  storeNumber: number;
-  storeName: string;
-  address: string;
-  city: string;
-  state: string;
-  taskName: string;
-  fsr: string;
-  gurdMiles: number;
-  week1Collector: string;
-  week1Closest: string;
-  week2Collector: string;
-  week2Closest: string;
+<form [formGroup]="filterForm">
+  <mat-toolbar color="primary" style="height: auto; padding: 10px 20px;">
+    <!-- IRI Week Filter -->
+    <mat-form-field appearance="fill" class="toolbar-filter">
+      <mat-label>IRI Week</mat-label>
+      <mat-select formControlName="iriWeek">
+        <mat-option *ngFor="let week of iriWeeks" [value]="week">{{week}}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <!-- Territory Filter -->
+    <mat-form-field appearance="fill" class="toolbar-filter">
+      <mat-label>Territory</mat-label>
+      <mat-select formControlName="territory">
+        <mat-option *ngFor="let territory of territories" [value]="territory">{{territory}}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <!-- Store Filter -->
+    <mat-form-field appearance="fill" class="toolbar-filter">
+      <mat-label>Store</mat-label>
+      <input matInput placeholder="Enter Store" formControlName="store" />
+    </mat-form-field>
+
+    <!-- State Filter -->
+    <mat-form-field appearance="fill" class="toolbar-filter">
+      <mat-label>State</mat-label>
+      <input matInput placeholder="Enter State" formControlName="state" />
+    </mat-form-field>
+
+    <!-- City Filter -->
+    <mat-form-field appearance="fill" class="toolbar-filter">
+      <mat-label>City</mat-label>
+      <input matInput placeholder="Enter City" formControlName="city" />
+    </mat-form-field>
+
+    <!-- Cluster Filter -->
+    <mat-form-field appearance="fill" class="toolbar-filter">
+      <mat-label>Cluster</mat-label>
+      <input matInput placeholder="Enter Cluster" formControlName="cluster" />
+    </mat-form-field>
+
+    <!-- Task Filter -->
+    <mat-form-field appearance="fill" class="toolbar-filter">
+      <mat-label>Task</mat-label>
+      <input matInput placeholder="Enter Task" formControlName="task" />
+    </mat-form-field>
+
+    <!-- FSR Hour Filter -->
+    <mat-form-field appearance="fill" class="toolbar-filter" style="width: 150px;">
+      <mat-label>FSR Hour Operator</mat-label>
+      <mat-select formControlName="fsrHourOperator">
+        <mat-option value="NA">NA</mat-option>
+        <mat-option value=">">></mat-option>
+        <mat-option value="=">=</mat-option>
+        <mat-option value="<"><</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="fill" class="toolbar-filter" style="width: 100px;">
+      <mat-label>FSR Hour</mat-label>
+      <input matInput type="number" formControlName="fsrHour" />
+    </mat-form-field>
+
+    <!-- Action Buttons -->
+    <button mat-raised-button color="primary" style="margin-left: 20px;" (click)="onSearch()">Search</button>
+    <button mat-raised-button color="accent" style="margin-left: 10px;" (click)="onClear()">Clear</button>
+  </mat-toolbar>
+
+  <!-- Horizontal Checkboxes Section -->
+  <mat-toolbar color="primary" style="height: auto; padding: 10px 20px;">
+    <!-- Exclusive Assigned/Unassigned Stores -->
+    <mat-radio-group formControlName="storeAssignment">
+      <mat-radio-button value="assigned">Assigned Stores</mat-radio-button>
+      <mat-radio-button value="unassigned">Unassigned Stores</mat-radio-button>
+    </mat-radio-group>
+
+    <!-- Exclusive Sample/Non-Sample -->
+    <mat-radio-group formControlName="sampleType" style="margin-left: 20px;">
+      <mat-radio-button value="sample">Sample</mat-radio-button>
+      <mat-radio-button value="nonSample">Non-Sample</mat-radio-button>
+    </mat-radio-group>
+
+    <!-- Additional Checkboxes -->
+    <mat-checkbox formControlName="isMultiFsrStores" style="margin-left: 20px;">Multi FSR Stores</mat-checkbox>
+    <mat-checkbox formControlName="isTemporary" style="margin-left: 20px;">Temporary</mat-checkbox>
+  </mat-toolbar>
+</form>
+.toolbar-filter {
+  margin-right: 20px;
+  width: 150px; /* Adjust width for each field as needed */
 }
- // Define the columns to be displayed in the table
-  displayedColumns: string[] = [
-    'region', 
-    'storeNumber', 
-    'storeName', 
-    'address', 
-    'city', 
-    'state', 
-    'taskName', 
-    'fsr', 
-    'gurdMiles',
-    'week1Collector', 
-    'week1Closest',
-    'week2Collector', 
-    'week2Closest'
-  ];
 
-  // Define the MatTableDataSource which will hold your data
-  dataSource = new MatTableDataSource<StoreData>();
+mat-toolbar {
+  flex-wrap: wrap; /* Makes the toolbar responsive */
+}
 
-  constructor() { }
+mat-form-field {
+  min-width: 120px; /* To ensure consistent width for form fields */
+}
 
-  ngOnInit(): void {
-    // Placeholder data until the SP fetches actual data
-    const testData: StoreData[] = [
-      {
-        region: 'North',
-        storeNumber: 1001,
-        storeName: 'Store A',
-        address: '123 Street',
-        city: 'City A',
-        state: 'State A',
-        taskName: 'Inventory Check',
-        fsr: 'John Doe',
-        gurdMiles: 50,
-        week1Collector: 'Collector 1',
-        week1Closest: 'Closest 1',
-        week2Collector: 'Collector 2',
-        week2Closest: 'Closest 2'
-      },
-      {
-        region: 'South',
-        storeNumber: 1002,
-        storeName: 'Store B',
-        address: '456 Avenue',
-        city: 'City B',
-        state: 'State B',
-        taskName: 'Sales Check',
-        fsr: 'Jane Doe',
-        gurdMiles: 40,
-        week1Collector: 'Collector 3',
-        week1Closest: 'Closest 3',
-        week2Collector: 'Collector 4',
-        week2Closest: 'Closest 4'
-      }
-    ];
+@media (max-width: 768px) {
+  mat-form-field {
+    width: 100%; /* Stack filters in smaller screens */
+  }
+}
+filterForm: FormGroup;
 
-    // Assign the testData to the dataSource
-    this.dataSource.data = testData;
+  iriWeeks = ['Week 1', 'Week 2', 'Week 3']; // Example data
+  territories = ['North', 'South', 'East', 'West'];
+
+  constructor(private fb: FormBuilder) {
+    // Initialize the form with form controls
+    this.filterForm = this.fb.group({
+      iriWeek: [''],
+      territory: [''],
+      store: [''],
+      state: [''],
+      city: [''],
+      cluster: [''],
+      task: [''],
+      fsrHourOperator: ['NA'],
+      fsrHour: [null],
+      storeAssignment: ['assigned'], // Radio group
+      sampleType: ['sample'], // Radio group
+      isMultiFsrStores: [false], // Checkbox
+      isTemporary: [false], // Checkbox
+    });
   }
 
-<div class="mat-elevation-z8">
-  <table mat-table [dataSource]="dataSource" class="mat-table">
+  onSearch() {
+    const filterValues = this.filterForm.value;
+    console.log('Search clicked with values:', filterValues);
+  }
 
-    <!-- Region Column -->
-    <ng-container matColumnDef="region">
-      <th mat-header-cell *matHeaderCellDef> Region </th>
-      <td mat-cell *matCellDef="let element"> {{element.region}} </td>
-    </ng-container>
-
-    <!-- Store Number Column -->
-    <ng-container matColumnDef="storeNumber">
-      <th mat-header-cell *matHeaderCellDef> Store Number </th>
-      <td mat-cell *matCellDef="let element"> {{element.storeNumber}} </td>
-    </ng-container>
-
-    <!-- Store Name Column -->
-    <ng-container matColumnDef="storeName">
-      <th mat-header-cell *matHeaderCellDef> Store Name </th>
-      <td mat-cell *matCellDef="let element"> {{element.storeName}} </td>
-    </ng-container>
-
-    <!-- Address Column -->
-    <ng-container matColumnDef="address">
-      <th mat-header-cell *matHeaderCellDef> Address </th>
-      <td mat-cell *matCellDef="let element"> {{element.address}} </td>
-    </ng-container>
-
-    <!-- City Column -->
-    <ng-container matColumnDef="city">
-      <th mat-header-cell *matHeaderCellDef> City </th>
-      <td mat-cell *matCellDef="let element"> {{element.city}} </td>
-    </ng-container>
-
-    <!-- State Column -->
-    <ng-container matColumnDef="state">
-      <th mat-header-cell *matHeaderCellDef> State </th>
-      <td mat-cell *matCellDef="let element"> {{element.state}} </td>
-    </ng-container>
-
-    <!-- TaskName Column -->
-    <ng-container matColumnDef="taskName">
-      <th mat-header-cell *matHeaderCellDef> Task Name </th>
-      <td mat-cell *matCellDef="let element"> {{element.taskName}} </td>
-    </ng-container>
-
-    <!-- FSR Column -->
-    <ng-container matColumnDef="fsr">
-      <th mat-header-cell *matHeaderCellDef> FSR </th>
-      <td mat-cell *matCellDef="let element"> {{element.fsr}} </td>
-    </ng-container>
-
-    <!-- GurdMiles Column -->
-    <ng-container matColumnDef="gurdMiles">
-      <th mat-header-cell *matHeaderCellDef> Gurd Miles </th>
-      <td mat-cell *matCellDef="let element"> {{element.gurdMiles}} </td>
-    </ng-container>
-
-    <!-- Week1 Collector Column -->
-    <ng-container matColumnDef="week1Collector">
-      <th mat-header-cell *matHeaderCellDef> Week 1 - Collector </th>
-      <td mat-cell *matCellDef="let element"> {{element.week1Collector}} </td>
-    </ng-container>
-
-    <!-- Week1 Closest Column -->
-    <ng-container matColumnDef="week1Closest">
-      <th mat-header-cell *matHeaderCellDef> Week 1 - Closest </th>
-      <td mat-cell *matCellDef="let element"> {{element.week1Closest}} </td>
-    </ng-container>
-
-    <!-- Week2 Collector Column -->
-    <ng-container matColumnDef="week2Collector">
-      <th mat-header-cell *matHeaderCellDef> Week 2 - Collector </th>
-      <td mat-cell *matCellDef="let element"> {{element.week2Collector}} </td>
-    </ng-container>
-
-    <!-- Week2 Closest Column -->
-    <ng-container matColumnDef="week2Closest">
-      <th mat-header-cell *matHeaderCellDef> Week 2 - Closest </th>
-      <td mat-cell *matCellDef="let element"> {{element.week2Closest}} </td>
-    </ng-container>
-
-    <!-- Table Header -->
-    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-    <!-- Table Row -->
-    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-  </table>
-</div>
-.mat-header-cell {
-  font-weight: bold;
-}
-
-.mat-cell, .mat-header-cell {
-  padding: 8px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  onClear() {
+    this.filterForm.reset({
+      fsrHourOperator: 'NA',
+      storeAssignment: 'assigned',
+      sampleType: 'sample'
+    });
+  }
 }
