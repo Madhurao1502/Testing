@@ -1,68 +1,14 @@
-/* Main Form Background */
-.filter-form {
-  background-color: white; /* Set the background to white */
-  padding: 20px; /* Add padding around the form */
-  border-radius: 8px; /* Rounded corners */
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); /* Subtle shadow */
-  display: flex; /* Flexbox for responsive form layout */
-  flex-direction: column; /* Stack rows vertically */
-  gap: 20px; /* Space between rows */
-}
-
-/* Toolbar Styling */
-.filter-toolbar {
-  background-color: #003366; /* Dark blue background */
-  color: white; /* White text */
-  padding: 10px 20px; /* Padding for the toolbar */
-  display: flex;
-  flex-wrap: wrap; /* Allow wrapping for smaller screens */
-  justify-content: space-between; /* Spread elements */
-  align-items: center;
-  border-radius: 6px;
-  height: auto; /* Allow the height to grow if elements wrap */
-  gap: 15px; /* Space between toolbar items */
-}
-
-/* Styling for Form Fields */
-.toolbar-filter {
-  min-width: 150px; /* Minimum width for form fields */
-  flex: 1 1 150px; /* Allow fields to grow and shrink */
-  margin-right: 20px; /* Space between fields */
-}
-
-/* Button styling */
-.filter-button {
-  margin-left: 20px; /* Add space between buttons */
-  margin-top: 10px; /* Ensure buttons have space from form fields */
-}
-
-/* Checkbox and Radio Button Styling */
-.mat-radio-group, .mat-checkbox {
-  margin-left: 10px;
-  color: white; /* Keep text white on dark background */
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .filter-toolbar {
-    flex-direction: column; /* Stack toolbar items vertically on smaller screens */
-    height: auto; /* Ensure it grows to fit content */
-    align-items: flex-start; /* Align items to the left */
-  }
-
-  .toolbar-filter {
-    margin-bottom: 10px; /* Space between form fields on smaller screens */
-    width: 100%; /* Full width on small screens */
-  }
-
-  .filter-button {
-    margin-left: 0; /* Reset left margin on small screens */
-    margin-top: 10px; /* Add spacing between buttons and fields */
-    width: 100%; /* Full width for buttons */
-  }
-
-  /* Adjust the checkbox/radio groups for small screens */
-  .mat-radio-group, .mat-checkbox {
-    margin: 10px 0;
-  }
-}
+<mat-form-field>
+  <input type="text"
+         matInput
+         [matAutocomplete]="auto"
+         [formControl]="storeControl"
+         placeholder="Search stores">
+  <mat-autocomplete #auto="matAutocomplete"
+                    (optionSelected)="onStoreSelected($event)">
+    <mat-option *ngFor="let store of filteredStores" [value]="store.store_name">
+      {{ store.store_name }}
+    </mat-option>
+  </mat-autocomplete>
+</mat-form-field>
+<input type="hidden" id="storeNumber" [value]="selectedStoreNumber">
