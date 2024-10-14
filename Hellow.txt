@@ -41,6 +41,52 @@
       </mat-select>
     </mat-form-field>
 
+    <!-- City Filter -->
+    <mat-form-field appearance="fill" class="toolbar-filter">
+      <mat-label>City</mat-label>
+      <mat-select formControlName="city">
+        <mat-option *ngFor="let city of cities" [value]="city.city">
+          {{ city.city }}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <!-- Cluster Filter -->
+    <mat-form-field appearance="fill" class="toolbar-filter">
+      <mat-label>Cluster</mat-label>
+      <mat-select formControlName="cluster">
+        <mat-option *ngFor="let cluster of clusters" [value]="cluster.cluster">
+          {{ cluster.cluster }}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <!-- Task Filter -->
+    <mat-form-field appearance="fill" class="toolbar-filter">
+      <mat-label>Task</mat-label>
+      <mat-select formControlName="task">
+        <mat-option *ngFor="let task of tasks" [value]="task.task_name">
+          {{ task.task_name }}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <!-- FSR Hour Operator Filter -->
+    <mat-form-field appearance="fill" class="toolbar-filter" style="width: 150px">
+      <mat-label>FSR Hour Operator</mat-label>
+      <mat-select formControlName="fsrHourOperator">
+        <mat-option *ngFor="let operator of fsrHourOperators" [value]="operator">
+          {{ operator }}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <!-- FSR Hour Filter -->
+    <mat-form-field appearance="fill" class="toolbar-filter" style="width: 100px">
+      <mat-label>FSR Hour</mat-label>
+      <input matInput type="number" formControlName="fsrHour" />
+    </mat-form-field>
+
     <!-- Multi-select Employee Filter -->
     <mat-form-field appearance="fill" class="toolbar-filter">
       <mat-label>Employee</mat-label>
