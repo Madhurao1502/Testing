@@ -1,42 +1,177 @@
+<mat-form-field>
+  <mat-select
+    (openedChange)="openedChange($event)"
+    placeholder="Select Employees"
+    [formControl]="selectFormControl"
+    multiple
+  >
+    <!-- Trigger area displaying the selected items -->
+    <mat-select-trigger>
+      <!-- Display the first selected value (employee name) -->
+      {{ selectFormControl.value ? getEmployeeName(selectFormControl.value[0]) : '' }}
+      <!-- Show the count of additional selected items -->
+      <span *ngIf="selectFormControl.value?.length > 1" class="additional-selection">
+        (+{{ selectFormControl.value.length - 1 }}
+        {{ selectFormControl.value?.length === 2 ? 'other' : 'others' }})
+      </span>
+    </mat-select-trigger>
+
+    <!-- Search input inside the dropdown -->
+    <mat-optgroup>
+      <mat-form-field style="width:100%;">
+        <input
+          #search
+          autocomplete="off"
+          placeholder="Search"
+          aria-label="Search"
+          matInput
+          [formControl]="searchTextboxControl"
+        />
+        <!-- Clear button to reset search -->
+        <button
+          [disableRipple]="true"
+          *ngIf="search.value"
+          matSuffix
+          mat-icon-button
+          aria-label="Clear"
+          (click)="clearSearch($event)"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </mat-form-field>
+    </mat-optgroup>
+
+    <!-- No results message when nothing matches the search query -->
+    <mat-optgroup *ngIf="(filteredOptions | async).length === 0">
+      <div>No results found!</div>
+    </mat-optgroup>
+
+    <!-- Render the filtered options for selection -->
+    <mat-option
+      *ngFor="let employee of filteredOptions | async"
+      [value]="employee.employeeId"
+      (onSelectionChange)="selectionChange($event)"
+    >
+      {{ employee.employeeName }}
+    </mat-option>
+  </mat-select>
+</mat-form-field>
+
+<!-- Display the selected values (optional) -->
+<div *ngIf="selectFormControl.value">
+  You have chosen {{ getEmployeeNames(selectFormControl.value) }}
+</div>
+
+
+
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { FormControl } from '@angular/forms';
+import { Observable } from 'rxjs';
+import { map, startWith } from 'rxjs/operators';
+
+@Component({
+  selector: 'app-fsr-autocomplete',
+  templateUrl: './fsr-autocomplete.component.html'
+})
+export class FsrAutocompleteComponent implements OnInit {
+  @ViewChild('search') searchTextBox: ElementRef;
+
+  selectFormControl = new FormControl(); // Control for the multi-select
+  searchTextboxControl = new FormControl(); // Control for the search input
+
+  selectedValues: number[] = []; // To store selected employeeIds
+  data: { employeeName: string; employeeId: number }[] = [
+    { employeeName: 'John Doe', employeeId: 101 },
+    { employeeName: 'Jane Smith', employeeId: 102 },
+    { employeeName: 'Michael Brown', employeeId: 103 },
+    { employeeName: 'Emily White', employeeId: 104 },
+    { employeeName: 'David Green', employeeId: 105 }
+  ];
+
+  filteredOptions: Observable<any[]>; // Observable for filtered options
+
   ngOnInit() {
-    // Listen for input changes to fetch employee suggestions
-    this.employeeControl.valueChanges
-      .pipe(
-        debounceTime(300), // Wait 300ms before making API request
-        tap(() => (this.isLoading = true)), // Show loading spinner
-        switchMap(value => this.employeeService.getEmployees(value)) // Fetch from API
-      )
-      .subscribe(
-        (employees) => {
-          this.filteredEmployees = employees;
-          this.isLoading = false;
-        },
-        () => {
-          this.filteredEmployees = [];
-          this.isLoading = false;
+    // Set up search filtering based on user input
+    this.filteredOptions = this.searchTextboxControl.valueChanges.pipe(
+      startWith<string>(''),
+      map(name => this._filter(name)) // Call the filter method
+    );
+  }
+
+  /**
+   * Filtering options based on search input
+   */
+  private _filter(name: string): { employeeName: string; employeeId: number }[] {
+    const filterValue = name.toLowerCase();
+    // Update selected values to maintain their state in the dropdown
+    this.setSelectedValues();
+    this.selectFormControl.patchValue(this.selectedValues);
+
+    // Filter options by employee name (case insensitive)
+    return this.data.filter(option =>
+      option.employeeName.toLowerCase().indexOf(filterValue) === 0
+    );
+  }
+
+  /**
+   * Handle changes in selection
+   */
+  selectionChange(event) {
+    if (event.isUserInput && event.source.selected === false) {
+      // Remove from selected values if deselected
+      const index = this.selectedValues.indexOf(event.source.value);
+      this.selectedValues.splice(index, 1);
+    }
+  }
+
+  /**
+   * Handle when the dropdown opens or closes
+   */
+  openedChange(isOpened: boolean) {
+    // Clear the search box when opening the dropdown
+    this.searchTextboxControl.patchValue('');
+    if (isOpened) {
+      // Focus the search input when the dropdown opens
+      this.searchTextBox.nativeElement.focus();
+    }
+  }
+
+  /**
+   * Clear the search input
+   */
+  clearSearch(event) {
+    event.stopPropagation();
+    this.searchTextboxControl.patchValue(''); // Reset the search box
+  }
+
+  /**
+   * Update selected values to retain checkbox state
+   */
+  setSelectedValues() {
+    if (this.selectFormControl.value && this.selectFormControl.value.length > 0) {
+      this.selectFormControl.value.forEach((e) => {
+        if (this.selectedValues.indexOf(e) === -1) {
+          this.selectedValues.push(e); // Add selected value to array if not already there
         }
-      );
-  }
-
-  // Method to handle the display of employee names
-  displayEmployee(employee: any): string {
-    return employee && employee.name ? employee.name : '';
-  }
-
-  // When a user selects an employee, add it to the selectedEmployees array
-  onEmployeeSelected(employee: any) {
-    if (!this.selectedEmployees.includes(employee)) {
-      this.selectedEmployees.push(employee);
+      });
     }
-    // Clear the input field
-    this.employeeControl.setValue('');
   }
 
-  // Remove selected employee
-  removeEmployee(employee: any): void {
-    const index = this.selectedEmployees.indexOf(employee);
-    if (index >= 0) {
-      this.selectedEmployees.splice(index, 1);
-    }
+  /**
+   * Helper function to get the employee name by ID
+   */
+  getEmployeeName(employeeId: number): string {
+    const employee = this.data.find(emp => emp.employeeId === employeeId);
+    return employee ? employee.employeeName : '';
+  }
+
+  /**
+   * Helper function to get the names of all selected employees
+   */
+  getEmployeeNames(employeeIds: number[]): string {
+    return employeeIds
+      .map(id => this.getEmployeeName(id))
+      .filter(name => name) // Remove empty names
+      .join(', ');
   }
 }
