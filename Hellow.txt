@@ -1,133 +1,36 @@
-<form [formGroup]="filterForm" class="filter-form">
-  <mat-toolbar color="primary" class="filter-toolbar">
-
-    <!-- IRI Week Filter -->
-    <mat-form-field appearance="fill" class="toolbar-filter">
-      <mat-label>IRI Week</mat-label>
-      <mat-select formControlName="iriWeek">
-        <mat-option *ngFor="let week of iriWeeks" [value]="week.iri_week">
-          {{ week.iri_week }}
-        </mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <!-- Territory Filter -->
-    <mat-form-field appearance="fill" class="toolbar-filter">
-      <mat-label>Territory</mat-label>
-      <mat-select formControlName="territory">
-        <mat-option *ngFor="let territory of territories" [value]="territory.territory_id">
-          {{ territory.territory_name }}
-        </mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <!-- Store Filter -->
-    <mat-form-field appearance="fill" class="toolbar-filter">
-      <mat-label>Store</mat-label>
-      <mat-select formControlName="store">
-        <mat-option *ngFor="let store of stores" [value]="store.store_name">
-          {{ store.store_name }}
-        </mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <!-- State Filter -->
-    <mat-form-field appearance="fill" class="toolbar-filter">
-      <mat-label>State</mat-label>
-      <mat-select formControlName="state">
-        <mat-option *ngFor="let state of states" [value]="state.state">
-          {{ state.state }}
-        </mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <!-- City Filter -->
-    <mat-form-field appearance="fill" class="toolbar-filter">
-      <mat-label>City</mat-label>
-      <mat-select formControlName="city">
-        <mat-option *ngFor="let city of cities" [value]="city.city">
-          {{ city.city }}
-        </mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <!-- Cluster Filter -->
-    <mat-form-field appearance="fill" class="toolbar-filter">
-      <mat-label>Cluster</mat-label>
-      <mat-select formControlName="cluster">
-        <mat-option *ngFor="let cluster of clusters" [value]="cluster.cluster">
-          {{ cluster.cluster }}
-        </mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <!-- Task Filter -->
-    <mat-form-field appearance="fill" class="toolbar-filter">
-      <mat-label>Task</mat-label>
-      <mat-select formControlName="task">
-        <mat-option *ngFor="let task of tasks" [value]="task.task_name">
-          {{ task.task_name }}
-        </mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <!-- FSR Hour Operator Filter -->
-    <mat-form-field appearance="fill" class="toolbar-filter" style="width: 150px">
-      <mat-label>FSR Hour Operator</mat-label>
-      <mat-select formControlName="fsrHourOperator">
-        <mat-option *ngFor="let operator of fsrHourOperators" [value]="operator">
-          {{ operator }}
-        </mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <!-- FSR Hour Filter -->
-    <mat-form-field appearance="fill" class="toolbar-filter" style="width: 100px">
-      <mat-label>FSR Hour</mat-label>
-      <input matInput type="number" formControlName="fsrHour" />
-    </mat-form-field>
-
-    <!-- Multi-select Employee Filter -->
-    <mat-form-field appearance="fill" class="toolbar-filter">
-      <mat-label>Employee</mat-label>
-      <mat-select formControlName="employee" multiple>
-        <mat-option *ngFor="let employee of employees" [value]="employee.id">
-          {{ employee.name }}
-        </mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <!-- Search Button -->
-    <button mat-raised-button color="primary" (click)="onSearch()">Search</button>
-
-    <!-- Reset Button -->
-    <button mat-raised-button color="warn" (click)="onReset()">Reset</button>
-
-  </mat-toolbar>
-</form>
-
-<style>
-  /* Flex layout to ensure everything is in one row */
-  .filter-toolbar {
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 10px;
-  }
-
-  /* Default width for the filters */
-  .toolbar-filter {
-    transition: all 0.3s ease;
-    width: 150px;
-  }
-
-  /* Expand on hover */
-  .toolbar-filter:hover {
-    width: 250px;
-  }
-
-  /* Ensure buttons do not shrink */
-  button {
-    flex-shrink: 0;
-  }
-</style>
+<mat-form-field appearance="fill" class="toolbar-filter">
+  <mat-label>Employee</mat-label>
+  
+  <!-- Input field for autocomplete -->
+  <input
+    type="text"
+    matInput
+    placeholder="Search Employee"
+    [formControl]="employeeControl"
+    [matAutocomplete]="auto"
+  />
+  
+  <!-- Chips to display selected employees -->
+  <mat-chip-list>
+    <mat-chip
+      *ngFor="let employee of selectedEmployees"
+      [selectable]="true"
+      [removable]="true"
+      (removed)="removeEmployee(employee)"
+    >
+      {{ employee.name }}
+      <mat-icon matChipRemove>cancel</mat-icon>
+    </mat-chip>
+  </mat-chip-list>
+  
+  <!-- Autocomplete dropdown -->
+  <mat-autocomplete
+    #auto="matAutocomplete"
+    [displayWith]="displayEmployee"
+    (optionSelected)="onEmployeeSelected($event.option.value)"
+  >
+    <mat-option *ngFor="let employee of filteredEmployees" [value]="employee">
+      {{ employee.name }}
+    </mat-option>
+  </mat-autocomplete>
+</mat-form-field>
