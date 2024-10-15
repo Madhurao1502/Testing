@@ -1,36 +1,42 @@
-<mat-form-field appearance="fill" class="toolbar-filter">
-  <mat-label>Employee</mat-label>
-  
-  <!-- Input field for autocomplete -->
-  <input
-    type="text"
-    matInput
-    placeholder="Search Employee"
-    [formControl]="employeeControl"
-    [matAutocomplete]="auto"
-  />
-  
-  <!-- Chips to display selected employees -->
-  <mat-chip-list>
-    <mat-chip
-      *ngFor="let employee of selectedEmployees"
-      [selectable]="true"
-      [removable]="true"
-      (removed)="removeEmployee(employee)"
-    >
-      {{ employee.name }}
-      <mat-icon matChipRemove>cancel</mat-icon>
-    </mat-chip>
-  </mat-chip-list>
-  
-  <!-- Autocomplete dropdown -->
-  <mat-autocomplete
-    #auto="matAutocomplete"
-    [displayWith]="displayEmployee"
-    (optionSelected)="onEmployeeSelected($event.option.value)"
-  >
-    <mat-option *ngFor="let employee of filteredEmployees" [value]="employee">
-      {{ employee.name }}
-    </mat-option>
-  </mat-autocomplete>
-</mat-form-field>
+  ngOnInit() {
+    // Listen for input changes to fetch employee suggestions
+    this.employeeControl.valueChanges
+      .pipe(
+        debounceTime(300), // Wait 300ms before making API request
+        tap(() => (this.isLoading = true)), // Show loading spinner
+        switchMap(value => this.employeeService.getEmployees(value)) // Fetch from API
+      )
+      .subscribe(
+        (employees) => {
+          this.filteredEmployees = employees;
+          this.isLoading = false;
+        },
+        () => {
+          this.filteredEmployees = [];
+          this.isLoading = false;
+        }
+      );
+  }
+
+  // Method to handle the display of employee names
+  displayEmployee(employee: any): string {
+    return employee && employee.name ? employee.name : '';
+  }
+
+  // When a user selects an employee, add it to the selectedEmployees array
+  onEmployeeSelected(employee: any) {
+    if (!this.selectedEmployees.includes(employee)) {
+      this.selectedEmployees.push(employee);
+    }
+    // Clear the input field
+    this.employeeControl.setValue('');
+  }
+
+  // Remove selected employee
+  removeEmployee(employee: any): void {
+    const index = this.selectedEmployees.indexOf(employee);
+    if (index >= 0) {
+      this.selectedEmployees.splice(index, 1);
+    }
+  }
+}
