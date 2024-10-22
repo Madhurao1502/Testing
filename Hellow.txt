@@ -1,53 +1,30 @@
-/* Container for the entire table to make it scrollable on the x-axis */
-.table-container {
-  overflow-x: auto;
-}
+try
+        {
+            var url = AppSettings.GetValue(AppSettings.DistanceTimeToCallUrl);
+            GeoDttRequestModel.Root ro = new(geoPlace_id, dPlace_id);
+            
+            var objAsJson = JsonConvert.SerializeObject(ro);
+            var content = new StringContent(objAsJson, Encoding.UTF8, "application/json");
 
-/* Table styling to ensure consistency */
-.main-table {
-  width: 1400px; /* You can adjust the fixed width based on the content */
-  table-layout: fixed; /* Ensures columns are evenly distributed */
-  border-collapse: collapse;
-}
+            _httpClient.DefaultRequestHeaders.Add("X-Goog-Api-Key", AppSettings.GetValue(AppSettings.APIKey));
+            _httpClient.DefaultRequestHeaders.Add("X-Goog-FieldMask", "routes.duration,routes.distanceMeters,routes.travelAdvisory.tollInfo,routes.legs.travelAdvisory.tollInfo");
 
-.main-table th, .main-table td {
-  padding: 10px;
-  border: 1px solid #ccc;
-  text-align: left;
-  white-space: nowrap; /* Prevent text from wrapping */
-}
+            var response = await _httpClient.PostAsync(url, content);
 
-.main-table th {
-  background-color: #f5f5f5;
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
+            if (!response.IsSuccessStatusCode)
+            {
+                return StatusCode((int)response.StatusCode, $"API error: {response.ReasonPhrase}");
+            }
 
-/* Sticky Panel Header */
-.mat-expansion-panel-header {
-  background-color: #e0e0e0;
-  border-bottom: 1px solid #ccc;
-}
-
-/* Scrollable container for the accordion content */
-.scrollable-container {
-  max-height: 600px; /* Adjust the height as needed */
-  overflow-y: auto;
-  border: 1px solid #ccc;
-  padding: 10px;
-}
-
-/* Scrollable content within each accordion panel */
-.scrollable-content {
-  overflow-x: auto; /* Enable horizontal scrolling within the panel */
-  overflow-y: auto;
-  max-height: 300px; /* Adjust as needed */
-}
-
-/* Ensures the entire table layout works consistently when resized */
-@media screen and (max-width: 1200px) {
-  .main-table {
-    width: auto;
-  }
-}
+            var result = await response.Content.ReadAsStringAsync();
+            return Ok(result);
+        }
+        catch (HttpRequestException ex)
+        {
+            return StatusCode(500, $"Request error: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"An error occurred: {ex.Message}");
+        }
+    }
