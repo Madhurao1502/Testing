@@ -1,82 +1,50 @@
-public static Root GetDDT(string _oPlaceid, string _dPlaceid)
+public static async Task<Root> GetDDTAsync(string _oPlaceid, string _dPlaceid)
 {
     var root = new Root();
+    using var httpClient = new HttpClient();
 
     try
     {
-        // URL from AppSettings
-        string url = string.Format(AppSettings.GetValue(AppSettings.DDTCalculUrl));
+        string url = AppSettings.GetValue(AppSettings.DDTCalculUrl);
 
-        // Build JSON payload
         var jsonData = new
         {
             oPlace_id = _oPlaceid,
             dPlace_id = _dPlaceid
         };
         
-        // Serialize the payload to JSON format
         var jsonPayload = JsonConvert.SerializeObject(jsonData);
-        byte[] data = Encoding.UTF8.GetBytes(jsonPayload);
-
-        // Initialize the request
-        var request = (HttpWebRequest)WebRequest.Create(url);
-        request.Method = "POST";
-        request.ContentType = "application/json"; // Set content type to JSON
-        request.ContentLength = data.Length;
+        var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
         // Set credentials using NetworkCredential
-        string domain = AppSettings.GetValue(AppSettings.Domain);
-        string username = AppSettings.GetValue(AppSettings.DomainUserName);
-        string password = AppSettings.GetValue(AppSettings.DomainPassword);
+        var domain = AppSettings.GetValue(AppSettings.Domain);
+        var username = AppSettings.GetValue(AppSettings.DomainUserName);
+        var password = AppSettings.GetValue(AppSettings.DomainPassword);
+        var credentials = new NetworkCredential(username, password, domain);
 
-        // Use the credentials
-        request.Credentials = new NetworkCredential(username, password, domain);
+        httpClient.DefaultRequestHeaders.Authorization = 
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.ASCII.GetBytes($"{username}:{password}")));
 
-        // PreAuthenticate and make sure default credentials are not used
-        request.PreAuthenticate = true;
-        request.UseDefaultCredentials = false;
+        var response = await httpClient.PostAsync(url, content);
+        response.EnsureSuccessStatusCode();
 
-        // Write data to the request stream
-        using (var stream = request.GetRequestStream())
+        var result = await response.Content.ReadAsStringAsync();
+        if (!string.IsNullOrWhiteSpace(result))
         {
-            stream.Write(data, 0, data.Length);
+            root = JsonConvert.DeserializeObject<Root>(result);
         }
-
-        // Get and process the response
-        using (var response = (HttpWebResponse)request.GetResponse())
+        else
         {
-            if (response.StatusCode != HttpStatusCode.OK)
-            {
-                throw new Exception($"Server returned error code: {response.StatusCode}");
-            }
-
-            using (var streamReader = new StreamReader(response.GetResponseStream()))
-            {
-                string result = streamReader.ReadToEnd();
-
-                // Check if the response contains data
-                if (!string.IsNullOrWhiteSpace(result))
-                {
-                    root = JsonConvert.DeserializeObject<Root>(result);
-                }
-                else
-                {
-                    throw new Exception("Received an empty response from the server.");
-                }
-            }
+            throw new Exception("Received an empty response from the server.");
         }
     }
-    catch (WebException webEx)
+    catch (HttpRequestException ex)
     {
-        if (webEx.Response is HttpWebResponse errorResponse)
-        {
-            throw new Exception($"HTTP Error: {errorResponse.StatusCode} - {errorResponse.StatusDescription}", webEx);
-        }
-        throw new Exception("WebException occurred. Check network connection or URL.", webEx);
+        throw new Exception($"HTTP Request error: {ex.Message}", ex);
     }
-    catch (JsonException jsonEx)
+    catch (JsonException ex)
     {
-        throw new Exception("Error parsing the JSON response.", jsonEx);
+        throw new Exception("Error parsing the JSON response.", ex);
     }
     catch (Exception ex)
     {
