@@ -1,25 +1,42 @@
 public static Root GetDDT(string _oPlaceid, string _dPlaceid)
 {
     var root = new Root();
-    
+
     try
     {
+        // URL from AppSettings
         string url = string.Format(AppSettings.GetValue(AppSettings.DDTCalculUrl));
+
+        // Build JSON payload
+        var jsonData = new
+        {
+            oPlace_id = _oPlaceid,
+            dPlace_id = _dPlaceid
+        };
         
-        // Build POST data with proper encoding
-        var postData = $"oPlace_id={Uri.EscapeDataString(_oPlaceid)}&dPlace_id={Uri.EscapeDataString(_dPlaceid)}";
-        byte[] data = Encoding.ASCII.GetBytes(postData);
+        // Serialize the payload to JSON format
+        var jsonPayload = JsonConvert.SerializeObject(jsonData);
+        byte[] data = Encoding.UTF8.GetBytes(jsonPayload);
 
         // Initialize the request
         var request = (HttpWebRequest)WebRequest.Create(url);
         request.Method = "POST";
-        request.ContentType = "application/x-www-form-urlencoded";
+        request.ContentType = "application/json"; // Set content type to JSON
         request.ContentLength = data.Length;
 
-        // Enable Windows Authentication (use the current user's Windows credentials)
-        request.UseDefaultCredentials = true;
+        // Set credentials using NetworkCredential
+        string domain = AppSettings.GetValue(AppSettings.Domain);
+        string username = AppSettings.GetValue(AppSettings.DomainUserName);
+        string password = AppSettings.GetValue(AppSettings.DomainPassword);
 
-        // Write data to request stream
+        // Use the credentials
+        request.Credentials = new NetworkCredential(username, password, domain);
+
+        // PreAuthenticate and make sure default credentials are not used
+        request.PreAuthenticate = true;
+        request.UseDefaultCredentials = false;
+
+        // Write data to the request stream
         using (var stream = request.GetRequestStream())
         {
             stream.Write(data, 0, data.Length);
@@ -32,11 +49,11 @@ public static Root GetDDT(string _oPlaceid, string _dPlaceid)
             {
                 throw new Exception($"Server returned error code: {response.StatusCode}");
             }
-            
+
             using (var streamReader = new StreamReader(response.GetResponseStream()))
             {
                 string result = streamReader.ReadToEnd();
-                
+
                 // Check if the response contains data
                 if (!string.IsNullOrWhiteSpace(result))
                 {
@@ -51,7 +68,6 @@ public static Root GetDDT(string _oPlaceid, string _dPlaceid)
     }
     catch (WebException webEx)
     {
-        // Handle Web-specific errors, such as connection timeouts or server not found
         if (webEx.Response is HttpWebResponse errorResponse)
         {
             throw new Exception($"HTTP Error: {errorResponse.StatusCode} - {errorResponse.StatusDescription}", webEx);
@@ -60,12 +76,10 @@ public static Root GetDDT(string _oPlaceid, string _dPlaceid)
     }
     catch (JsonException jsonEx)
     {
-        // Handle JSON parsing errors
         throw new Exception("Error parsing the JSON response.", jsonEx);
     }
     catch (Exception ex)
     {
-        // Log the error with more detail for troubleshooting
         throw new Exception($"An error occurred: {ex.Message}", ex);
     }
 
