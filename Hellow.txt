@@ -1,30 +1,48 @@
-try
-        {
-            var url = AppSettings.GetValue(AppSettings.DistanceTimeToCallUrl);
-            GeoDttRequestModel.Root ro = new(geoPlace_id, dPlace_id);
-            
-            var objAsJson = JsonConvert.SerializeObject(ro);
-            var content = new StringContent(objAsJson, Encoding.UTF8, "application/json");
+/* Container styling */
+.table-container {
+  display: block;
+  width: 100%;
+  max-width: 1200px; /* Fixed width for the main container */
+  overflow-x: auto; /* Enables horizontal scroll on smaller screens */
+  margin: 0 auto; /* Centers the container */
+}
 
-            _httpClient.DefaultRequestHeaders.Add("X-Goog-Api-Key", AppSettings.GetValue(AppSettings.APIKey));
-            _httpClient.DefaultRequestHeaders.Add("X-Goog-FieldMask", "routes.duration,routes.distanceMeters,routes.travelAdvisory.tollInfo,routes.legs.travelAdvisory.tollInfo");
+.expand-collapse-controls {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px;
+}
 
-            var response = await _httpClient.PostAsync(url, content);
+/* Header row styling */
+.header-row {
+  display: grid;
+  grid-template-columns: repeat(14, 150px); /* Adjust column widths */
+  background-color: #f1f1f1;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
 
-            if (!response.IsSuccessStatusCode)
-            {
-                return StatusCode((int)response.StatusCode, $"API error: {response.ReasonPhrase}");
-            }
+/* Row styling */
+.row {
+  display: grid;
+  grid-template-columns: repeat(14, 150px); /* Same widths as header */
+  align-items: center;
+  border-bottom: 1px solid #e0e0e0;
+}
 
-            var result = await response.Content.ReadAsStringAsync();
-            return Ok(result);
-        }
-        catch (HttpRequestException ex)
-        {
-            return StatusCode(500, $"Request error: {ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, $"An error occurred: {ex.Message}");
-        }
-    }
+/* Cell styling */
+.cell {
+  padding: 8px;
+  text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Scrollable content styling */
+.content-rows {
+  overflow-y: auto;
+  max-height: 400px; /* Adjust as needed */
+}
