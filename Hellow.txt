@@ -1,26 +1,35 @@
-<div class="cell">
-      Total Cost
-      <i class="fa-solid fa-filter filter-icon" (click)="toggleDropdown('totl_cost', $event)"></i>
-    </div>
-    <div class="cell">
-      Total Cost 1
-      <i class="fa-solid fa-filter filter-icon" (click)="toggleDropdown('total_cost1', $event)"></i>
-    </div>
-    <div class="cell">
-      Total Cost 2
-      <i class="fa-solid fa-filter filter-icon" (click)="toggleDropdown('total_cost2', $event)"></i>
-    </div>
-    <div class="cell">
-      Total Cost 3
-      <i class="fa-solid fa-filter filter-icon" (click)="toggleDropdown('total_cost3', $event)"></i>
-    </div>
-  </div>
+I have consistently maintained high-quality standards across all my work, ensuring minimal defects and adhering to thorough testing and validation processes. My dedication to delivering exceptional results is evident in the successful completion of the following projects:
 
-  <!-- Filter Dropdowns -->
-  <div class="filter-dropdown" *ngIf="activeFilterColumn === 'totl_cost'" style="position: absolute;">
-    <form>
-      <label>Min: <input type="number" [(ngModel)]="filters.totl_cost.min"></label>
-      <label>Max: <input type="number" [(ngModel)]="filters.totl_cost.max"></label>
-      <button (click)="applyFilter('totl_cost')">Apply</button>
-    </form>
-  </div>
+WebAPI Project for Employee and Country Details
+
+Independently designed and implemented a versatile WebAPI project to fetch employee and country details.
+This API acts as a centralized service for multiple projects, streamlining data retrieval processes and improving scalability.
+I managed the complete development lifecycle, from requirement analysis to deployment, ensuring optimized performance with minimal response times.
+AQ Project - UI Enhancements and Performance Optimization
+
+Played a significant role in enhancing the user experience by creating a detailed field view and optimizing the location screen.
+Successfully merged category and task data to deliver a cohesive user interface.
+Focused on optimizing scrolling performance to enable smoother navigation, faster data loading, and reduced lag.
+Independently managed this task, showcasing technical expertise and self-sufficiency.
+Dimension Management Project - Advanced UI Features
+
+Introduced advanced UI functionalities to enhance usability and efficiency, including:
+Drag-and-Drop Functionality: Simplified file uploads for users.
+Excel-like Filtering: Integrated advanced filtering capabilities within the UI table for streamlined data analysis.
+Delivered these enhancements with a strong focus on performance and minimal supervision.
+Task Setup Project Rewriting - Migration from jQuery to Angular
+
+Led the migration of the Task Setup project from jQuery to Angular, modernizing the application and improving performance.
+Designed and implemented new screens (dashboard, general, accounting, schedule, sample) with a more user-friendly interface.
+Unified multiple screens into a streamlined view to enhance navigation and usability.
+Conducted comprehensive research on legacy jQuery code, rewriting complex logic into efficient Angular solutions.
+Delivered this project ahead of schedule, demonstrating strong ownership and technical capability.
+Collection Report Project - GPS Integration and Interactive Data Table (In Progress)
+
+Currently leading the development of advanced interactive features in the Collection Report project, including:
+Dynamic Column Management: Logic for dynamically managing column visibility.
+Hierarchical Data Handling: Efficient mechanisms for displaying parent and child rows for large datasets.
+Sorting, Filtering, and Pagination: Reusable functions for seamless data management.
+Expand/Collapse All Feature and Data Export: Enhancing usability with intuitive toggling and data export options.
+Focusing on performance optimization and scalability, with continued ownership of the development process.
+My ability to deliver high-quality outcomes across diverse and technically complex projects highlights my commitment to excellence and attention to detail.
