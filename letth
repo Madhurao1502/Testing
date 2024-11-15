@@ -1,109 +1,26 @@
-<div class="controls-row">
-  <!-- Expand/Collapse Buttons -->
-  <button (click)="expandAll()" class="btn">Expand All</button>
-  <button (click)="collapseAll()" class="btn">Collapse All</button>
+Behavioral Competencies
+In addition to my technical contributions, I have consistently demonstrated strong behavioral competencies, embodying key values that align with our organizational culture. Below are examples of how I’ve applied these principles:
 
-  <!-- Column Visibility Checkboxes -->
-  <div class="column-visibility-controls">
-    <div *ngFor="let column of columnVisibility; let i = index; trackBy: trackByIndex" class="checkbox-wrapper">
-      <input type="checkbox" [checked]="column" (change)="toggleColumn(i)">
-      <span class="tooltip">{{ getColumnName(i) || 'Unnamed Column' }}</span>
-    </div>
-  </div>
+1. Stay Curious
+I actively pursue opportunities to learn and grow, whether by exploring new technologies, optimizing legacy code, or researching best practices for performance improvements. For instance, during the migration of the Task Setup project from jQuery to Angular, I took the initiative to study and simplify complex legacy code, leading to a more efficient and responsive application. My curiosity drives me to continually expand my skill set and apply innovative solutions to challenges.
 
-  <!-- Rows Per Page Selector -->
-  <select [(ngModel)]="itemsPerPage" (change)="updatePagination()">
-    <option *ngFor="let option of rowsPerPageOptions" [value]="option">{{ option }} rows per page</option>
-  </select>
+2. Seek Clarity
+I prioritize clear communication and a strong understanding of project requirements before diving into development. By asking the right questions and clarifying ambiguous requirements upfront, I have been able to deliver precise solutions that meet client expectations. In projects like the Collection Report, I ensured all feature requirements were thoroughly understood, leading to a well-designed and user-friendly data table implementation.
 
-  <!-- Pagination Controls -->
-  <button (click)="goToPage(currentPage - 1)" [disabled]="currentPage === 1">Previous</button>
-  <span>Page {{ currentPage }} of {{ totalPages }}</span>
-  <button (click)="goToPage(currentPage + 1)" [disabled]="currentPage === totalPages">Next</button>
-</div>
+3. Own the Outcome
+I take full accountability for my work and its results. Whether it’s delivering a critical feature or resolving an urgent issue, I am committed to seeing the task through to completion. For example, in the WebAPI project, I owned the entire process—from design to deployment—ensuring it was optimized and ready for integration with other applications. I strive to deliver high-quality results consistently, with minimal need for external supervision.
 
-<div class="table-container">
-  <table class="full-width-table">
-    <thead>
-      <tr>
-        <th [attr.colspan]="getPlaceholderColspan()"></th>
-        <th colspan="4">Week 1</th>
-        <th colspan="4">Week 2</th>
-      </tr>
-      <tr>
-        <th [attr.colspan]="getPlaceholderColspan()"></th>
-        <th colspan="2">Collector</th>
-        <th colspan="2">Store</th>
-        <th colspan="2">Collector</th>
-        <th colspan="2">Store</th>
-      </tr>
-      <tr>
-        <th *ngIf="columnVisibility[0]" (click)="sortData('Region')">Region</th>
-        <th *ngIf="columnVisibility[1]" (click)="sortData('Territory')">Territory</th>
-        <th *ngIf="columnVisibility[2]" (click)="sortData('StoreNumber')">Store Number</th>
-        <th *ngIf="columnVisibility[3]" (click)="sortData('StoreName')">Store Name</th>
-        <th *ngIf="columnVisibility[4]" (click)="sortData('Address')">Address</th>
-        <th *ngIf="columnVisibility[5]" (click)="sortData('City')">City</th>
-        <th *ngIf="columnVisibility[6]" (click)="sortData('State')">State</th>
-        <th *ngIf="columnVisibility[7]" (click)="sortData('TaskName')">Task Name</th>
-        <th *ngIf="columnVisibility[8]" (click)="sortData('Name')">FSR</th>
-        <th *ngIf="columnVisibility[9]" (click)="sortData('miles')">Guaranteed Miles</th>
+4. Center on the Client
+I consistently focus on the end-user experience, ensuring that the solutions I develop are user-friendly, efficient, and aligned with client needs. In the Dimension Management project, I introduced features like Excel-like filtering and drag-and-drop uploads to enhance usability and simplify data handling for the end-users. My goal is always to create a positive impact on the client’s experience, tailoring solutions to meet their specific needs.
 
-        <!-- Week Data Columns with Filters -->
-        <th (click)="sortData('w1c_ov_Doller')">$ Overage
-          <i class="fa fa-filter filter-icon" (click)="toggleFilterDropdown('w1c_ov_Doller')"></i>
-          <div *ngIf="filterDropdowns.w1c_ov_Doller" class="filter-dropdown">
-            <input type="number" placeholder="Min" [(ngModel)]="filters.w1c_ov_Doller_min" (ngModelChange)="applyFilters()" />
-            <input type="number" placeholder="Max" [(ngModel)]="filters.w1c_ov_Doller_max" (ngModelChange)="applyFilters()" />
-            <button (click)="clearFilter('w1c_ov_Doller')">Clear</button>
-          </div>
-        </th>
-        <th (click)="sortData('w1c_ov_percent')">% Overage</th>
-        <th (click)="sortData('w1s_ov_Doller')">$ Overage</th>
-        <th  (click)="sortData('w1s_ov_percent')">% Overage</th>
-        <th (click)="sortData('w2c_ov_Doller')">$ Overage</th>
-        <th (click)="sortData('w2c_ov_percent')">% Overage</th>
-        <th  (click)="sortData('w2s_ov_Doller')">$ Overage</th>
-        <th (click)="sortData('w2s_ov_percent')">% Overage</th>
-      </tr>
-  
-    </thead>
-    <tbody>
-      <ng-container *ngFor="let item of getDisplayedData(); let i = index">
-        <tr *ngIf="item.TaskName === 'ALL'" (click)="toggleRow(item.StoreNumber)" [class.parent-row]="true">
-          <td *ngIf="columnVisibility[0]">{{ item.Region }}</td>
-          <td *ngIf="columnVisibility[1]">{{ item.Territory }}</td>
-          <td *ngIf="columnVisibility[2]">{{ item.StoreNumber }}</td>
-          <td *ngIf="columnVisibility[3]">{{ item.StoreName }}</td>
-          <td *ngIf="columnVisibility[4]">{{ item.Address }}</td>
-          <td *ngIf="columnVisibility[5]">{{ item.City }}</td>
-          <td *ngIf="columnVisibility[6]">{{ item.State }}</td>
-          <td *ngIf="columnVisibility[7]">{{ item.TaskName }}</td>
-          <td *ngIf="columnVisibility[8]">{{ item.Name }}</td>
-          <td *ngIf="columnVisibility[9]">{{ item.miles }}</td>
-          <td>{{ item.w1c_ov_Doller }}</td>
-          <td>{{ item.w1c_ov_percent }}</td>
-          <td>{{ item.w1s_ov_Doller }}</td>
-          <td>{{ item.w1s_ov_percent }}</td>
-          <td>{{ item.w2c_ov_Doller }}</td>
-          <td>{{ item.w2c_ov_percent }}</td>
-          <td>{{ item.w2s_ov_Doller }}</td>
-          <td>{{ item.w2s_ov_percent }}
-  
-             <!-- Expanded Rows for Child Tasks (TaskName !== 'ALL' and same StoreNumber) -->
-      <tr *ngIf="item.TaskName !== 'ALL' && expandedRows[item.StoreNumber]" class="expanded-row">
-        <ng-container *ngFor="let isVisible of columnVisibility.slice(0, 7); let i = index">
-          <td *ngIf="isVisible"></td>
-        </ng-container>
-        <!-- Task Name and FSR columns are always shown -->
-        <td *ngIf="columnVisibility[7]">{{ item.TaskName }}</td>
-        <td *ngIf="columnVisibility[8]">{{ item.Name }}</td>
-        <!-- Dynamic colspan for remaining columns based on visibility after FSR -->
-        <td [attr.colspan]="calculateChildColspan()"></td>
-      </tr>
+5. Be a Challenger
+I am not afraid to challenge the status quo when I see opportunities for improvement. For instance, during the rewrite of the Task Setup project, I questioned existing workflows and proposed merging separate screens to streamline navigation and enhance the user experience. By challenging outdated practices and advocating for more efficient solutions, I have been able to implement impactful changes that benefit both the team and the users.
 
-        </tr>
-      </ng-container>
-    </tbody>
-  </table>
-</div>
+6. Champion Inclusivity
+I value diverse perspectives and strive to create an inclusive environment where every team member feels heard and respected. I actively engage in collaborative discussions, listen to different viewpoints, and incorporate feedback into my work. By fostering open communication and inclusivity, I have contributed to a positive team dynamic, enhancing our collective problem-solving capabilities.
+
+7. Commit to Each Other
+I demonstrate a strong commitment to my team by consistently stepping up to support others, sharing knowledge, and providing assistance when needed. Whether it’s helping troubleshoot a complex issue or reviewing a colleague’s code, I prioritize team success over individual recognition. My proactive support has helped accelerate project progress and foster a collaborative and supportive work environment.
+
+Conclusion
+My technical skills, combined with these core behavioral competencies, have enabled me to consistently deliver high-quality work while contributing positively to the team and organizational culture. I believe my approach aligns with our values, demonstrating a commitment to excellence, continuous improvement, and collaboration.
