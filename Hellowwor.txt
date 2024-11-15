@@ -1,55 +1,523 @@
-public static async Task<Root> GetDDTAsync(string _oPlaceid, string _dPlaceid)
-{
-    var root = new Root();
-    using var httpClient = new HttpClient();
+<div class="controls-row">
+  <!-- Expand/Collapse Toggle Button -->
+  <button (click)="toggleExpandCollapse()" class="btn">{{ allExpanded ? 'Collapse All' : 'Expand All' }}</button>
 
-    try
-    {
-        string url = AppSettings.GetValue(AppSettings.DDTCalculUrl);
+  <!-- Column Visibility Checkboxes -->
+  <div class="column-visibility-controls">
+    <div *ngFor="let column of columnVisibility; let i = index; trackBy: trackByIndex" class="checkbox-wrapper">
+      <input type="checkbox" [checked]="column" (change)="toggleColumn(i)">
+      <!-- <span class="tooltip">{{ getColumnName(i) || 'Unnamed Column' }}</span> -->
+    </div>
+  </div>
 
-        var jsonData = new
-        {
-            oPlace_id = _oPlaceid,
-            dPlace_id = _dPlaceid
-        };
-        
-        var jsonPayload = JsonConvert.SerializeObject(jsonData);
-        var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+  <!-- Pagination Controls -->
+  <div class="pagination-controls">
+    <select [(ngModel)]="itemsPerPage" (change)="updatePagination()">
+      <option *ngFor="let option of rowsPerPageOptions" [value]="option">{{ option }} rows per page</option>
+    </select>
+    <button (click)="goToPage(currentPage - 1)" [disabled]="currentPage === 1">Previous</button>
+    <span>Page {{ currentPage }} of {{ totalPages }}</span>
+    <button (click)="goToPage(currentPage + 1)" [disabled]="currentPage === totalPages">Next</button>
+  </div>
+</div>
 
-        // Set credentials using NetworkCredential
-        var domain = AppSettings.GetValue(AppSettings.Domain);
-        var username = AppSettings.GetValue(AppSettings.DomainUserName);
-        var password = AppSettings.GetValue(AppSettings.DomainPassword);
-        var credentials = new NetworkCredential(username, password, domain);
+<div class="table-container">
+  <table class="full-width-table">
+    <thead>
+      <tr>
+        <th [attr.colspan]="getPlaceholderColspan()"></th>
+        <th colspan="4">Week 1</th>
+        <th colspan="4">Week 2</th>
+      </tr>
+      <tr>
+        <th [attr.colspan]="getPlaceholderColspan()"></th>
+        <th colspan="2">Collector</th>
+        <th colspan="2">Store</th>
+        <th colspan="2">Collector</th>
+        <th colspan="2">Store</th>
+      </tr>
+      <tr>
+        <th *ngIf="columnVisibility[0]" (click)="sortData('Region')">Region</th>
+        <th *ngIf="columnVisibility[1]" (click)="sortData('Territory')">Territory</th>
+        <th *ngIf="columnVisibility[2]" (click)="sortData('StoreNumber')">Store Number</th>
+        <th *ngIf="columnVisibility[3]" (click)="sortData('StoreName')">Store Name</th>
+        <th *ngIf="columnVisibility[4]" (click)="sortData('Address')">Address</th>
+        <th *ngIf="columnVisibility[5]" (click)="sortData('City')">City</th>
+        <th *ngIf="columnVisibility[6]" (click)="sortData('State')">State</th>
+        <th *ngIf="columnVisibility[7]" (click)="sortData('TaskName')">Task Name</th>
+        <th *ngIf="columnVisibility[8]" (click)="sortData('Name')">FSR</th>
+        <th *ngIf="columnVisibility[9]" (click)="sortData('miles')">Guaranteed Miles</th>
+        <th >$ Overage</th>
+        <th >% Overage</th>
+        <th >$ Overage</th>
+        <th  (click)="sortData('w1s_ov_percent')">% Overage</th>
+        <th (click)="sortData('w2c_ov_Doller')">$ Overage</th>
+        <th (click)="sortData('w2c_ov_percent')">% Overage</th>
+        <th  (click)="sortData('w2s_ov_Doller')">$ Overage</th>
+        <th (click)="sortData('w2s_ov_percent')">% Overage</th>
+      </tr>
+    </thead>
+    <tbody>
+      <ng-container *ngFor="let item of getDisplayedData()">
+        <tr *ngIf="item.TaskName === 'ALL'" (click)="toggleRow(item.StoreNumber)" class="parent-row">
+          <td *ngIf="columnVisibility[0]">{{ item.Region }}</td>
+          <td *ngIf="columnVisibility[1]">{{ item.Territory }}</td>
+          <td *ngIf="columnVisibility[2]">{{ item.StoreNumber }}</td>
+          <td *ngIf="columnVisibility[3]">{{ item.StoreName }}</td>
+          <td *ngIf="columnVisibility[4]">{{ item.Address }}</td>
+          <td *ngIf="columnVisibility[5]">{{ item.City }}</td>
+          <td *ngIf="columnVisibility[6]">{{ item.State }}</td>
+          <td *ngIf="columnVisibility[7]">{{ item.TaskName }}</td>
+          <td *ngIf="columnVisibility[8]">{{ item.Name }}</td>
+          <td *ngIf="columnVisibility[9]">{{ item.miles }}</td>
+        </tr>
+        <tr *ngIf="item.TaskName !== 'ALL' && expandedRows[item.StoreNumber]" class="expanded-row">
+          <tr *ngIf="item.TaskName !== 'ALL' && expandedRows[item.StoreNumber]" class="expanded-row">
+            <ng-container *ngFor="let isVisible of columnVisibility.slice(0, 7); let i = index">
+              <td *ngIf="isVisible"></td>
+            </ng-container>
+            <!-- Task Name and FSR columns are always shown -->
+            <td *ngIf="columnVisibility[7]">{{ item.TaskName }}</td>
+            <td *ngIf="columnVisibility[8]">{{ item.Name }}</td>
+            <!-- Dynamic colspan for remaining columns based on visibility after FSR -->
+            <td [attr.colspan]="calculateChildColspan()"></td>
+          
+        </tr>
+      </ng-container>
+    </tbody>
+  </table>
+</div>
 
-        httpClient.DefaultRequestHeaders.Authorization = 
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.ASCII.GetBytes($"{username}:{password}")));
 
-        var response = await httpClient.PostAsync(url, content);
-        response.EnsureSuccessStatusCode();
 
-        var result = await response.Content.ReadAsStringAsync();
-        if (!string.IsNullOrWhiteSpace(result))
-        {
-            root = JsonConvert.DeserializeObject<Root>(result);
-        }
-        else
-        {
-            throw new Exception("Received an empty response from the server.");
-        }
+import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterOutlet } from '@angular/router';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, FormsModule, Validators } from '@angular/forms';   
+import { MatTableDataSource, MatTableModule } from '@angular/material/table';
+import { ReactiveFormsModule } from '@angular/forms';
+import { DuedateComponent } from "./duedate/duedate.component";
+import { SelectionModel } from '@angular/cdk/collections';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule, MAT_DATE_LOCALE } from '@angular/material/core';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+
+import { MatIconModule } from '@angular/material/icon';
+import { PageEvent } from '@angular/material/paginator';
+import { MatPaginatorModule } from '@angular/material/paginator';
+interface Week {
+  mothnYear: string;
+  StartWeek: number;
+  StartDate: string;
+  endDate: string;
+}
+
+interface Sample {
+  SampleName: string;
+  description: string;
+}
+
+interface Rotation {
+  RotationName: string;
+  SampleName: string;
+  seqNumver: number;
+}
+
+interface DataItem {
+  Week: number;
+  Region: string;
+  Territory: string;
+  StoreNumber: string;
+  StoreName: string;
+  Address: string;
+  City: string;
+  State: string;
+  TaskName: string;
+  Name: string;
+  miles: string;
+  w1c_ov: string;
+  w1s_ov: string;
+  w2c_ov: string;
+  w2s_ov: string;
+}
+
+interface GroupedData {
+  header: DataItem;
+  subItems: DataItem[];
+  expanded: boolean;
+}
+
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  imports: [MatPaginatorModule,MatAutocompleteModule,CommonModule,MatIconModule,MatNativeDateModule,MatDatepickerModule, RouterOutlet, MatFormFieldModule, MatInputModule, MatSelectModule, MatTabsModule, MatExpansionModule, MatCheckboxModule, FormsModule, MatTableModule, ReactiveFormsModule, DuedateComponent],
+  templateUrl: './app.component.html',
+  styleUrl: './app.component.css'
+})
+
+
+
+export class  AppComponent implements OnInit {
+   data  = [
+  {
+      "Week": 2356,
+      "Region": "E",
+      "Territory": "53",
+      "StoreNumber": "1527",
+      "StoreName": "New Age Store",
+      "Address": "124 Market St",
+      "City": "Sample Town",
+      "State": "ST",
+      "TaskName": "ALL",
+      "Name": "Jane Smith",
+      "miles": "20 miles",
+      "w1c_ov_percent": "92%",
+      "w1c_ov_Doller": "1,300",
+      "w1s_ov_percent": "91%",
+      "w1s_ov_Doller": "1,200",
+      "w2c_ov_percent": "94%",
+      "w2c_ov_Doller": "1,275",
+      "w2s_ov_percent": "93%",
+      "w2s_ov_Doller": "1,250"
+  },{
+    "Week": 2356,
+    "Region": "E",
+    "Territory": "53",
+    "StoreNumber": "1527",
+    "StoreName": "New Age Store",
+    "Address": "124 Market St",
+    "City": "Sample Town",
+    "State": "ST",
+    "TaskName": "Something new",
+    "Name": "Jane Smith",
+    "miles": "20 miles",
+    "w1c_ov_percent": "92%",
+    "w1c_ov_Doller": "1,300",
+    "w1s_ov_percent": "91%",
+    "w1s_ov_Doller": "1,200",
+    "w2c_ov_percent": "94%",
+    "w2c_ov_Doller": "1,275",
+    "w2s_ov_percent": "93%",
+    "w2s_ov_Doller": "1,250"
+},{
+  "Week": 2356,
+  "Region": "W",
+  "Territory": "21",
+  "StoreNumber": "1568",
+  "StoreName": "Mega Mart",
+  "Address": "742 Evergreen Ave",
+  "City": "Example City",
+  "State": "WX",
+  "TaskName": "ALL",
+  "Name": "Bob Lee",
+  "miles": "8 miles",
+  "w1c_ov_percent": "88%",
+  "w1c_ov_Doller": "1,150",
+  "w1s_ov_percent": "90%",
+  "w1s_ov_Doller": "1,175",
+  "w2c_ov_percent": "89%",
+  "w2c_ov_Doller": "1,180",
+  "w2s_ov_percent": "91%",
+  "w2s_ov_Doller": "1,200"
+},
+  {
+      "Week": 2356,
+      "Region": "W",
+      "Territory": "21",
+      "StoreNumber": "1568",
+      "StoreName": "Mega Mart",
+      "Address": "742 Evergreen Ave",
+      "City": "Example City",
+      "State": "WX",
+      "TaskName": "CLEAN",
+      "Name": "Bob Lee",
+      "miles": "8 miles",
+      "w1c_ov_percent": "88%",
+      "w1c_ov_Doller": "1,150",
+      "w1s_ov_percent": "90%",
+      "w1s_ov_Doller": "1,175",
+      "w2c_ov_percent": "89%",
+      "w2c_ov_Doller": "1,180",
+      "w2s_ov_percent": "91%",
+      "w2s_ov_Doller": "1,200"
+  },
+  {
+      "Week": 2356,
+      "Region": "N",
+      "Territory": "31",
+      "StoreNumber": "1122",
+      "StoreName": "Value Village",
+      "Address": "501 Oak St",
+      "City": "Sample Ville",
+      "State": "NT",
+      "TaskName": "ALL",
+      "Name": "Alice Cooper",
+      "miles": "12 miles",
+      "w1c_ov_percent": "96%",
+      "w1c_ov_Doller": "1,400",
+      "w1s_ov_percent": "95%",
+      "w1s_ov_Doller": "1,380",
+      "w2c_ov_percent": "97%",
+      "w2c_ov_Doller": "1,425",
+      "w2s_ov_percent": "96%",
+      "w2s_ov_Doller": "1,400"
+  },
+  {
+      "Week": 2356,
+      "Region": "S",
+      "Territory": "18",
+      "StoreNumber": "1678",
+      "StoreName": "Budget Center",
+      "Address": "902 Main St",
+      "City": "Test Town",
+      "State": "ST",
+      "TaskName": "STOCK",
+      "Name": "Sam Brown",
+      "miles": "10 miles",
+      "w1c_ov_percent": "91%",
+      "w1c_ov_Doller": "1,220",
+      "w1s_ov_percent": "89%",
+      "w1s_ov_Doller": "1,200",
+      "w2c_ov_percent": "93%",
+      "w2c_ov_Doller": "1,240",
+      "w2s_ov_percent": "90%",
+      "w2s_ov_Doller": "1,215"
+  },
+  {
+      "Week": 2356,
+      "Region": "C",
+      "Territory": "44",
+      "StoreNumber": "1480",
+      "StoreName": "Discount Hub",
+      "Address": "678 Maple Ave",
+      "City": "Test City",
+      "State": "CT",
+      "TaskName": "CLEAN",
+      "Name": "George West",
+      "miles": "25 miles",
+      "w1c_ov_percent": "93%",
+      "w1c_ov_Doller": "1,200",
+      "w1s_ov_percent": "94%",
+      "w1s_ov_Doller": "1,210",
+      "w2c_ov_percent": "92%",
+      "w2c_ov_Doller": "1,190",
+      "w2s_ov_percent": "93%",
+      "w2s_ov_Doller": "1,205"
+  },
+  {
+      "Week": 2356,
+      "Region": "E",
+      "Territory": "19",
+      "StoreNumber": "1123",
+      "StoreName": "The Corner Store",
+      "Address": "230 7th St",
+      "City": "Sample City",
+      "State": "ST",
+      "TaskName": "STOCK",
+      "Name": "Emma Lane",
+      "miles": "14 miles",
+      "w1c_ov_percent": "89%",
+      "w1c_ov_Doller": "1,100",
+      "w1s_ov_percent": "90%",
+      "w1s_ov_Doller": "1,125",
+      "w2c_ov_percent": "88%",
+      "w2c_ov_Doller": "1,095",
+      "w2s_ov_percent": "89%",
+      "w2s_ov_Doller": "1,115"
+  },
+  {
+      "Week": 2356,
+      "Region": "S",
+      "Territory": "40",
+      "StoreNumber": "1402",
+      "StoreName": "Fresh Market",
+      "Address": "456 5th Ave",
+      "City": "Demo Town",
+      "State": "SM",
+      "TaskName": "ALL",
+      "Name": "Tom Green",
+      "miles": "18 miles",
+      "w1c_ov_percent": "92%",
+      "w1c_ov_Doller": "1,270",
+      "w1s_ov_percent": "91%",
+      "w1s_ov_Doller": "1,250",
+      "w2c_ov_percent": "94%",
+      "w2c_ov_Doller": "1,280",
+      "w2s_ov_percent": "92%",
+      "w2s_ov_Doller": "1,265"
+  },
+  {
+      "Week": 2356,
+      "Region": "W",
+      "Territory": "33",
+      "StoreNumber": "1220",
+      "StoreName": "Supply Chain",
+      "Address": "908 Sunset Blvd",
+      "City": "Sample Place",
+      "State": "WP",
+      "TaskName": "CLEAN",
+      "Name": "Sarah Bright",
+      "miles": "22 miles",
+      "w1c_ov_percent": "89%",
+      "w1c_ov_Doller": "1,150",
+      "w1s_ov_percent": "88%",
+      "w1s_ov_Doller": "1,140",
+      "w2c_ov_percent": "87%",
+      "w2c_ov_Doller": "1,130",
+      "w2s_ov_percent": "88%",
+      "w2s_ov_Doller": "1,135"
+  },
+  {
+      "Week": 2356,
+      "Region": "N",
+      "Territory": "12",
+      "StoreNumber": "1603",
+      "StoreName": "Market Zone",
+      "Address": "789 Elm St",
+      "City": "Sample Town",
+      "State": "NT",
+      "TaskName": "STOCK",
+      "Name": "Gary Oldman",
+      "miles": "13 miles",
+      "w1c_ov_percent": "90%",
+      "w1c_ov_Doller": "1,180",
+      "w1s_ov_percent": "91%",
+      "w1s_ov_Doller": "1,190",
+      "w2c_ov_percent": "92%",
+      "w2c_ov_Doller": "1,195",
+      "w2s_ov_percent": "90%",
+      "w2s_ov_Doller": "1,175"
+  },
+  {
+      "Week": 2356,
+      "Region": "C",
+      "Territory": "36",
+      "StoreNumber": "1155",
+      "StoreName": "Quick Stop",
+      "Address": "102 Pine St",
+      "City": "Sample City",
+      "State": "CT",
+      "TaskName": "ALL",
+      "Name": "Diana Rose",
+      "miles": "17 miles",
+      "w1c_ov_percent": "94%",
+      "w1c_ov_Doller": "1,280",
+      "w1s_ov_percent": "95%",
+      "w1s_ov_Doller": "1,290",
+      "w2c_ov_percent": "93%",
+      "w2c_ov_Doller": "1,275",
+      "w2s_ov_percent": "94%",
+      "w2s_ov_Doller": "1,280"
+  }
+]
+allExpanded = false;
+expandedRows: { [storeNumber: string]: boolean } = {};
+columnVisibility: boolean[] = Array(10).fill(true);
+currentPage: number = 1;
+itemsPerPage: number = 10;
+totalPages: number = 0;
+rowsPerPageOptions: number[] = [5, 10, 20, 50];
+sortColumn: string | null = null;
+sortDirection: 'asc' | 'desc' = 'asc';
+
+ngOnInit() {
+  this.updatePagination();
+}
+
+toggleExpandCollapse() {
+  this.allExpanded = !this.allExpanded;
+  if (this.allExpanded) {
+    this.expandAll();
+  } else {
+    this.collapseAll();
+  }
+}
+
+expandAll() {
+  this.data.forEach(item => {
+    if (item.TaskName === 'ALL') {
+      this.expandedRows[item.StoreNumber] = true;
     }
-    catch (HttpRequestException ex)
-    {
-        throw new Exception($"HTTP Request error: {ex.Message}", ex);
-    }
-    catch (JsonException ex)
-    {
-        throw new Exception("Error parsing the JSON response.", ex);
-    }
-    catch (Exception ex)
-    {
-        throw new Exception($"An error occurred: {ex.Message}", ex);
-    }
+  });
+}
 
-    return root;
+collapseAll() {
+  Object.keys(this.expandedRows).forEach(storeNumber => {
+    this.expandedRows[storeNumber] = false;
+  });
+}
+
+toggleRow(storeNumber: string) {
+  this.expandedRows[storeNumber] = !this.expandedRows[storeNumber];
+}
+
+toggleColumn(index: number) {
+  this.columnVisibility[index] = !this.columnVisibility[index];
+}
+
+updatePagination() {
+  this.totalPages = Math.ceil(this.data.length / this.itemsPerPage);
+}
+
+goToPage(page: number) {
+  if (page < 1 || page > this.totalPages) return;
+  this.currentPage = page;
+}
+
+getDisplayedData() {
+  const sortedData = this.sortColumn ? this.getSortedData() : this.data;
+  const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+  const endIndex = startIndex + this.itemsPerPage;
+  return sortedData.slice(startIndex, endIndex);
+}
+
+// New function for sorting the data
+getSortedData() {
+  return [...this.data].sort((a, b) => {
+    const aValue = a[this.sortColumn!];
+    const bValue = b[this.sortColumn!];
+
+    // Handle numeric and string sorting
+    if (typeof aValue === 'number' && typeof bValue === 'number') {
+      return this.sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+    } else {
+      return this.sortDirection === 'asc'
+        ? aValue.toString().localeCompare(bValue.toString())
+        : bValue.toString().localeCompare(aValue.toString());
+    }
+  });
+}
+
+// Handle sorting when a column header is clicked
+sortData(column: string) {
+  if (this.sortColumn === column) {
+    this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+  } else {
+    this.sortColumn = column;
+    this.sortDirection = 'asc';
+  }
+  this.currentPage = 1;
+  this.updatePagination();
+}
+
+getPlaceholderColspan(): number {
+  return this.columnVisibility.slice(0, 10).filter(isVisible => isVisible).length || 1;
+}
+
+trackByIndex(index: number, item: any): number {
+  return index;
+}
+
+// Calculate the colspan for expanded rows after Task Name and FSR columns
+calculateChildColspan(): number {
+  // Count visible columns after "Task Name" (index 7) and "FSR" (index 8)
+  const remainingVisibleColumns = this.columnVisibility.slice(9).filter(isVisible => isVisible).length;
+  return remainingVisibleColumns > 0 ? remainingVisibleColumns : 1; // Minimum colspan of 1
+}
 }
