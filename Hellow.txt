@@ -1,38 +1,114 @@
-Self-Performance Review: Achievements and Contributions
+<div class="controls-row">
+  <!-- Column Visibility Section -->
+  <div class="column-visibility-container">
+    <!-- Header -->
+    <div class="column-visibility-header">
+      Show / Hide Columns
+    </div>
+    <!-- Icons and Labels -->
+    <div class="column-visibility-controls">
+      <div *ngFor="let column of columnVisibility; let i = index; trackBy: trackByIndex" class="visibility-icon-wrapper">
+        <i
+          class="visibility-icon"
+          [ngClass]="{'visible-icon': column, 'invisible-icon': !column}"
+          (click)="toggleColumn(i)"
+        ></i>
+        <span>Unnamed Column</span>
+      </div>
+    </div>
+  </div>
 
-Throughout this review cycle, I have consistently delivered high-quality work across multiple projects, demonstrating strong technical skills, a proactive approach, and effective self-management. Below are my key contributions:
+  <!-- Pagination and Other Controls -->
+  <div class="pagination-controls">
+    <select [(ngModel)]="itemsPerPage" (change)="updatePagination()">
+      <option *ngFor="let option of rowsPerPageOptions" [value]="option">{{ option }} rows per page</option>
+    </select>
+    <button (click)="goToPage(currentPage - 1)" [disabled]="currentPage === 1">Previous</button>
+    <span>Page {{ currentPage }} of {{ totalPages }}</span>
+    <button (click)="goToPage(currentPage + 1)" [disabled]="currentPage === totalPages">Next</button>
+    <button (click)="toggleExpandCollapse()" class="expand-btn">{{ allExpanded ? 'Collapse All' : 'Expand All' }}</button>
+    <button class="export-btn">Export</button>
+  </div>
+</div>
 
-1. WebAPI Project for Employee and Country Details
-I independently designed and implemented a versatile WebAPI project to fetch employee and country details. This API serves as a centralized service for various projects, streamlining data retrieval processes and enhancing scalability. I took full ownership of the entire development lifecycle, from requirement analysis to deployment, ensuring optimized performance with minimal response times.
 
-2. AQ Project - UI Enhancements and Performance Optimization
-I played a significant role in enhancing the user experience within the AQ project by creating a detailed field view and an optimized location screen. This required merging category and task data seamlessly for a cohesive user interface. I focused on optimizing scrolling performance, achieving smoother navigation and faster data loading, which reduced lag and improved the overall responsiveness of the application. I independently managed this task, demonstrating strong self-sufficiency and technical expertise.
+/* Main Container */
+.controls-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-family: 'Arial', sans-serif;
+  gap: 20px;
+}
 
-3. Dimension Management Project - Advanced UI Features
-I introduced several advanced UI enhancements, including:
+/* Column Visibility Section */
+.column-visibility-container {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+  background-color: #fff;
+}
 
-Drag-and-Drop Functionality: Developed a user-friendly drag-and-drop feature for file uploads, improving interaction and efficiency.
-Excel-like Filtering: Implemented an advanced filtering feature that allows users to filter data directly from the UI table, streamlining data analysis. These features were implemented with a focus on usability and performance, showcasing my initiative and capability to deliver complex features independently.
-4. Task Setup Project Rewriting - Migration from jQuery to Angular
-I led the complete migration of the Task Setup project from jQuery to Angular, modernizing the application and significantly improving performance. My key contributions include:
+/* Header */
+.column-visibility-header {
+  font-weight: bold;
+  font-size: 16px;
+  text-align: center;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 5px;
+}
 
-Developing new screens (dashboard, general, accounting, schedule, sample) with a focus on enhanced user experience and streamlined navigation.
-Merging previously separate screens to create a unified interface, reducing complexity and improving usability.
-Conducting in-depth research on legacy jQuery code and rewriting complex logic in a simplified, more efficient manner. I demonstrated strong ownership throughout this project, requiring minimal oversight and delivering a high-quality, responsive solution ahead of schedule.
-5. Collection Report Project - GPS Integration and Interactive Data Table
-In the Collection Report project, I am driving the integration of GPS data while also implementing an interactive data table with advanced features to enhance user interaction. My contributions include:
+/* Icons and Labels */
+.column-visibility-controls {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap; /* Allow wrapping */
+  justify-content: flex-start; /* Align icons to the left */
+}
 
-Dynamic Column Management: Designed logic to manage column visibility dynamically, ensuring smooth rendering and enhanced user experience.
-Hierarchical Data Handling: Built mechanisms for handling hierarchical data, optimizing the display and performance of parent and child rows in large datasets.
-Sorting, Filtering, and Pagination: Developed reusable sorting and filtering functions and implemented efficient pagination logic that aligns with user expectations, improving overall usability.
-Expand/Collapse All Feature and Data Export: Added a toggle feature for expanding/collapsing all rows and integrated data export functionality, allowing users to extract filtered data for further analysis. I took complete accountability for this implementation, focusing on performance optimization and delivering a scalable solution that meets current and future needs.
-6. Strong Individual Contribution and Team Support
-Across all projects, I have consistently demonstrated a high level of self-management and accountability. I take ownership of my tasks, proactively identifying and solving problems without requiring extensive supervision. My ability to work independently, coupled with my willingness to step in and support the team when needed, has been instrumental in accelerating project progress and meeting deadlines. I have contributed significantly to overall team efficiency, acting as a reliable resource for troubleshooting and code reviews.
+.visibility-icon-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 14px;
+  text-align: center;
+}
 
-Impact and Achievements
-Enhanced user experience and performance across multiple projects by implementing advanced UI features and optimizing data handling.
-Delivered scalable, high-quality solutions that are adaptable for future enhancements, reducing technical debt.
-Consistently met or exceeded project deadlines, contributing to improved project timelines and team efficiency.
-Demonstrated a strong commitment to continuous learning and skill development, particularly in state management and performance optimization in Angular applications.
-Conclusion
-Overall, I have showcased strong technical skills, initiative, and a proactive approach in delivering impactful solutions across diverse projects. I have taken full accountability for my work, requiring minimal management while consistently meeting and often exceeding expectations. I believe my contributions merit a top rating in this review cycle, as I have consistently added value and demonstrated a strong commitment to both individual and team goals.
+/* Pagination Section */
+.pagination-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end; /* Align controls to the right */
+}
+
+.pagination-controls select,
+.pagination-controls button {
+  font-size: 14px;
+  padding: 5px 10px;
+  border-radius: 4px;
+}
+
+.pagination-controls button {
+  cursor: pointer;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+}
+
+.pagination-controls button:hover {
+  background-color: #343a40;
+}
+
+.pagination-controls button[disabled] {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
