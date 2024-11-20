@@ -1,59 +1,346 @@
-<div class="controls-row">
-  <!-- Column Visibility Section -->
-  <div class="column-visibility-container">
-    <!-- Header -->
-    <div class="column-visibility-header">
-      Show / Hide Columns
-    </div>
-    <!-- Icons and Labels -->
+<div style="margin: 10px 0;min-width: 1200px;">
+
+  <div class="controls-row">
+    <!-- Expand/Collapse Toggle Button -->
+    <div class="column-visibility-container">
+      <!-- Header -->
+      <!-- <div class="column-visibility-header">
+        Show / Hide Columns
+      </div> -->
+    <!-- Column Visibility Checkboxes -->
     <div class="column-visibility-controls">
-      <div *ngFor="let column of columnVisibility; let i = index; trackBy: trackByIndex" class="visibility-icon-wrapper">
-        <i
-          class="visibility-icon"
-          [ngClass]="{'visible-icon': column, 'invisible-icon': !column}"
-          (click)="toggleColumn(i)"
-        ></i>
-        <span>Unnamed Column</span>
-      </div>
+      Show / Hide Columns : 
+      <span class="check-box" (click)="toggleColumn(3)">Store Name <input type="checkbox" [checked]="columnVisibility[3]"></span> 
+      <span class="check-box" (click)="toggleColumn(4)">Address <input type="checkbox"  [checked]="columnVisibility[4]"></span>
+      <span class="check-box" (click)="toggleColumn(5)">City <input type="checkbox" [checked]="columnVisibility[5]"></span>
+      <span class="check-box" (click)="toggleColumn(6)">State <input type="checkbox" [checked]="columnVisibility[6]"></span>
+      <span class="check-box" (click)="toggleColumn(7)">Task Name <input type="checkbox" [checked]="columnVisibility[7]"></span>
+    </div>
+  </div>
+   
+    <div class="controls-row1"> 
+
+   
+    <!-- Pagination Controls -->
+    <div class="pagination-controls">
+      <select [(ngModel)]="itemsPerPage" (change)="updatePagination()">
+        <option *ngFor="let option of rowsPerPageOptions" [value]="option">{{ option }} rows per page</option>
+      </select>
+      
+      <button (click)="goToPage(currentPage - 1)" [disabled]="currentPage === 1">Previous</button>
+      <span>Page {{ currentPage }} of {{ totalPages }}</span>
+      <button (click)="goToPage(currentPage + 1)" [disabled]="currentPage === totalPages">Next</button>
+    </div>
+
+    <button (click)="toggleExpandCollapse()" class="btn expand-btn" matTooltip="{{allExpanded?'Collapse All' :'Expand All'}}">      
+      <mat-icon style="vertical-align: bottom;">{{allExpanded ? 'unfold_less' : 'unfold_more'}}</mat-icon>
+    </button>
+
+      <button class="btn export-btn" (click)="exporttoExcel()" matTooltip="Export to Excel"> <mat-icon>description</mat-icon></button>
     </div>
   </div>
 
-  <!-- Pagination and Other Controls -->
-  <div class="pagination-controls">
-    <select [(ngModel)]="itemsPerPage" (change)="updatePagination()">
-      <option *ngFor="let option of rowsPerPageOptions" [value]="option">{{ option }} rows per page</option>
-    </select>
-    <button (click)="goToPage(currentPage - 1)" [disabled]="currentPage === 1">Previous</button>
-    <span>Page {{ currentPage }} of {{ totalPages }}</span>
-    <button (click)="goToPage(currentPage + 1)" [disabled]="currentPage === totalPages">Next</button>
-    <button (click)="toggleExpandCollapse()" class="expand-btn">{{ allExpanded ? 'Collapse All' : 'Expand All' }}</button>
-    <button class="export-btn">Export</button>
+  <div class="table-container">
+    <table class="full-width-table">
+      <thead>
+        <tr>
+          <!-- [ngClass]="getPlaceholderColspan()==-1?'d-none':''" -->
+          <th [attr.colspan]="getPlaceholderColspan()" [ngClass]="getPlaceholderColspan()==-1?'d-none':''"></th>
+          <th colspan="4">Week {{filterForm.get('iriWeek').value}}</th>
+          <th colspan="4">Week {{filterForm.get('iriWeek').value? filterForm.get('iriWeek').value-1:''}}</th>
+        </tr>
+        <tr>
+          <th [attr.colspan]="getPlaceholderColspan()" [ngClass]="getPlaceholderColspan()==-1?'d-none':''"></th>
+          <th colspan="2">Collector</th>
+          <th colspan="2">Store</th>
+          <th colspan="2">Collector</th>
+          <th colspan="2">Store</th>
+        </tr>
+        <tr>
+          <th class="region-col" *ngIf="columnVisibility[0]" (click)="sortData('RegionId')">Region</th>
+          <th *ngIf="columnVisibility[1]" (click)="sortData('Territory')">Territory</th>
+          <th *ngIf="columnVisibility[2]" (click)="sortData('StoreNumber')">Store Number</th>
+          <th *ngIf="columnVisibility[3]" (click)="sortData('StoreName')">Store Name</th>
+          <th *ngIf="columnVisibility[4]" (click)="sortData('Address')">Address</th>
+          <th *ngIf="columnVisibility[5]" (click)="sortData('city')">City</th>
+          <th *ngIf="columnVisibility[6]" (click)="sortData('state')">State</th>
+          <th *ngIf="columnVisibility[7]" (click)="sortData('TaskName')">Task Name</th>
+          <th *ngIf="columnVisibility[8]" (click)="sortData('FirstName')">FSR</th>
+          <!-- style="text-overflow: ellipsis;
+          overflow: hidden;
+          white-space: nowrap;" -->
+          <th *ngIf="columnVisibility[9]" (click)="sortData('GuranteedMiles')" >Guaranteed Miles</th>
+          <th (click)="sortData('WK1FSRCost')">$ Overage
+            <div class="filter-icon-containter"> 
+            <i class="fa-solid fa-filter filter-icon" (click)="toggleFilterDropDown('WK1FSRCost');$event.stopPropagation()"></i>
+            <div *ngIf="filterDropDowns['WK1FSRCost']" class="filter-dropdown">
+              <input type="number" placeholder="Min" [(ngModel)]="filters['WK1FSRCost'].min" (ngModelChange)="applyFilters()"(click)= "$event.stopPropagation()">
+              <input type="number" placeholder="Max" [(ngModel)]="filters['WK1FSRCost'].max" (ngModelChange)="applyFilters()" (click)= "$event.stopPropagation()">
+              <button (click)="clearFilters('WK1FSRCost');$event.stopPropagation()">Clear</button>
+            </div>
+          </div>
+          </th>
+          <th (click)="sortData('WK1FSRCostpercentage')">% Overage
+            <div class="filter-icon-containter"> 
+            <i class="fa-solid fa-filter filter-icon" (click)="toggleFilterDropDown('WK1FSRCostpercentage');$event.stopPropagation()"></i>
+            <div *ngIf="filterDropDowns['WK1FSRCostpercentage']" class="filter-dropdown">
+              <input type="number" placeholder="Min" [(ngModel)]="filters['WK1FSRCostpercentage'].min" (ngModelChange)="applyFilters()"(click)= "$event.stopPropagation()">
+              <input type="number" placeholder="Max" [(ngModel)]="filters['WK1FSRCostpercentage'].max" (ngModelChange)="applyFilters()" (click)= "$event.stopPropagation()">
+              <button (click)="clearFilters('WK1FSRCostpercentage');$event.stopPropagation()">Clear</button>
+            </div>
+          </div>
+          </th>
+          <th (click)="sortData('WK1StoreCost')">$ Overage
+            <div class="filter-icon-containter"> 
+            <i class="fa-solid fa-filter filter-icon" (click)="toggleFilterDropDown('WK1StoreCost');$event.stopPropagation()"></i>
+            <div *ngIf="filterDropDowns['WK1StoreCost']" class="filter-dropdown">
+              <input type="number" placeholder="Min" [(ngModel)]="filters['WK1StoreCost'].min" (ngModelChange)="applyFilters()"(click)= "$event.stopPropagation()">
+              <input type="number" placeholder="Max" [(ngModel)]="filters['WK1StoreCost'].max" (ngModelChange)="applyFilters()" (click)= "$event.stopPropagation()">
+              <button (click)="clearFilters('WK1StoreCost');$event.stopPropagation()">Clear</button>
+            </div>
+          </div>
+          </th>
+          <th  (click)="sortData('WK1StoreCostpercentage')">% Overage
+            <div class="filter-icon-containter"> 
+            <i class="fa-solid fa-filter filter-icon" (click)="toggleFilterDropDown('WK1StoreCostpercentage');$event.stopPropagation()"></i>
+            <div *ngIf="filterDropDowns['WK1StoreCostpercentage']" class="filter-dropdown">
+              <input type="number" placeholder="Min" [(ngModel)]="filters['WK1StoreCostpercentage'].min" (ngModelChange)="applyFilters()"(click)= "$event.stopPropagation()">
+              <input type="number" placeholder="Max" [(ngModel)]="filters['WK1StoreCostpercentage'].max" (ngModelChange)="applyFilters()" (click)= "$event.stopPropagation()">
+              <button (click)="clearFilters('WK1StoreCostpercentage');$event.stopPropagation()">Clear</button>
+            </div>
+          </div>
+          </th>
+          <th (click)="sortData('WK2FSRCost')">$ Overage
+            <div class="filter-icon-containter"> 
+            <i class="fa-solid fa-filter filter-icon" (click)="toggleFilterDropDown('WK2FSRCost');$event.stopPropagation()"></i>
+            <div *ngIf="filterDropDowns['WK2FSRCost']" class="filter-dropdown">
+              <input type="number" placeholder="Min" [(ngModel)]="filters['WK2FSRCost'].min" (ngModelChange)="applyFilters()"(click)= "$event.stopPropagation()">
+              <input type="number" placeholder="Max" [(ngModel)]="filters['WK2FSRCost'].max" (ngModelChange)="applyFilters()" (click)= "$event.stopPropagation()">
+              <button (click)="clearFilters('WK2FSRCost');$event.stopPropagation()">Clear</button>
+            </div>
+          </div>
+          </th>
+          <th (click)="sortData('WK2FSRCostpercentage')">% Overage
+            <div class="filter-icon-containter"> 
+            <i class="fa-solid fa-filter filter-icon" (click)="toggleFilterDropDown('WK2FSRCostpercentage');$event.stopPropagation()"></i>
+            <div *ngIf="filterDropDowns['WK2FSRCostpercentage']" class="filter-dropdown">
+              <input type="number" placeholder="Min" [(ngModel)]="filters['WK2FSRCostpercentage'].min" (ngModelChange)="applyFilters()"(click)= "$event.stopPropagation()">
+              <input type="number" placeholder="Max" [(ngModel)]="filters['WK2FSRCostpercentage'].max" (ngModelChange)="applyFilters()" (click)= "$event.stopPropagation()">
+              <button (click)="clearFilters('WK2FSRCostpercentage');$event.stopPropagation()">Clear</button>
+            </div>
+          </div>
+          </th>
+          <th  (click)="sortData('WK2StoreCost')">$ Overage
+            <div class="filter-icon-containter">       
+              <i class="fa-solid fa-filter filter-icon" (click)="toggleFilterDropDown('WK2StoreCost');$event.stopPropagation()"></i>
+              <div *ngIf="filterDropDowns['WK2StoreCost']" class="filter-dropdown">
+                <input type="number" placeholder="Min" [(ngModel)]="filters['WK2StoreCost'].min" (ngModelChange)="applyFilters()"(click)= "$event.stopPropagation()">
+                <input type="number" placeholder="Max" [(ngModel)]="filters['WK2StoreCost'].max" (ngModelChange)="applyFilters()" (click)= "$event.stopPropagation()">
+                <button (click)="clearFilters('WK2StoreCost');$event.stopPropagation()">Clear</button>
+              </div>
+            </div>
+          </th>
+          <th (click)="sortData('WK2StoreCostpercentage')">% Overage
+            <div class="filter-icon-containter"> 
+            <i class="fa-solid fa-filter filter-icon" (click)="toggleFilterDropDown('WK2StoreCostpercentage');$event.stopPropagation()"></i>
+            <div *ngIf="filterDropDowns['WK2StoreCostpercentage']" class="filter-dropdown">
+              <input type="number" placeholder="Min" [(ngModel)]="filters['WK2StoreCostpercentage'].min" (ngModelChange)="applyFilters()"(click)= "$event.stopPropagation()">
+              <input type="number" placeholder="Max" [(ngModel)]="filters['WK2StoreCostpercentage'].max" (ngModelChange)="applyFilters()" (click)= "$event.stopPropagation()">
+              <button (click)="clearFilters('WK2StoreCostpercentage');$event.stopPropagation()">Clear</button>
+            </div>
+          </div>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngFor="let item of getDisplayedData()">
+          <tr *ngIf="item.TaskName === 'ALL'" (click)="toggleRow(item.StoreNumber)" class="parent-row">
+            <td class="region-col" *ngIf="columnVisibility[0]">{{ item.RegionId }}</td>
+            <td *ngIf="columnVisibility[1]">{{ item.Territory }}</td>
+            <td *ngIf="columnVisibility[2]">{{ item.StoreNumber }}</td>
+            <td *ngIf="columnVisibility[3]" >{{ item.StoreName }}</td>
+            <td *ngIf="columnVisibility[4]" >{{ item.Address }}</td>
+            <td *ngIf="columnVisibility[5]" >{{ item.city }}</td>
+            <td *ngIf="columnVisibility[6]">{{ item.state }}</td>
+            <td *ngIf="columnVisibility[7]">{{ item.TaskName }}</td>
+            <td *ngIf="columnVisibility[8]">{{ item.FirstName }} {{item.LastName}}</td>
+            <td *ngIf="columnVisibility[9]">{{ item.GuranteedMiles }}</td>
+            <td>{{ item.WK1FSRCost?'$'+ item.WK1FSRCost:'' }}</td>
+            <td>{{ item.WK1FSRCostpercentage? item.WK1FSRCostpercentage+'%':'' }}</td>
+            <td>{{ item.WK1StoreCost ?'$'+ item.WK1StoreCost:'' }}</td>
+            <td>{{ item.WK1StoreCostpercentage?item.WK1StoreCostpercentage+'%':'' }}</td>
+            <td>{{ item.WK2FSRCost?'$'+item.WK2FSRCost:'' }}</td>
+            <td>{{ item.WK2FSRCostpercentage?item.WK2FSRCostpercentage+'%':'' }}</td>
+            <td>{{ item.WK2StoreCost?'$'+ item.WK2StoreCost:''}}</td>
+            <td>{{ item.WK2StoreCostpercentage?item.WK2StoreCostpercentage+'%':'' }}</td>        
+          </tr>
+          <tr *ngIf="item.TaskName !== 'ALL' && expandedRows[item.StoreNumber]" class="expanded-row">
+            <tr *ngIf="item.TaskName !== 'ALL' && expandedRows[item.StoreNumber]" class="expanded-row">
+              <ng-container *ngFor="let isVisible of columnVisibility.slice(0, 7); let i = index">
+                <td *ngIf="isVisible"></td>
+              </ng-container>
+              <!-- Task Name and FSR columns are always shown -->
+              <td *ngIf="columnVisibility[7]">{{ item.TaskName }}</td>
+              <td *ngIf="columnVisibility[8]">{{ item.FirstName }} {{item.LastName}}</td>
+              <!-- Dynamic colspan for remaining columns based on visibility after FSR -->
+              <td [attr.colspan]="calculateChildColspan()"></td>
+            
+          </tr>         
+        </ng-container>
+        <ng-container *ngIf="getDisplayedData().length==0" >
+          <tr class="empty-row">
+            <td colspan="100%">Loading</td>
+          </tr>
+        </ng-container>
+      </tbody>
+    </table>
   </div>
 </div>
 
 
-/* Main Container */
-.controls-row {
+.controls-row{
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: flex-start;
-  padding: 15px;
+  padding: 10px;
   background-color: #f8f9fa;
   border: 1px solid #ddd;
   border-radius: 8px;
-  font-family: 'Arial', sans-serif;
-  gap: 20px;
+  font-family: 'Arial',sans-serif;
+  gap: 10px;
 }
 
+.column-visibility-controls{
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.visibility-icon-wrapper{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 14px;
+  text-align: center;
+}
+
+.visibility-icon{
+cursor: pointer;
+font-size: 18px;
+padding: 5px;
+border-radius: 50%;
+transition: background-color 0.3s,transform 0.2s;
+}
+
+.visibility-icon:hover{
+  background-color: #e3e3e3;
+  transform: scale(1.1);
+}
+
+.visibility-icon{
+color: #28a745;
+}
+.invisible-icon{
+  color: #dc3545;
+}
+
+.visibility-icon-s{
+  cursor: pointer;
+  white-space: nowrap;
+}
+.visibility-icon span{
+  margin-top: 4px;
+  font-size: 12px;
+  color: #333;
+}
+
+.expand-btn{
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  padding: 4px 5px;
+  font-size: 11px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.expand-btn:hover{
+  background-color: #0056b3;
+}
+
+.pagination-controls{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pagination-controls select{
+  padding: 5px;
+  font-size: 14px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #fff;
+  cursor: pointer;
+}
+
+.pagination-controls button{
+  background-color: #6c757d;
+  color: #fff;
+  border: none;
+  padding: 5px 10px;
+  font-size: 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.pagination-controls button[disabled]{
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.pagination-controls button:not([disabled]):hover{
+  background-color: #343a40;
+}
+
+.export-btn{
+  background-color: #ffc107;
+  color: #000;
+  border: none;
+  padding: 4px 5px;
+  font-size: 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.export-btn:hover{
+  background-color: #e0a800;
+}
+
+.controls-row1{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+  background-color: #f8f9fa;
+  font-family: 'Arial',sans-serif;
+  gap: 10px;
+}
+
+
 /* Column Visibility Section */
-.column-visibility-container {
+/* .column-visibility-container {
   display: flex;
   flex-direction: column;
   border: 1px solid #ddd;
   border-radius: 8px;
   padding: 10px;
   background-color: #fff;
-}
+} */
 
 /* Header */
 .column-visibility-header {
@@ -65,50 +352,367 @@
   padding-bottom: 5px;
 }
 
-/* Icons and Labels */
-.column-visibility-controls {
-  display: flex;
-  gap: 15px;
-  flex-wrap: wrap; /* Allow wrapping */
-  justify-content: flex-start; /* Align icons to the left */
+.table-container{
+  display: block;
+  /* width: 100%; */
+  min-width: 1200px;
+  max-width: 100%;
+  height: 50vh;
+  overflow-x: auto;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin: 10px 0;
+  font-size: small;
+  /* padding: 2px; */
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-.visibility-icon-wrapper {
+.full-width-table{
+  min-width: 1894.95px;
+  border-collapse: collapse;  
+  text-align: left;
+  font-family: Arial,sans-serif;
+  table-layout: fixed;
+}
+
+.full-width-table thead{
+position: sticky;
+top: 0;
+z-index: 2;
+background-color: #f8f9fa;
+
+/* border-bottom: 2px solid #ddd; */
+}
+
+.full-width-table thead th{
+  padding: 2px;
+  font-weight: bold;
+  /* border: 1px solid #ddd; */
+  text-align: center;
+  white-space: nowrap;
+  z-index: 5;
+ 
+}
+
+
+/* .full-width-table thead th:last-child{
+  border-right:none;
+} */
+
+.full-width-table tbody {
+  display: table-row-group;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.full-width-table tbody tr {
+  display: table-row;
+}
+
+.full-width-table tbody td {
+ padding: 2px;
+ /* border-right: 1px solid #ddd; */
+ text-align: center;
+ white-space: nowrap;
+}
+
+.filter-icon-containter{
+  position: relative;
+  display: inline-block;
+}
+
+.filter-icon{
+  cursor: pointer;
+  color: #007bff;
+  font-size: 14px;
+}
+
+.filter-icon:hover{ 
+  color: #0056b3;
+}
+
+.filter-dropdown{
+  position: absolute;
+  top: 26px;
+  left: 0;
+  transform: translate(-50%);
+  z-index: 1000;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  padding: 10px;
+  width: 200px;
+  font-family:Arial,sans-serif;
+  text-align: left;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  font-size: 14px;
-  text-align: center;
+  gap: 8px;
 }
 
-/* Pagination Section */
-.pagination-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  justify-content: flex-end; /* Align controls to the right */
+.filter-dropdown input[type="number"]{
+
+  width: 100%;
+  padding: 5px;
+  margin: 5px 0;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  /* font-size: 14px; */
 }
 
-.pagination-controls select,
-.pagination-controls button {
-  font-size: 14px;
-  padding: 5px 10px;
-  border-radius: 4px;
-}
-
-.pagination-controls button {
-  cursor: pointer;
-  background-color: #6c757d;
-  color: white;
+.filter-dropdown button{
+  /* display: block; */
+  width: 100%;
+  padding: 5px;
+  background-color: #007bff;
+  color: #fff;
   border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  /* font-size: 14px; */
 }
 
-.pagination-controls button:hover {
-  background-color: #343a40;
+.filter-dropdown button:hover{
+  background-color: #0056b3;
 }
 
-.pagination-controls button[disabled] {
-  background-color: #ccc;
-  cursor: not-allowed;
+/* .full-width-table thead th{
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+} */
+
+.d-none{
+  display: none;
 }
+
+.parent-row{
+  cursor: pointer;
+  background-color: #f5f5f5;
+}
+
+.expanded-row td{
+  background-color: #eaeaea;
+}
+
+.empty-row td{
+  text-align: center;
+  height: 23.500px;
+  min-width: 1699.950px;
+}
+
+.check-box{
+  cursor: pointer;
+}
+
+
+toggleExpandCollapse() {
+    this.allExpanded = !this.allExpanded;
+    if (this.allExpanded) {
+      this.expandAll();
+    } else {
+      this.collapseAll();
+    }
+  }
+  
+  expandAll() {
+    this.tableData.forEach(item => {
+      if (item.TaskName === 'ALL') {
+        this.expandedRows[item.StoreNumber] = true;
+      }
+    });
+  }
+  
+  collapseAll() {
+    Object.keys(this.expandedRows).forEach(storeNumber => {
+      this.expandedRows[storeNumber] = false;
+    });
+  }
+  
+  toggleRow(storeNumber: string) {
+    this.expandedRows[storeNumber] = !this.expandedRows[storeNumber];
+  }
+  
+  toggleColumn(index: number) {  
+    this.columnVisibility[index] = !this.columnVisibility[index];
+  }
+  
+  updatePagination() {
+    // const parentRows = this.tableData.filter(item=>item.TaskName=="ALL")
+   
+
+    const filteredparentRows = this.tableData.filter(item=>{
+      return item.TaskName =='ALL'&&Object.keys(this.filters).every(column=>{
+        const filter = this.filters[column];
+        if(filter.min !== null && filter.max === null){
+         
+          return Number(parent[column])>=Number(filter.min);
+        }
+        if(filter.max !== null && filter.min === null){
+          return Number(parent[column])<=Number(filter.max);
+        }
+
+        if(filter.min !== null && filter.min !== null){
+          return Number(parent[column])>=Number(filter.min) && Number(parent[column])<=Number(filter.max);
+        }
+
+        return true
+      })
+    })
+    console.log(filteredparentRows.length)
+    this.totalPages = Math.ceil(filteredparentRows.length / this.itemsPerPage);
+  }
+  
+  goToPage(page: number) {
+    if (page < 1 || page > this.totalPages) return;
+    this.currentPage = page;
+  }
+  
+  getDisplayedData() {
+    // const sortedData = this.sortColumn ? this.getSortedData() : this.tableData;
+    // const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+    // const endIndex = startIndex + this.itemsPerPage;
+    // return sortedData.slice(startIndex, endIndex);
+    if(this.showSpinner) return [] 
+
+    const parentRows = this.tableData.filter(item=>item.TaskName=="ALL")
+    const filteredData = parentRows.filter(parent=>{
+      return Object.keys(this.filters).every(column=>{
+        const filter = this.filters[column];
+        if(filter.min !== null && filter.max === null){
+         
+          return Number(parent[column])>=Number(filter.min);
+        }
+        if(filter.max !== null && filter.min === null){
+          return Number(parent[column])<=Number(filter.max);
+        }
+
+        if(filter.min !== null && filter.min !== null){
+          return Number(parent[column])>=Number(filter.min) && Number(parent[column])<=Number(filter.max);
+        }
+
+        return true
+      })
+    })
+    const sortedParentRows = this.sortColumn?this.getSortedData(filteredData):filteredData
+    const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+    const endIndex = startIndex + this.itemsPerPage;
+    const pahinatedParents = sortedParentRows.slice(startIndex,endIndex)
+  
+    const displayData = [];
+    pahinatedParents.forEach(parent => {      
+      displayData.push(parent);
+      if(this.expandedRows[parent.StoreNumber]){
+        const childRows = this.tableData.filter(item=>item.TaskName!="ALL"&& item.StoreNumber==parent.StoreNumber);
+        displayData.push(...childRows);
+      }
+    });
+    
+    return displayData
+  }
+  
+  // New function for sorting the data
+  getSortedData(dataSubSet:any[]) {
+    return [...dataSubSet].sort((a, b) => {
+      const aValue = a[this.sortColumn!];
+      const bValue = b[this.sortColumn!];
+  
+      // Handle numeric and string sorting
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return this.sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      } else {
+        return this.sortDirection === 'asc'
+          ? aValue.toString().localeCompare(bValue.toString())
+          : bValue.toString().localeCompare(aValue.toString());
+      }
+    });
+  }
+  
+  // Handle sorting when a column header is clicked
+  sortData(column: string) {
+
+    if (this.sortColumn === column) {
+      this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortColumn = column;
+      this.sortDirection = 'asc';
+    }
+    this.applyFilters()
+  }
+  
+  getPlaceholderColspan(): number {
+    return this.columnVisibility.slice(0, 10).filter(isVisible => isVisible).length || -1;
+  }
+  
+  trackByIndex(index: number, item: any): number {
+    return index;
+  }
+  
+  // Calculate the colspan for expanded rows after Task Name and FSR columns
+  calculateChildColspan(): number {
+    // Count visible columns after "Task Name" (index 7) and "FSR" (index 8)
+    const remainingVisibleColumns = this.columnVisibility.slice(9).filter(isVisible => isVisible).length;
+    return remainingVisibleColumns > 0 ? remainingVisibleColumns : -1; // Minimum colspan of 1
+  }
+
+  toggleFilterDropDown(column:string){
+    this.filterDropDowns[column] = !this.filterDropDowns[column]
+  }
+
+  clearFilters(column:string){
+    this.filters[column].min = null;
+    this.filters[column].max = null;
+    this.applyFilters();
+  }
+  
+  applyFilters(){
+    clearTimeout(this.debounceTimeout)
+    this.showSpinner = true
+    this.debounceTimeout = setTimeout(() => {
+      this.currentPage = 1;
+    this.updatePagination();
+    this.showSpinner = false
+    }, 300);
+    
+  }
+
+
+  exporttoExcel(){
+    const headers = [] 
+    const visibleColumns = [] 
+    const columnNames = this.tableData.map(item=>({
+      RegionId:item.RegionId,
+      Territory:item.Territory,
+      StoreNumber:item.StoreNumber,
+      StoreName:item.StoreName,
+      Address:item.Address,
+      city:item.city,
+      state:item.state,
+      TaskNumber:item.TaskNumber,
+      TaskName:item.TaskName,
+      EmpId:item.EmpId,
+      FirstName:item.FirstName,
+      LastName:item.LastName,
+      GuranteedMiles:item.GuranteedMiles,
+      WK1FSRCost:item.WK1FSRCost,
+      WK1FSRCostpercentage:item.WK1FSRCostpercentage,
+      WK1StoreCost:item.WK1StoreCost,
+      WK1StoreCostpercentage:item.WK1StoreCostpercentage,
+      WK2FSRCost:item.WK2FSRCost,
+      WK2FSRCostpercentage:item.WK2FSRCostpercentage,
+      WK2StoreCost:item.WK2StoreCost,
+      WK2StoreCostpercentage:item.WK2StoreCostpercentage
+    }))
+    
+   
+
+    const worksheet = XLSX.utils.json_to_sheet(columnNames)
+    const workbook=  XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook,worksheet,'test_data')
+    XLSX.writeFile(workbook,'Test_Data.xlsx')
+  }
+
+  getColumnName(index:number):string{
+    const columnNames = ['Region','Territory','Store Number','Store Name','Address','City','State','Task Name','FSR','Miles']
+    return columnNames[index]||'Unnamed Column'
+  }
