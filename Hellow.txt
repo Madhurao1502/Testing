@@ -1,22 +1,29 @@
-I wanted to share the updates and improvements I have recently worked on:
+New Features and Enhancements
 
-Collector Notes in Cost Report:
+1. Country Dropdown Added
 
-Added a footer message when the collector is not in the top 5 most cost-effective list, indicating:
-"Collector is not in the top 5 most cost-effective list."
-If the collector is terminated, a message is displayed:
-"The collector who collected this store was terminated."
-Tooltip Addition:
+A country dropdown has been introduced to the application to improve usability and provide a better user experience.
 
-Implemented tooltips to provide more clarity and additional context where required.
-Blank Screen Issue:
+2. New Component for Sample Creation
 
-Resolved the blank screen issue that occurred when redirecting to the cost report page.
-Future Week Selection Restriction:
+A new component has been developed to streamline the process of creating samples. The component includes the following filters for search functionality:
 
-Removed future weeks from the dropdown, ensuring users cannot select them.
-Updated the filter to automatically select the previous week on the initial load, fetching data for that period.
-Please let me know if you need further details or have any feedback on these updates.
+Outlet: Multi-select option to select one or more outlets.
 
-Best regards,
-[Your Name]
+Store Name: Dropdown with a minimum of 3 characters required to begin the search.
+
+City: Dropdown with a minimum of 3 characters required to begin the search.
+
+State: Dropdown with a minimum of 3 characters required to begin the search.
+
+Include Sample: A checkbox to include samples as part of the filter.
+
+Sample Name Field: Added functionality to specify a sample name, with the following restrictions:
+
+The name can have a maximum of 5 characters.
+
+Notes for Users
+
+Ensure to input at least 3 characters when searching in the Store Name, City, or State dropdowns for accurate results.
+
+When creating a sample, the sample name must not exceed 5 characters.
