@@ -1,29 +1,86 @@
-New Features and Enhancements
+private _filter(name: string): String[] {
+    const filterValue = name.toLowerCase();
+    // Set selected values to retain the selected checkbox state 
+    this.setSelectedValues();
+    this.selectFormControl.patchValue(this.selectedValues);
+    let filteredList = this.data.filter(option => option.toLowerCase().indexOf(filterValue) === 0);
+   
+    return filteredList;
+  }
 
-1. Country Dropdown Added
+/**
+ * Remove from selected values based on uncheck
+ */
+ selectionChange(event) {
+  if (event.isUserInput) {
+    if (!event.source.selected) {
+      // If the option is deselected, remove it from selectedValues
+      let index = this.selectedValues.indexOf(event.source.value);
+      if (index > -1) {
+        this.selectedValues.splice(index, 1);
+      }
+    } else {
+      // If the option is selected, add it to selectedValues
+      if (this.selectedValues.indexOf(event.source.value) === -1) {
+        this.selectedValues.push(event.source.value);
+      }
+    }
 
-A country dropdown has been introduced to the application to improve usability and provide a better user experience.
+    // Update the FormControl value with selected options
+    this.selectFormControl.patchValue(this.selectedValues);
 
-2. New Component for Sample Creation
+    // Update the "Select All" checkbox state
+    this.updateSelectAllState();
+  }
+}
 
-A new component has been developed to streamline the process of creating samples. The component includes the following filters for search functionality:
+  openedChange(e) {
+    // Set search textbox value as empty while opening selectbox 
+    this.searchTextboxControl.patchValue('');
+    // Focus to search textbox while clicking on selectbox
+    if (e == true) {
+      this.searchTextBox.nativeElement.focus();
+    }
+  }
 
-Outlet: Multi-select option to select one or more outlets.
+  /**
+   * Clearing search textbox value 
+   */
+  clearSearch(event) {
+    event.stopPropagation();
+    this.searchTextboxControl.patchValue('');
+  }
 
-Store Name: Dropdown with a minimum of 3 characters required to begin the search.
+  /**
+   * Set selected values to retain the state 
+   */
+  setSelectedValues() {
+    console.log('selectFormControl', this.selectFormControl.value);
+    if (this.selectFormControl.value && this.selectFormControl.value.length > 0) {
+      this.selectFormControl.value.forEach((e) => {
+        if (this.selectedValues.indexOf(e) == -1) {
+          this.selectedValues.push(e);
+        }
+      });
+    }
+  }
 
-City: Dropdown with a minimum of 3 characters required to begin the search.
-
-State: Dropdown with a minimum of 3 characters required to begin the search.
-
-Include Sample: A checkbox to include samples as part of the filter.
-
-Sample Name Field: Added functionality to specify a sample name, with the following restrictions:
-
-The name can have a maximum of 5 characters.
-
-Notes for Users
-
-Ensure to input at least 3 characters when searching in the Store Name, City, or State dropdowns for accurate results.
-
-When creating a sample, the sample name must not exceed 5 characters.
+  toggleSelectAll() {
+    if (this.allSelected) {
+      // Deselect all options if all are already selected
+      this.selectedValues = [];
+    } else {
+      // Select all options if not all are selected
+      this.selectedValues = [...this.data];
+    }
+  
+    // Update the FormControl value with selected options
+    this.selectFormControl.patchValue(this.selectedValues);
+  
+    // Toggle the allSelected state
+    this.allSelected = !this.allSelected;
+  }
+  updateSelectAllState() {
+    const selectedOptions = this.selectFormControl.value || [];
+    this.allSelected = selectedOptions.length === this.data.length;
+  }
