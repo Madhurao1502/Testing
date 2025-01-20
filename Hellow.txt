@@ -84,3 +84,69 @@ private _filter(name: string): String[] {
     const selectedOptions = this.selectFormControl.value || [];
     this.allSelected = selectedOptions.length === this.data.length;
   }
+
+
+<mat-form-field>
+<mat-select
+  (openedChange)="openedChange($event)"
+  placeholder="Select"
+  [formControl]="selectFormControl"
+  multiple
+>
+  <mat-select-trigger>
+    {{ selectFormControl.value ? selectFormControl.value[0] : '' }}
+    <span *ngIf="selectFormControl.value?.length > 1" class="additional-selection">
+      (+{{ selectFormControl.value.length - 1 }}
+      {{ selectFormControl.value?.length === 2 ? 'other' : 'others' }})
+    </span>
+  </mat-select-trigger>
+  <div class="select-container">
+    <!-- Search -->
+    <mat-optgroup>
+      <mat-form-field style="width: 100%;">
+        <input
+          #search
+          autocomplete="off"
+          placeholder="Search"
+          aria-label="Search"
+          matInput
+          [formControl]="searchTextboxControl"
+        />
+        <button
+          [disableRipple]="true"
+          *ngIf="search.value"
+          matSuffix
+          mat-icon-button
+          aria-label="Clear"
+          (click)="clearSearch($event)"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </mat-form-field>
+    </mat-optgroup>
+
+    <div *ngIf="(filteredOptions | async)?.length > 0" class="select-all-container">
+    <mat-checkbox class="select-all-option" [checked]="allSelected" (change)="toggleSelectAll()">
+      {{ allSelected ? 'Unselect All' : 'Select All' }}
+    </mat-checkbox>
+  </div>
+
+    <!-- No Results -->
+    <mat-optgroup *ngIf="(filteredOptions | async).length === 0">
+      <div>No results found!</div>
+    </mat-optgroup>
+
+    <!-- Options -->
+    <mat-option
+      (onSelectionChange)="selectionChange($event)"
+      *ngFor="let option of filteredOptions | async"
+      [value]="option"
+    >
+      {{ option }}
+    </mat-option>
+  </div>
+</mat-select>
+</mat-form-field>
+<div *ngIf="selectFormControl.value">
+{{ 'You have chosen ' + selectFormControl.value }}
+</div>
