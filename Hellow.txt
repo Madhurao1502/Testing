@@ -1,152 +1,132 @@
-private _filter(name: string): String[] {
-    const filterValue = name.toLowerCase();
-    // Set selected values to retain the selected checkbox state 
-    this.setSelectedValues();
-    this.selectFormControl.patchValue(this.selectedValues);
-    let filteredList = this.data.filter(option => option.toLowerCase().indexOf(filterValue) === 0);
-   
-    return filteredList;
-  }
+<mat-form-field appearance="outline" style="width:200px; margin-right:5px;">
+  <mat-label>Chain Id</mat-label>
+  <button
+    mat-button
+    *ngIf="this.chainControl.value?.length"
+    matSuffix
+    mat-icon-button
+    (click)="clearChainCtrl($event)"
+  >
+    <mat-icon style="font-size: large; vertical-align: baseline;">cancel</mat-icon>
+  </button>
 
-/**
- * Remove from selected values based on uncheck
- */
- selectionChange(event) {
-  if (event.isUserInput) {
-    if (!event.source.selected) {
-      // If the option is deselected, remove it from selectedValues
-      let index = this.selectedValues.indexOf(event.source.value);
-      if (index > -1) {
-        this.selectedValues.splice(index, 1);
-      }
+  <mat-select [formControl]="chainControl" multiple (openedChange)="onDropdownOpen()">
+    <!-- Search Input -->
+    <div style="padding: 5px;">
+      <mat-form-field style="width: 100%;">
+        <mat-label>Search</mat-label>
+        <input matInput [(ngModel)]="searchChainText" (input)="filterChains()" placeholder="Search..." />
+      </mat-form-field>
+    </div>
+
+    <!-- Select All Checkbox -->
+    <div class="select-all" *ngIf="!searchChainText">
+      <mat-checkbox
+        [(ngModel)]="allSelected"
+        [ngModelOptions]="{ standalone: true }"
+        (change)="toggleAllSelection()"
+      >
+        Select All
+      </mat-checkbox>
+    </div>
+
+    <!-- Options List -->
+    <mat-option
+      *ngFor="let chain of filteredChains"
+      [value]="chain.chainID"
+      (click)="toggleSelection(chain.chainID)"
+      matTooltip="{{ chain.chainID }}"
+    >
+      <mat-checkbox
+        [checked]="chainControl.value?.includes(chain.chainID)"
+        [value]="chain.chainID"
+      >
+        {{ chain.chainID }}
+      </mat-checkbox>
+    </mat-option>
+  </mat-select>
+</mat-form-field>
+
+
+{
+  chainControl = new FormControl([]); // Holds the selected chain IDs
+  searchChainText: string = ''; // Search text
+  allSelected: boolean = false; // Tracks "Select All" state
+  chains = [
+    { chainID: 'Chain1' },
+    { chainID: 'Chain2' },
+    { chainID: 'Chain3' },
+    { chainID: 'Chain4' },
+    { chainID: 'Chain5' },
+  ]; // Example chain list
+  filteredChains = [...this.chains]; // Filtered list of chains
+
+  // Handles toggling individual selections
+  toggleSelection(chainID: string) {
+    const currentSelection = this.chainControl.value || [];
+
+    if (currentSelection.includes(chainID)) {
+      // Remove the chain if already selected
+      this.chainControl.setValue(currentSelection.filter(id => id !== chainID));
     } else {
-      // If the option is selected, add it to selectedValues
-      if (this.selectedValues.indexOf(event.source.value) === -1) {
-        this.selectedValues.push(event.source.value);
-      }
+      // Add the chain if not already selected
+      this.chainControl.setValue([...currentSelection, chainID]);
     }
 
-    // Update the FormControl value with selected options
-    this.selectFormControl.patchValue(this.selectedValues);
+    // Update "Select All" checkbox state
+    this.updateSelectAllState();
+  }
 
-    // Update the "Select All" checkbox state
+  // Clears all selections
+  clearChainCtrl(event: MouseEvent) {
+    event.stopPropagation();
+    this.chainControl.reset();
+    this.searchChainText = '';
+    this.filteredChains = [...this.chains];
+    this.allSelected = false;
+  }
+
+  // Filters chains based on the search text
+  filterChains() {
+    const searchValue = this.searchChainText?.toLowerCase() || '';
+
+    if (searchValue === '') {
+      this.filteredChains = [...this.chains];
+    } else {
+      this.filteredChains = this.chains.filter(c =>
+        c.chainID.toLowerCase().includes(searchValue)
+      );
+    }
+
+    // Update "Select All" checkbox state
+    this.updateSelectAllState();
+  }
+
+  // Toggles "Select All" functionality
+  toggleAllSelection() {
+    if (this.allSelected) {
+      // Select all filtered items
+      const allIds = this.filteredChains.map(chain => chain.chainID);
+      this.chainControl.setValue([...new Set([...this.chainControl.value, ...allIds])]);
+    } else {
+      // Deselect all filtered items
+      const filteredIds = this.filteredChains.map(chain => chain.chainID);
+      this.chainControl.setValue(
+        this.chainControl.value.filter(id => !filteredIds.includes(id))
+      );
+    }
+  }
+
+  // Updates the "Select All" checkbox state
+  updateSelectAllState() {
+    const filteredIds = this.filteredChains.map(chain => chain.chainID);
+    const currentSelection = this.chainControl.value || [];
+
+    this.allSelected = filteredIds.every(id => currentSelection.includes(id));
+  }
+
+  // Resyncs selections when dropdown opens
+  onDropdownOpen() {
     this.updateSelectAllState();
   }
 }
-
-  openedChange(e) {
-    // Set search textbox value as empty while opening selectbox 
-    this.searchTextboxControl.patchValue('');
-    // Focus to search textbox while clicking on selectbox
-    if (e == true) {
-      this.searchTextBox.nativeElement.focus();
-    }
-  }
-
-  /**
-   * Clearing search textbox value 
-   */
-  clearSearch(event) {
-    event.stopPropagation();
-    this.searchTextboxControl.patchValue('');
-  }
-
-  /**
-   * Set selected values to retain the state 
-   */
-  setSelectedValues() {
-    console.log('selectFormControl', this.selectFormControl.value);
-    if (this.selectFormControl.value && this.selectFormControl.value.length > 0) {
-      this.selectFormControl.value.forEach((e) => {
-        if (this.selectedValues.indexOf(e) == -1) {
-          this.selectedValues.push(e);
-        }
-      });
-    }
-  }
-
-  toggleSelectAll() {
-    if (this.allSelected) {
-      // Deselect all options if all are already selected
-      this.selectedValues = [];
-    } else {
-      // Select all options if not all are selected
-      this.selectedValues = [...this.data];
-    }
-  
-    // Update the FormControl value with selected options
-    this.selectFormControl.patchValue(this.selectedValues);
-  
-    // Toggle the allSelected state
-    this.allSelected = !this.allSelected;
-  }
-  updateSelectAllState() {
-    const selectedOptions = this.selectFormControl.value || [];
-    this.allSelected = selectedOptions.length === this.data.length;
-  }
-
-
-<mat-form-field>
-<mat-select
-  (openedChange)="openedChange($event)"
-  placeholder="Select"
-  [formControl]="selectFormControl"
-  multiple
->
-  <mat-select-trigger>
-    {{ selectFormControl.value ? selectFormControl.value[0] : '' }}
-    <span *ngIf="selectFormControl.value?.length > 1" class="additional-selection">
-      (+{{ selectFormControl.value.length - 1 }}
-      {{ selectFormControl.value?.length === 2 ? 'other' : 'others' }})
-    </span>
-  </mat-select-trigger>
-  <div class="select-container">
-    <!-- Search -->
-    <mat-optgroup>
-      <mat-form-field style="width: 100%;">
-        <input
-          #search
-          autocomplete="off"
-          placeholder="Search"
-          aria-label="Search"
-          matInput
-          [formControl]="searchTextboxControl"
-        />
-        <button
-          [disableRipple]="true"
-          *ngIf="search.value"
-          matSuffix
-          mat-icon-button
-          aria-label="Clear"
-          (click)="clearSearch($event)"
-        >
-          <mat-icon>close</mat-icon>
-        </button>
-      </mat-form-field>
-    </mat-optgroup>
-
-    <div *ngIf="(filteredOptions | async)?.length > 0" class="select-all-container">
-    <mat-checkbox class="select-all-option" [checked]="allSelected" (change)="toggleSelectAll()">
-      {{ allSelected ? 'Unselect All' : 'Select All' }}
-    </mat-checkbox>
-  </div>
-
-    <!-- No Results -->
-    <mat-optgroup *ngIf="(filteredOptions | async).length === 0">
-      <div>No results found!</div>
-    </mat-optgroup>
-
-    <!-- Options -->
-    <mat-option
-      (onSelectionChange)="selectionChange($event)"
-      *ngFor="let option of filteredOptions | async"
-      [value]="option"
-    >
-      {{ option }}
-    </mat-option>
-  </div>
-</mat-select>
-</mat-form-field>
-<div *ngIf="selectFormControl.value">
-{{ 'You have chosen ' + selectFormControl.value }}
-</div>
