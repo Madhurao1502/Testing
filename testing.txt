@@ -1,556 +1,77 @@
-<div class="table-controls">
-  <!-- Expand/Collapse All Buttons -->
-  <button (click)="expandAll()" class="btn">Expand All</button>
-  <button (click)="collapseAll()" class="btn">Collapse All</button>
-
-  <!-- Checkboxes to control column visibility -->
-  <div class="column-visibility-controls">
-    <div *ngFor="let column of columnVisibility; let i = index; trackBy: trackByIndex" class="checkbox-wrapper">
-      <input type="checkbox" [checked]="column" (change)="toggleColumn(i)">
-      <span class="tooltip">{{ getColumnName(i) || 'Unnamed Column' }}</span>
-    </div>
-  </div>
-
-
-<div class="pagination-controls">
-  <select [(ngModel)]="itemsPerPage" (change)="updatePagination()">
-    <option *ngFor="let option of rowsPerPageOptions" [value]="option">{{ option }} rows per page</option>
-  </select>
-  <button (click)="goToPage(currentPage - 1)" [disabled]="currentPage === 1">Previous</button>
-  <span>Page {{ currentPage }} of {{ totalPages }}</span>
-  <button (click)="goToPage(currentPage + 1)" [disabled]="currentPage === totalPages">Next</button>
-</div>
-</div>
-<div class="table-container">
-  <table class="full-width-table">
-  <thead>
-    <!-- Column Grouping for Weeks -->
-    <tr>
-      <!-- Dynamic placeholder colspan for structure alignment -->
-      <th [attr.colspan]="getPlaceholderColspan()"></th>
-      <th colspan="4">Week 1</th>
-      <th colspan="4">Week 2</th>
-    </tr>
-    <tr>
-      <!-- Adjusted colspan for Collector/Store sections to maintain alignment -->
-      <th [attr.colspan]="getPlaceholderColspan()"></th>
-      <th colspan="2">Collector</th>
-      <th colspan="2">Store</th>
-      <th colspan="2">Collector</th>
-      <th colspan="2">Store</th>
-    </tr>
-    <tr>
-      <!-- Conditionally Visible Columns -->
-      <th *ngIf="columnVisibility[0]" (click)="sortData('Region')">Region</th>
-      <th *ngIf="columnVisibility[1]" (click)="sortData('Territory')">Territory</th>
-      <th *ngIf="columnVisibility[2]" (click)="sortData('StoreNumber')">Store Number</th>
-      <th *ngIf="columnVisibility[3]" (click)="sortData('StoreName')">Store Name</th>
-      <th *ngIf="columnVisibility[4]" (click)="sortData('Address')">Address</th>
-      <th *ngIf="columnVisibility[5]" (click)="sortData('City')">City</th>
-      <th *ngIf="columnVisibility[6]" (click)="sortData('State')">State</th>
-      <th *ngIf="columnVisibility[7]" (click)="sortData('TaskName')">Task Name</th>
-      <th *ngIf="columnVisibility[8]" (click)="sortData('Name')">FSR</th>
-      <th *ngIf="columnVisibility[9]" (click)="sortData('miles')">Guaranteed Miles</th>
-      
-      <!-- Week Data Columns -->
-      <th (click)="sortData('w1c_ov_Doller')">$ Overage
-        <i class="fa fa-filter filter-icon" (click)="toggleFilterDropdown('w1c_ov_Doller')"></i>
-        <div *ngIf="filterDropdowns.w1c_ov_Doller" class="filter-dropdown">
-          <input type="number" placeholder="Min" [(ngModel)]="filters.w1c_ov_Doller_min" (ngModelChange)="applyFilters()" />
-          <input type="number" placeholder="Max" [(ngModel)]="filters.w1c_ov_Doller_max" (ngModelChange)="applyFilters()" />
-          <button (click)="clearFilter('w1c_ov_Doller')">Clear</button>
-        </div>
-      </th>
-      <th (click)="sortData('w1c_ov_percent')">% Overage</th>
-      <th (click)="sortData('w1s_ov_Doller')">$ Overage</th>
-      <th  (click)="sortData('w1s_ov_percent')">% Overage</th>
-      <th (click)="sortData('w2c_ov_Doller')">$ Overage</th>
-      <th (click)="sortData('w2c_ov_percent')">% Overage</th>
-      <th  (click)="sortData('w2s_ov_Doller')">$ Overage</th>
-      <th (click)="sortData('w2s_ov_percent')">% Overage</th>
-    </tr>
-  </thead>
-  <tbody>
-    <!-- Parent Rows and Expandable Data Rows -->
-    <ng-container *ngFor="let item of getDisplayedData(); let i = index">
-      <!-- Parent Row (TaskName === 'ALL') -->
-      <tr *ngIf="item.TaskName === 'ALL'" (click)="toggleRow(item.StoreNumber)" [class.parent-row]="true">
-        <td *ngIf="columnVisibility[0]">{{ item.Region }}</td>
-        <td *ngIf="columnVisibility[1]">{{ item.Territory }}</td>
-        <td *ngIf="columnVisibility[2]">{{ item.StoreNumber }}</td>
-        <td *ngIf="columnVisibility[3]">{{ item.StoreName }}</td>
-        <td *ngIf="columnVisibility[4]">{{ item.Address }}</td>
-        <td *ngIf="columnVisibility[5]">{{ item.City }}</td>
-        <td *ngIf="columnVisibility[6]">{{ item.State }}</td>
-        <td *ngIf="columnVisibility[7]">{{ item.TaskName }}</td>
-        <td *ngIf="columnVisibility[8]">{{ item.Name }}</td>
-        <td *ngIf="columnVisibility[9]">{{ item.miles }}</td>
-      
-        <!-- Week data columns -->
-        <td>{{ item.w1c_ov_Doller }}</td>
-        <td>{{ item.w1c_ov_percent }}</td>
-        <td>{{ item.w1s_ov_Doller }}</td>
-        <td>{{ item.w1s_ov_percent }}</td>
-        <td>{{ item.w2c_ov_Doller }}</td>
-        <td>{{ item.w2c_ov_percent }}</td>
-        <td>{{ item.w2s_ov_Doller }}</td>
-        <td>{{ item.w2s_ov_percent }}
-          <span class="arrow" [ngClass]="{'down': expandedRows[item.StoreNumber], 'right': !expandedRows[item.StoreNumber]}"></span>
-        </td>
-      </tr>
-
-      <!-- Expanded Rows for Child Tasks (TaskName !== 'ALL' and same StoreNumber) -->
-      <tr *ngIf="item.TaskName !== 'ALL' && expandedRows[item.StoreNumber]" class="expanded-row">
-        <ng-container *ngFor="let isVisible of columnVisibility.slice(0, 7); let i = index">
-          <td *ngIf="isVisible"></td>
-        </ng-container>
-        <!-- Task Name and FSR columns are always shown -->
-        <td *ngIf="columnVisibility[7]">{{ item.TaskName }}</td>
-        <td *ngIf="columnVisibility[8]">{{ item.Name }}</td>
-        <!-- Dynamic colspan for remaining columns based on visibility after FSR -->
-        <td [attr.colspan]="calculateChildColspan()"></td>
-      </tr>
-    </ng-container>
-  </tbody>
-</table>
-</div>
-
-/* Styling for table controls */
-.table-controls {
-  display: flex;
-  align-items: center;
-  margin-bottom: 10px;
+.sidenav-container {
+  height: calc(100vh - 64px); // Adjust for the toolbar height
 }
 
-/* Checkbox Wrapper */
-.column-visibility-controls {
-  display: flex;
+.sidenav {
+  width: 300px;
+  padding: 16px;
+  background-color: #f4f4f4;
 }
 
-.checkbox-wrapper {
-  position: relative;
-  margin-right: 5px;
+.filter-section {
+  margin-bottom: 32px;
+
+  .filter-field {
+    width: 100%;
+    margin-bottom: 16px;
+  }
+
+  .search-box {
+    margin-top: 16px;
+  }
 }
 
-.tooltip {
-  visibility: hidden;
-  width: 120px;
-  background-color: #555;
-  color: #fff;
-  text-align: center;
-  border-radius: 5px;
-  padding: 5px 0;
-  position: absolute;
-  z-index: 1;
-  bottom: 100%; /* Position the tooltip above the element */
-  left: 50%;
-  margin-left: -60px; /* Center the tooltip */
-  opacity: 0;
-  transition: opacity 0.3s;
-}
+.data-source-section {
+  h3 {
+    margin-bottom: 16px;
+    font-size: 1.2rem;
+    font-weight: bold;
+  }
 
+  .data-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #ddd;
 
-
-.checkbox-wrapper:hover .tooltip {
-  visibility: visible;
-  opacity: 1;
-}
-
-
-/* Table Styles */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
-}
-
-th, td {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  text-align: left;
-}
-
-/* Parent Row Styles */
-.parent-row {
-  background-color: #f0f8ff; /* Light blue background */
-  font-weight: bold;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.parent-row:hover {
-  background-color: #e0eaff; /* Darker blue on hover */
-}
-
-/* Child Row Styles */
-.expanded-row {
-  background-color: #f9f9f9; /* Light grey background */
-  font-style: italic;
-}
-
-/* Border and Hover Effect for Child Rows */
-.expanded-row td {
-  border-top: 1px dashed #bbb; /* Dashed border for child rows */
-}
-
-.expanded-row:hover {
-  background-color: #f2f2f2; /* Slightly darker grey on hover */
-}
-
-/* Checkbox Wrapper for Column Visibility Controls */
-.checkbox-wrapper {
-  display: inline-block;
-  margin-right: 10px;
-}
-
-/* Tooltip Styling */
-.tooltip {
-  font-size: 14px;
-  color: #333;
-  white-space: nowrap;
-}
-
-/* Expand/Collapse Arrow Icon */
-.arrow {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  margin-right: 5px;
-}
-
-.arrow.down {
-  border: solid #333;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-
-.arrow.right {
-  border: solid #333;
-  border-width: 2px 0 0 2px;
-  transform: rotate(45deg);
-}
-
-
-.pagination-controls {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.filter-icon {
-  margin-left: 5px;
-  cursor: pointer;
-}
-
-.filter-dropdown {
-  position: absolute;
-  background-color: #fff;
-  border: 1px solid #ddd;
-  padding: 10px;
-  z-index: 100;
-  width: 150px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.filter-dropdown input {
-  width: 100%;
-  margin-bottom: 5px;
-}
-
-.filter-dropdown button {
-  width: 100%;
-  padding: 5px;
-  cursor: pointer;
-  background-color: #f0f0f0;
-  border: none;
-  border-radius: 3px;
-}
-
-.controls-row {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  padding: 10px;
-  border-bottom: 1px solid #ddd;
-  background-color: #f9f9f9;
-}
-
-.checkbox-wrapper {
-  display: flex;
-  align-items: center;
-  margin-right: 10px;
-}
-
-.btn {
-  padding: 5px 10px;
-  background-color: #007bff;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.btn:hover {
-  background-color: #0056b3;
-}
-
-select {
-  padding: 5px;
-}
-
-.filter-icon {
-  margin-left: 5px;
-  cursor: pointer;
-}
-
-.filter-dropdown {
-  position: absolute;
-  background-color: #fff;
-  border: 1px solid #ddd;
-  padding: 10px;
-  z-index: 100;
-  width: 150px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.filter-dropdown input {
-  width: 100%;
-  margin-bottom: 5px;
-}
-
-.filter-dropdown button {
-  width: 100%;
-  padding: 5px;
-  cursor: pointer;
-  background-color: #f0f0f0;
-  border: none;
-  border-radius: 3px;
-}
-
-
-.table-container {
-  width: 100%;
-  overflow-x: auto;
-}
-
-.full-width-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th, td {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  text-align: left;
-}
-
-.filter-icon {
-  cursor: pointer;
-  margin-left: 5px;
-}
-
-.filter-dropdown {
-  position: absolute;
-  background-color: #fff;
-  border: 1px solid #ccc;
-  padding: 10px;
-  z-index: 100;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  width: 150px;
-}
-
-.table-container::-webkit-scrollbar {
-  height: 8px;
-}
-
-.table-container::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
-}
-
-.table-container::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
-
-columnVisibility: boolean[] = Array(10).fill(true); // Track visibility of each column
-
-expandedRows: { [storeNumber: string]: boolean } = {}; // Track expanded state for each StoreNumber
-// Pagination State
-currentPage: number = 1;
-itemsPerPage: number = 10;
-totalPages: number = 0;
-rowsPerPageOptions: number[] = [5, 10, 20, 50];
-
-filters = {
-  w1c_ov_Doller_min: null,
-  w1c_ov_Doller_max: null,
-  w1s_ov_Doller_min: null,
-  w1s_ov_Doller_max: null,
-  w2c_ov_Doller_min: null,
-  w2c_ov_Doller_max: null,
-  w2s_ov_Doller_min: null,
-  w2s_ov_Doller_max: null,
-};
-
-// Filter Dropdown State
-filterDropdowns = {
-  w1c_ov_Doller: false,
-  w1s_ov_Doller: false,
-  w2c_ov_Doller: false,
-  w2s_ov_Doller: false,
-};
-
-// Toggle the filter dropdown
-toggleFilterDropdown(column: string) {
-  this.filterDropdowns[column] = !this.filterDropdowns[column];
-}
-
-// Apply filters based on min and max values
-applyFilters() {
-  this.currentPage = 1; // Reset to the first page when filters are applied
-  this.updatePagination();
-}
-
-// Sorting State
-sortColumn: string | null = null;
-sortDirection: 'asc' | 'desc' | '' = ''; // '' means no sorting
-ngOnInit() {
-  this.expandAll(); // Expand all rows on initialization
-  this.updatePagination();
-
-}
-
-// Expand all rows initially and set expanded state for each StoreNumber
-expandAll() {
-  this.data.forEach(item => {
-    if (item.TaskName === 'ALL') {
-      this.expandedRows[item.StoreNumber] = true;
+    .data-name {
+      font-size: 1rem;
     }
-  });
+
+    .data-count {
+      background-color: #1976d2;
+      color: #fff;
+      font-size: 0.9rem;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 50%;
+    }
+  }
 }
 
-// Collapse all rows
-collapseAll() {
-  Object.keys(this.expandedRows).forEach(storeNumber => {
-    this.expandedRows[storeNumber] = false;
-  });
-}
+.content-area {
+  padding: 16px;
 
-// Toggle the row expansion for a specific StoreNumber
-toggleRow(storeNumber: string) {
-  this.expandedRows[storeNumber] = !this.expandedRows[storeNumber];
-}
-
-// Toggle visibility of a specific column
-toggleColumn(index: number) {
-
-  this.columnVisibility[index] = !this.columnVisibility[index];
-}
-
-// Calculate the colspan needed for the placeholder cell to keep structure centered
-getPlaceholderColspan(): number {
-  return this.columnVisibility.slice(0, 10).filter(isVisible => isVisible).length || 1; // Minimum colspan of 1
-}
-
-getColumnName(index: number): string { const columnNames = [ 'Region', 'Territory', 'Store Number', 'Store Name', 'Address', 'City', 'State', 'Task Name', 'FSR', 'Guaranteed Miles' ]; return columnNames[index]; }
-
-trackByIndex(index: number, item: any): number {
-  return index;
-}
-
-// Calculate the colspan for expanded rows after Task Name and FSR columns
-calculateChildColspan(): number {
-  // Count visible columns after "Task Name" (index 7) and "FSR" (index 8)
-  const remainingVisibleColumns = this.columnVisibility.slice(9).filter(isVisible => isVisible).length;
-  return remainingVisibleColumns > 0 ? remainingVisibleColumns : 1; // Minimum colspan of 1
-}
-
-
-// Update pagination state
-// updatePagination() {
-//   this.totalPages = Math.ceil(this.data.length / this.itemsPerPage);
-// }
-
-
-// Handle page change
-goToPage(page: number) {
-  if (page < 1 || page > this.totalPages) return;
-  this.currentPage = page;
-}
-
-// Handle sorting when a column header is clicked
-// sortData(column: string) {
-//   if (this.sortColumn === column) {
-//     // Toggle sorting direction
-//     this.sortDirection = this.sortDirection === 'asc' ? 'desc' : this.sortDirection === 'desc' ? '' : 'asc';
-//     if (this.sortDirection === '') this.sortColumn = null; // Reset sorting
-//   } else {
-//     this.sortColumn = column;
-//     this.sortDirection = 'asc';
-//   }
-// }
-
-getDisplayedData() {
-  const filteredData = this.getFilteredData();
-
-  // Apply sorting if a sort column is set
-  if (this.sortColumn) {
-    filteredData.sort((a, b) => {
-      const aValue = a[this.sortColumn];
-      const bValue = b[this.sortColumn];
-
-      const aNum = parseFloat(aValue) || 0;
-      const bNum = parseFloat(bValue) || 0;
-
-      return this.sortDirection === 'asc' ? aNum - bNum : bNum - aNum;
-    });
+  h2 {
+    margin-bottom: 16px;
   }
 
-  // Paginate the data
-  const startIndex = (this.currentPage - 1) * this.itemsPerPage;
-  const endIndex = startIndex + this.itemsPerPage;
-  return filteredData.slice(startIndex, endIndex);
-}
-
-// Handle sorting when a column header is clicked
-sortData(column: string) {
-  if (this.sortColumn === column) {
-    // Toggle sorting direction
-    this.sortDirection = this.sortDirection === 'asc' ? 'desc' : this.sortDirection === 'desc' ? '' : 'asc';
-    if (this.sortDirection === '') this.sortColumn = null; // Reset sorting
-  } else {
-    this.sortColumn = column;
-    this.sortDirection = 'asc';
+  .placeholder {
+    text-align: center;
+    border: 1px dashed #ddd;
+    padding: 32px;
+    border-radius: 8px;
+    background-color: #fafafa;
   }
-  this.currentPage = 1; // Reset to the first page when sorting
 }
 
-// Update pagination state
-updatePagination() {
-  this.totalPages = Math.ceil(this.data.length / this.itemsPerPage);
-}
-
-getFilteredData() {
-  return this.data.filter(item => {
-    return (
-      (!this.filters.w1c_ov_Doller_min || item.w1c_ov_Doller >= this.filters.w1c_ov_Doller_min) &&
-      (!this.filters.w1c_ov_Doller_max || item.w1c_ov_Doller <= this.filters.w1c_ov_Doller_max) &&
-      (!this.filters.w1s_ov_Doller_min || item.w1s_ov_Doller >= this.filters.w1s_ov_Doller_min) &&
-      (!this.filters.w1s_ov_Doller_max || item.w1s_ov_Doller <= this.filters.w1s_ov_Doller_max) &&
-      (!this.filters.w2c_ov_Doller_min || item.w2c_ov_Doller >= this.filters.w2c_ov_Doller_min) &&
-      (!this.filters.w2c_ov_Doller_max || item.w2c_ov_Doller <= this.filters.w2c_ov_Doller_max) &&
-      (!this.filters.w2s_ov_Doller_min || item.w2s_ov_Doller >= this.filters.w2s_ov_Doller_min) &&
-      (!this.filters.w2s_ov_Doller_max || item.w2s_ov_Doller <= this.filters.w2s_ov_Doller_max)
-    );
-  });
-}
-
-// Clear the filters for a specific column
-clearFilter(column: string) {
-  this.filters[${column}_min] = null;
-  this.filters[${column}_max] = null;
-  this.applyFilters();
-}
-
+.footer {
+  text-align: center;
+  padding: 16px;
+  background-color: #f4f4f4;
+  color: #666;
 }
