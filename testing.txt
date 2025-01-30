@@ -1,6 +1,75 @@
- this.comments = [
-    { id: '1', text: 'This is the first comment!', timestamp: new Date() },
-    { id: '2', text: 'Nice feature, I love it! 👍', timestamp: new Date() },
-    { id: '3', text: 'How do we improve this UI?', timestamp: new Date() },
-    { id: '4', text: 'Test comment for checking edit/delete.', timestamp: new Date() }
-  ];
+ <div class="char-counter">
+    {{ newComment.value.length || 0 }}/{{ maxCommentLength }}
+  </div>
+
+  <!-- Add Comment Button (Disabled if empty or too long) -->
+  <button mat-button color="primary" (click)="addComment()"
+    [disabled]="!newComment.value || newComment.value.length > maxCommentLength">
+    ➕ Add
+  </button>
+
+
+.comment-box-container {
+  width: 100%;
+  max-width: 500px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 10px;
+  background-color: #f9f9f9;
+}
+
+.comments {
+  max-height: 300px;
+  overflow-y: auto;
+  padding-bottom: 10px;
+}
+
+.comment-item {
+  background-color: #e3f2fd;
+  border-radius: 10px;
+  padding: 8px;
+  margin: 5px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.comment-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.comment-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  font-size: 12px;
+}
+
+.timestamp {
+  color: gray;
+}
+
+.add-comment {
+  display: flex;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.add-comment input {
+  flex: 1;
+  padding: 5px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+.char-counter {
+  font-size: 12px;
+  text-align: right;
+  color: gray;
+}
+
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
