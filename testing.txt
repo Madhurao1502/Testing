@@ -1,3 +1,5 @@
+<h2 mat-dialog-title>Comments</h2>
+
 <div class="comment-box-container">
   <div class="comments">
     <div *ngFor="let comment of comments" class="comment-item">
@@ -21,7 +23,9 @@
   </div>
 </div>
 
-
+<div mat-dialog-actions>
+  <button mat-button (click)="closeDialog()">Close</button>
+</div>
 .comment-box-container {
   width: 100%;
   max-width: 500px;
