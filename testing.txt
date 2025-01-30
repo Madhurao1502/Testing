@@ -1,77 +1,82 @@
-.sidenav-container {
-  height: calc(100vh - 64px); // Adjust for the toolbar height
+<div class="comment-box-container">
+  <div class="comments">
+    <div *ngFor="let comment of comments" class="comment-item">
+      <div class="comment-content">
+        <span *ngIf="editingCommentId !== comment.id">{{ comment.text }}</span>
+        <input *ngIf="editingCommentId === comment.id" [(ngModel)]="comment.text" class="edit-input" />
+
+        <div class="comment-actions">
+          <span class="timestamp">{{ comment.timestamp | date:'short' }}</span>
+          <button *ngIf="editingCommentId !== comment.id" (click)="editComment(comment)">✏️ Edit</button>
+          <button *ngIf="editingCommentId === comment.id" (click)="saveEdit(comment)">💾 Save</button>
+          <button (click)="deleteComment(comment.id)">🗑 Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="add-comment">
+    <input matInput placeholder="Write a comment..." [formControl]="newComment" />
+    <button mat-button color="primary" (click)="addComment()">➕ Add</button>
+  </div>
+</div>
+
+
+.comment-box-container {
+  width: 100%;
+  max-width: 500px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 10px;
+  background-color: #f9f9f9;
 }
 
-.sidenav {
-  width: 300px;
-  padding: 16px;
-  background-color: #f4f4f4;
+.comments {
+  max-height: 300px;
+  overflow-y: auto;
+  padding-bottom: 10px;
 }
 
-.filter-section {
-  margin-bottom: 32px;
-
-  .filter-field {
-    width: 100%;
-    margin-bottom: 16px;
-  }
-
-  .search-box {
-    margin-top: 16px;
-  }
+.comment-item {
+  background-color: #e3f2fd;
+  border-radius: 10px;
+  padding: 8px;
+  margin: 5px 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.data-source-section {
-  h3 {
-    margin-bottom: 16px;
-    font-size: 1.2rem;
-    font-weight: bold;
-  }
-
-  .data-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid #ddd;
-
-    .data-name {
-      font-size: 1rem;
-    }
-
-    .data-count {
-      background-color: #1976d2;
-      color: #fff;
-      font-size: 0.9rem;
-      width: 32px;
-      height: 32px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      border-radius: 50%;
-    }
-  }
+.comment-content {
+  display: flex;
+  flex-direction: column;
 }
 
-.content-area {
-  padding: 16px;
-
-  h2 {
-    margin-bottom: 16px;
-  }
-
-  .placeholder {
-    text-align: center;
-    border: 1px dashed #ddd;
-    padding: 32px;
-    border-radius: 8px;
-    background-color: #fafafa;
-  }
+.comment-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  font-size: 12px;
 }
 
-.footer {
-  text-align: center;
-  padding: 16px;
-  background-color: #f4f4f4;
-  color: #666;
+.timestamp {
+  color: gray;
+}
+
+.add-comment {
+  display: flex;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.add-comment input {
+  flex: 1;
+  padding: 5px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
 }
