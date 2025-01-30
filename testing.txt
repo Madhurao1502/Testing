@@ -1,86 +1,79 @@
-<h2 mat-dialog-title>Comments</h2>
+import { Component, Inject, OnInit } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { FormControl } from '@angular/forms';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 
-<div class="comment-box-container">
-  <div class="comments">
-    <div *ngFor="let comment of comments" class="comment-item">
-      <div class="comment-content">
-        <span *ngIf="editingCommentId !== comment.id">{{ comment.text }}</span>
-        <input *ngIf="editingCommentId === comment.id" [(ngModel)]="comment.text" class="edit-input" />
+@Component({
+  selector: 'app-comment-dialog',
+  templateUrl: './comment-dialog.component.html',
+  styleUrls: ['./comment-dialog.component.css']
+})
+export class CommentDialogComponent implements OnInit {
+  comments: any[] = [];
+  newComment = new FormControl('');
+  editingCommentId: string | null = null;
 
-        <div class="comment-actions">
-          <span class="timestamp">{{ comment.timestamp | date:'short' }}</span>
-          <button *ngIf="editingCommentId !== comment.id" (click)="editComment(comment)">✏️ Edit</button>
-          <button *ngIf="editingCommentId === comment.id" (click)="saveEdit(comment)">💾 Save</button>
-          <button (click)="deleteComment(comment.id)">🗑 Delete</button>
-        </div>
-      </div>
-    </div>
-  </div>
+  apiUrls: any = {
+    dashboard: 'https://yourserver.com/api/dashboard/comments',
+    other: 'https://yourserver.com/api/other/comments'
+  };
 
-  <div class="add-comment">
-    <input matInput placeholder="Write a comment..." [formControl]="newComment" />
-    <button mat-button color="primary" (click)="addComment()">➕ Add</button>
-  </div>
-</div>
+  constructor(
+    private http: HttpClient,
+    @Inject(MAT_DIALOG_DATA) public data: { apiType: string },
+    private dialogRef: MatDialogRef<CommentDialogComponent>
+  ) {}
 
-<div mat-dialog-actions>
-  <button mat-button (click)="closeDialog()">Close</button>
-</div>
-.comment-box-container {
-  width: 100%;
-  max-width: 500px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  padding: 10px;
-  background-color: #f9f9f9;
-}
+  ngOnInit() {
+    this.loadComments();
+  }
 
-.comments {
-  max-height: 300px;
-  overflow-y: auto;
-  padding-bottom: 10px;
-}
+  loadComments() {
+    const apiUrl = this.apiUrls[this.data.apiType] || this.apiUrls.dashboard;
+    this.http.get<any[]>(apiUrl).subscribe({
+      next: (res) => (this.comments = res),
+      error: (err) => console.error('Error loading comments:', err)
+    });
+  }
 
-.comment-item {
-  background-color: #e3f2fd;
-  border-radius: 10px;
-  padding: 8px;
-  margin: 5px 0;
-  display: flex;
-  flex-direction: column;
-}
+  addComment() {
+    if (!this.newComment.value.trim()) return;
 
-.comment-content {
-  display: flex;
-  flex-direction: column;
-}
+    const apiUrl = this.apiUrls[this.data.apiType] || this.apiUrls.dashboard;
+    const newCommentObj = { text: this.newComment.value, timestamp: new Date() };
 
-.comment-actions {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 5px;
-  font-size: 12px;
-}
+    this.http.post(apiUrl, newCommentObj).subscribe({
+      next: (res) => {
+        this.comments.push(res);
+        this.newComment.reset();
+      },
+      error: (err) => console.error('Error adding comment:', err)
+    });
+  }
 
-.timestamp {
-  color: gray;
-}
+  editComment(comment: any) {
+    this.editingCommentId = comment.id;
+  }
 
-.add-comment {
-  display: flex;
-  gap: 5px;
-  margin-top: 10px;
-}
+  saveEdit(comment: any) {
+    const apiUrl = `${this.apiUrls[this.data.apiType] || this.apiUrls.dashboard}/${comment.id}`;
+    this.http.put(apiUrl, comment).subscribe({
+      next: () => (this.editingCommentId = null),
+      error: (err) => console.error('Error updating comment:', err)
+    });
+  }
 
-.add-comment input {
-  flex: 1;
-  padding: 5px;
-  border-radius: 5px;
-  border: 1px solid #ccc;
-}
+  deleteComment(commentId: string) {
+    const apiUrl = `${this.apiUrls[this.data.apiType] || this.apiUrls.dashboard}/${commentId}`;
+    this.http.delete(apiUrl).subscribe({
+      next: () => {
+        this.comments = this.comments.filter(c => c.id !== commentId);
+      },
+      error: (err) => console.error('Error deleting comment:', err)
+    });
+  }
 
-button {
-  background: none;
-  border: none;
-  cursor: pointer;
+  closeDialog() {
+    this.dialogRef.close();
+  }
 }
