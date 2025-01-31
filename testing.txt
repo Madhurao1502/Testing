@@ -1,88 +1,65 @@
-<mat-form-field appearance="fill" class="required-field">
-  <mat-label>Client <span class="required-symbol">*</span></mat-label>
-  <input type="text" matInput formControlName="clientSearch" [matAutocomplete]="autoClient">
-  <mat-autocomplete #autoClient="matAutocomplete">
-    <!-- List clients -->
-    <mat-option *ngFor="let client of filteredClients | async" [value]="client.c_name">
-      {{ client.c_name }}
-    </mat-option>
+<div>
+  <button (click)="goToPage(1, currentPage1 - 1)" [disabled]="currentPage1 === 1">Prev</button>
+  <span>Page {{ currentPage1 }} of {{ Math.ceil(dataSource1.length / pageSize) }}</span>
+  <button (click)="goToPage(1, currentPage1 + 1)" 
+          [disabled]="currentPage1 === Math.ceil(dataSource1.length / pageSize)">Next</button>
+</div>
 
-    <!-- Add Client Option -->
-    <mat-option (click)="openAddClientDialog()">
-      <mat-icon>add</mat-icon> Add Client
-    </mat-option>
-  </mat-autocomplete>
-</mat-form-field>
+<div>
+  <button (click)="goToPage(2, currentPage2 - 1)" [disabled]="currentPage2 === 1">Prev</button>
+  <span>Page {{ currentPage2 }} of {{ Math.ceil(dataSource2.length / pageSize) }}</span>
+  <button (click)="goToPage(2, currentPage2 + 1)" 
+          [disabled]="currentPage2 === Math.ceil(dataSource2.length / pageSize)">Next</button>
+</div>
 
+<label>Rows per page: </label>
+<select (change)="changePageSize($event)">
+  <option *ngFor="let size of [5, 10, 20]" [value]="size">{{ size }}</option>
+</select>
 
-<h2 mat-dialog-title>Add Client</h2>
-<mat-dialog-content class="dialog-content">
-  <mat-form-field appearance="fill">
-    <mat-label>Client Name</mat-label>
-    <input matInput [formControl]="clientNameCtrl" [matAutocomplete]="autoClient">
-    <mat-autocomplete #autoClient="matAutocomplete">
-      <mat-option *ngFor="let client of filteredClients | async" [value]="client.c_name">
-        {{ client.c_name }}
-      </mat-option>
-    </mat-autocomplete>
-  </mat-form-field>
-</mat-dialog-content>
-<mat-dialog-actions align="end">
-  <button mat-button (click)="onCancel()">Cancel</button>
-  <button mat-button color="primary" (click)="onSave()">Save</button>
-</mat-dialog-actions>
-
-
-.dialog-content {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+changePageSize(event: any) {
+  this.pageSize = +event.target.value;
+  this.currentPage1 = 1; // Reset to first page
+  this.currentPage2 = 1;
+  this.updatePaginatedData();
 }
 
-mat-dialog-actions {
-  padding-top: 16px;
+currentPage1 = 1;  // Current page for table 1
+currentPage2 = 1;  // Current page for table 2
+pageSize = 5;  // Number of items per page
+
+dataSource1: any[] = [];  // Full dataset for table 1
+dataSource2: any[] = [];  // Full dataset for table 2
+
+paginatedData1: any[] = [];  // Paginated data for table 1
+paginatedData2: any[] = [];  // Paginated data for table 2
+
+ngOnInit() {
+  // Example: Load data from an API or service
+  this.dataSource1 = this.getMockData(20); // Assume 20 records
+  this.dataSource2 = this.getMockData(12); // Assume 12 records
+  
+  this.updatePaginatedData(); // Apply pagination
+}
+updatePaginatedData() {
+  const startIndex1 = (this.currentPage1 - 1) * this.pageSize;
+  const startIndex2 = (this.currentPage2 - 1) * this.pageSize;
+
+  this.paginatedData1 = this.dataSource1.slice(startIndex1, startIndex1 + this.pageSize);
+  this.paginatedData2 = this.dataSource2.slice(startIndex2, startIndex2 + this.pageSize);
 }
 
-openAddClientDialog() {
-    const dialogRef = this.dialog.open(AddClientDialogComponent, {
-      width: '400px',
-      data: { clients: this.clients },
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        this.clients.push({ C_id: String(this.clients.length + 1), c_name: result });
-        this.form.get('clientSearch')!.setValue(result);
-      }
-    });
+// **Navigate pages**
+goToPage(table: number, page: number) {
+  if (table === 1) {
+    if (page > 0 && page <= Math.ceil(this.dataSource1.length / this.pageSize)) {
+      this.currentPage1 = page;
+      this.updatePaginatedData();
+    }
+  } else if (table === 2) {
+    if (page > 0 && page <= Math.ceil(this.dataSource2.length / this.pageSize)) {
+      this.currentPage2 = page;
+      this.updatePaginatedData();
+    }
   }
-
- clientNameCtrl = new FormControl('');
-  filteredClients!: Observable<any[]>;
-
-  constructor(
-    public dialogRef: MatDialogRef<AddClientDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: any
-  ) {}
-
-  ngOnInit() {
-    this.filteredClients = this.clientNameCtrl.valueChanges.pipe(
-      startWith(''),
-      map(value => this.filterClients(value || ''))
-    );
-  }
-
-  filterClients(value: string): any[] {
-    const filterValue = value.toLowerCase();
-    return this.data.clients.filter(client =>
-      client.c_name.toLowerCase().includes(filterValue)
-    );
-  }
-
-  onSave() {
-    this.dialogRef.close(this.clientNameCtrl.value);
-  }
-
-  onCancel() {
-    this.dialogRef.close();
-  }
+}
