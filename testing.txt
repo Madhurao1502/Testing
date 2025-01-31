@@ -1,75 +1,88 @@
- <div class="char-counter">
-    {{ newComment.value.length || 0 }}/{{ maxCommentLength }}
-  </div>
+<mat-form-field appearance="fill" class="required-field">
+  <mat-label>Client <span class="required-symbol">*</span></mat-label>
+  <input type="text" matInput formControlName="clientSearch" [matAutocomplete]="autoClient">
+  <mat-autocomplete #autoClient="matAutocomplete">
+    <!-- List clients -->
+    <mat-option *ngFor="let client of filteredClients | async" [value]="client.c_name">
+      {{ client.c_name }}
+    </mat-option>
 
-  <!-- Add Comment Button (Disabled if empty or too long) -->
-  <button mat-button color="primary" (click)="addComment()"
-    [disabled]="!newComment.value || newComment.value.length > maxCommentLength">
-    ➕ Add
-  </button>
+    <!-- Add Client Option -->
+    <mat-option (click)="openAddClientDialog()">
+      <mat-icon>add</mat-icon> Add Client
+    </mat-option>
+  </mat-autocomplete>
+</mat-form-field>
 
 
-.comment-box-container {
-  width: 100%;
-  max-width: 500px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  padding: 10px;
-  background-color: #f9f9f9;
-}
+<h2 mat-dialog-title>Add Client</h2>
+<mat-dialog-content class="dialog-content">
+  <mat-form-field appearance="fill">
+    <mat-label>Client Name</mat-label>
+    <input matInput [formControl]="clientNameCtrl" [matAutocomplete]="autoClient">
+    <mat-autocomplete #autoClient="matAutocomplete">
+      <mat-option *ngFor="let client of filteredClients | async" [value]="client.c_name">
+        {{ client.c_name }}
+      </mat-option>
+    </mat-autocomplete>
+  </mat-form-field>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()">Cancel</button>
+  <button mat-button color="primary" (click)="onSave()">Save</button>
+</mat-dialog-actions>
 
-.comments {
-  max-height: 300px;
-  overflow-y: auto;
-  padding-bottom: 10px;
-}
 
-.comment-item {
-  background-color: #e3f2fd;
-  border-radius: 10px;
-  padding: 8px;
-  margin: 5px 0;
+.dialog-content {
   display: flex;
   flex-direction: column;
+  gap: 16px;
 }
 
-.comment-content {
-  display: flex;
-  flex-direction: column;
+mat-dialog-actions {
+  padding-top: 16px;
 }
 
-.comment-actions {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 5px;
-  font-size: 12px;
-}
+openAddClientDialog() {
+    const dialogRef = this.dialog.open(AddClientDialogComponent, {
+      width: '400px',
+      data: { clients: this.clients },
+    });
 
-.timestamp {
-  color: gray;
-}
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.clients.push({ C_id: String(this.clients.length + 1), c_name: result });
+        this.form.get('clientSearch')!.setValue(result);
+      }
+    });
+  }
 
-.add-comment {
-  display: flex;
-  gap: 5px;
-  margin-top: 10px;
-}
+ clientNameCtrl = new FormControl('');
+  filteredClients!: Observable<any[]>;
 
-.add-comment input {
-  flex: 1;
-  padding: 5px;
-  border-radius: 5px;
-  border: 1px solid #ccc;
-}
+  constructor(
+    public dialogRef: MatDialogRef<AddClientDialogComponent>,
+    @Inject(MAT_DIALOG_DATA) public data: any
+  ) {}
 
-.char-counter {
-  font-size: 12px;
-  text-align: right;
-  color: gray;
-}
+  ngOnInit() {
+    this.filteredClients = this.clientNameCtrl.valueChanges.pipe(
+      startWith(''),
+      map(value => this.filterClients(value || ''))
+    );
+  }
 
-button {
-  background: none;
-  border: none;
-  cursor: pointer;
-}
+  filterClients(value: string): any[] {
+    const filterValue = value.toLowerCase();
+    return this.data.clients.filter(client =>
+      client.c_name.toLowerCase().includes(filterValue)
+    );
+  }
+
+  onSave() {
+    this.dialogRef.close(this.clientNameCtrl.value);
+  }
+
+  onCancel() {
+    this.dialogRef.close();
+  }
