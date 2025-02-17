@@ -1,41 +1,61 @@
-.popup-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 1000;
+<div class="date-picker-container">
+  <mat-form-field appearance="fill">
+    <mat-label>Select Dates</mat-label>
+    <input matInput [value]="getFormattedDates()" readonly (click)="picker.open()">
+    <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+    <mat-datepicker #picker (selectedChanged)="onDateSelected($event)" [dateFilter]="filterDates"></mat-datepicker>
+  </mat-form-field>
+
+  <button mat-raised-button color="primary" (click)="submit()">Submit</button>
+</div>
+
+<!-- Display selected dates -->
+<div *ngIf="selectedDates.length > 0">
+  <h3>Selected Dates:</h3>
+  <ul>
+    <li *ngFor="let date of selectedDates">{{ date | date: 'fullDate' }}</li>
+  </ul>
+</div>
+
+ selectedDates: Date[] = [];
+
+  // Disable past dates (Only allow selection from today onward)
+  filterDates = (date: Date): boolean => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date >= today;
+  };
+
+  // Handle Date Selection
+  onDateSelected(selectedDate: Date) {
+    const index = this.selectedDates.findIndex(d => d.getTime() === selectedDate.getTime());
+
+    if (index === -1) {
+      // Add date if not already selected
+      this.selectedDates.push(selectedDate);
+    } else {
+      // Remove date if already selected
+      this.selectedDates.splice(index, 1);
+    }
+    
+    // Sort the selected dates
+    this.selectedDates.sort((a, b) => a.getTime() - b.getTime());
+  }
+
+  // Format selected dates for input field
+  getFormattedDates(): string {
+    return this.selectedDates.map(date => date.toLocaleDateString()).join(', ');
+  }
+
+  // Submit selected dates
+  submit() {
+    console.log('Selected Dates:', this.selectedDates);
+  }
 }
 
-.popup-content {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: #fff;
-  padding: 20px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  z-index: 1001;
-  width: 300px;
-  border-radius: 8px;
-  text-align: center;
-}
-
-h2 {
-  margin-top: 0;
-}
-
-.disable-button {
-  background-color: #ff4c4c;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 5px;
-  cursor: pointer;
-  margin-top: 20px;
-}
-
-.disable-button:hover {
-  background-color: #e04343;
+.date-picker-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 300px;
 }
