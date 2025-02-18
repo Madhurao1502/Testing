@@ -1,161 +1,70 @@
-<mat-card class="form-container">
-  <mat-card-title>Detail Shelf</mat-card-title>
-  <mat-divider></mat-divider>
-
-  <form class="form-content">
-    <div class="form-grid">
-      <!-- Name -->
-      <mat-form-field appearance="outline">
-        <mat-label>Name</mat-label>
-        <input matInput type="text" required>
-      </mat-form-field>
-
-      <!-- Category -->
-      <mat-form-field appearance="outline">
-        <mat-label>Category</mat-label>
-        <mat-select>
-          <mat-option *ngFor="let category of categories" [value]="category">{{ category }}</mat-option>
-        </mat-select>
-        <button mat-icon-button matSuffix>
-          <mat-icon>refresh</mat-icon>
-        </button>
-      </mat-form-field>
-
-      <!-- Project Manager -->
-      <mat-form-field appearance="outline">
-        <mat-label>Project Manager</mat-label>
-        <mat-select>
-          <mat-option *ngFor="let manager of managers" [value]="manager">{{ manager }}</mat-option>
-        </mat-select>
-      </mat-form-field>
+<mat-dialog-content>
+  <div class="dialog-container">
+    <!-- Header with Close Button -->
+    <div class="header">
+      <h2>Select Dates</h2>
+      <button mat-icon-button (click)="dialogRef.close()">
+        <mat-icon>close</mat-icon>
+      </button>
     </div>
 
-    <!-- Mode Selection -->
-    <div class="mode-section">
-      <span>Mode:</span>
-      <mat-button-toggle-group appearance="outline">
-        <mat-button-toggle value="initial">Initial</mat-button-toggle>
-        <mat-button-toggle value="in-collection">In Collection</mat-button-toggle>
-        <mat-button-toggle value="complete">Collection Complete</mat-button-toggle>
-      </mat-button-toggle-group>
+    <!-- Calendar and Selected Dates Section -->
+    <div class="calendar-section">
+      <mat-calendar
+        #calendar
+        (selectedChange)="select($event, calendar)"
+        [minDate]="tomorrow"
+        [dateClass]="isSelected">
+      </mat-calendar>
+      
+      <div class="selected-dates">
+        <h3>Selected Dates</h3>
+        <div *ngFor="let date of daysSelected">{{ date }}</div>
+      </div>
     </div>
 
-    <!-- Toggle Switches -->
-    <div class="toggle-section">
-      <mat-slide-toggle>Chain Override</mat-slide-toggle>
-      <mat-slide-toggle color="primary">ETL Imputation</mat-slide-toggle>
+    <!-- Buttons -->
+    <div class="button-group">
+      <button mat-button color="warn" (click)="clearSelection(calendar)">Clear</button>
+      <button mat-raised-button color="primary" (click)="addDatesToTable()">Add</button>
     </div>
 
-    <!-- Priority -->
-    <div class="priority-section">
-      <span>Priority:</span>
-      <mat-button-toggle-group>
-        <mat-button-toggle value="normal">Normal</mat-button-toggle>
-        <mat-button-toggle value="high">High</mat-button-toggle>
-      </mat-button-toggle-group>
-    </div>
+    <!-- Table for Added Dates -->
+    <table mat-table [dataSource]="dataSource" class="mat-elevation-z8">
+      <ng-container matColumnDef="date">
+        <th mat-header-cell *matHeaderCellDef>Date</th>
+        <td mat-cell *matCellDef="let element"> {{element}} </td>
+      </ng-container>
 
-    <!-- Re-statement & Store Approvals -->
-    <div class="section-header">
-      <span>Re-statement / Store Approvals</span>
-      <mat-icon>info</mat-icon>
-    </div>
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
+  </div>
+</mat-dialog-content>
 
-    <div class="toggle-section">
-      <mat-slide-toggle color="warn">Re-statement</mat-slide-toggle>
-      <mat-slide-toggle color="warn">Copy Approval</mat-slide-toggle>
-    </div>
-
-    <mat-form-field appearance="outline">
-      <mat-label>From</mat-label>
-      <mat-select>
-        <mat-option *ngFor="let deliverable of deliverables" [value]="deliverable">{{ deliverable }}</mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <!-- Waves -->
-    <div class="section-header">
-      <span>Wave</span>
-    </div>
-
-    <div class="form-grid">
-      <mat-form-field appearance="outline">
-        <mat-label>Wave - 1</mat-label>
-        <input matInput type="text">
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Wave - 2</mat-label>
-        <input matInput type="text">
-      </mat-form-field>
-    </div>
-
-    <!-- Movement Section -->
-    <div class="form-grid">
-      <mat-form-field appearance="outline">
-        <mat-label>Start Week</mat-label>
-        <input matInput type="date">
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>End Week</mat-label>
-        <input matInput type="date">
-      </mat-form-field>
-    </div>
-
-    <!-- Action Buttons -->
-    <div class="action-buttons">
-      <button mat-raised-button color="primary">Save</button>
-      <button mat-raised-button color="accent">Ready To Process</button>
-    </div>
-  </form>
-</mat-card>
-
-
-
-.form-container {
-  max-width: 800px;
-  margin: auto;
-  padding: 20px;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.mode-section, .priority-section, .toggle-section, .section-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-top: 16px;
-}
-
-.section-header {
-  font-weight: bold;
-  font-size: 1.2em;
-  border-bottom: 2px solid #ccc;
-  padding-bottom: 5px;
-}
-
-.action-buttons {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-
-import { Component } from '@angular/core';
-
-@Component({
-  selector: 'app-form',
-  templateUrl: './form.component.html',
-  styleUrls: ['./form.component.scss']
-})
-export class FormComponent {
-  categories = ['Category A', 'Category B', 'Category C'];
-  managers = ['Manager 1', 'Manager 2', 'Manager 3'];
-  deliverables = ['Deliverable 1', 'Deliverable 2', 'Deliverable 3'];
-}
+<style>
+  .dialog-container {
+    width: 500px;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .calendar-section {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+  }
+  .selected-dates {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    min-width: 150px;
+  }
+  .button-group {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+  }
+</style>
