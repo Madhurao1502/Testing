@@ -68,3 +68,49 @@
     gap: 10px;
   }
 </style>
+
+ today = new Date();
+  tomorrow = new Date(
+    this.today.getFullYear(),
+    this.today.getMonth(),
+    this.today.getDate() + 1
+  );
+  
+  daysSelected: string[] = [];
+  addedDates: string[] = [];
+
+  // Function to check if a date is selected and apply styling
+  isSelected = (event: Date) => {
+    const date = this.formatDate(event);
+    return this.daysSelected.includes(date) ? 'selected' : null;
+  };
+
+  // Function to select/deselect a date
+  select(event: Date, calendar: any) {
+    const date = this.formatDate(event);
+    const index = this.daysSelected.indexOf(date);
+
+    if (index === -1) {
+      this.daysSelected.push(date);
+    } else {
+      this.daysSelected.splice(index, 1);
+    }
+
+    calendar.updateTodaysDate(); // Refresh calendar UI
+  }
+
+  // Function to clear selected dates
+  clearSelection(calendar: any) {
+    this.daysSelected = [];
+    calendar.updateTodaysDate();
+  }
+
+  // Function to add selected dates to the table
+  addSelectedDates() {
+    this.addedDates = [...this.daysSelected];
+  }
+
+  // Helper function to format date as YYYY-MM-DD
+  private formatDate(date: Date): string {
+    return `${date.getFullYear()}-${('00' + (date.getMonth() + 1)).slice(-2)}-${('00' + date.getDate()).slice(-2)}`;
+  }
