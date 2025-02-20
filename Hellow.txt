@@ -1,116 +1,39 @@
-<mat-dialog-content>
-  <div class="dialog-container">
-    <!-- Header with Close Button -->
-    <div class="header">
-      <h2>Select Dates</h2>
-      <button mat-icon-button (click)="dialogRef.close()">
-        <mat-icon>close</mat-icon>
-      </button>
-    </div>
+import { Component } from '@angular/core';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 
-    <!-- Calendar and Selected Dates Section -->
-    <div class="calendar-section">
-      <mat-calendar
-        #calendar
-        (selectedChange)="select($event, calendar)"
-        [minDate]="tomorrow"
-        [dateClass]="isSelected">
-      </mat-calendar>
-      
-      <div class="selected-dates">
-        <h3>Selected Dates</h3>
-        <div *ngFor="let date of daysSelected">{{ date }}</div>
-      </div>
-    </div>
+@Component({
+  selector: 'app-currency-input',
+  templateUrl: './currency-input.component.html',
+  styleUrls: ['./currency-input.component.css']
+})
+export class CurrencyInputComponent {
+  currencyForm: FormGroup;
 
-    <!-- Buttons -->
-    <div class="button-group">
-      <button mat-button color="warn" (click)="clearSelection(calendar)">Clear</button>
-      <button mat-raised-button color="primary" (click)="addDatesToTable()">Add</button>
-    </div>
-
-    <!-- Table for Added Dates -->
-    <table mat-table [dataSource]="dataSource" class="mat-elevation-z8">
-      <ng-container matColumnDef="date">
-        <th mat-header-cell *matHeaderCellDef>Date</th>
-        <td mat-cell *matCellDef="let element"> {{element}} </td>
-      </ng-container>
-
-      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-    </table>
-  </div>
-</mat-dialog-content>
-
-<style>
-  .dialog-container {
-    width: 500px;
-  }
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .calendar-section {
-    display: flex;
-    gap: 20px;
-    margin-top: 20px;
-  }
-  .selected-dates {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    min-width: 150px;
-  }
-  .button-group {
-    margin-top: 15px;
-    display: flex;
-    gap: 10px;
-  }
-</style>
-
- today = new Date();
-  tomorrow = new Date(
-    this.today.getFullYear(),
-    this.today.getMonth(),
-    this.today.getDate() + 1
-  );
-  
-  daysSelected: string[] = [];
-  addedDates: string[] = [];
-
-  // Function to check if a date is selected and apply styling
-  isSelected = (event: Date) => {
-    const date = this.formatDate(event);
-    return this.daysSelected.includes(date) ? 'selected' : null;
-  };
-
-  // Function to select/deselect a date
-  select(event: Date, calendar: any) {
-    const date = this.formatDate(event);
-    const index = this.daysSelected.indexOf(date);
-
-    if (index === -1) {
-      this.daysSelected.push(date);
-    } else {
-      this.daysSelected.splice(index, 1);
-    }
-
-    calendar.updateTodaysDate(); // Refresh calendar UI
+  constructor(private fb: FormBuilder) {
+    this.currencyForm = this.fb.group({
+      currency: ['', [Validators.required]]
+    });
   }
 
-  // Function to clear selected dates
-  clearSelection(calendar: any) {
-    this.daysSelected = [];
-    calendar.updateTodaysDate();
+  get currency() {
+    return this.currencyForm.get('currency');
   }
 
-  // Function to add selected dates to the table
-  addSelectedDates() {
-    this.addedDates = [...this.daysSelected];
-  }
+  formatCurrency(event: any) {
+    let inputValue = event.target.value;
 
-  // Helper function to format date as YYYY-MM-DD
-  private formatDate(date: Date): string {
-    return `${date.getFullYear()}-${('00' + (date.getMonth() + 1)).slice(-2)}-${('00' + date.getDate()).slice(-2)}`;
+    // Remove all non-numeric characters except for dots and commas
+    inputValue = inputValue.replace(/[^0-9.]/g, '');
+
+    // Format the number with commas
+    let parts = inputValue.split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); // Adds commas to thousands
+    inputValue = parts.join('.');
+
+    // Ensure the value starts with a `$`
+    event.target.value = `$` + inputValue;
+
+    // Update the FormControl value
+    this.currencyForm.controls['currency'].setValue(event.target.value, { emitEvent: false });
   }
+}
