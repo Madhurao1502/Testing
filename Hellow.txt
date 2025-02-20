@@ -1,39 +1,24 @@
-import { Component } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { Directive, ElementRef, HostListener } from '@angular/core';
 
-@Component({
-  selector: 'app-currency-input',
-  templateUrl: './currency-input.component.html',
-  styleUrls: ['./currency-input.component.css']
+@Directive({
+  selector: '[appCurrencyFormatter]'
 })
-export class CurrencyInputComponent {
-  currencyForm: FormGroup;
+export class CurrencyFormatterDirective {
+  constructor(private el: ElementRef) {}
 
-  constructor(private fb: FormBuilder) {
-    this.currencyForm = this.fb.group({
-      currency: ['', [Validators.required]]
-    });
-  }
+  @HostListener('input', ['$event'])
+  onInputChange(event: Event) {
+    let input = (event.target as HTMLInputElement).value;
 
-  get currency() {
-    return this.currencyForm.get('currency');
-  }
+    // Remove alphabets and keep only numbers, dot, and commas
+    input = input.replace(/[^0-9.]/g, '');
 
-  formatCurrency(event: any) {
-    let inputValue = event.target.value;
+    // Format with commas
+    let parts = input.split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    input = parts.join('.');
 
-    // Remove all non-numeric characters except for dots and commas
-    inputValue = inputValue.replace(/[^0-9.]/g, '');
-
-    // Format the number with commas
-    let parts = inputValue.split('.');
-    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); // Adds commas to thousands
-    inputValue = parts.join('.');
-
-    // Ensure the value starts with a `$`
-    event.target.value = `$` + inputValue;
-
-    // Update the FormControl value
-    this.currencyForm.controls['currency'].setValue(event.target.value, { emitEvent: false });
+    // Ensure the value starts with `$`
+    this.el.nativeElement.value = `$` + input;
   }
 }
