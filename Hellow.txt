@@ -1,116 +1,54 @@
-<mat-form-field class="example-chip-list" appearance="fill">
-<mat-label>Select Options</mat-label>
+import { Directive, ElementRef, HostListener, Renderer2, Input } from '@angular/core';
+import { NgControl } from '@angular/forms';
 
-<mat-chip-list #chipList aria-label="Option selection">
-  <mat-chip *ngFor="let selected of selectedOptions" (removed)="remove(selected)">
-    {{ selected.name }}
-    <button matChipRemove>
-      <mat-icon>cancel</mat-icon>
-    </button>
-  </mat-chip>
-</mat-chip-list>
-
-<!-- Search Input -->
-<input 
-  placeholder="Search options..."
-  [formControl]="searchCtrl"
-  [matAutocomplete]="auto"
-  [matChipInputFor]="chipList"
-  (keydown.space)="$event.stopPropagation()"> <!-- Prevent space issue -->
-
-<!-- Autocomplete Dropdown -->
-<mat-autocomplete #auto="matAutocomplete">
-  
-  <!-- Select All / Unselect All -->
-  <mat-option (click)="toggleSelectAll($event)" *ngIf="filteredOptions.length > 0">
-    <mat-checkbox [checked]="isAllSelected()">
-      {{ isAllSelected() ? 'Unselect All' : 'Select All' }}
-    </mat-checkbox>
-  </mat-option>
-  
-  <!-- Dynamic Filtered Options -->
-  <mat-option *ngFor="let option of filteredOptions" (click)="toggleSelection(option, $event)">
-    <mat-checkbox [checked]="isSelected(option)">
-      {{ option.name }}
-    </mat-checkbox>
-  </mat-option>
-
-</mat-autocomplete>
-
-</mat-form-field>
-
-
-
-{
-  @ViewChild(MatAutocompleteTrigger) autoTrigger!: MatAutocompleteTrigger;
-
-  searchCtrl = new FormControl('');
-  selectedValues = new FormControl([]);
-  options = [
-    { key: 1, name: "Option 1" },
-    { key: 2, name: "Option 2" },
-    { key: 3, name: "Option 3" },
-    { key: 4, name: "Option 4" },
-    { key: 5, name: "Option 5" }
-  ];
-
-  filteredOptions = [...this.options];
-  selectedOptions: any[] = [];
-
-  constructor() {
-    this.searchCtrl.valueChanges.subscribe(value => this.filterOptions(value));
+@Directive({
+  selector: '[appCurrencyFormatter]'
+})
+export class CurrencyFormatterDirective {
+  @Input() set appCurrencyFormatter(value: string | number) {
+    if (value !== null && value !== undefined) {
+      this.formatValue(value.toString());
+    }
   }
 
-  filterOptions(value: string) {
-    const filterValue = value.toLowerCase();
-    this.filteredOptions = this.options.filter(option =>
-      option.name.toLowerCase().includes(filterValue)
-    );
+  constructor(private el: ElementRef, private control: NgControl, private renderer: Renderer2) {}
+
+  @HostListener('input', ['$event'])
+  onInputChange(event: Event) {
+    let input = (event.target as HTMLInputElement).value;
+    this.formatValue(input);
   }
 
-  toggleSelection(option: any, event: Event) {
-    event.stopPropagation(); // Prevent closing dropdown
-
-    if (this.isSelected(option)) {
-      this.remove(option);
-    } else {
-      this.selectedOptions.push(option);
-      this.selectedValues.setValue([...this.selectedValues.value, option.key]);
+  private formatValue(value: string) {
+    if (!value) {
+      this.setFormattedValue('$0.00');
+      return;
     }
 
-    // Keep autocomplete open
-    setTimeout(() => {
-      this.autoTrigger.openPanel();
-    }, 0);
-  }
+    // Remove non-numeric characters except dot
+    value = value.replace(/[^0-9.]/g, '');
 
-  remove(option: any) {
-    this.selectedOptions = this.selectedOptions.filter(item => item.key !== option.key);
-    this.selectedValues.setValue(this.selectedValues.value.filter((id: any) => id !== option.key));
-  }
+    // Ensure only two decimal places
+    let [integerPart, decimalPart] = value.split('.');
 
-  isSelected(option: any): boolean {
-    return this.selectedOptions.some(item => item.key === option.key);
-  }
-
-  toggleSelectAll(event: Event) {
-    event.stopPropagation(); // Prevent dropdown from closing
-
-    if (this.isAllSelected()) {
-      this.selectedOptions = [];
-      this.selectedValues.setValue([]);
-    } else {
-      this.selectedOptions = [...this.options];
-      this.selectedValues.setValue(this.options.map(opt => opt.key));
+    if (decimalPart) {
+      decimalPart = decimalPart.substring(0, 2); // Keep only two decimal places
     }
 
-    // Keep autocomplete open
-    setTimeout(() => {
-      this.autoTrigger.openPanel();
-    }, 0);
+    // Format with commas for thousands
+    integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+    let formattedValue = `$${integerPart}${decimalPart !== undefined ? '.' + decimalPart : '.00'}`;
+
+    this.setFormattedValue(formattedValue);
   }
 
-  isAllSelected(): boolean {
-    return this.selectedOptions.length === this.options.length;
+  private setFormattedValue(value: string) {
+    this.renderer.setProperty(this.el.nativeElement, 'value', value);
+
+    // Update FormControl (if used within Reactive Forms)
+    if (this.control && this.control.control) {
+      this.control.control.setValue(value, { emitEvent: false });
+    }
   }
 }
