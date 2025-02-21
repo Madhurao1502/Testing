@@ -12,7 +12,7 @@ export class CurrencyFormatterDirective implements OnInit {
     if (this.control && this.control.control) {
       this.control.control.valueChanges.subscribe(value => {
         if (value !== null && value !== undefined) {
-          this.formatValue(value.toString());
+          this.formatValue(value.toString(), false);
         }
       });
     }
@@ -21,17 +21,23 @@ export class CurrencyFormatterDirective implements OnInit {
   @HostListener('input', ['$event'])
   onInputChange(event: Event) {
     let input = (event.target as HTMLInputElement).value;
-    this.formatValue(input);
+    this.formatValue(input, true);
   }
 
-  private formatValue(value: string) {
+  private formatValue(value: string, fromUserInput: boolean) {
     if (!value) {
-      this.setFormattedValue('$0.00');
+      this.setFormattedValue(''); // Allow empty input
       return;
     }
 
-    // Remove non-numeric characters except dot
+    // Remove all non-numeric characters except '.'
     value = value.replace(/[^0-9.]/g, '');
+
+    // Ensure only one decimal point
+    let parts = value.split('.');
+    if (parts.length > 2) {
+      value = parts[0] + '.' + parts.slice(1).join('').replace(/\./g, ''); // Keep only first decimal
+    }
 
     // Split integer and decimal parts
     let [integerPart, decimalPart] = value.split('.');
@@ -39,11 +45,11 @@ export class CurrencyFormatterDirective implements OnInit {
     // Ensure integer part has thousand separators
     integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
-    // Ensure decimal part has exactly 2 digits
-    decimalPart = decimalPart ? decimalPart.substring(0, 2) : '00';
+    // Limit decimal places to 2 digits
+    decimalPart = decimalPart ? decimalPart.substring(0, 2) : '';
 
-    // Final formatted value
-    let formattedValue = `$${integerPart}.${decimalPart.padEnd(2, '0')}`;
+    // If the user is typing, we allow partial inputs like "$1."
+    let formattedValue = `$${integerPart}` + (decimalPart.length > 0 || fromUserInput ? `.${decimalPart}` : '.00');
 
     this.setFormattedValue(formattedValue);
   }
