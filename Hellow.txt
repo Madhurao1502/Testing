@@ -5,6 +5,8 @@ import { NgControl } from '@angular/forms';
   selector: '[appCurrencyFormatter]'
 })
 export class CurrencyFormatterDirective implements OnInit {
+  private typingTimer: any; // Timer for debounce delay
+  private debounceTime = 500; // Wait time in ms before formatting
 
   constructor(private el: ElementRef, private control: NgControl, private renderer: Renderer2) {}
 
@@ -16,6 +18,7 @@ export class CurrencyFormatterDirective implements OnInit {
         }
       });
 
+      // Format existing API value on initialization
       const currentValue = this.control.control.value;
       if (currentValue !== null && currentValue !== undefined) {
         this.formatValue(currentValue.toString(), false);
@@ -25,47 +28,59 @@ export class CurrencyFormatterDirective implements OnInit {
 
   @HostListener('input', ['$event'])
   onInputChange(event: Event) {
-    const input = (event.target as HTMLInputElement);
-    const inputValue = input.value;
-    const previousCursorPosition = input.selectionStart; // Store cursor position
+    let inputElement = event.target as HTMLInputElement;
 
-    this.formatValue(inputValue, true);
+    // Clear previous debounce timer
+    clearTimeout(this.typingTimer);
 
-    // Restore cursor position after formatting.  Crucial!
-    setTimeout(() => { // Use setTimeout to ensure formatting is complete
-      input.setSelectionRange(previousCursorPosition, previousCursorPosition);
-    });
+    // Store raw input value without formatting
+    let rawValue = inputElement.value.replace(/[^0-9.]/g, '');
+
+    // Allow user to see raw input while typing
+    this.setFormattedValue(`$${rawValue}`, false);
+
+    // Wait for the user to stop typing before formatting
+    this.typingTimer = setTimeout(() => {
+      this.formatValue(rawValue, true);
+    }, this.debounceTime);
   }
 
-
-  private formatValue(value: string, fromUserInput: boolean) {
+  private formatValue(value: string, applyFormatting: boolean) {
     if (!value) {
       this.setFormattedValue('');
       return;
     }
 
-    value = value.replace(/[^0-9.]/g, '');
-
+    // Ensure only one decimal point
     let parts = value.split('.');
     if (parts.length > 2) {
-      value = parts[0] + '.' + parts.slice(1).join('').replace(/\./g, '');
+      value = parts[0] + '.' + parts.slice(1).join('').replace(/\./g, ''); // Keep only first decimal
     }
 
+    // Split integer and decimal parts
     let [integerPart, decimalPart] = value.split('.');
+    
+    // Limit decimal places to 2 digits (only when final formatting is applied)
+    if (applyFormatting) {
+      decimalPart = decimalPart ? decimalPart.substring(0, 2) : '00';
+    }
 
-    integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    // Add thousand separators (only after typing is completed)
+    if (applyFormatting) {
+      integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
 
-    decimalPart = decimalPart ? decimalPart.substring(0, 2) : '';
-
-    let formattedValue = '$' + integerPart + (decimalPart.length > 0 || fromUserInput ? '.' + decimalPart : '.00');
+    // Construct final formatted value
+    let formattedValue = `$${integerPart}` + (decimalPart ? `.${decimalPart}` : '');
 
     this.setFormattedValue(formattedValue);
   }
 
-  private setFormattedValue(value: string) {
+  private setFormattedValue(value: string, updateControl = true) {
     this.renderer.setProperty(this.el.nativeElement, 'value', value);
 
-    if (this.control && this.control.control) {
+    // Update FormControl without emitting another change event
+    if (updateControl && this.control && this.control.control) {
       this.control.control.setValue(value, { emitEvent: false });
     }
   }
