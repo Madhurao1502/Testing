@@ -33,13 +33,13 @@ export class CurrencyFormatterDirective implements OnInit {
     // Clear previous debounce timer
     clearTimeout(this.typingTimer);
 
-    // Store raw input value without formatting
+    // Remove non-numeric characters except '.'
     let rawValue = inputElement.value.replace(/[^0-9.]/g, '');
 
-    // Allow user to see raw input while typing
-    this.setFormattedValue(`$${rawValue}`, false);
+    // Allow user to type freely (no formatting yet)
+    this.setFormattedValue(rawValue, false);
 
-    // Wait for the user to stop typing before formatting
+    // Wait for user to stop typing, then apply full formatting
     this.typingTimer = setTimeout(() => {
       this.formatValue(rawValue, true);
     }, this.debounceTime);
@@ -60,18 +60,25 @@ export class CurrencyFormatterDirective implements OnInit {
     // Split integer and decimal parts
     let [integerPart, decimalPart] = value.split('.');
     
-    // Limit decimal places to 2 digits (only when final formatting is applied)
+    // If final formatting is applied:
     if (applyFormatting) {
+      // Limit decimal places to 2 digits
       decimalPart = decimalPart ? decimalPart.substring(0, 2) : '00';
-    }
-
-    // Add thousand separators (only after typing is completed)
-    if (applyFormatting) {
+      
+      // Add thousand separators
       integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      
+      // Ensure max value is 1,000,000.00
+      let numericValue = parseFloat(`${integerPart.replace(/,/g, '')}.${decimalPart || '00'}`);
+      if (numericValue > 1000000) {
+        return; // Prevent exceeding max value
+      }
     }
 
-    // Construct final formatted value
-    let formattedValue = `$${integerPart}` + (decimalPart ? `.${decimalPart}` : '');
+    // Construct formatted value
+    let formattedValue = applyFormatting
+      ? `$${integerPart}${decimalPart ? `.${decimalPart}` : '.00'}` // Final formatting
+      : integerPart + (decimalPart !== undefined ? `.${decimalPart}` : ''); // While typing
 
     this.setFormattedValue(formattedValue);
   }
