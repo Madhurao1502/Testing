@@ -15,6 +15,12 @@ export class CurrencyFormatterDirective implements OnInit {
           this.formatValue(value.toString(), false);
         }
       });
+
+      // Format existing API value on initialization
+      const currentValue = this.control.control.value;
+      if (currentValue !== null && currentValue !== undefined) {
+        this.formatValue(currentValue.toString(), false);
+      }
     }
   }
 
