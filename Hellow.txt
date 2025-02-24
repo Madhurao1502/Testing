@@ -1,91 +1,31 @@
-import { Directive, ElementRef, HostListener, Renderer2, OnInit } from '@angular/core';
-import { NgControl } from '@angular/forms';
+try
+        {
+            // Read the first line of the file
+            string firstLine;
+            using (var reader = new StreamReader(file.OpenReadStream()))
+            {
+                firstLine = await reader.ReadLineAsync();
+            }
+            var colArray = firstLine?.Split('|');
 
-@Directive({
-  selector: '[appCurrencyFormatter]'
-})
-export class CurrencyFormatterDirective implements OnInit {
+            // Define file saving path
+            string uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads");
+            if (!Directory.Exists(uploadsFolder))
+            {
+                Directory.CreateDirectory(uploadsFolder);
+            }
 
-  constructor(private el: ElementRef, private control: NgControl, private renderer: Renderer2) {}
+            string filePath = Path.Combine(uploadsFolder, file.FileName);
 
-  ngOnInit() {
-    if (this.control && this.control.control) {
-      this.control.control.valueChanges.subscribe(value => {
-        if (value !== null && value !== undefined) {
-          this.renderer.setProperty(this.el.nativeElement, 'value', value);
+            // Save the file
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            return Ok(new { status = "SUCCESS", message = "File uploaded successfully!", filePath });
         }
-      });
-
-      // Format API-patched value immediately
-      const currentValue = this.control.control.value;
-      if (currentValue !== null && currentValue !== undefined) {
-        this.formatValue(currentValue.toString());
-      }
-    }
-  }
-
-  @HostListener('input', ['$event'])
-  onInputChange(event: Event) {
-    let inputElement = event.target as HTMLInputElement;
-
-    // Let user type freely (removes non-numeric characters but keeps decimals)
-    let rawValue = inputElement.value.replace(/[^0-9.]/g, '');
-    this.renderer.setProperty(this.el.nativeElement, 'value', rawValue);
-
-    if (this.control && this.control.control) {
-      this.control.control.setValue(rawValue, { emitEvent: false });
-    }
-  }
-
-  @HostListener('blur', ['$event'])
-  onBlur(event: Event) {
-    let inputElement = event.target as HTMLInputElement;
-    this.formatValue(inputElement.value);
-  }
-
-  private formatValue(value: string) {
-    if (!value) {
-      this.setFormattedValue('');
-      return;
-    }
-
-    // Remove all non-numeric characters except '.'
-    value = value.replace(/[^0-9.]/g, '');
-
-    // Ensure only one decimal point
-    let parts = value.split('.');
-    if (parts.length > 2) {
-      value = parts[0] + '.' + parts.slice(1).join('').replace(/\./g, '');
-    }
-
-    // Split integer and decimal parts
-    let [integerPart, decimalPart] = value.split('.');
-    
-    // Limit decimal places to 2 digits
-    decimalPart = decimalPart ? decimalPart.substring(0, 2) : '00';
-
-    // Ensure integer part has thousand separators
-    integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-
-    // Limit max value to 1,000,000.00
-    let numericValue = parseFloat(`${integerPart.replace(/,/g, '')}.${decimalPart || '00'}`);
-    if (numericValue > 1000000) {
-      numericValue = 1000000; // Enforce max limit
-      integerPart = '1,000,000';
-      decimalPart = '00';
-    }
-
-    // Construct final formatted value
-    let formattedValue = `$${integerPart}.${decimalPart}`;
-
-    this.setFormattedValue(formattedValue);
-  }
-
-  private setFormattedValue(value: string) {
-    this.renderer.setProperty(this.el.nativeElement, 'value', value);
-
-    if (this.control && this.control.control) {
-      this.control.control.setValue(value, { emitEvent: false });
-    }
-  }
-}
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { status = "ERROR", message = ex.Message });
+        }
