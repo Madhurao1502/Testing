@@ -155,3 +155,50 @@ patchAttributeValues(data: any[]): void {
   this.addUPCRow();
 }
 
+
+ngOnInit(): void {
+  if (this.attributes.length === 0) {
+    this.addInitialRow(); // Add Level 1 only once
+    this.addUPCRow(); // Add last Level (UPC) only once
+  }
+}
+
+// Adds the initial row (Level 1) only once
+addInitialRow(): void {
+  const firstRow = this.fb.group({
+    level: [{ value: 'Level 1', disabled: true }], // Fixed Level 1
+    attribute: ['', Validators.required],
+    label: ['', Validators.required]
+  });
+  this.attributes.push(firstRow);
+}
+
+// Adds a new row dynamically (Level 2, Level 3, etc.)
+addRow(): void {
+  const currentLevels = this.attributes.controls.map(row => row.get('level')?.value);
+  const nextLevel = `Level ${this.attributes.length}`; // Calculate next level
+
+  if (!currentLevels.includes(nextLevel) && this.attributes.length < this.maxAttributes) {
+    const newRow = this.fb.group({
+      level: [{ value: nextLevel, disabled: true }], // Auto-incremented level
+      attribute: ['', Validators.required],
+      label: ['', Validators.required]
+    });
+    this.attributes.insert(this.attributes.length - 1, newRow); // Add before UPC row
+  }
+}
+
+// Adds the last row (Level 4 - UPC) only once
+addUPCRow(): void {
+  if (!this.attributes.controls.some(row => row.get('attribute')?.value === 'UPC')) {
+    this.attributes.push(
+      this.fb.group({
+        level: [{ value: `Level ${this.maxAttributes}`, disabled: true }], // Last Level
+        attribute: [{ value: 'UPC', disabled: true }, Validators.required],
+        label: ['UPC', Validators.required]
+      })
+    );
+  }
+}
+
+
