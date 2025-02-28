@@ -1,152 +1,111 @@
-OnInit{
-  attributeForm: FormGroup;
-  attributeList: string[] = ['Size', 'Color', 'Weight', 'Material'];
-  maxAttributes: number = 5; // Configurable limit
+.form-container {
+  max-width: 800px;
+  margin: 20px auto;
+}
 
-  constructor(private fb: FormBuilder) {
-    this.attributeForm = this.fb.group({
-      attributes: this.fb.array([])
-    });
-  }
+mat-card {
+  padding: 20px;
+}
 
-  ngOnInit(): void {
-    this.addFixedRow(); // Add Level 1 (fixed)
-    this.addUPCRow(); // Add fixed UPC row
-  }
+mat-card-title {
+  font-size: 1.5rem;
+  color: rgba(0, 0, 0, 0.6); /* Dim heading */
+  text-align: center;
+}
 
-  get attributes(): FormArray {
-    return this.attributeForm.get('attributes') as FormArray;
-  }
+table.mat-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+}
 
-  // Creates a FormGroup for a standard attribute row
-  createAttributeRow(level: number): FormGroup {
-    return this.fb.group({
-      level: [{ value: `Level ${level}`, disabled: true }], // Auto-increment level
-      attribute: ['', Validators.required],
-      label: ['', Validators.required]
-    });
-  }
+table.mat-table th, table.mat-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
 
-  // Creates the fixed Level 1 row (Only this loads on init)
-  addFixedRow(): void {
-    this.attributes.push(
-      this.fb.group({
-        level: [{ value: 'Level 1', disabled: true }], // Fixed first level
-        attribute: ['', Validators.required],
-        label: ['', Validators.required]
-      })
-    );
-  }
+mat-form-field {
+  width: 100%;
+}
 
-  // Creates the fixed UPC row (Last row, always present, hardcoded attribute)
-  addUPCRow(): void {
-    this.attributes.push(
-      this.fb.group({
-        level: [{ value: `Level ${this.maxAttributes}`, disabled: true }], // Fixed last level
-        attribute: [{ value: 'UPC', disabled: true }, Validators.required], // Hardcoded
-        label: [{ value: 'UPC', disabled: true }, Validators.required] // Hardcoded
-      })
-    );
-  }
+.action-buttons {
+  text-align: center;
+}
 
-  addRow(): void {
-    const currentLength = this.attributes.length - 1; // Exclude UPC
-    if (currentLength < this.maxAttributes - 1) {
-      const level = currentLength + 1; // Auto-increment level
-      this.attributes.insert(this.attributes.length - 1, this.createAttributeRow(level));
-    }
-  }
-
-  removeRow(index: number): void {
-    if (index > 0 && index < this.attributes.length - 1) {
-      this.attributes.removeAt(index);
-    }
-  }
-
-  onAttributeChange(index: number): void {
-    const row = this.attributes.at(index);
-    row.get('label')?.setValue(row.get('attribute')?.value);
-  }
-
-  submitForm(): void {
-    // Enable all disabled controls before submitting
-    this.attributes.controls.forEach((control) => {
-      if (control.disabled) {
-        control.enable();
-      }
-    });
-  
-    console.log(this.attributeForm.value); // Logs full form data including UPC
-  
-    // Re-disable UPC row after submission
-    this.attributes.controls.forEach((control, index) => {
-      if (index === this.attributes.length - 1) { // Last row (UPC)
-        control.get('level')?.disable();
-        control.get('attribute')?.disable();
-        control.get('label')?.disable();
-      }
-    });
-  }
-  
-
-  getFormGroup(index: number): FormGroup {
-    return this.attributes.at(index) as FormGroup;
-  }
-
-  trackByFn(index: number, item: any): number {
-    return index;
-  }
-
-  showAddButton(): boolean {
-    return this.attributes.length - 1 < this.maxAttributes - 1;
-  }
+.form-actions {
+  margin-top: 20px;
+  text-align: center;
 }
 
 
+<div class="form-container">
+  <mat-card>
+    <mat-card-title>Attribute Form</mat-card-title>
+    <mat-card-content>
+      <form [formGroup]="attributeForm" (ngSubmit)="submitForm()">
+        <table class="mat-table">
+          <thead>
+            <tr>
+              <th>Level</th>
+              <th>Attribute</th>
+              <th>Label</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of attributes.controls; let i = index; trackBy: trackByFn" [formGroup]="getFormGroup(i)">
+              <!-- Auto-incremented Level (Read-Only) -->
+              <td>
+                <mat-form-field appearance="outline">
+                  <mat-label>Level</mat-label>
+                  <input matInput type="text" formControlName="level" readonly />
+                </mat-form-field>
+              </td>
 
-<form [formGroup]="attributeForm" (ngSubmit)="submitForm()">
-  <table>
-    <thead>
-      <tr>
-        <th>Level</th>
-        <th>Attribute</th>
-        <th>Label</th>
-        <th>Action</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let row of attributes.controls; let i = index; trackBy: trackByFn" [formGroup]="getFormGroup(i)">
-        <!-- Auto-incremented Level (Read-Only) -->
-        <td>
-          <input type="text" formControlName="level" readonly />
-        </td>
+              <!-- Attribute Selection (Dropdown for all EXCEPT UPC row) -->
+              <td>
+                <mat-form-field appearance="outline">
+                  <mat-label>Attribute</mat-label>
+                  <ng-container *ngIf="i !== attributes.length - 1; else fixedUPC">
+                    <mat-select formControlName="attribute" (selectionChange)="onAttributeChange(i)">
+                      <mat-option *ngFor="let attr of attributeList" [value]="attr">{{ attr }}</mat-option>
+                    </mat-select>
+                  </ng-container>
+                  <!-- Hardcoded UPC Attribute (Last Row) -->
+                  <ng-template #fixedUPC>
+                    <input matInput type="text" formControlName="attribute" readonly />
+                  </ng-template>
+                </mat-form-field>
+              </td>
 
-        <!-- Attribute Selection (Dropdown for all EXCEPT UPC row) -->
-        <td>
-          <ng-container *ngIf="i !== attributes.length - 1; else fixedUPC">
-            <select formControlName="attribute" (change)="onAttributeChange(i)">
-              <option value="">-- Select Attr --</option>
-              <option *ngFor="let attr of attributeList" [value]="attr">{{ attr }}</option>
-            </select>
-          </ng-container>
-          <!-- Hardcoded UPC Attribute (Last Row) -->
-          <ng-template #fixedUPC>
-            <input type="text" formControlName="attribute" readonly />
-          </ng-template>
-        </td>
+              <!-- Label Input (Read-Only for UPC) -->
+              <td>
+                <mat-form-field appearance="outline">
+                  <mat-label>Label</mat-label>
+                  <input matInput type="text" formControlName="label" placeholder="Enter a label" [readonly]="i === attributes.length - 1" />
+                </mat-form-field>
+              </td>
 
-        <!-- Label Input (Read-Only for UPC) -->
-        <td>
-          <input type="text" formControlName="label" placeholder="Enter a label" [readonly]="i === attributes.length - 1" />
-        </td>
+              <!-- Action Buttons -->
+              <td class="action-buttons">
+                <button mat-icon-button color="warn" (click)="removeRow(i)" *ngIf="i > 0 && i < attributes.length - 1">
+                  <mat-icon>delete</mat-icon>
+                </button>
+                <button mat-icon-button color="primary" (click)="addRow()" *ngIf="i === attributes.length - 2 && showAddButton()">
+                  <mat-icon>add</mat-icon>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
-        <!-- Action Buttons -->
-        <td>
-          <button type="button" (click)="removeRow(i)" *ngIf="i > 0 && i < attributes.length - 1">Remove</button>
-          <button type="button" (click)="addRow()" *ngIf="i === attributes.length - 2 && showAddButton()">Add</button>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-  <button type="submit">Submit</button>
-</form>
+        <div class="form-actions">
+          <button mat-raised-button color="primary" type="submit">Submit</button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+</div>
