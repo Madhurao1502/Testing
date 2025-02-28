@@ -1,31 +1,28 @@
-try
-        {
-            // Read the first line of the file
-            string firstLine;
-            using (var reader = new StreamReader(file.OpenReadStream()))
-            {
-                firstLine = await reader.ReadLineAsync();
-            }
-            var colArray = firstLine?.Split('|');
+validateFile(file: File) {
+  return new Promise((resolve, reject) => {
+    if (!file) {
+      reject("No file selected.");
+      return;
+    }
 
-            // Define file saving path
-            string uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads");
-            if (!Directory.Exists(uploadsFolder))
-            {
-                Directory.CreateDirectory(uploadsFolder);
-            }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      if (result) {
+        const firstLine = result.split("\n")[0]; // Get the first line
+        const columns = firstLine.split("|"); // Split by "|"
 
-            string filePath = Path.Combine(uploadsFolder, file.FileName);
-
-            // Save the file
-            using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await file.CopyToAsync(stream);
-            }
-
-            return Ok(new { status = "SUCCESS", message = "File uploaded successfully!", filePath });
+        if (columns.length < 2) {
+          reject("Invalid file format. Not enough columns.");
+        } else {
+          resolve(`Success | ${columns.length}`);
         }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { status = "ERROR", message = ex.Message });
-        }
+      } else {
+        reject("Error reading file.");
+      }
+    };
+
+    reader.onerror = () => reject("Error loading file.");
+    reader.readAsText(file);
+  });
+}
