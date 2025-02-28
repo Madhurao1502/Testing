@@ -109,3 +109,32 @@ mat-form-field {
     </mat-card-content>
   </mat-card>
 </div>
+
+addRow(): void {
+  if (this.attributes.length - 1 < this.maxAttributes) {
+    const newLevel = this.attributes.length; // Auto-increment level
+    const newRow = this.fb.group({
+      level: [{ value: `Level ${newLevel}`, disabled: true }], // Auto-filled level
+      attribute: ['', Validators.required],
+      label: ['', Validators.required]
+    });
+
+    this.attributes.insert(this.attributes.length - 1, newRow);
+  }
+}
+
+addUPCRow(): void {
+  this.attributes.push(
+    this.fb.group({
+      level: [{ value: `Level ${this.maxAttributes}`, disabled: true }], // Fixed last level
+      attribute: [{ value: 'UPC', disabled: true }, Validators.required],
+      label: ['UPC', Validators.required]
+    })
+  );
+}
+
+ngOnInit(): void {
+  this.addRow(); // Add Level 1 (first row)
+  this.addUPCRow(); // Add last row (UPC)
+}
+
