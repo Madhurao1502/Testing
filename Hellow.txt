@@ -138,3 +138,20 @@ ngOnInit(): void {
   this.addUPCRow(); // Add last row (UPC)
 }
 
+patchAttributeValues(data: any[]): void {
+  this.attributes.clear(); // Clear existing form controls
+
+  data.forEach((item, index) => {
+    this.attributes.push(
+      this.fb.group({
+        level: [{ value: `Level ${item.level}`, disabled: true }],
+        attribute: [item.Attribute, Validators.required],
+        label: [item.Label, Validators.required]
+      })
+    );
+  });
+
+  // Ensure the last row is always the UPC row
+  this.addUPCRow();
+}
+
