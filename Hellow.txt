@@ -202,3 +202,73 @@ addUPCRow(): void {
 }
 
 
+
+
+
+submitForm(): void {
+  // Enable all disabled controls before validation
+  this.attributes.controls.forEach((control) => {
+    if (control.disabled) {
+      control.enable();
+    }
+  });
+
+  let isValid = true;
+  const attributeSet = new Set(); // To track unique attributes
+  const forbiddenLabels = ['upc_number', 'upc_description'];
+  const labelRegex = /^[a-zA-Z0-9\s_-]+$/; // Allowed characters
+
+  // Validation loop
+  this.attributes.controls.forEach((control, index) => {
+    const attribute = control.get('attribute')?.value?.trim();
+    const label = control.get('label')?.value?.trim();
+
+    // Skip validation for the last UPC row
+    if (index === this.attributes.length - 1) return;
+
+    // 1️⃣ Check if attribute & label are selected
+    if (!attribute || !label) {
+      alert(`Error: Attribute and Label are required for Level ${index + 1}`);
+      isValid = false;
+      return;
+    }
+
+    // 2️⃣ Validate label with regex
+    if (!labelRegex.test(label)) {
+      alert(`Error: Label "${label}" contains invalid characters!`);
+      isValid = false;
+      return;
+    }
+
+    // 3️⃣ Prevent forbidden words in labels
+    if (forbiddenLabels.includes(label.toLowerCase())) {
+      alert(`Error: Label "${label}" is not allowed!`);
+      isValid = false;
+      return;
+    }
+
+    // 4️⃣ Ensure attributes are unique
+    if (attributeSet.has(attribute)) {
+      alert(`Error: Attribute "${attribute}" is already selected in another level!`);
+      isValid = false;
+      return;
+    } else {
+      attributeSet.add(attribute);
+    }
+  });
+
+  // Stop form submission if validation fails
+  if (!isValid) return;
+
+  console.log(this.attributeForm.value); // ✅ Logs valid form data
+
+  // Re-disable UPC row after submission
+  this.attributes.controls.forEach((control, index) => {
+    if (index === this.attributes.length - 1) { // Last row (UPC)
+      control.get('level')?.disable();
+      control.get('attribute')?.disable();
+      control.get('label')?.disable();
+    }
+  });
+}
+
