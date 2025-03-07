@@ -1,31 +1,37 @@
-Behavioral Competencies
-In addition to my technical contributions, I have consistently demonstrated strong behavioral competencies, embodying key values that align with our organizational culture. Below are examples of how I’ve applied these principles:
+<!-- dialog.component.html -->
+<h2 mat-dialog-title>{{ data.title }}</h2>
+<mat-dialog-content>
+  <table mat-table [dataSource]="data.tableData" class="mat-elevation-z8">
+    <ng-container matColumnDef="date">
+      <th mat-header-cell *matHeaderCellDef> Date </th>
+      <td mat-cell *matCellDef="let element"> {{ element.date }} </td>
+    </ng-container>
 
-1. Stay Curious
-I actively pursue opportunities to learn and grow, whether by exploring new technologies, optimizing legacy code, or researching best practices for performance improvements. For instance, during the migration of the Task Setup project from jQuery to Angular, I took the initiative to study and simplify complex legacy code, leading to a more efficient and responsive application. My curiosity drives me to continually expand my skill set and apply innovative solutions to challenges.
+    <ng-container matColumnDef="who">
+      <th mat-header-cell *matHeaderCellDef> Who </th>
+      <td mat-cell *matCellDef="let element"> {{ element.who }} </td>
+    </ng-container>
 
-2. Seek Clarity
-I prioritize clear communication and a strong understanding of project requirements before diving into development. By asking the right questions and clarifying ambiguous requirements upfront, I have been able to deliver precise solutions that meet client expectations. In projects like the Collection Report, I ensured all feature requirements were thoroughly understood, leading to a well-designed and user-friendly data table implementation.
+    <ng-container matColumnDef="action">
+      <th mat-header-cell *matHeaderCellDef> Action </th>
+      <td mat-cell *matCellDef="let element"> {{ element.action }} </td>
+    </ng-container>
 
-3. Own the Outcome
-I take full accountability for my work and its results. Whether it’s delivering a critical feature or resolving an urgent issue, I am committed to seeing the task through to completion. For example, in the WebAPI project, I owned the entire process—from design to deployment—ensuring it was optimized and ready for integration with other applications. I strive to deliver high-quality results consistently, with minimal need for external supervision.
+    <ng-container matColumnDef="reason">
+      <th mat-header-cell *matHeaderCellDef> Reason </th>
+      <td mat-cell *matCellDef="let element"> {{ element.reason }} </td>
+    </ng-container>
 
-4. Center on the Client
-I consistently focus on the end-user experience, ensuring that the solutions I develop are user-friendly, efficient, and aligned with client needs. In the Dimension Management project, I introduced features like Excel-like filtering and drag-and-drop uploads to enhance usability and simplify data handling for the end-users. My goal is always to create a positive impact on the client’s experience, tailoring solutions to meet their specific needs.
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+  </table>
 
-5. Be a Challenger
-I am not afraid to challenge the status quo when I see opportunities for improvement. For instance, during the rewrite of the Task Setup project, I questioned existing workflows and proposed merging separate screens to streamline navigation and enhance the user experience. By challenging outdated practices and advocating for more efficient solutions, I have been able to implement impactful changes that benefit both the team and the users.
-
-6. Champion Inclusivity
-I value diverse perspectives and strive to create an inclusive environment where every team member feels heard and respected. I actively engage in collaborative discussions, listen to different viewpoints, and incorporate feedback into my work. By fostering open communication and inclusivity, I have contributed to a positive team dynamic, enhancing our collective problem-solving capabilities.
-
-7. Commit to Each Other
-I demonstrate a strong commitment to my team by consistently stepping up to support others, sharing knowledge, and providing assistance when needed. Whether it’s helping troubleshoot a complex issue or reviewing a colleague’s code, I prioritize team success over individual recognition. My proactive support has helped accelerate project progress and foster a collaborative and supportive work environment.
-
-Conclusion
-My technical skills, combined with these core behavioral competencies, have enabled me to consistently deliver high-quality work while contributing positively to the team and organizational culture. I believe my approach aligns with our values, demonstrating a commitment to excellence, continuous improvement, and collaboration.
-
-Own the Outcome
-I take full accountability for my work and its results, ensuring tasks are completed with high quality and minimal supervision. For example, in the Task Setup Project, I independently managed the entire process of rewriting the application from jQuery to Angular. This involved:
-
-I continuously challenge myself to grow and improve by approaching complex problems with a solution-oriented mindset. I focus on finding opportunities within my projects to simplify processes and explore more efficient ways of working. This mindset allows me to contribute to improvements that enhance overall team productivity and deliver better user experiences, even as I continue to learn and develop my skills.
+  <mat-form-field class="full-width">
+    <textarea matInput [(ngModel)]="reason" placeholder="Enter reason..." maxlength="250"></textarea>
+    <mat-hint align="end">{{ reason.length }}/250</mat-hint>
+  </mat-form-field>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()">Cancel</button>
+  <button mat-button color="primary" (click)="onSubmit()">Submit</button>
+</mat-dialog-actions>
