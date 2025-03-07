@@ -35,3 +35,85 @@
   <button mat-button (click)="onCancel()">Cancel</button>
   <button mat-button color="primary" (click)="onSubmit()">Submit</button>
 </mat-dialog-actions>
+
+import { Component, Inject } from '@angular/core';
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+
+@Component({
+  selector: 'app-dialog',
+  templateUrl: './dialog.component.html',
+  styleUrls: ['./dialog.component.css']
+})
+export class DialogComponent {
+  displayedColumns: string[] = ['date', 'who', 'action', 'reason'];
+  dataSource: any[] = [];
+  reason: string = '';
+
+  constructor(
+    public dialogRef: MatDialogRef<DialogComponent>,
+    @Inject(MAT_DIALOG_DATA) public data: any
+  ) {
+    this.dataSource = data.tableData || [];
+  }
+
+  onCancel(): void {
+    this.dialogRef.close();
+  }
+
+  onSubmit(): void {
+    if (this.reason.length > 250) {
+      alert('Reason cannot exceed 250 characters');
+      return;
+    }
+    this.dialogRef.close({ reason: this.reason });
+  }
+}
+
+/* dialog.component.css */
+
+mat-dialog-container {
+  padding: 20px;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+h2 {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 16px;
+}
+
+.mat-table {
+  width: 100%;
+  margin-bottom: 16px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+th {
+  background-color: #3f51b5;
+  color: white;
+  font-weight: bold;
+  padding: 12px;
+}
+
+td {
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+}
+
+mat-form-field {
+  width: 100%;
+}
+
+mat-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+button {
+  margin-left: 8px;
+}
+
