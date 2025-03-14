@@ -1,274 +1,50 @@
-.form-container {
-  max-width: 800px;
-  margin: 20px auto;
+subscribeToControls(controls: { [key: string]: FormControl }) {
+  Object.entries(controls).forEach(([controlName, ctrl], index) => {
+    let emissionCount = 0;
+
+    ctrl.valueChanges.pipe(
+      tap(() => {
+        emissionCount++;
+        console.log(`Control: ${controlName}, Emission: ${emissionCount}`);
+      }),
+      filter(() => emissionCount > 2) // Adjust `2` based on your need
+    ).subscribe(() => {
+      console.log(`Value changed for ${controlName} after ${emissionCount} emissions`);
+      this.formStateService.markComponentTouched('Component2');
+    });
+  });
 }
 
-mat-card {
-  padding: 20px;
-}
+--------------------------------
+private subscriptions: Subscription[] = [];
 
-mat-card-title {
-  font-size: 1.5rem;
-  color: rgba(0, 0, 0, 0.6); /* Dim heading */
-  text-align: center;
-}
+subscribeToControls(controls: { [key: string]: FormControl }) {
+  // Unsubscribe from previous subscriptions
+  this.subscriptions.forEach(sub => sub.unsubscribe());
+  this.subscriptions = [];
 
-table.mat-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
-}
+  Object.entries(controls).forEach(([controlName, ctrl]) => {
+    let emissionCount = 0;
 
-table.mat-table th, table.mat-table td {
-  padding: 12px;
-  text-align: left;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
-}
-
-mat-form-field {
-  width: 100%;
-}
-
-.action-buttons {
-  text-align: center;
-}
-
-.form-actions {
-  margin-top: 20px;
-  text-align: center;
-}
-
-
-<div class="form-container">
-  <mat-card>
-    <mat-card-title>Attribute Form</mat-card-title>
-    <mat-card-content>
-      <form [formGroup]="attributeForm" (ngSubmit)="submitForm()">
-        <table class="mat-table">
-          <thead>
-            <tr>
-              <th>Level</th>
-              <th>Attribute</th>
-              <th>Label</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let row of attributes.controls; let i = index; trackBy: trackByFn" [formGroup]="getFormGroup(i)">
-              <!-- Auto-incremented Level (Read-Only) -->
-              <td>
-                <mat-form-field appearance="outline">
-                  <mat-label>Level</mat-label>
-                  <input matInput type="text" formControlName="level" readonly />
-                </mat-form-field>
-              </td>
-
-              <!-- Attribute Selection (Dropdown for all EXCEPT UPC row) -->
-              <td>
-                <mat-form-field appearance="outline">
-                  <mat-label>Attribute</mat-label>
-                  <ng-container *ngIf="i !== attributes.length - 1; else fixedUPC">
-                    <mat-select formControlName="attribute" (selectionChange)="onAttributeChange(i)">
-                      <mat-option *ngFor="let attr of attributeList" [value]="attr">{{ attr }}</mat-option>
-                    </mat-select>
-                  </ng-container>
-                  <!-- Hardcoded UPC Attribute (Last Row) -->
-                  <ng-template #fixedUPC>
-                    <input matInput type="text" formControlName="attribute" readonly />
-                  </ng-template>
-                </mat-form-field>
-              </td>
-
-              <!-- Label Input (Read-Only for UPC) -->
-              <td>
-                <mat-form-field appearance="outline">
-                  <mat-label>Label</mat-label>
-                  <input matInput type="text" formControlName="label" placeholder="Enter a label" [readonly]="i === attributes.length - 1" />
-                </mat-form-field>
-              </td>
-
-              <!-- Action Buttons -->
-              <td class="action-buttons">
-                <button mat-icon-button color="warn" (click)="removeRow(i)" *ngIf="i > 0 && i < attributes.length - 1">
-                  <mat-icon>delete</mat-icon>
-                </button>
-                <button mat-icon-button color="primary" (click)="addRow()" *ngIf="i === attributes.length - 2 && showAddButton()">
-                  <mat-icon>add</mat-icon>
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div class="form-actions">
-          <button mat-raised-button color="primary" type="submit">Submit</button>
-        </div>
-      </form>
-    </mat-card-content>
-  </mat-card>
-</div>
-
-addRow(): void {
-  if (this.attributes.length - 1 < this.maxAttributes) {
-    const newLevel = this.attributes.length; // Auto-increment level
-    const newRow = this.fb.group({
-      level: [{ value: `Level ${newLevel}`, disabled: true }], // Auto-filled level
-      attribute: ['', Validators.required],
-      label: ['', Validators.required]
+    const sub = ctrl.valueChanges.pipe(
+      tap(() => {
+        emissionCount++;
+        console.log(`Control: ${controlName}, Emission: ${emissionCount}`);
+      }),
+      filter(() => emissionCount > 2)
+    ).subscribe(() => {
+      console.log(`Value changed for ${controlName} after ${emissionCount} emissions`);
+      this.formStateService.markComponentTouched('Component2');
     });
 
-    this.attributes.insert(this.attributes.length - 1, newRow);
-  }
-}
-
-addUPCRow(): void {
-  this.attributes.push(
-    this.fb.group({
-      level: [{ value: `Level ${this.maxAttributes}`, disabled: true }], // Fixed last level
-      attribute: [{ value: 'UPC', disabled: true }, Validators.required],
-      label: ['UPC', Validators.required]
-    })
-  );
-}
-
-ngOnInit(): void {
-  this.addRow(); // Add Level 1 (first row)
-  this.addUPCRow(); // Add last row (UPC)
-}
-
-patchAttributeValues(data: any[]): void {
-  this.attributes.clear(); // Clear existing form controls
-
-  data.forEach((item, index) => {
-    this.attributes.push(
-      this.fb.group({
-        level: [{ value: `Level ${item.level}`, disabled: true }],
-        attribute: [item.Attribute, Validators.required],
-        label: [item.Label, Validators.required]
-      })
-    );
-  });
-
-  // Ensure the last row is always the UPC row
-  this.addUPCRow();
-}
-
-
-ngOnInit(): void {
-  if (this.attributes.length === 0) {
-    this.addInitialRow(); // Add Level 1 only once
-    this.addUPCRow(); // Add last Level (UPC) only once
-  }
-}
-
-// Adds the initial row (Level 1) only once
-addInitialRow(): void {
-  const firstRow = this.fb.group({
-    level: [{ value: 'Level 1', disabled: true }], // Fixed Level 1
-    attribute: ['', Validators.required],
-    label: ['', Validators.required]
-  });
-  this.attributes.push(firstRow);
-}
-
-// Adds a new row dynamically (Level 2, Level 3, etc.)
-addRow(): void {
-  const currentLevels = this.attributes.controls.map(row => row.get('level')?.value);
-  const nextLevel = `Level ${this.attributes.length}`; // Calculate next level
-
-  if (!currentLevels.includes(nextLevel) && this.attributes.length < this.maxAttributes) {
-    const newRow = this.fb.group({
-      level: [{ value: nextLevel, disabled: true }], // Auto-incremented level
-      attribute: ['', Validators.required],
-      label: ['', Validators.required]
-    });
-    this.attributes.insert(this.attributes.length - 1, newRow); // Add before UPC row
-  }
-}
-
-// Adds the last row (Level 4 - UPC) only once
-addUPCRow(): void {
-  if (!this.attributes.controls.some(row => row.get('attribute')?.value === 'UPC')) {
-    this.attributes.push(
-      this.fb.group({
-        level: [{ value: `Level ${this.maxAttributes}`, disabled: true }], // Last Level
-        attribute: [{ value: 'UPC', disabled: true }, Validators.required],
-        label: ['UPC', Validators.required]
-      })
-    );
-  }
-}
-
-
-
-
-
-submitForm(): void {
-  // Enable all disabled controls before validation
-  this.attributes.controls.forEach((control) => {
-    if (control.disabled) {
-      control.enable();
-    }
-  });
-
-  let isValid = true;
-  const attributeSet = new Set(); // To track unique attributes
-  const forbiddenLabels = ['upc_number', 'upc_description'];
-  const labelRegex = /^[a-zA-Z0-9\s_-]+$/; // Allowed characters
-
-  // Validation loop
-  this.attributes.controls.forEach((control, index) => {
-    const attribute = control.get('attribute')?.value?.trim();
-    const label = control.get('label')?.value?.trim();
-
-    // Skip validation for the last UPC row
-    if (index === this.attributes.length - 1) return;
-
-    // 1️⃣ Check if attribute & label are selected
-    if (!attribute || !label) {
-      alert(`Error: Attribute and Label are required for Level ${index + 1}`);
-      isValid = false;
-      return;
-    }
-
-    // 2️⃣ Validate label with regex
-    if (!labelRegex.test(label)) {
-      alert(`Error: Label "${label}" contains invalid characters!`);
-      isValid = false;
-      return;
-    }
-
-    // 3️⃣ Prevent forbidden words in labels
-    if (forbiddenLabels.includes(label.toLowerCase())) {
-      alert(`Error: Label "${label}" is not allowed!`);
-      isValid = false;
-      return;
-    }
-
-    // 4️⃣ Ensure attributes are unique
-    if (attributeSet.has(attribute)) {
-      alert(`Error: Attribute "${attribute}" is already selected in another level!`);
-      isValid = false;
-      return;
-    } else {
-      attributeSet.add(attribute);
-    }
-  });
-
-  // Stop form submission if validation fails
-  if (!isValid) return;
-
-  console.log(this.attributeForm.value); // ✅ Logs valid form data
-
-  // Re-disable UPC row after submission
-  this.attributes.controls.forEach((control, index) => {
-    if (index === this.attributes.length - 1) { // Last row (UPC)
-      control.get('level')?.disable();
-      control.get('attribute')?.disable();
-      control.get('label')?.disable();
-    }
+    this.subscriptions.push(sub); // Store subscriptions
   });
 }
 
+ngOnDestroy() {
+  // Cleanup on component destroy
+  this.subscriptions.forEach(sub => sub.unsubscribe());
+}
+
+
+----------------
