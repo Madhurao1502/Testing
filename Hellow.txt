@@ -1,50 +1,92 @@
-subscribeToControls(controls: { [key: string]: FormControl }) {
-  Object.entries(controls).forEach(([controlName, ctrl], index) => {
-    let emissionCount = 0;
-
-    ctrl.valueChanges.pipe(
-      tap(() => {
-        emissionCount++;
-        console.log(`Control: ${controlName}, Emission: ${emissionCount}`);
-      }),
-      filter(() => emissionCount > 2) // Adjust `2` based on your need
-    ).subscribe(() => {
-      console.log(`Value changed for ${controlName} after ${emissionCount} emissions`);
-      this.formStateService.markComponentTouched('Component2');
-    });
-  });
+/* Dialog Container */
+.dialog-container {
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
 }
 
---------------------------------
-private subscriptions: Subscription[] = [];
-
-subscribeToControls(controls: { [key: string]: FormControl }) {
-  // Unsubscribe from previous subscriptions
-  this.subscriptions.forEach(sub => sub.unsubscribe());
-  this.subscriptions = [];
-
-  Object.entries(controls).forEach(([controlName, ctrl]) => {
-    let emissionCount = 0;
-
-    const sub = ctrl.valueChanges.pipe(
-      tap(() => {
-        emissionCount++;
-        console.log(`Control: ${controlName}, Emission: ${emissionCount}`);
-      }),
-      filter(() => emissionCount > 2)
-    ).subscribe(() => {
-      console.log(`Value changed for ${controlName} after ${emissionCount} emissions`);
-      this.formStateService.markComponentTouched('Component2');
-    });
-
-    this.subscriptions.push(sub); // Store subscriptions
-  });
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 10px;
+  margin-bottom: 15px;
 }
 
-ngOnDestroy() {
-  // Cleanup on component destroy
-  this.subscriptions.forEach(sub => sub.unsubscribe());
+.header h2 {
+  margin: 0;
+  font-size: 20px;
 }
 
+button mat-icon-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
 
-----------------
+/* Calendar Section */
+.calendar-section {
+  margin-bottom: 20px;
+}
+
+/* Selected Dates Table */
+.selected-dates table,
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.selected-dates th,
+th {
+  background: #007bff;
+  color: white;
+  padding: 10px;
+  text-align: left;
+}
+
+.selected-dates td,
+td {
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+/* Button Group */
+.button-group {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.button-group button {
+  padding: 8px 16px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.button-group .warn {
+  background: #dc3545;
+  color: white;
+  border: none;
+}
+
+.button-group .primary {
+  background: #007bff;
+  color: white;
+  border: none;
+}
+
+/* Schedule Data Table */
+table th,
+table td {
+  text-align: left;
+}
+
+td mat-icon {
+  cursor: pointer;
+  color: #dc3545;
+}
