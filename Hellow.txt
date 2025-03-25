@@ -41,3 +41,37 @@ fixDateFormat(dateString: string): Date {
 
   return new Date(NaN); // Return invalid date
 }
+
+
+
+''''''''''''''''''''''''''''
+
+ static parseDate(dateString: string): Date {
+    if (!dateString) return new Date(NaN);
+
+    // Try direct parsing for ISO or standard formats
+    let parsed = Date.parse(dateString);
+    if (!isNaN(parsed)) return new Date(parsed);
+
+    // If direct parsing fails, manually fix the format
+    return this.fixDateFormat(dateString);
+  }
+
+  // ✅ Fix dates in different formats (US vs. India)
+  private static fixDateFormat(dateString: string): Date {
+    // Match formats like "12/3/2023 12:00:00 AM" (US) or "03-12-2023 00:00:00" (India)
+    const match = dateString.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+    
+    if (!match) return new Date(NaN);
+
+    let [, part1, part2, year] = match.map(Number);
+
+    // If system uses MM/DD/YYYY (US format), this is fine
+    if (part1 <= 12 && part2 > 12) {
+      return new Date(year, part1 - 1, part2);
+    }
+
+    // If system uses DD-MM-YYYY (Indian format), swap parts
+    return new Date(year, part2 - 1, part1);
+  }
+}
