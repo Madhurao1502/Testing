@@ -1,110 +1,43 @@
+formatDate(dateString: string) { 
+  // First, try to create a valid Date object safely
+  let parsedDate = this.safeParseDate(dateString);
 
-/* Dialog Container */
-.dialog-container {
-  padding: 20px;
-  background: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-  background: linear-gradient(to right, #ffffff, #f1f8ff);
+  if (isNaN(parsedDate.getTime())) {
+    console.error("Invalid date format:", dateString);
+    return "Invalid Date";
+  }
+
+  return new Intl.DateTimeFormat(navigator.language).format(parsedDate);
 }
 
-/* Header */
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 10px;
-  margin-bottom: 15px;
-  background: #90caf9;
-  color: white;
-  padding: 15px;
-  border-radius: 8px 8px 0 0;
+// Helper function to safely parse a date from different formats
+safeParseDate(dateString: string): Date {
+  if (!dateString) return new Date(NaN);
+
+  // If the date is already a valid ISO string or a standard format
+  let parsed = Date.parse(dateString);
+  if (!isNaN(parsed)) return new Date(parsed);
+
+  // If it's in DD-MM-YYYY or other non-standard formats, fix it
+  return this.fixDateFormat(dateString);
 }
 
-.header h2 {
-  margin: 0;
-  font-size: 20px;
-}
+// Function to manually fix DD-MM-YYYY or MM-DD-YYYY cases
+fixDateFormat(dateString: string): Date {
+  const parts = dateString.split(/[-\/]/); // Support both "-" and "/"
 
-button mat-icon-button {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-}
+  if (parts.length === 3) {
+    let [part1, part2, part3] = parts.map(Number);
 
-/* Calendar Section */
-.calendar-section {
-  margin-bottom: 20px;
-  background: #e3f2fd;
-  padding: 15px;
-  border-radius: 8px;
-}
+    // Check if the format is DD-MM-YYYY or MM-DD-YYYY
+    if (part1 > 12) {
+      // Assume it's DD-MM-YYYY
+      return new Date(part3, part2 - 1, part1);
+    } else {
+      // Assume it's MM-DD-YYYY
+      return new Date(part3, part1 - 1, part2);
+    }
+  }
 
-/* Selected Dates Table */
-.selected-dates table,
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
-  background: #ffffff;
-  border-radius: 8px;
-  overflow: hidden;
-  font-size: 14px;
-  border: 1px solid #ddd;
-}
-
-.selected-dates th,
-th {
-  background: #007bff;
-  color: white;
-  padding: 10px;
-  text-align: left;
-  border: 1px solid #ddd;
-}
-
-.selected-dates td,
-td {
-  padding: 10px;
-  border: 1px solid #ddd;
-  text-align: left;
-}
-
-/* Button Group */
-.button-group {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.button-group button {
-  padding: 8px 16px;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-.button-group .warn {
-  background: #dc3545;
-  color: white;
-  border: none;
-}
-
-.button-group .primary {
-  background: #007bff;
-  color: white;
-  border: none;
-}
-
-/* Schedule Data Table */
-table th,
-table td {
-  text-align: left;
-  font-size: 14px;
-  border: 1px solid #ddd;
-}
-
-td mat-icon {
-  cursor: pointer;
-  color: #dc3545;
+  return new Date(NaN); // Return invalid date
 }
