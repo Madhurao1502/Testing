@@ -1,59 +1,42 @@
-<div class="project-icon-container">
-    <button mat-button color="primary" (click)="openCommentDialog()" matTooltip="Project Comments">
-        <mat-icon>comment</mat-icon>
-    </button>
-    <button mat-button color="primary" (click)="ProjectSpecificationReport()" matTooltip="Project Specification Report">
-        <mat-icon>description</mat-icon>
-    </button>
-</div>
+<div class="main-container">
+    <div class="left-part">
+        <div class="form-container">
+            <div class="form-row">
+                <label>Project ID :</label>
+                <span>{{ProjectIDCtrl.value}}</span>
+            </div>
 
-<div class="form-container">
-    <div class="form-row">
-        <label>Project ID :</label>
-        <mat-form-field appearance="fill">
-            <input matInput [formControl]="ProjectIDCtrl" readonly>
-        </mat-form-field>
+            <div class="form-row required-field">
+                <label>Project Name :</label>
+                <span matTooltip="{{ProjectDetails?.ProjectName}}">{{ProjectNameCtrl.value}}</span>
+            </div>
+
+            <div class="form-row">
+                <label>Project Number :</label>
+                <span>{{ProjectNumberCtrl.value}}</span>
+            </div>
+
+            <div class="form-row required-field">
+                <label>Client :</label>
+                <span>{{ProjectClientSearchCtrl.value}}</span>
+            </div>
+
+            <div class="form-row">
+                <label>RMA Version :</label>
+                <span>{{ProjectRMASearchCtrl.value}}</span>
+            </div>
+        </div>
     </div>
-
-    <div class="form-row required-field">
-        <label>Project Name :</label>
-        <mat-form-field appearance="fill">
-            <input matInput type="text" matTooltip="{{ProjectDetails?.ProjectName}}" maxlength="75" [formControl]="ProjectNameCtrl">
-        </mat-form-field>
-    </div>
-
-    <div class="form-row">
-        <label>Project Number :</label>
-        <mat-form-field appearance="fill">
-            <input matInput maxlength="8" [formControl]="ProjectNumberCtrl" appIntegerOnly>
-        </mat-form-field>
-    </div>
-
-    <div class="form-row required-field">
-        <label>Client :</label>
-        <mat-form-field appearance="fill">
-            <input type="text" matInput [formControl]="ProjectClientSearchCtrl" [matAutocomplete]="autoClient">
-            <mat-autocomplete #autoClient="matAutocomplete" [displayWith]="displayselectedclientName">
-                <mat-option *ngFor="let client of filteredClientsList |async" [value]="client">
-                    {{client.clientName}}
-                </mat-option>
-                <mat-option (click)="openAddClientDialog()">
-                    <mat-icon>add</mat-icon> Add Client
-                </mat-option>
-            </mat-autocomplete>
-        </mat-form-field>
-    </div>
-
-    <div class="form-row">
-        <label>RMA Version :</label>
-        <mat-form-field appearance="fill">
-            <input type="text" matInput [formControl]="ProjectRMASearchCtrl" [matAutocomplete]="autoRma">
-            <mat-autocomplete #autoRma="matAutocomplete" [displayWith]="displayselectedRMAVersion">
-                <mat-option *ngFor="let version of filteredRMAVersionList |async" [value]="version">
-                    {{version.rmaVersionNumber}}
-                </mat-option>
-            </mat-autocomplete>
-        </mat-form-field>
+    
+    <div class="right-part">
+        <div class="project-icon-container">
+            <button mat-button color="primary" (click)="openCommentDialog()" matTooltip="Project Comments">
+                <mat-icon>comment</mat-icon>
+            </button>
+            <button mat-button color="primary" (click)="ProjectSpecificationReport()" matTooltip="Project Specification Report">
+                <mat-icon>description</mat-icon>
+            </button>
+        </div>
     </div>
 </div>
 
@@ -65,11 +48,33 @@
 </mat-action-row>
 
 <style>
+.main-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px;
+}
+
+.left-part {
+    flex: 1;
+}
+
+.right-part {
+    display: flex;
+    align-items: center;
+}
+
+.project-icon-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
 .form-container {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding: 16px;
 }
 
 .form-row {
@@ -81,6 +86,12 @@
 .form-row label {
     min-width: 150px;
     font-weight: bold;
-    text-align: right;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.form-row span {
+    flex: 1;
+    font-weight: normal;
 }
 </style>
