@@ -1,52 +1,34 @@
-<div class="status-cards">
-    <div class="card approved">
-      <p>APPROVED</p>
-      <h2>0</h2>
-    </div>
-    <div class="card dropped">
-      <p>DROPPED</p>
-      <h2>0</h2>
-    </div>
-    <div class="card ns">
-      <p>N/S</p>
-      <h2>0</h2>
-    </div>
-  </div>
+import { Pipe, PipeTransform } from '@angular/core';
+import { DatePipe } from '@angular/common';
 
-.stats {
-  margin-bottom: 16px;
-}
+@Pipe({
+  name: 'customDateFormat'
+})
+export class CustomDateFormatPipe implements PipeTransform {
+  constructor(private datePipe: DatePipe) {}
 
-.stats p {
-  font-size: 16px;
-  margin: 4px 0;
-}
+  transform(value: string): string {
+    if (!value) return '';
 
-.status-cards {
-  display: flex;
-  justify-content: space-between;
-}
+    let parts: string[];
 
-.card {
-  width: 100px;
-  height: 80px;
-  border-radius: 8px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-}
+    if (value.includes('-')) {
+      // Handle "dd-MM-yyyy HH:mm:ss"
+      parts = value.split(/[- :]/);
+    } else if (value.includes('/')) {
+      // Handle "dd/MM/yyyy HH:mm:ss"
+      parts = value.split(/[/ :]/);
+    } else {
+      return value; // Return original if format is unknown
+    }
 
-.approved {
-  border: 2px solid green;
-}
+    // Convert to Date object
+    const dateObj = new Date(
+      +parts[2],     // Year
+      +parts[1] - 1, // Month (0-based index)
+      +parts[0]      // Day
+    );
 
-.dropped {
-  border: 2px solid red;
-  color: red;
-}
-
-.ns {
-  border: 2px solid gray;
+    return this.datePipe.transform(dateObj, 'dd/MM/yyyy') || '';
+  }
 }
