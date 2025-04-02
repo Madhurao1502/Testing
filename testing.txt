@@ -32,3 +32,28 @@ export class CustomDateFormatPipe implements PipeTransform {
     return this.datePipe.transform(dateObj, 'dd/MM/yyyy') || '';
   }
 }
+
+
+
+
+function formatDate(inputDate) {
+    let formattedDate;
+
+    if (/^\d{2}-\d{2}-\d{4}$/.test(inputDate)) {
+        // If the format is DD-MM-YYYY
+        const [day, month, year] = inputDate.split("-");
+        formattedDate = new Date(`${year}-${month}-${day}`);
+    } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(inputDate)) {
+        // If the format is DD/MM/YYYY (valid for JS Date constructor)
+        return inputDate; // No change needed
+    } else {
+        throw new Error("Invalid date format");
+    }
+
+    // Format the date into MM/DD/YYYY
+    return new Intl.DateTimeFormat("en-US", {
+        month: "2-digit",
+        day: "2-digit",
+        year: "numeric"
+    }).format(formattedDate);
+}
