@@ -97,3 +97,62 @@ export class AppComponent {
     { name: 'Data Imputation', status: 'Pending', percentage: 0 }
   ];
 }
+
+
+ this.progressData = this.buildProgressData(apiResponse);
+  }
+
+  // Function to dynamically build progress steps based on deliveryTypeId
+  buildProgressData(apiResponse: any): ProgressStep[] {
+    const deliveryTypeId = apiResponse.deliveryTypeId;
+
+    let stepMapping: { key: string; percentageKey: string; name: string }[] = [];
+
+    if (deliveryTypeId === "DET-Shelf") {
+      stepMapping = [
+        { key: "mdmProceStatus", percentageKey: "mdmProcPercentang", name: "MDM" },
+        { key: "dataPrepProcStatus", percentageKey: "dataPrepProcPercentage", name: "Data Preparation" },
+        { key: "brProcStatus", percentageKey: "brProcPercentage", name: "Business Rule" },
+        { key: "freqProcStatus", percentageKey: "freqProcPercentage", name: "Frequency" },
+        { key: "trendingProcStatus", percentageKey: "trendingProcPercentage", name: "Trending" },
+        { key: "reqListProcStatus", percentageKey: "reqListProcPercentage", name: "Request List" },
+        { key: "dataDeliveryProcStatus", percentageKey: "dataDeliveryProcPercentage", name: "Data Delivery" },
+        { key: "dataImputationProcStatus", percentageKey: "dataImputationProcPercentage", name: "Data Imputation" }
+      ];
+    } else if (deliveryTypeId === "NDET-Shelf") {
+      stepMapping = [
+        { key: "dataPrepProcStatus", percentageKey: "dataPrepProcPercentage", name: "Data Preparation" },
+        { key: "brProcStatus", percentageKey: "brProcPercentage", name: "Business Rule" },
+        { key: "dataDeliveryProcStatus", percentageKey: "dataDeliveryProcPercentage", name: "Data Delivery" },
+        { key: "dataImputationProcStatus", percentageKey: "dataImputationProcPercentage", name: "Data Imputation" }
+      ];
+    } else if (deliveryTypeId === "Shelf-Extract" || deliveryTypeId === "Display-Extract") {
+      stepMapping = [
+        { key: "dataPrepProcStatus", percentageKey: "dataPrepProcPercentage", name: "Data Preparation" },
+        { key: "brProcStatus", percentageKey: "brProcPercentage", name: "Business Rule" },
+        { key: "dataDeliveryProcStatus", percentageKey: "dataDeliveryProcPercentage", name: "Data Delivery" }
+      ];
+    } else if (deliveryTypeId === "NAS-OOS") {
+      stepMapping = [
+        { key: "mdmProceStatus", percentageKey: "mdmProcPercentang", name: "MDM" },
+        { key: "dataPrepProcStatus", percentageKey: "dataPrepProcPercentage", name: "Data Preparation" },
+        { key: "brProcStatus", percentageKey: "brProcPercentage", name: "Business Rule" },
+        { key: "dataDeliveryProcStatus", percentageKey: "dataDeliveryProcPercentage", name: "Data Delivery" }
+      ];
+    }
+
+    return stepMapping.map(step => ({
+      name: step.name,
+      status: this.getStatus(apiResponse, step.key),
+      percentage: this.getPercentage(apiResponse, step.percentageKey)
+    }));
+  }
+
+  getStatus(apiResponse: any, key: string): string {
+    return apiResponse[key] || "Pending";
+  }
+
+  getPercentage(apiResponse: any, key: string): number {
+    return apiResponse[key] !== undefined ? Number(apiResponse[key]) : 0;
+  }
+}
