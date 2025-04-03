@@ -1,77 +1,99 @@
-formatDate(dateString: string) { 
-  // First, try to create a valid Date object safely
-  let parsedDate = this.safeParseDate(dateString);
+<div class="progressContainer">
+  <ul class="progressbar">
+    <li *ngFor="let step of progressSteps" [class.statusactive]="step.status === 'Succeeded'" [class.statusrunning]="step.status === 'In-Progress'">
+      {{ step.name }} <span>{{ step.percentage }}%</span>
+    </li>
+  </ul>
+  <div style="color: #00205B;">
+    Overall: <span>{{ overallCompletion }}%</span>
+  </div>
+</div>
 
-  if (isNaN(parsedDate.getTime())) {
-    console.error("Invalid date format:", dateString);
-    return "Invalid Date";
-  }
 
-  return new Intl.DateTimeFormat(navigator.language).format(parsedDate);
+import { Component, Input, OnInit } from '@angular/core';
+
+interface ProgressStep {
+  name: string;
+  status: 'Succeeded' | 'In-Progress' | 'Pending';
+  percentage: number;
 }
 
-// Helper function to safely parse a date from different formats
-safeParseDate(dateString: string): Date {
-  if (!dateString) return new Date(NaN);
+@Component({
+  selector: 'app-progress-bar',
+  templateUrl: './progress-bar.component.html',
+  styleUrls: ['./progress-bar.component.css']
+})
+export class ProgressBarComponent implements OnInit {
+  @Input() progressSteps: ProgressStep[] = [];
+  overallCompletion: number = 0;
 
-  // If the date is already a valid ISO string or a standard format
-  let parsed = Date.parse(dateString);
-  if (!isNaN(parsed)) return new Date(parsed);
+  ngOnInit() {
+    this.calculateOverallCompletion();
+  }
 
-  // If it's in DD-MM-YYYY or other non-standard formats, fix it
-  return this.fixDateFormat(dateString);
+  private calculateOverallCompletion() {
+    const total = this.progressSteps.reduce((sum, step) => sum + step.percentage, 0);
+    this.overallCompletion = Math.round(total / this.progressSteps.length);
+  }
 }
 
-// Function to manually fix DD-MM-YYYY or MM-DD-YYYY cases
-fixDateFormat(dateString: string): Date {
-  const parts = dateString.split(/[-\/]/); // Support both "-" and "/"
-
-  if (parts.length === 3) {
-    let [part1, part2, part3] = parts.map(Number);
-
-    // Check if the format is DD-MM-YYYY or MM-DD-YYYY
-    if (part1 > 12) {
-      // Assume it's DD-MM-YYYY
-      return new Date(part3, part2 - 1, part1);
-    } else {
-      // Assume it's MM-DD-YYYY
-      return new Date(part3, part1 - 1, part2);
-    }
-  }
-
-  return new Date(NaN); // Return invalid date
+.progressContainer {
+  width: 600px;
+  background-color: white;
 }
 
+.progressbar {
+  counter-reset: step;
+  list-style-type: none;
+  display: flex;
+  justify-content: space-between;
+}
 
+.progressbar li {
+  position: relative;
+  font-size: 11px;
+  text-align: center;
+  text-transform: uppercase;
+  color: orangered;
+  font-weight: bold;
+}
 
-''''''''''''''''''''''''''''
+.progressbar li:before {
+  content: counter(step);
+  counter-increment: step;
+  width: 30px;
+  height: 30px;
+  border: 2px solid orangered;
+  border-radius: 50%;
+  display: block;
+  line-height: 30px;
+  background-color: white;
+  margin: 0 auto;
+}
 
- static parseDate(dateString: string): Date {
-    if (!dateString) return new Date(NaN);
+.progressbar li.statusactive {
+  color: limegreen;
+}
 
-    // Try direct parsing for ISO or standard formats
-    let parsed = Date.parse(dateString);
-    if (!isNaN(parsed)) return new Date(parsed);
+.progressbar li.statusactive:before {
+  border-color: limegreen;
+}
 
-    // If direct parsing fails, manually fix the format
-    return this.fixDateFormat(dateString);
-  }
+.progressbar li.statusrunning {
+  color: orange;
+}
 
-  // ✅ Fix dates in different formats (US vs. India)
-  private static fixDateFormat(dateString: string): Date {
-    // Match formats like "12/3/2023 12:00:00 AM" (US) or "03-12-2023 00:00:00" (India)
-    const match = dateString.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
-    
-    if (!match) return new Date(NaN);
+.progressbar li.statusrunning:before {
+  border-color: orange;
+}
 
-    let [, part1, part2, year] = match.map(Number);
+<app-progress-bar [progressSteps]="progressData"></app-progress-bar>
 
-    // If system uses MM/DD/YYYY (US format), this is fine
-    if (part1 <= 12 && part2 > 12) {
-      return new Date(year, part1 - 1, part2);
-    }
-
-    // If system uses DD-MM-YYYY (Indian format), swap parts
-    return new Date(year, part2 - 1, part1);
-  }
+export class AppComponent {
+  progressData = [
+    { name: 'Data Preparation', status: 'Succeeded', percentage: 100 },
+    { name: 'Business Rule', status: 'In-Progress', percentage: 50 },
+    { name: 'Data Delivery', status: 'In-Progress', percentage: 70 },
+    { name: 'Data Imputation', status: 'Pending', percentage: 0 }
+  ];
 }
