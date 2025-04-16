@@ -1,69 +1,50 @@
-import { Pipe, PipeTransform } from '@angular/core';
-import { DatePipe } from '@angular/common';
+<div>
+  <button mat-raised-button color="primary" (click)="openImportDialog()">Import CSV</button>
+  <button mat-raised-button color="accent" (click)="save()">Save</button>
+  <button mat-raised-button color="warn" (click)="generatePdf()">Generate PDF</button>
+</div>
 
-@Pipe({
-  name: 'customDateFormat'
-})
-export class CustomDateFormatPipe implements PipeTransform {
-  constructor(private datePipe: DatePipe) {}
+<table mat-table [dataSource]="upcForm.controls" class="mat-elevation-z8" *ngIf="upcForm.controls.length">
 
-  transform(value: string): string {
-    if (!value) return '';
+  <ng-container matColumnDef="CustId">
+    <th mat-header-cell *matHeaderCellDef> Custom UPC List </th>
+    <td mat-cell *matCellDef="let row; let i = index">
+      <mat-select [formControl]="row.get('CustId')">
+        <mat-option [value]="0">-- Select --</mat-option>
+        <mat-option *ngFor="let item of customUpcList" [value]="item.CustId">{{ item.Name }}</mat-option>
+      </mat-select>
+    </td>
+  </ng-container>
 
-    let parts: string[];
+  <ng-container matColumnDef="CollCatName">
+    <th mat-header-cell *matHeaderCellDef> Collection Category </th>
+    <td mat-cell *matCellDef="let row"> <input matInput [formControl]="row.get('CollCatName')"> </td>
+  </ng-container>
 
-    if (value.includes('-')) {
-      // Handle "dd-MM-yyyy HH:mm:ss"
-      parts = value.split(/[- :]/);
-    } else if (value.includes('/')) {
-      // Handle "dd/MM/yyyy HH:mm:ss"
-      parts = value.split(/[/ :]/);
-    } else {
-      return value; // Return original if format is unknown
-    }
+  <ng-container matColumnDef="QCUnderReq">
+    <th mat-header-cell *matHeaderCellDef> QC Under </th>
+    <td mat-cell *matCellDef="let row"> <mat-checkbox [formControl]="row.get('QCUnderReq')"></mat-checkbox> </td>
+  </ng-container>
 
-    // Convert to Date object
-    const dateObj = new Date(
-      +parts[2],     // Year
-      +parts[1] - 1, // Month (0-based index)
-      +parts[0]      // Day
-    );
+  <ng-container matColumnDef="QCUnderPercent">
+    <th mat-header-cell *matHeaderCellDef> QC % </th>
+    <td mat-cell *matCellDef="let row"> <input matInput type="number" maxlength="2" [formControl]="row.get('QCUnderPercent')"> </td>
+  </ng-container>
 
-    return this.datePipe.transform(dateObj, 'dd/MM/yyyy') || '';
-  }
-}
+  <ng-container matColumnDef="Weeks">
+    <th mat-header-cell *matHeaderCellDef> Weeks </th>
+    <td mat-cell *matCellDef="let row"> <input matInput type="number" maxlength="2" [formControl]="row.get('Weeks')"> </td>
+  </ng-container>
 
+  <ng-container matColumnDef="Delete">
+    <th mat-header-cell *matHeaderCellDef> Delete </th>
+    <td mat-cell *matCellDef="let row; let i = index">
+      <button mat-icon-button color="warn" (click)="deleteRow(i)">
+        <mat-icon>delete</mat-icon>
+      </button>
+    </td>
+  </ng-container>
 
-
-
-safeFormatDate(dateString) {
-    let date;
-    
-    // Check if date is in "DD-MM-YYYY" format
-    if (/^\d{2}-\d{2}-\d{4}$/.test(dateString)) {
-        const [day, month, year] = dateString.split("-");
-        date = new Date(`${year}-${month}-${day}T00:00:00Z`); // Convert to UTC
-    }
-    // Check if date is in "DD/MM/YYYY" format
-    else if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) {
-        const [day, month, year] = dateString.split("/");
-        date = new Date(`${year}-${month}-${day}T00:00:00Z`);
-    }
-    // If already in ISO format "YYYY-MM-DD"
-    else {
-        date = new Date(dateString);
-    }
-
-    // Ensure the date is valid
-    if (isNaN(date.getTime())) {
-        console.error("Invalid date:", dateString);
-        return null;
-    }
-
-    // Format using Intl.DateTimeFormat (for US format)
-    return new Intl.DateTimeFormat("en-US", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit"
-    }).format(date);
-}
+  <tr mat-header-row *matHeaderRowDef="['CustId', 'CollCatName', 'QCUnderReq', 'QCUnderPercent', 'Weeks', 'Delete']"></tr>
+  <tr mat-row *matRowDef="let row; columns: ['CustId', 'CollCatName', 'QCUnderReq', 'QCUnderPercent', 'Weeks', 'Delete'];"></tr>
+</table>
