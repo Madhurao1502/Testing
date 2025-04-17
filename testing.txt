@@ -45,6 +45,126 @@
     </td>
   </ng-container>
 
+
+
+
+getCustomUpcList() {
+    this.upcService.getCustomUpcList().subscribe(list => {
+      this.customUpcList = list;
+      this.getCustomUpcDetail();
+    });
+  }
+
+  getCustomUpcDetail() {
+    this.upcService.getCustomUpcListDetail(this.taskId).subscribe(details => {
+      this.upcForm.clear();
+      details.forEach((item: any) => {
+        const group = this.buildUpcRow(item);
+        this.watchCollCatChange(group);
+        this.upcForm.push(group);
+      });
+      const newGroup = this.buildUpcRow({ RowId: details.length + 1 });
+      this.watchCollCatChange(newGroup);
+      this.upcForm.push(newGroup);
+    });
+  }
+
+  buildUpcRow(data: any): FormGroup {
+    return this.fb.group({
+      RowId: [data.RowId || 0],
+      CustId: [data.CustId || 0],
+      Description: [data.Description || ''],
+      CollCatName: [data.CollCatName || '', Validators.required],
+      QCUnderReq: [data.QCUnderReq || 0],
+      QCUnderPercent: [data.QCUnderPercent || '', [Validators.min(0), Validators.max(99)]],
+      Weeks: [data.Weeks || '', [Validators.min(0), Validators.max(99)]],
+      Translation_Task: [data.Translation_Task || '']
+    });
+  }
+
+  watchCollCatChange(group: FormGroup): void {
+    group.get('CollCatName')?.valueChanges.subscribe(val => {
+      if (val && this.isLastRow(group)) {
+        const newGroup = this.buildUpcRow({ RowId: this.upcForm.length + 1 });
+        this.watchCollCatChange(newGroup);
+        this.upcForm.push(newGroup);
+      }
+    });
+  }
+
+  isLastRow(group: FormGroup): boolean {
+    return this.upcForm.at(this.upcForm.length - 1) === group;
+  }
+
+  openImportDialog(): void {
+    const dialogRef = this.dialog.open(ImportUpcDialogComponent);
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result?.uploaded) {
+        this.getCustomUpcList();
+      }
+    });
+  }
+
+  onCustIdChange(index: number): void {
+    const group = this.upcForm.at(index) as FormGroup;
+    const selectedId = group.get('CustId')?.value;
+    const selectedItem = this.customUpcList.find(item => item.CustId === selectedId);
+
+    const isDuplicate = this.upcForm.controls.some((ctrl, i) => {
+      return i !== index && ctrl.get('CustId')?.value === selectedId;
+    });
+
+    if (isDuplicate) {
+      alert(`The Custom UPC List [${selectedItem?.Name || selectedId}] already appears in the list.`);
+      group.patchValue({ CustId: 0, Description: '' });
+      return;
+    }
+
+    if (selectedItem) {
+      group.patchValue({ Description: selectedItem.Description });
+    } else {
+      group.patchValue({ Description: '' });
+    }
+  }
+
+  deleteRow(index: number): void {
+    if (confirm('Are you sure to delete Custom UPC List item?')) {
+      this.upcForm.removeAt(index);
+      if (this.upcForm.length === 0) {
+        const newGroup = this.buildUpcRow({ RowId: 1 });
+        this.watchCollCatChange(newGroup);
+        this.upcForm.push(newGroup);
+      }
+    }
+  }
+
+  save(): void {
+    if (!this.validateForm()) return;
+
+    const upcData = this.upcForm.getRawValue();
+    this.upcService.saveCustomUpcListDetail(upcData, this.taskId).subscribe(() => {
+      this.isCustomUpcListChanged = false;
+      this.getCustomUpcDetail();
+    });
+  }
+
+  validateForm(): boolean {
+    for (const group of this.upcForm.controls) {
+      const custId = group.get('CustId')?.value;
+      const name = group.get('CollCatName')?.value?.trim();
+      if (custId && !name) {
+        alert('*Collection Category name can not be blank');
+        return false;
+      }
+      if (!custId && name) {
+        alert('*Custom UPC List name can not be blank');
+        return false;
+      }
+    }
+    return true;
+  }
+
   <tr mat-header-row *matHeaderRowDef="['CustId', 'CollCatName', 'QCUnderReq', 'QCUnderPercent', 'Weeks', 'Delete']"></tr>
   <tr mat-row *matRowDef="let row; columns: ['CustId', 'CollCatName', 'QCUnderReq', 'QCUnderPercent', 'Weeks', 'Delete'];"></tr>
 </table>
