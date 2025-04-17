@@ -48,7 +48,15 @@
 
 
 
-getCustomUpcList() {
+  <tr mat-header-row *matHeaderRowDef="['CustId', 'CollCatName', 'QCUnderReq', 'QCUnderPercent', 'Weeks', 'Delete']"></tr>
+  <tr mat-row *matRowDef="let row; columns: ['CustId', 'CollCatName', 'QCUnderReq', 'QCUnderPercent', 'Weeks', 'Delete'];"></tr>
+</table>\\
+
+
+
+
+
+ getCustomUpcList() {
     this.upcService.getCustomUpcList().subscribe(list => {
       this.customUpcList = list;
       this.getCustomUpcDetail();
@@ -56,16 +64,14 @@ getCustomUpcList() {
   }
 
   getCustomUpcDetail() {
+    this.upcForm.clear();
     this.upcService.getCustomUpcListDetail(this.taskId).subscribe(details => {
-      this.upcForm.clear();
       details.forEach((item: any) => {
         const group = this.buildUpcRow(item);
-        this.watchCollCatChange(group);
+        this.attachCollCatWatcher(group);
         this.upcForm.push(group);
       });
-      const newGroup = this.buildUpcRow({ RowId: details.length + 1 });
-      this.watchCollCatChange(newGroup);
-      this.upcForm.push(newGroup);
+      this.addNewEmptyRow();
     });
   }
 
@@ -82,18 +88,22 @@ getCustomUpcList() {
     });
   }
 
-  watchCollCatChange(group: FormGroup): void {
+  attachCollCatWatcher(group: FormGroup): void {
     group.get('CollCatName')?.valueChanges.subscribe(val => {
-      if (val && this.isLastRow(group)) {
-        const newGroup = this.buildUpcRow({ RowId: this.upcForm.length + 1 });
-        this.watchCollCatChange(newGroup);
-        this.upcForm.push(newGroup);
-      }
+      setTimeout(() => {
+        const index = this.upcForm.controls.indexOf(group);
+        const isLast = index === this.upcForm.length - 1;
+        if (val?.trim() && isLast) {
+          this.addNewEmptyRow();
+        }
+      });
     });
   }
 
-  isLastRow(group: FormGroup): boolean {
-    return this.upcForm.at(this.upcForm.length - 1) === group;
+  addNewEmptyRow(): void {
+    const newGroup = this.buildUpcRow({ RowId: this.upcForm.length + 1 });
+    this.attachCollCatWatcher(newGroup);
+    this.upcForm.push(newGroup);
   }
 
   openImportDialog(): void {
@@ -117,7 +127,7 @@ getCustomUpcList() {
 
     if (isDuplicate) {
       alert(`The Custom UPC List [${selectedItem?.Name || selectedId}] already appears in the list.`);
-      group.patchValue({ CustId: 0, Description: '' });
+      group.patchValue({ CustId: 0, Description: '' }, { emitEvent: false });
       return;
     }
 
@@ -131,12 +141,17 @@ getCustomUpcList() {
   deleteRow(index: number): void {
     if (confirm('Are you sure to delete Custom UPC List item?')) {
       this.upcForm.removeAt(index);
-      if (this.upcForm.length === 0) {
-        const newGroup = this.buildUpcRow({ RowId: 1 });
-        this.watchCollCatChange(newGroup);
-        this.upcForm.push(newGroup);
+
+      // Ensure there's always at least one blank row
+      if (this.upcForm.length === 0 || this.lastRowHasValue()) {
+        this.addNewEmptyRow();
       }
     }
+  }
+
+  lastRowHasValue(): boolean {
+    const last = this.upcForm.at(this.upcForm.length - 1);
+    return !!last?.get('CollCatName')?.value?.trim();
   }
 
   save(): void {
@@ -165,6 +180,12 @@ getCustomUpcList() {
     return true;
   }
 
-  <tr mat-header-row *matHeaderRowDef="['CustId', 'CollCatName', 'QCUnderReq', 'QCUnderPercent', 'Weeks', 'Delete']"></tr>
-  <tr mat-row *matRowDef="let row; columns: ['CustId', 'CollCatName', 'QCUnderReq', 'QCUnderPercent', 'Weeks', 'Delete'];"></tr>
-</table>
+  generatePdf(): void {
+    this.upcService.generatePdf(this.taskId).subscribe();
+  }
+
+  trackByCustId(index: number, item: any): number {
+    return item.CustId;
+  }
+}
+
