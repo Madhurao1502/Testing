@@ -1,191 +1,56 @@
-<div>
-  <button mat-raised-button color="primary" (click)="openImportDialog()">Import CSV</button>
-  <button mat-raised-button color="accent" (click)="save()">Save</button>
-  <button mat-raised-button color="warn" (click)="generatePdf()">Generate PDF</button>
-</div>
+import { Component } from '@angular/core';
 
-<table mat-table [dataSource]="upcForm.controls" class="mat-elevation-z8" *ngIf="upcForm.controls.length">
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html'
+})
+export class AppComponent {
+  availableItems = [
+    { Name: 'SomeName', ID: 123, Key: 1 },
+    { Name: 'SomeName1', ID: 1234, Key: 2 },
+    { Name: 'SomeName2', ID: 1235, Key: 3 },
+    { Name: 'SomeName3', ID: 1236, Key: 5 }
+  ];
 
-  <ng-container matColumnDef="CustId">
-    <th mat-header-cell *matHeaderCellDef> Custom UPC List </th>
-    <td mat-cell *matCellDef="let row; let i = index">
-      <mat-select [formControl]="row.get('CustId')">
-        <mat-option [value]="0">-- Select --</mat-option>
-        <mat-option *ngFor="let item of customUpcList" [value]="item.CustId">{{ item.Name }}</mat-option>
-      </mat-select>
-    </td>
-  </ng-container>
+  selectedItems: any[] = [];
+  selectedAvailableKeys = new Set<number>();
+  selectedSelectedKeys = new Set<number>();
 
-  <ng-container matColumnDef="CollCatName">
-    <th mat-header-cell *matHeaderCellDef> Collection Category </th>
-    <td mat-cell *matCellDef="let row"> <input matInput [formControl]="row.get('CollCatName')"> </td>
-  </ng-container>
-
-  <ng-container matColumnDef="QCUnderReq">
-    <th mat-header-cell *matHeaderCellDef> QC Under </th>
-    <td mat-cell *matCellDef="let row"> <mat-checkbox [formControl]="row.get('QCUnderReq')"></mat-checkbox> </td>
-  </ng-container>
-
-  <ng-container matColumnDef="QCUnderPercent">
-    <th mat-header-cell *matHeaderCellDef> QC % </th>
-    <td mat-cell *matCellDef="let row"> <input matInput type="number" maxlength="2" [formControl]="row.get('QCUnderPercent')"> </td>
-  </ng-container>
-
-  <ng-container matColumnDef="Weeks">
-    <th mat-header-cell *matHeaderCellDef> Weeks </th>
-    <td mat-cell *matCellDef="let row"> <input matInput type="number" maxlength="2" [formControl]="row.get('Weeks')"> </td>
-  </ng-container>
-
-  <ng-container matColumnDef="Delete">
-    <th mat-header-cell *matHeaderCellDef> Delete </th>
-    <td mat-cell *matCellDef="let row; let i = index">
-      <button mat-icon-button color="warn" (click)="deleteRow(i)">
-        <mat-icon>delete</mat-icon>
-      </button>
-    </td>
-  </ng-container>
-
-
-
-
-  <tr mat-header-row *matHeaderRowDef="['CustId', 'CollCatName', 'QCUnderReq', 'QCUnderPercent', 'Weeks', 'Delete']"></tr>
-  <tr mat-row *matRowDef="let row; columns: ['CustId', 'CollCatName', 'QCUnderReq', 'QCUnderPercent', 'Weeks', 'Delete'];"></tr>
-</table>\\
-
-
-
-
-
- getCustomUpcList() {
-    this.upcService.getCustomUpcList().subscribe(list => {
-      this.customUpcList = list;
-      this.getCustomUpcDetail();
-    });
-  }
-
-  getCustomUpcDetail() {
-    this.upcForm.clear();
-    this.upcService.getCustomUpcListDetail(this.taskId).subscribe(details => {
-      details.forEach((item: any) => {
-        const group = this.buildUpcRow(item);
-        this.attachCollCatWatcher(group);
-        this.upcForm.push(group);
-      });
-      this.addNewEmptyRow();
-    });
-  }
-
-  buildUpcRow(data: any): FormGroup {
-    return this.fb.group({
-      RowId: [data.RowId || 0],
-      CustId: [data.CustId || 0],
-      Description: [data.Description || ''],
-      CollCatName: [data.CollCatName || '', Validators.required],
-      QCUnderReq: [data.QCUnderReq || 0],
-      QCUnderPercent: [data.QCUnderPercent || '', [Validators.min(0), Validators.max(99)]],
-      Weeks: [data.Weeks || '', [Validators.min(0), Validators.max(99)]],
-      Translation_Task: [data.Translation_Task || '']
-    });
-  }
-
-  attachCollCatWatcher(group: FormGroup): void {
-    group.get('CollCatName')?.valueChanges.subscribe(val => {
-      setTimeout(() => {
-        const index = this.upcForm.controls.indexOf(group);
-        const isLast = index === this.upcForm.length - 1;
-        if (val?.trim() && isLast) {
-          this.addNewEmptyRow();
-        }
-      });
-    });
-  }
-
-  addNewEmptyRow(): void {
-    const newGroup = this.buildUpcRow({ RowId: this.upcForm.length + 1 });
-    this.attachCollCatWatcher(newGroup);
-    this.upcForm.push(newGroup);
-  }
-
-  openImportDialog(): void {
-    const dialogRef = this.dialog.open(ImportUpcDialogComponent);
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (result?.uploaded) {
-        this.getCustomUpcList();
-      }
-    });
-  }
-
-  onCustIdChange(index: number): void {
-    const group = this.upcForm.at(index) as FormGroup;
-    const selectedId = group.get('CustId')?.value;
-    const selectedItem = this.customUpcList.find(item => item.CustId === selectedId);
-
-    const isDuplicate = this.upcForm.controls.some((ctrl, i) => {
-      return i !== index && ctrl.get('CustId')?.value === selectedId;
-    });
-
-    if (isDuplicate) {
-      alert(`The Custom UPC List [${selectedItem?.Name || selectedId}] already appears in the list.`);
-      group.patchValue({ CustId: 0, Description: '' }, { emitEvent: false });
-      return;
-    }
-
-    if (selectedItem) {
-      group.patchValue({ Description: selectedItem.Description });
+  toggleAvailable(key: number) {
+    if (this.selectedAvailableKeys.has(key)) {
+      this.selectedAvailableKeys.delete(key);
     } else {
-      group.patchValue({ Description: '' });
+      this.selectedAvailableKeys.add(key);
     }
   }
 
-  deleteRow(index: number): void {
-    if (confirm('Are you sure to delete Custom UPC List item?')) {
-      this.upcForm.removeAt(index);
-
-      // Ensure there's always at least one blank row
-      if (this.upcForm.length === 0 || this.lastRowHasValue()) {
-        this.addNewEmptyRow();
-      }
+  toggleSelected(key: number) {
+    if (this.selectedSelectedKeys.has(key)) {
+      this.selectedSelectedKeys.delete(key);
+    } else {
+      this.selectedSelectedKeys.add(key);
     }
   }
 
-  lastRowHasValue(): boolean {
-    const last = this.upcForm.at(this.upcForm.length - 1);
-    return !!last?.get('CollCatName')?.value?.trim();
+  addItems() {
+    const itemsToAdd = this.availableItems.filter(item =>
+      this.selectedAvailableKeys.has(item.Key)
+    );
+    this.selectedItems.push(...itemsToAdd);
+    this.availableItems = this.availableItems.filter(item =>
+      !this.selectedAvailableKeys.has(item.Key)
+    );
+    this.selectedAvailableKeys.clear();
   }
 
-  save(): void {
-    if (!this.validateForm()) return;
-
-    const upcData = this.upcForm.getRawValue();
-    this.upcService.saveCustomUpcListDetail(upcData, this.taskId).subscribe(() => {
-      this.isCustomUpcListChanged = false;
-      this.getCustomUpcDetail();
-    });
-  }
-
-  validateForm(): boolean {
-    for (const group of this.upcForm.controls) {
-      const custId = group.get('CustId')?.value;
-      const name = group.get('CollCatName')?.value?.trim();
-      if (custId && !name) {
-        alert('*Collection Category name can not be blank');
-        return false;
-      }
-      if (!custId && name) {
-        alert('*Custom UPC List name can not be blank');
-        return false;
-      }
-    }
-    return true;
-  }
-
-  generatePdf(): void {
-    this.upcService.generatePdf(this.taskId).subscribe();
-  }
-
-  trackByCustId(index: number, item: any): number {
-    return item.CustId;
+  removeItems() {
+    const itemsToRemove = this.selectedItems.filter(item =>
+      this.selectedSelectedKeys.has(item.Key)
+    );
+    this.availableItems.push(...itemsToRemove);
+    this.selectedItems = this.selectedItems.filter(item =>
+      !this.selectedSelectedKeys.has(item.Key)
+    );
+    this.selectedSelectedKeys.clear();
   }
 }
-
