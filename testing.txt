@@ -172,3 +172,52 @@ h3 {
   background-color: #2563eb;
 }
 
+
+
+toggleSelectAllAvailable(checked: boolean) {
+  if (checked) {
+    this.availableItems.forEach(item => this.selectedAvailableKeys.add(item.Key));
+  } else {
+    this.selectedAvailableKeys.clear();
+  }
+}
+
+toggleSelectAllSelected(checked: boolean) {
+  if (checked) {
+    this.selectedItems.forEach(item => this.selectedSelectedKeys.add(item.Key));
+  } else {
+    this.selectedSelectedKeys.clear();
+  }
+}
+
+
+<!-- Available Items Table -->
+<thead>
+  <tr>
+    <th>
+      <input
+        type="checkbox"
+        [checked]="availableItems.length > 0 && selectedAvailableKeys.size === availableItems.length"
+        (change)="toggleSelectAllAvailable($event.target.checked)">
+    </th>
+    <th>Name</th>
+    <th>ID</th>
+  </tr>
+</thead>
+
+
+<!-- Selected Items Table -->
+<thead>
+  <tr>
+    <th>
+      <input
+        type="checkbox"
+        [checked]="selectedItems.length > 0 && selectedSelectedKeys.size === selectedItems.length"
+        (change)="toggleSelectAllSelected($event.target.checked)">
+    </th>
+    <th>Name</th>
+    <th>ID</th>
+  </tr>
+</thead>
+
+
