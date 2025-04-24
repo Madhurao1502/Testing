@@ -1,3 +1,4 @@
+
 import { Component } from '@angular/core';
 
 @Component({
@@ -54,3 +55,120 @@ export class AppComponent {
     this.selectedSelectedKeys.clear();
   }
 }
+
+
+<div class="container">
+  <!-- Available Table -->
+  <div class="table-container">
+    <h3>Available Items</h3>
+    <table>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Name</th>
+          <th>ID</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of availableItems">
+          <td>
+            <input type="checkbox" [checked]="selectedAvailableKeys.has(item.Key)" (change)="toggleAvailable(item.Key)">
+          </td>
+          <td>{{ item.Name }}</td>
+          <td>{{ item.ID }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Control Buttons -->
+  <div class="button-container">
+    <button (click)="addItems()">Add →</button>
+    <button (click)="removeItems()">← Remove</button>
+  </div>
+
+  <!-- Selected Table -->
+  <div class="table-container">
+    <h3>Selected Items</h3>
+    <table>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Name</th>
+          <th>ID</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of selectedItems">
+          <td>
+            <input type="checkbox" [checked]="selectedSelectedKeys.has(item.Key)" (change)="toggleSelected(item.Key)">
+          </td>
+          <td>{{ item.Name }}</td>
+          <td>{{ item.ID }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 40px;
+  margin-top: 40px;
+  flex-wrap: wrap;
+}
+
+.table-container {
+  background: #f9f9f9;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  min-width: 280px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: Arial, sans-serif;
+}
+
+th, td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+}
+
+thead {
+  background-color: #e2e8f0;
+}
+
+h3 {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.button-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+
+.button-container button {
+  padding: 8px 16px;
+  font-weight: bold;
+  border: none;
+  background-color: #3b82f6;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.button-container button:hover {
+  background-color: #2563eb;
+}
+
