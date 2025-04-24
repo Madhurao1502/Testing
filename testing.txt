@@ -221,3 +221,22 @@ toggleSelectAllSelected(checked: boolean) {
 </thead>
 
 
+
+toggleSelectAllAvailable() {
+  this.selectAllAvailableChecked = !this.selectAllAvailableChecked;
+  if (this.selectAllAvailableChecked) {
+    this.availableItems.forEach(item => this.selectedAvailableKeys.add(item.Key));
+  } else {
+    this.selectedAvailableKeys.clear();
+  }
+}
+
+toggleSelectAllSelected() {
+  this.selectAllSelectedChecked = !this.selectAllSelectedChecked;
+  if (this.selectAllSelectedChecked) {
+    this.selectedItems.forEach(item => this.selectedSelectedKeys.add(item.Key));
+  } else {
+    this.selectedSelectedKeys.clear();
+  }
+}
+
