@@ -1,242 +1,160 @@
-
-import { Component } from '@angular/core';
-
-@Component({
-  selector: 'app-root',
-  templateUrl: './app.component.html'
-})
-export class AppComponent {
-  availableItems = [
-    { Name: 'SomeName', ID: 123, Key: 1 },
-    { Name: 'SomeName1', ID: 1234, Key: 2 },
-    { Name: 'SomeName2', ID: 1235, Key: 3 },
-    { Name: 'SomeName3', ID: 1236, Key: 5 }
-  ];
-
-  selectedItems: any[] = [];
-  selectedAvailableKeys = new Set<number>();
-  selectedSelectedKeys = new Set<number>();
-
-  toggleAvailable(key: number) {
-    if (this.selectedAvailableKeys.has(key)) {
-      this.selectedAvailableKeys.delete(key);
-    } else {
-      this.selectedAvailableKeys.add(key);
-    }
-  }
-
-  toggleSelected(key: number) {
-    if (this.selectedSelectedKeys.has(key)) {
-      this.selectedSelectedKeys.delete(key);
-    } else {
-      this.selectedSelectedKeys.add(key);
-    }
-  }
-
-  addItems() {
-    const itemsToAdd = this.availableItems.filter(item =>
-      this.selectedAvailableKeys.has(item.Key)
-    );
-    this.selectedItems.push(...itemsToAdd);
-    this.availableItems = this.availableItems.filter(item =>
-      !this.selectedAvailableKeys.has(item.Key)
-    );
-    this.selectedAvailableKeys.clear();
-  }
-
-  removeItems() {
-    const itemsToRemove = this.selectedItems.filter(item =>
-      this.selectedSelectedKeys.has(item.Key)
-    );
-    this.availableItems.push(...itemsToRemove);
-    this.selectedItems = this.selectedItems.filter(item =>
-      !this.selectedSelectedKeys.has(item.Key)
-    );
-    this.selectedSelectedKeys.clear();
-  }
-}
-
-
 <div class="container">
-  <!-- Available Table -->
+  <!-- Available Items Table -->
   <div class="table-container">
     <h3>Available Items</h3>
-    <table>
-      <thead>
-        <tr>
-          <th></th>
-          <th>Name</th>
-          <th>ID</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let item of availableItems">
-          <td>
-            <input type="checkbox" [checked]="selectedAvailableKeys.has(item.Key)" (change)="toggleAvailable(item.Key)">
-          </td>
-          <td>{{ item.Name }}</td>
-          <td>{{ item.ID }}</td>
-        </tr>
-      </tbody>
+    <mat-form-field appearance="outline" class="filter">
+      <mat-label>Search</mat-label>
+      <input matInput (keyup)="applyFilter($event.target.value, 'available')">
+    </mat-form-field>
+    <table mat-table [dataSource]="availableDataSource" class="mat-elevation-z2">
+      <ng-container matColumnDef="select">
+        <th mat-header-cell *matHeaderCellDef>
+          <mat-checkbox
+            [checked]="isAllSelected(availableDataSource, selectionAvailable)"
+            (change)="masterToggle(availableDataSource, selectionAvailable)">
+          </mat-checkbox>
+        </th>
+        <td mat-cell *matCellDef="let row">
+          <mat-checkbox (click)="$event.stopPropagation()"
+                        (change)="$event ? selectionAvailable.toggle(row) : null"
+                        [checked]="selectionAvailable.isSelected(row)">
+          </mat-checkbox>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="Name">
+        <th mat-header-cell *matHeaderCellDef>Name</th>
+        <td mat-cell *matCellDef="let row">{{ row.Name }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="ID">
+        <th mat-header-cell *matHeaderCellDef>ID</th>
+        <td mat-cell *matCellDef="let row">{{ row.ID }}</td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
     </table>
   </div>
 
   <!-- Control Buttons -->
   <div class="button-container">
-    <button (click)="addItems()">Add →</button>
-    <button (click)="removeItems()">← Remove</button>
+    <button mat-raised-button color="primary" (click)="addItems()">Add →</button>
+    <button mat-raised-button color="accent" (click)="removeItems()">← Remove</button>
   </div>
 
-  <!-- Selected Table -->
+  <!-- Selected Items Table -->
   <div class="table-container">
     <h3>Selected Items</h3>
-    <table>
-      <thead>
-        <tr>
-          <th></th>
-          <th>Name</th>
-          <th>ID</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let item of selectedItems">
-          <td>
-            <input type="checkbox" [checked]="selectedSelectedKeys.has(item.Key)" (change)="toggleSelected(item.Key)">
-          </td>
-          <td>{{ item.Name }}</td>
-          <td>{{ item.ID }}</td>
-        </tr>
-      </tbody>
+    <mat-form-field appearance="outline" class="filter">
+      <mat-label>Search</mat-label>
+      <input matInput (keyup)="applyFilter($event.target.value, 'selected')">
+    </mat-form-field>
+    <table mat-table [dataSource]="selectedDataSource" class="mat-elevation-z2">
+      <ng-container matColumnDef="select">
+        <th mat-header-cell *matHeaderCellDef>
+          <mat-checkbox
+            [checked]="isAllSelected(selectedDataSource, selectionSelected)"
+            (change)="masterToggle(selectedDataSource, selectionSelected)">
+          </mat-checkbox>
+        </th>
+        <td mat-cell *matCellDef="let row">
+          <mat-checkbox (click)="$event.stopPropagation()"
+                        (change)="$event ? selectionSelected.toggle(row) : null"
+                        [checked]="selectionSelected.isSelected(row)">
+          </mat-checkbox>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="Name">
+        <th mat-header-cell *matHeaderCellDef>Name</th>
+        <td mat-cell *matCellDef="let row">{{ row.Name }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="ID">
+        <th mat-header-cell *matHeaderCellDef>ID</th>
+        <td mat-cell *matCellDef="let row">{{ row.ID }}</td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
     </table>
   </div>
 </div>
 
 
-.container {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 40px;
-  margin-top: 40px;
-  flex-wrap: wrap;
+
+import { Component } from '@angular/core';
+import { MatTableDataSource } from '@angular/material/table';
+import { SelectionModel } from '@angular/cdk/collections';
+
+interface Item {
+  Name: string;
+  ID: number;
+  Key: number;
 }
 
-.table-container {
-  background: #f9f9f9;
-  padding: 16px;
-  border-radius: 12px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-  min-width: 280px;
-}
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.css']
+})
+export class AppComponent {
+  availableItems: Item[] = [
+    { Name: 'SomeName', ID: 123, Key: 1 },
+    { Name: 'SomeName1', ID: 1234, Key: 2 },
+    { Name: 'SomeName2', ID: 1235, Key: 3 },
+    { Name: 'SomeName3', ID: 1236, Key: 5 }
+  ];
+  selectedItems: Item[] = [];
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-family: Arial, sans-serif;
-}
+  availableDataSource = new MatTableDataSource<Item>(this.availableItems);
+  selectedDataSource = new MatTableDataSource<Item>(this.selectedItems);
 
-th, td {
-  padding: 8px 12px;
-  border-bottom: 1px solid #ddd;
-  text-align: left;
-}
+  selectionAvailable = new SelectionModel<Item>(true, []);
+  selectionSelected = new SelectionModel<Item>(true, []);
 
-thead {
-  background-color: #e2e8f0;
-}
+  displayedColumns: string[] = ['select', 'Name', 'ID'];
 
-h3 {
-  text-align: center;
-  margin-bottom: 12px;
-}
+  applyFilter(filterValue: string, table: 'available' | 'selected') {
+    if (table === 'available') {
+      this.availableDataSource.filter = filterValue.trim().toLowerCase();
+    } else {
+      this.selectedDataSource.filter = filterValue.trim().toLowerCase();
+    }
+  }
 
-.button-container {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 10px;
-}
+  addItems() {
+    const itemsToAdd = this.selectionAvailable.selected;
+    this.selectedItems.push(...itemsToAdd);
+    this.availableItems = this.availableItems.filter(item => !this.selectionAvailable.isSelected(item));
 
-.button-container button {
-  padding: 8px 16px;
-  font-weight: bold;
-  border: none;
-  background-color: #3b82f6;
-  color: white;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
+    this.availableDataSource.data = this.availableItems;
+    this.selectedDataSource.data = this.selectedItems;
 
-.button-container button:hover {
-  background-color: #2563eb;
-}
+    this.selectionAvailable.clear();
+  }
 
+  removeItems() {
+    const itemsToRemove = this.selectionSelected.selected;
+    this.availableItems.push(...itemsToRemove);
+    this.selectedItems = this.selectedItems.filter(item => !this.selectionSelected.isSelected(item));
 
+    this.availableDataSource.data = this.availableItems;
+    this.selectedDataSource.data = this.selectedItems;
 
-toggleSelectAllAvailable(checked: boolean) {
-  if (checked) {
-    this.availableItems.forEach(item => this.selectedAvailableKeys.add(item.Key));
-  } else {
-    this.selectedAvailableKeys.clear();
+    this.selectionSelected.clear();
+  }
+
+  isAllSelected(dataSource: MatTableDataSource<Item>, selection: SelectionModel<Item>) {
+    const numSelected = selection.selected.length;
+    const numRows = dataSource.filteredData.length;
+    return numSelected === numRows;
+  }
+
+  masterToggle(dataSource: MatTableDataSource<Item>, selection: SelectionModel<Item>) {
+    this.isAllSelected(dataSource, selection)
+      ? selection.clear()
+      : dataSource.filteredData.forEach(row => selection.select(row));
   }
 }
-
-toggleSelectAllSelected(checked: boolean) {
-  if (checked) {
-    this.selectedItems.forEach(item => this.selectedSelectedKeys.add(item.Key));
-  } else {
-    this.selectedSelectedKeys.clear();
-  }
-}
-
-
-<!-- Available Items Table -->
-<thead>
-  <tr>
-    <th>
-      <input
-        type="checkbox"
-        [checked]="availableItems.length > 0 && selectedAvailableKeys.size === availableItems.length"
-        (change)="toggleSelectAllAvailable($event.target.checked)">
-    </th>
-    <th>Name</th>
-    <th>ID</th>
-  </tr>
-</thead>
-
-
-<!-- Selected Items Table -->
-<thead>
-  <tr>
-    <th>
-      <input
-        type="checkbox"
-        [checked]="selectedItems.length > 0 && selectedSelectedKeys.size === selectedItems.length"
-        (change)="toggleSelectAllSelected($event.target.checked)">
-    </th>
-    <th>Name</th>
-    <th>ID</th>
-  </tr>
-</thead>
-
-
-
-toggleSelectAllAvailable() {
-  this.selectAllAvailableChecked = !this.selectAllAvailableChecked;
-  if (this.selectAllAvailableChecked) {
-    this.availableItems.forEach(item => this.selectedAvailableKeys.add(item.Key));
-  } else {
-    this.selectedAvailableKeys.clear();
-  }
-}
-
-toggleSelectAllSelected() {
-  this.selectAllSelectedChecked = !this.selectAllSelectedChecked;
-  if (this.selectAllSelectedChecked) {
-    this.selectedItems.forEach(item => this.selectedSelectedKeys.add(item.Key));
-  } else {
-    this.selectedSelectedKeys.clear();
-  }
-}
-
