@@ -1,259 +1,183 @@
-::ng-deep .mat-checkbox-checked.mat-accent .mat-checkbox-background,
-::ng-deep .mat-checkbox-indeterminate.mat-accent .mat-checkbox-background {
-  background-color: green !important;
-}
-
-::ng-deep .mat-checkbox-checked .mat-checkbox-checkmark-path,
-::ng-deep .mat-checkbox-indeterminate .mat-checkbox-mixedmark {
-  stroke: white !important;
-  background-color: white !important;
-}
-
-<mat-card class="mat-elevation-z2" style="background: #fff3cd; border-left: 5px solid #ffa000; padding: 12px; margin-bottom: 8px;">
-  <mat-icon color="warn" style="vertical-align: middle;">warning</mat-icon>
-  <span style="margin-left: 8px;">
-    Items added from the right table may already exist in the left table. Duplicates can appear when you search again.
-  </span>
-</mat-card>
-
-<div class="progressContainer">
-  <ul class="progressbar">
-    <li *ngFor="let step of progressSteps" [class.statusactive]="step.status === 'Succeeded'" [class.statusrunning]="step.status === 'In-Progress'">
-      {{ step.name }} <span>{{ step.percentage }}%</span>
-    </li>
-  </ul>
-  <div style="color: #00205B;">
-    Overall: <span>{{ overallCompletion }}%</span>
-  </div>
-</div>
-
-
-import { Component, Input, OnInit } from '@angular/core';
-
-interface ProgressStep {
-  name: string;
-  status: 'Succeeded' | 'In-Progress' | 'Pending';
-  percentage: number;
-}
-
-@Component({
-  selector: 'app-progress-bar',
-  templateUrl: './progress-bar.component.html',
-  styleUrls: ['./progress-bar.component.css']
-})
-export class ProgressBarComponent implements OnInit {
-  @Input() progressSteps: ProgressStep[] = [];
-  overallCompletion: number = 0;
-
-  ngOnInit() {
-    this.calculateOverallCompletion();
-  }
-
-  private calculateOverallCompletion() {
-    const total = this.progressSteps.reduce((sum, step) => sum + step.percentage, 0);
-    this.overallCompletion = Math.round(total / this.progressSteps.length);
-  }
-}
-
-.progressContainer {
-  width: 600px;
-  background-color: white;
-}
-
-.progressbar {
-  counter-reset: step;
-  list-style-type: none;
-  display: flex;
-  justify-content: space-between;
-}
-
-.progressbar li {
-  position: relative;
-  font-size: 11px;
-  text-align: center;
-  text-transform: uppercase;
-  color: orangered;
-  font-weight: bold;
-}
-
-.progressbar li:before {
-  content: counter(step);
-  counter-increment: step;
-  width: 30px;
-  height: 30px;
-  border: 2px solid orangered;
-  border-radius: 50%;
-  display: block;
-  line-height: 30px;
-  background-color: white;
-  margin: 0 auto;
-}
-
-.progressbar li.statusactive {
-  color: limegreen;
-}
-
-.progressbar li.statusactive:before {
-  border-color: limegreen;
-}
-
-.progressbar li.statusrunning {
-  color: orange;
-}
-
-.progressbar li.statusrunning:before {
-  border-color: orange;
-}
-
-<app-progress-bar [progressSteps]="progressData"></app-progress-bar>
-
-export class AppComponent {
-  progressData = [
-    { name: 'Data Preparation', status: 'Succeeded', percentage: 100 },
-    { name: 'Business Rule', status: 'In-Progress', percentage: 50 },
-    { name: 'Data Delivery', status: 'In-Progress', percentage: 70 },
-    { name: 'Data Imputation', status: 'Pending', percentage: 0 }
-  ];
-}
+ <ng-container matColumnDef="AttributeValue">
+                      <th mat-header-cell *matHeaderCellDef class="mat-header-style">Attribute Value</th>
+                      <td mat-cell *matCellDef="let element; let i = index" class="tdtext" style="width: 500px;">
+                        <a style="color:#999;font-weight:bold"
+                           id="editValue{{element.AttributeName}}"
+                           (click)="loadAttributeValues(element)">
+                          <span class="iconHover" style="font-size:small; color:deepskyblue;padding-left:0.1em;vertical-align:top">Edit Value</span>
+                        </a>
+          
+                        <mat-form-field id="formField{{element.AttributeName}}" style="float:left; width:90%; display:none;">
+                          <mat-label>Attribute Value</mat-label>
+                          <mat-select #attribute id="ddlValueList{{element.AttributeName}}"
+                                      multiple
+                                      [value]="selectedValues[element.AttributeName]"
+                                      formControlName="control_{{element.AttributeName}}">
+                            <div class="select-all" style="padding-left:16px">
+                                <a style="margin-top: 3px; cursor: pointer; width: 100px; color: deepskyblue;text-decoration:underline;" (click)="selectAll(element)">
+                                  Select All
+                                </a>
+                                <a style="margin-left: 5px; cursor: pointer; margin-top: 3px; color: deepskyblue;text-decoration:underline;width: 100px " (click)="deselectAll(element)">
+                                  Deselect All
+                                </a>
+                            </div>
+ 				<input placeholder="Search..." matInput type="text" (keyup)="onKey($event)" class="example-input">
+                            <mat-option *ngFor="let attr of element.AttributeValue" [value]="attr.attributeValue">
+                              {{attr.attributeName}}
+                            </mat-option>
+                          </mat-select>
+                        </mat-form-field>
+          
+                        <mat-icon id="closeEdit{{element.AttributeName}}"
+                                  (click)="closeEdit(element.AttributeName)"
+                                  title="Close"
+                                  style="cursor:pointer;color:orangered;float:right; display:none; padding-top:0.75em;">
+                          close
+                        </mat-icon>
+                      </td>
+    </ng-container>
 
 
- this.progressData = this.buildProgressData(apiResponse);
-  }
 
-  // Function to dynamically build progress steps based on deliveryTypeId
-  buildProgressData(apiResponse: any): ProgressStep[] {
-    const deliveryTypeId = apiResponse.deliveryTypeId;
-
-    let stepMapping: { key: string; percentageKey: string; name: string }[] = [];
-
-    if (deliveryTypeId === "DET-Shelf") {
-      stepMapping = [
-        { key: "mdmProceStatus", percentageKey: "mdmProcPercentang", name: "MDM" },
-        { key: "dataPrepProcStatus", percentageKey: "dataPrepProcPercentage", name: "Data Preparation" },
-        { key: "brProcStatus", percentageKey: "brProcPercentage", name: "Business Rule" },
-        { key: "freqProcStatus", percentageKey: "freqProcPercentage", name: "Frequency" },
-        { key: "trendingProcStatus", percentageKey: "trendingProcPercentage", name: "Trending" },
-        { key: "reqListProcStatus", percentageKey: "reqListProcPercentage", name: "Request List" },
-        { key: "dataDeliveryProcStatus", percentageKey: "dataDeliveryProcPercentage", name: "Data Delivery" },
-        { key: "dataImputationProcStatus", percentageKey: "dataImputationProcPercentage", name: "Data Imputation" }
-      ];
-    } else if (deliveryTypeId === "NDET-Shelf") {
-      stepMapping = [
-        { key: "dataPrepProcStatus", percentageKey: "dataPrepProcPercentage", name: "Data Preparation" },
-        { key: "brProcStatus", percentageKey: "brProcPercentage", name: "Business Rule" },
-        { key: "dataDeliveryProcStatus", percentageKey: "dataDeliveryProcPercentage", name: "Data Delivery" },
-        { key: "dataImputationProcStatus", percentageKey: "dataImputationProcPercentage", name: "Data Imputation" }
-      ];
-    } else if (deliveryTypeId === "Shelf-Extract" || deliveryTypeId === "Display-Extract") {
-      stepMapping = [
-        { key: "dataPrepProcStatus", percentageKey: "dataPrepProcPercentage", name: "Data Preparation" },
-        { key: "brProcStatus", percentageKey: "brProcPercentage", name: "Business Rule" },
-        { key: "dataDeliveryProcStatus", percentageKey: "dataDeliveryProcPercentage", name: "Data Delivery" }
-      ];
-    } else if (deliveryTypeId === "NAS-OOS") {
-      stepMapping = [
-        { key: "mdmProceStatus", percentageKey: "mdmProcPercentang", name: "MDM" },
-        { key: "dataPrepProcStatus", percentageKey: "dataPrepProcPercentage", name: "Data Preparation" },
-        { key: "brProcStatus", percentageKey: "brProcPercentage", name: "Business Rule" },
-        { key: "dataDeliveryProcStatus", percentageKey: "dataDeliveryProcPercentage", name: "Data Delivery" }
-      ];
+    loadAttributeValues(element) {
+      
+      if (element.IsSelected && this.dialogData.IsNewProductGroup === 0) {
+        this.GetSelectedAttributeValueList(element.AttributeName)
+      }
+      else {
+        this.GetAttributeValueList(element.AttributeName)
+      }
+  
+      //this.GetAttributeValueList(element.AttributeName)
+  
+      const selectedFormField = document.getElementById("formField" + element.AttributeName) as HTMLElement
+      selectedFormField.style.display = "block"
+  
+      const selectedCloseValue = document.getElementById("closeEdit" + element.AttributeName) as HTMLElement
+      selectedCloseValue.style.display = "block"
+  
+      const selectedEditValue = document.getElementById("editValue" + element.AttributeName) as HTMLElement
+      selectedEditValue.style.display = "none"
+    }
+  
+    GetAttributeValueList(attribute) {
+      const payload = {
+        deliveryId: String(this.deliveryId),
+        searchText: attribute
+      }
+  
+      this.http.post<AuditBusinessAttributes2[]>(this.baseUrl + 'api/BusinessRules/GetAttributeValueList', payload).subscribe({
+        next: (response) => {
+          this.attributeValueList = response
+          this.attributeList.forEach(item => {
+            if (item.AttributeName == attribute) {
+              item.AttributeValue = this.attributeValueList
+            }
+          })
+  
+          this.attributeDataSource.data = this.attributeList      
+    
+        },
+        error: (error) => {
+          console.error(error);
+          this._snackBar.openSnackBar(`Unable to process the request at the moment, please try again!`, 'error');
+        },
+      });
     }
 
-    return stepMapping.map(step => ({
-      name: step.name,
-      status: this.getStatus(apiResponse, step.key),
-      percentage: this.getPercentage(apiResponse, step.percentageKey)
-    }));
+  GetSelectedAttributeValueList(attribute) {
+    this.showSpinner=true;
+    const payload = {
+      key: this.productGroupKey,
+      name: attribute
+    }
+    const selectedValues = []
+
+    this.http.post<AuditBusinessAttributes2[]>(this.baseUrl + 'api/ProductGroup/GetConfiguredAttributeValueList', payload).subscribe({
+      next: (response) => {
+        this.attributeValueList = response
+        this.attributeList.forEach(item => {
+          if (item.AttributeName == attribute) {
+            item.AttributeValue = this.attributeValueList
+          }
+        })
+
+        this.attributeValueList.forEach(item => {
+          if (item.IsSelected == 1)
+            selectedValues.push(item.attributeValue)
+        })
+
+        this.attrFormGroup.get("control_" + attribute).setValue(selectedValues) 
+        this.attributeDataSource.data = this.attributeList
+
+        const selectedFormField = document.getElementById("formField" + attribute) as HTMLElement
+        selectedFormField.style.display = "block"
+
+        const selectedCloseValue = document.getElementById("closeEdit" + attribute) as HTMLElement
+        selectedCloseValue.style.display = "block"
+
+        const selectedEditValue = document.getElementById("editValue" + attribute) as HTMLElement
+        selectedEditValue.style.display = "none"
+
+        if(this.dialogData.IsNewProductGroup != '1'){
+          if(this.skipOnce1===1){
+            this.addAttributesToCurrentProcess()
+          
+            this.skipOnce1=0;
+            return;
+          }
+            this.showSpinner = false
+        }
+      },
+      error: (error) => {
+        console.error(error);
+        this._snackBar.openSnackBar(`Unable to process the request at the moment, please try again!`, 'error');
+      },
+    });
   }
+  
+    addAttributesToCurrentProcess() {
+      this.selectedAttributeValueList = []
+      let selectedRowCount = 0
+  
+      if (this.attributeList) {
+        
+        this.attributeList.forEach(item => {
+          if (item.IsSelected) {
+            selectedRowCount++
+            const attributeName = item.AttributeName
+            const selectedValueList = this.attrFormGroup.get("control_" + attributeName).value
+  
+            if (!item.AttributeValue || item.AttributeValue.length == selectedValueList.length || selectedValueList.length == 0) {
+              const obj = {
+                attributeName: attributeName,
+                attributeValue: "-1"
+              }
+              this.selectedAttributeValueList.push(obj)
+            }
+            else {
+              selectedValueList.forEach(value => {
+                const obj = {
+                  attributeName: attributeName,
+                  attributeValue: value
+                }
+                this.selectedAttributeValueList.push(obj)
+               
+              })
+            }
+          }
+        this.showSpinner=false;
+        })
+}}
 
-  getStatus(apiResponse: any, key: string): string {
-    return apiResponse[key] || "Pending";
+   onKey(value) {
+      const input = value.target as HTMLInputElement;
+      this.selectedAttributeValueList = this.search(input.value);
+    }
+
+  search(value: string) {
+    let filter = value.toLowerCase();
+    return this.selectedAttributeValueList.filter(option =>
+      option.toLowerCase().startsWith(filter)
+    );
   }
-
-  getPercentage(apiResponse: any, key: string): number {
-    return apiResponse[key] !== undefined ? Number(apiResponse[key]) : 0;
-  }
-}
--------------------
-
-.progressContainer {
-  width: 600px;
-  background-color: white;
-}
-
-.progressbar {
-  display: flex;
-  list-style-type: none;
-  counter-reset: step;
-  justify-content: space-between;
-  padding: 0;
-  position: relative;
-}
-
-.progressbar li {
-  width: 14%;
-  position: relative;
-  text-align: center;
-  text-transform: uppercase;
-  color: orangered;
-  font-weight: bold;
-}
-
-.progressbar li:before {
-  content: counter(step);
-  counter-increment: step;
-  width: 30px;
-  height: 30px;
-  border: 2px solid orangered;
-  border-radius: 50%;
-  background-color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  z-index: 1;
-  margin: auto;
-}
-
-.progressbar li:after {
-  content: "";
-  position: absolute;
-  width: 100%;
-  height: 3px;
-  background-color: orangered;
-  top: 15px;
-  left: -50%;
-  z-index: 0;
-}
-
-.progressbar li:first-child:after {
-  content: none;
-}
-
-.progressbar li.statusactive {
-  color: limegreen;
-}
-
-.progressbar li.statusactive:before {
-  border-color: limegreen;
-}
-
-.progressbar li.statusactive + li:after {
-  background-color: limegreen;
-}
-
-.progressbar li.statusrunning {
-  color: orange;
-}
-
-.progressbar li.statusrunning:before {
-  border-color: orange;
-}
-=======
-<ul class="progressbar">
-  <li *ngFor="let step of progressSteps"
-      [class.statusactive]="step.status === 'Succeeded'"
-      [class.statusrunning]="step.status === 'In-Progress'">
-    {{ step.name }} <span>{{ step.percentage }}%</span>
-  </li>
-</ul>
