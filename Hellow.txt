@@ -58,3 +58,31 @@ onKey(event: any, element: any) {
   }
 }
 
+selectAll(element: any) {
+  const control = this.attrFormGroup.get("control_" + element.AttributeName);
+  if (!control) return;
+
+  const currentSelection: any[] = Array.isArray(control.value) ? control.value : [];
+
+  // Add all visible (filtered) values to the current selection
+  const toAdd = element.FilteredAttributeValue
+    .map(item => item.attributeValue)
+    .filter(value => !currentSelection.includes(value)); // avoid duplicates
+
+  const updatedSelection = [...currentSelection, ...toAdd];
+  control.setValue(updatedSelection);
+}
+
+
+deselectAll(element: any) {
+  const control = this.attrFormGroup.get("control_" + element.AttributeName);
+  if (!control) return;
+
+  const currentSelection: any[] = Array.isArray(control.value) ? control.value : [];
+
+  // Remove all visible (filtered) values from current selection
+  const toRemove = new Set(element.FilteredAttributeValue.map(item => item.attributeValue));
+  const updatedSelection = currentSelection.filter(value => !toRemove.has(value));
+
+  control.setValue(updatedSelection);
+}
