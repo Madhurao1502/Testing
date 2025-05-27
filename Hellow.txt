@@ -22,3 +22,39 @@ onSelectionChange(event: any, element: any) {
     control?.setValue(currentValue); // ✅ Patch updated value
   }
 }
+
+onKey(event: any, element: any) {
+  const inputValue = event.target.value.toLowerCase();
+  const control = this.attrFormGroup.get("control_" + element.AttributeName);
+  const currentSelection: any[] = Array.isArray(control?.value) ? control.value : [];
+
+  if (!inputValue) {
+    // 🔄 Reset to full list but preserve selected items (including those not in the original list, just in case)
+    const selectedItems = element.AttributeValue.filter(item =>
+      currentSelection.includes(item.attributeValue)
+    );
+
+    // Use Map to avoid duplicates
+    const allItemsMap = new Map();
+    [...element.AttributeValue, ...selectedItems].forEach(item => {
+      allItemsMap.set(item.attributeValue, item);
+    });
+
+    element.FilteredAttributeValue = Array.from(allItemsMap.values());
+  } else {
+    // Filter based on search input
+    const filteredList = element.AttributeValue.filter(item =>
+      item && item.attributeName &&
+      item.attributeName.toLowerCase().includes(inputValue)
+    );
+
+    // Add back selected items not in filtered list to keep them visible
+    const selectedButHidden = element.AttributeValue.filter(item =>
+      currentSelection.includes(item.attributeValue) &&
+      !filteredList.some(f => f.attributeValue === item.attributeValue)
+    );
+
+    element.FilteredAttributeValue = [...filteredList, ...selectedButHidden];
+  }
+}
+
