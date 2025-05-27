@@ -1,183 +1,24 @@
- <ng-container matColumnDef="AttributeValue">
-                      <th mat-header-cell *matHeaderCellDef class="mat-header-style">Attribute Value</th>
-                      <td mat-cell *matCellDef="let element; let i = index" class="tdtext" style="width: 500px;">
-                        <a style="color:#999;font-weight:bold"
-                           id="editValue{{element.AttributeName}}"
-                           (click)="loadAttributeValues(element)">
-                          <span class="iconHover" style="font-size:small; color:deepskyblue;padding-left:0.1em;vertical-align:top">Edit Value</span>
-                        </a>
-          
-                        <mat-form-field id="formField{{element.AttributeName}}" style="float:left; width:90%; display:none;">
-                          <mat-label>Attribute Value</mat-label>
-                          <mat-select #attribute id="ddlValueList{{element.AttributeName}}"
-                                      multiple
-                                      [value]="selectedValues[element.AttributeName]"
-                                      formControlName="control_{{element.AttributeName}}">
-                            <div class="select-all" style="padding-left:16px">
-                                <a style="margin-top: 3px; cursor: pointer; width: 100px; color: deepskyblue;text-decoration:underline;" (click)="selectAll(element)">
-                                  Select All
-                                </a>
-                                <a style="margin-left: 5px; cursor: pointer; margin-top: 3px; color: deepskyblue;text-decoration:underline;width: 100px " (click)="deselectAll(element)">
-                                  Deselect All
-                                </a>
-                            </div>
- 				<input placeholder="Search..." matInput type="text" (keyup)="onKey($event)" class="example-input">
-                            <mat-option *ngFor="let attr of element.AttributeValue" [value]="attr.attributeValue">
-                              {{attr.attributeName}}
-                            </mat-option>
-                          </mat-select>
-                        </mat-form-field>
-          
-                        <mat-icon id="closeEdit{{element.AttributeName}}"
-                                  (click)="closeEdit(element.AttributeName)"
-                                  title="Close"
-                                  style="cursor:pointer;color:orangered;float:right; display:none; padding-top:0.75em;">
-                          close
-                        </mat-icon>
-                      </td>
-    </ng-container>
+onSelectionChange(event: any, element: any) {
+  const control = this.attrFormGroup.get("control_" + element.AttributeName);
+  const currentValue: any[] = Array.isArray(control?.value) ? control.value : [];
 
+  // Add or remove from currentValue depending on the event
+  if (event.isUserInput) {
+    const selectedValue = event.source.value;
+    const index = currentValue.indexOf(selectedValue);
 
-
-    loadAttributeValues(element) {
-      
-      if (element.IsSelected && this.dialogData.IsNewProductGroup === 0) {
-        this.GetSelectedAttributeValueList(element.AttributeName)
+    if (event.source.selected) {
+      // Only add if not already present
+      if (index === -1) {
+        currentValue.push(selectedValue);
       }
-      else {
-        this.GetAttributeValueList(element.AttributeName)
+    } else {
+      // Remove unchecked value
+      if (index !== -1) {
+        currentValue.splice(index, 1);
       }
-  
-      //this.GetAttributeValueList(element.AttributeName)
-  
-      const selectedFormField = document.getElementById("formField" + element.AttributeName) as HTMLElement
-      selectedFormField.style.display = "block"
-  
-      const selectedCloseValue = document.getElementById("closeEdit" + element.AttributeName) as HTMLElement
-      selectedCloseValue.style.display = "block"
-  
-      const selectedEditValue = document.getElementById("editValue" + element.AttributeName) as HTMLElement
-      selectedEditValue.style.display = "none"
-    }
-  
-    GetAttributeValueList(attribute) {
-      const payload = {
-        deliveryId: String(this.deliveryId),
-        searchText: attribute
-      }
-  
-      this.http.post<AuditBusinessAttributes2[]>(this.baseUrl + 'api/BusinessRules/GetAttributeValueList', payload).subscribe({
-        next: (response) => {
-          this.attributeValueList = response
-          this.attributeList.forEach(item => {
-            if (item.AttributeName == attribute) {
-              item.AttributeValue = this.attributeValueList
-            }
-          })
-  
-          this.attributeDataSource.data = this.attributeList      
-    
-        },
-        error: (error) => {
-          console.error(error);
-          this._snackBar.openSnackBar(`Unable to process the request at the moment, please try again!`, 'error');
-        },
-      });
     }
 
-  GetSelectedAttributeValueList(attribute) {
-    this.showSpinner=true;
-    const payload = {
-      key: this.productGroupKey,
-      name: attribute
-    }
-    const selectedValues = []
-
-    this.http.post<AuditBusinessAttributes2[]>(this.baseUrl + 'api/ProductGroup/GetConfiguredAttributeValueList', payload).subscribe({
-      next: (response) => {
-        this.attributeValueList = response
-        this.attributeList.forEach(item => {
-          if (item.AttributeName == attribute) {
-            item.AttributeValue = this.attributeValueList
-          }
-        })
-
-        this.attributeValueList.forEach(item => {
-          if (item.IsSelected == 1)
-            selectedValues.push(item.attributeValue)
-        })
-
-        this.attrFormGroup.get("control_" + attribute).setValue(selectedValues) 
-        this.attributeDataSource.data = this.attributeList
-
-        const selectedFormField = document.getElementById("formField" + attribute) as HTMLElement
-        selectedFormField.style.display = "block"
-
-        const selectedCloseValue = document.getElementById("closeEdit" + attribute) as HTMLElement
-        selectedCloseValue.style.display = "block"
-
-        const selectedEditValue = document.getElementById("editValue" + attribute) as HTMLElement
-        selectedEditValue.style.display = "none"
-
-        if(this.dialogData.IsNewProductGroup != '1'){
-          if(this.skipOnce1===1){
-            this.addAttributesToCurrentProcess()
-          
-            this.skipOnce1=0;
-            return;
-          }
-            this.showSpinner = false
-        }
-      },
-      error: (error) => {
-        console.error(error);
-        this._snackBar.openSnackBar(`Unable to process the request at the moment, please try again!`, 'error');
-      },
-    });
+    control?.setValue(currentValue); // ✅ Patch updated value
   }
-  
-    addAttributesToCurrentProcess() {
-      this.selectedAttributeValueList = []
-      let selectedRowCount = 0
-  
-      if (this.attributeList) {
-        
-        this.attributeList.forEach(item => {
-          if (item.IsSelected) {
-            selectedRowCount++
-            const attributeName = item.AttributeName
-            const selectedValueList = this.attrFormGroup.get("control_" + attributeName).value
-  
-            if (!item.AttributeValue || item.AttributeValue.length == selectedValueList.length || selectedValueList.length == 0) {
-              const obj = {
-                attributeName: attributeName,
-                attributeValue: "-1"
-              }
-              this.selectedAttributeValueList.push(obj)
-            }
-            else {
-              selectedValueList.forEach(value => {
-                const obj = {
-                  attributeName: attributeName,
-                  attributeValue: value
-                }
-                this.selectedAttributeValueList.push(obj)
-               
-              })
-            }
-          }
-        this.showSpinner=false;
-        })
-}}
-
-   onKey(value) {
-      const input = value.target as HTMLInputElement;
-      this.selectedAttributeValueList = this.search(input.value);
-    }
-
-  search(value: string) {
-    let filter = value.toLowerCase();
-    return this.selectedAttributeValueList.filter(option =>
-      option.toLowerCase().startsWith(filter)
-    );
-  }
+}
