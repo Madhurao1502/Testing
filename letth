@@ -1,44 +1,81 @@
-<h3>Paste Excel Numbers</h3>
-<textarea
-  rows="10"
-  cols="40"
-  (paste)="onPaste($event)"
-  placeholder="Paste your numbers here">
-</textarea>
+Subject: Deployment Update: New Changes Deployed to Production (ClientApp Web Application)
 
-<p *ngIf="numbers.length">Total Numbers: {{ numbers.length }}</p>
+Hi [Manager's Name],
 
-<button (click)="sendToApi()">Send to API</button>
+The following changes have been deployed to the ClientApp web application in production:
+
+1. Time Period
+
+A dropdown with three options has been added: 13 weeks, 26 weeks, and 52 weeks.
+
+The Start Week is auto-populated and cannot be edited.
+
+The End Week is auto-populated based on the selected Source Delivery and is editable.
+
+2. Archived MDM Validation
+
+When a user selects a Source Delivery where the associated MDM is archived, and clicks on the Process Item Attribute button,
+we have added a validation to display a toaster message informing the user that:
+"The selected MDM is archived and must be unarchived before proceeding."
+
+3. Location-Based Condition Validation
+
+When a user selects the "Location Based" option under Conditions:
+
+A validation has been added to check if the Source Delivery is approved for client delivery.
+
+If not approved, a toaster message will be displayed informing the user that:
+"The selected Source Delivery is not approved. You cannot select this option."
+
+The system will also automatically unselect any selected Location Based options in this case.
+
+Please find the attached implementation document for more details.
+
+Let me know if you have any questions.
+
+Best regards,
+[Your Name]\\\
 
 
-import { Component } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 
-@Component({
-  selector: 'app-root',
-  templateUrl: './app.component.html'
-})
-export class AppComponent {
-  numbers: string[] = [];
+==================
 
-  constructor(private http: HttpClient) {}
+Subject: Production Deployment Update - ClientApp Web Application
 
-  onPaste(event: ClipboardEvent): void {
-    event.preventDefault();
-    const clipboardData = event.clipboardData?.getData('text') || '';
-    this.numbers = clipboardData
-      .split(/\r?\n/)
-      .map(val => val.trim())
-      .filter(val => val !== '');
-  }
+Hi [Manager's Name],
 
-  sendToApi(): void {
-    const payload = { numbers: this.numbers };
+The following changes have been deployed to production on the ClientApp web application:
 
-    this.http.post('https://localhost:5001/api/values', payload)
-      .subscribe({
-        next: res => console.log('Success:', res),
-        error: err => console.error('Error:', err)
-      });
-  }
-}
+1. Time Period Enhancements
+
+A dropdown is now available with three options: 13 weeks, 26 weeks, 52 weeks.
+
+The Start Week field is auto-populated and cannot be edited.
+
+The End Week field is auto-populated based on the selected Source Delivery and is editable.
+
+2. Archived MDM Validation
+
+When a user selects a Source Delivery where the corresponding MDM is archived, and clicks the "Process Item Attribute" button, a validation has been added to display a toast message informing the user that the MDM is archived and needs to be unarchived before proceeding.
+
+3. Location-Based Condition Validation
+
+When the user selects the "Location Based" option from the Conditions:
+
+A validation now checks whether the Source Delivery has been approved for the Client Delivery.
+
+If not approved, a toast message is displayed informing the user that the Source Delivery has not been approved, and the option will be unselected automatically.
+
+4. Attribute Export
+
+An export option has been provided to allow users to export:
+
+Attributes
+
+Attribute values
+
+UPC(s)
+
+for the selected Product Group.
+
+Please find the implementation document attached for your reference.
