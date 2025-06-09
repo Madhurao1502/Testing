@@ -1,195 +1,44 @@
-import { Component, Input, OnInit, ViewChild } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatExpansionModule } from '@angular/material/expansion';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { FormBuilder, FormGroup, FormsModule, Validators } from '@angular/forms';   
-import { MatTableDataSource, MatTableModule } from '@angular/material/table';
-import { ReactiveFormsModule,FormControl } from '@angular/forms';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-// [formControl]="dueDateForm.get('dueTime')"
-import { CommonModule } from '@angular/common';
-import { RouterOutlet } from '@angular/router';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatNativeDateModule } from '@angular/material/core';
-import { MatPaginator } from '@angular/material/paginator';
-import { MatSort } from '@angular/material/sort';
-interface TableData {
-  id: number;
-  col1: string;
-  col2: string;
-  col3: string;
-  col4: string;
-  col5: string;
-  col6: string;
-  col7: string;
-  col8: string;
-  col9: string;
-  col10: string;
-  col11: string;
-}
+<h3>Paste Excel Numbers</h3>
+<textarea
+  rows="10"
+  cols="40"
+  (paste)="onPaste($event)"
+  placeholder="Paste your numbers here">
+</textarea>
+
+<p *ngIf="numbers.length">Total Numbers: {{ numbers.length }}</p>
+
+<button (click)="sendToApi()">Send to API</button>
+
+
+import { Component } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+
 @Component({
-  selector: 'app-duedate',
-  standalone: true,
-  imports: [CommonModule,MatNativeDateModule,FormsModule,MatDatepickerModule,RouterOutlet,MatFormFieldModule,MatInputModule,MatTableModule,MatSelectModule,MatTabsModule,MatCheckboxModule,ReactiveFormsModule,MatExpansionModule],
-  templateUrl: './duedate.component.html',
-  styleUrl: './duedate.component.css'
+  selector: 'app-root',
+  templateUrl: './app.component.html'
 })
-export class DuedateComponent implements OnInit {
-  
-  @Input() data: { name: string; value: number; color: string }[] = [];
+export class AppComponent {
+  numbers: string[] = [];
 
-  total: number = 0;
-  chartData: any[] = [];
+  constructor(private http: HttpClient) {}
 
-  ngOnInit() {
-    this.calculateChart();
-  }
-  calculateChart() {
-    this.total = this.data.reduce((sum, item) => sum + item.value, 0);
-  
-    let cumulativePercentage = 0;
-    this.chartData = this.data.map((item) => {
-      const percentage = (item.value / this.total) * 100;
-      const startAngle = cumulativePercentage * 3.6; // Convert to degrees
-      cumulativePercentage += percentage;
-      const endAngle = cumulativePercentage * 3.6;
-  
-      const midAngle = (startAngle + endAngle) / 2;
-      const labelCoords = this.getLabelPosition(midAngle);
-  
-      return { 
-        ...item, 
-        startAngle, 
-        endAngle, 
-        percentage: percentage.toFixed(1), 
-        labelX: labelCoords.x, 
-        labelY: labelCoords.y 
-      };
-    });
-  }
-  
-  getLabelPosition(angle: number) {
-    const radius = 18; // Move label slightly outside the pie
-    const centerX = 16;
-    const centerY = 16;
-  
-    const x = centerX + radius * Math.cos((angle - 90) * (Math.PI / 180));
-    const y = centerY + radius * Math.sin((angle - 90) * (Math.PI / 180));
-  
-    return { x, y };
+  onPaste(event: ClipboardEvent): void {
+    event.preventDefault();
+    const clipboardData = event.clipboardData?.getData('text') || '';
+    this.numbers = clipboardData
+      .split(/\r?\n/)
+      .map(val => val.trim())
+      .filter(val => val !== '');
   }
 
-  getArcPath(startAngle: number, endAngle: number): string {
-    const radius = 15; // Pie chart radius
-    const centerX = 16; // Center X of the SVG
-    const centerY = 16; // Center Y of the SVG
-  
-    const start = this.polarToCartesian(centerX, centerY, radius, endAngle);
-    const end = this.polarToCartesian(centerX, centerY, radius, startAngle);
-  
-    const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-  
-    return [
-      `M ${start.x} ${start.y}`,
-      `A ${radius} ${radius} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`,
-      `L ${centerX} ${centerY}`,
-      `Z`
-    ].join(" ");
-  }
-  
-  polarToCartesian(centerX: number, centerY: number, radius: number, angleInDegrees: number) {
-    const angleInRadians = (angleInDegrees - 90) * (Math.PI / 180);
-    return {
-      x: centerX + radius * Math.cos(angleInRadians),
-      y: centerY + radius * Math.sin(angleInRadians)
-    };
+  sendToApi(): void {
+    const payload = { numbers: this.numbers };
+
+    this.http.post('https://localhost:5001/api/values', payload)
+      .subscribe({
+        next: res => console.log('Success:', res),
+        error: err => console.error('Error:', err)
+      });
   }
 }
-
-
-<div class="pie-container">
-  <!-- Pie Chart -->
-  <svg width="200" height="200" viewBox="0 0 32 32">
-    <circle cx="16" cy="16" r="15" fill="white"></circle>
-    
-    <ng-container *ngFor="let item of chartData">
-      <path
-        [attr.d]="getArcPath(item.startAngle, item.endAngle)"
-        [attr.fill]="item.color"
-        class="slice">
-      </path>
-
-      <!-- Labels Outside the Pie Chart -->
-      <text
-        [attr.x]="item.labelX"
-        [attr.y]="item.labelY"
-        class="label-text">
-         ({{ item.percentage }}%)
-      </text>
-    </ng-container>
-  </svg>
-
-  <!-- Labels on Side -->
-  <div class="side-labels">
-    <div *ngFor="let item of data" class="label-item">
-      <span class="color-box" [style.background]="item.color"></span>
-      <span>{{ item.name }} ({{ item.value }})</span>
-    </div>
-  </div>
-</div>
-
-
-.pie-container {
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
-    gap: 20px;
-  }
-  
-  svg {
-    transform: rotate(-90deg);
-  }
-  
-  .slice {
-    cursor: pointer;
-    transition: 0.3s;
-  }
-  
-  .slice:hover {
-    opacity: 0.8;
-  }
-  
-  .label-text {
-    font-size: 2px;
-    font-weight: bold;
-    text-anchor: middle;
-    fill: black;
-  }
-  
-  .side-labels {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .label-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  
-  .color-box {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-  }
-  <app-duedate [data]="pieData"></app-duedate>
- this.pieData = [
-      { name: 'Collected', value: 200, color: '#4A90E2' },
-      { name: 'Not Collected', value: 100, color: '#A4A4A4' },
-      { name: 'Imputed', value: 50, color: '#F5A623' }
-    ];
-  }
