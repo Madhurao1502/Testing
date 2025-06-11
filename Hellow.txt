@@ -1,88 +1,151 @@
-onSelectionChange(event: any, element: any) {
-  const control = this.attrFormGroup.get("control_" + element.AttributeName);
-  const currentValue: any[] = Array.isArray(control?.value) ? control.value : [];
+<div class="container">
+  <!-- Paste Box -->
+  <div class="section paste-box">
+    <h3>Paste Numbers</h3>
+    <textarea
+      [(ngModel)]="inputData"
+      (paste)="onPaste($event)"
+      placeholder="Paste comma, pipe or line-separated numbers"
+      rows="12"
+      cols="40">
+    </textarea>
+  </div>
 
-  // Add or remove from currentValue depending on the event
-  if (event.isUserInput) {
-    const selectedValue = event.source.value;
-    const index = currentValue.indexOf(selectedValue);
+  <!-- File Upload Box -->
+  <div
+    class="section upload-box"
+    [class.dragover]="isDragOver"
+    (drop)="onFileDrop($event)"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+  >
+    <h3>Upload File</h3>
+    <p>Drag and drop a .txt/.csv file here</p>
+    <input type="file" (change)="onFileUpload($event)" accept=".txt,.csv" />
+  </div>
+</div>
 
-    if (event.source.selected) {
-      // Only add if not already present
-      if (index === -1) {
-        currentValue.push(selectedValue);
-      }
-    } else {
-      // Remove unchecked value
-      if (index !== -1) {
-        currentValue.splice(index, 1);
-      }
-    }
+<!-- Summary and Actions -->
+<p>Total Numbers: {{ numbers.length }}</p>
+<button (click)="sendToApi()">Send to API</button>
+<button (click)="clearNumbers()">Clear All</button>
 
-    control?.setValue(currentValue); // ✅ Patch updated value
+
+import { Component } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.css']
+})
+export class AppComponent {
+  inputData: string = '';
+  numbers: string[] = [];
+  isDragOver: boolean = false;
+
+  constructor(private http: HttpClient) {}
+
+  parseInput(content: string): string[] {
+    let delimiter = '\n';
+    if (content.includes(',')) delimiter = ',';
+    else if (content.includes('|')) delimiter = '|';
+
+    return content
+      .split(delimiter)
+      .map(val => val.trim())
+      .filter(val => val !== '' && /^[0-9]+$/.test(val));
   }
-}
 
-onKey(event: any, element: any) {
-  const inputValue = event.target.value.toLowerCase();
-  const control = this.attrFormGroup.get("control_" + element.AttributeName);
-  const currentSelection: any[] = Array.isArray(control?.value) ? control.value : [];
+  onPaste(event: ClipboardEvent): void {
+    event.preventDefault();
+    const clipboardData = event.clipboardData?.getData('text') || '';
+    const newNumbers = this.parseInput(clipboardData);
+    this.numbers = [...this.numbers, ...newNumbers];
+    this.inputData = '';
+  }
 
-  if (!inputValue) {
-    // 🔄 Reset to full list but preserve selected items (including those not in the original list, just in case)
-    const selectedItems = element.AttributeValue.filter(item =>
-      currentSelection.includes(item.attributeValue)
-    );
+  onFileUpload(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    this.readFile(file);
+  }
 
-    // Use Map to avoid duplicates
-    const allItemsMap = new Map();
-    [...element.AttributeValue, ...selectedItems].forEach(item => {
-      allItemsMap.set(item.attributeValue, item);
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    this.isDragOver = true;
+  }
+
+  onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    this.isDragOver = false;
+  }
+
+  onFileDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.isDragOver = false;
+
+    const file = event.dataTransfer?.files?.[0];
+    if (file) this.readFile(file);
+  }
+
+  readFile(file: File): void {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const content = reader.result as string;
+      const newNumbers = this.parseInput(content);
+      this.numbers = [...this.numbers, ...newNumbers];
+    };
+    reader.readAsText(file);
+  }
+
+  clearNumbers(): void {
+    this.numbers = [];
+    this.inputData = '';
+  }
+
+  sendToApi(): void {
+    const payload = { numbers: this.numbers };
+    this.http.post('https://your-api-url/api/values', payload).subscribe({
+      next: res => console.log('Success:', res),
+      error: err => console.error('Error:', err)
     });
-
-    element.FilteredAttributeValue = Array.from(allItemsMap.values());
-  } else {
-    // Filter based on search input
-    const filteredList = element.AttributeValue.filter(item =>
-      item && item.attributeName &&
-      item.attributeName.toLowerCase().includes(inputValue)
-    );
-
-    // Add back selected items not in filtered list to keep them visible
-    const selectedButHidden = element.AttributeValue.filter(item =>
-      currentSelection.includes(item.attributeValue) &&
-      !filteredList.some(f => f.attributeValue === item.attributeValue)
-    );
-
-    element.FilteredAttributeValue = [...filteredList, ...selectedButHidden];
   }
 }
 
-selectAll(element: any) {
-  const control = this.attrFormGroup.get("control_" + element.AttributeName);
-  if (!control) return;
 
-  const currentSelection: any[] = Array.isArray(control.value) ? control.value : [];
-
-  // Add all visible (filtered) values to the current selection
-  const toAdd = element.FilteredAttributeValue
-    .map(item => item.attributeValue)
-    .filter(value => !currentSelection.includes(value)); // avoid duplicates
-
-  const updatedSelection = [...currentSelection, ...toAdd];
-  control.setValue(updatedSelection);
+.container {
+  display: flex;
+  gap: 30px;
+  margin-top: 20px;
+  justify-content: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
 }
 
+.section {
+  width: 300px;
+  border: 2px dashed #ccc;
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+  background-color: #f9f9f9;
+  transition: border-color 0.3s ease, background-color 0.3s ease;
+}
 
-deselectAll(element: any) {
-  const control = this.attrFormGroup.get("control_" + element.AttributeName);
-  if (!control) return;
+.upload-box input[type="file"] {
+  margin-top: 10px;
+}
 
-  const currentSelection: any[] = Array.isArray(control.value) ? control.value : [];
+textarea {
+  width: 100%;
+  height: 200px;
+  resize: none;
+  font-family: monospace;
+}
 
-  // Remove all visible (filtered) values from current selection
-  const toRemove = new Set(element.FilteredAttributeValue.map(item => item.attributeValue));
-  const updatedSelection = currentSelection.filter(value => !toRemove.has(value));
-
-  control.setValue(updatedSelection);
+.dragover {
+  border-color: green;
+  background-color: #e6ffea;
 }
