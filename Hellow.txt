@@ -1,219 +1,36 @@
-<div class="container">
-  <!-- Paste Box -->
-  <div class="section paste-box">
-    <h3>Paste Numbers</h3>
-    <textarea
-      [(ngModel)]="inputData"
-      (paste)="onPaste($event)"
-      placeholder="Paste comma, pipe or line-separated numbers"
-      rows="12"
-      cols="40">
-    </textarea>
-  </div>
-
-  <!-- File Upload Box -->
-  <div
-    class="section upload-box"
-    [class.dragover]="isDragOver"
-    (drop)="onFileDrop($event)"
-    (dragover)="onDragOver($event)"
-    (dragleave)="onDragLeave($event)"
-  >
-    <h3>Upload File</h3>
-    <p>Drag and drop a .txt/.csv file here</p>
-    <input type="file" (change)="onFileUpload($event)" accept=".txt,.csv" />
-  </div>
-</div>
-
-<!-- Summary and Actions -->
-<p>Total Numbers: {{ numbers.length }}</p>
-<button (click)="sendToApi()">Send to API</button>
-<button (click)="clearNumbers()">Clear All</button>
-
-
-import { Component } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-
-@Component({
-  selector: 'app-root',
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.css']
-})
-export class AppComponent {
-  inputData: string = '';
-  numbers: string[] = [];
-  isDragOver: boolean = false;
-
-  constructor(private http: HttpClient) {}
-
-  parseInput(content: string): string[] {
-    let delimiter = '\n';
-    if (content.includes(',')) delimiter = ',';
-    else if (content.includes('|')) delimiter = '|';
-
-    return content
-      .split(delimiter)
-      .map(val => val.trim())
-      .filter(val => val !== '' && /^[0-9]+$/.test(val));
-  }
-
-  onPaste(event: ClipboardEvent): void {
-    event.preventDefault();
-    const clipboardData = event.clipboardData?.getData('text') || '';
-    const newNumbers = this.parseInput(clipboardData);
-    this.numbers = [...this.numbers, ...newNumbers];
-    this.inputData = '';
-  }
-
-  onFileUpload(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0) return;
-    const file = input.files[0];
-    this.readFile(file);
-  }
-
-  onDragOver(event: DragEvent): void {
-    event.preventDefault();
-    this.isDragOver = true;
-  }
-
-  onDragLeave(event: DragEvent): void {
-    event.preventDefault();
-    this.isDragOver = false;
-  }
-
-  onFileDrop(event: DragEvent): void {
-    event.preventDefault();
-    this.isDragOver = false;
-
-    const file = event.dataTransfer?.files?.[0];
-    if (file) this.readFile(file);
-  }
-
-  readFile(file: File): void {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const content = reader.result as string;
-      const newNumbers = this.parseInput(content);
-      this.numbers = [...this.numbers, ...newNumbers];
-    };
-    reader.readAsText(file);
-  }
-
-  clearNumbers(): void {
-    this.numbers = [];
-    this.inputData = '';
-  }
-
-  sendToApi(): void {
-    const payload = { numbers: this.numbers };
-    this.http.post('https://your-api-url/api/values', payload).subscribe({
-      next: res => console.log('Success:', res),
-      error: err => console.error('Error:', err)
-    });
-  }
-}
-
-
-.container {
-  display: flex;
-  gap: 30px;
-  margin-top: 20px;
-  justify-content: center;
-  align-items: flex-start;
-  flex-wrap: wrap;
-}
-
-.section {
-  width: 300px;
-  border: 2px dashed #ccc;
-  padding: 20px;
-  border-radius: 12px;
-  text-align: center;
-  background-color: #f9f9f9;
-  transition: border-color 0.3s ease, background-color 0.3s ease;
-}
-
-.upload-box input[type="file"] {
-  margin-top: 10px;
-}
-
-textarea {
-  width: 100%;
-  height: 200px;
-  resize: none;
-  font-family: monospace;
-}
-
-.dragover {
-  border-color: green;
-  background-color: #e6ffea;
-}
-
-
 onStatusChange(event: MatSelectChange) {
-  const selected = event.value; // The array of currently selected values
-  const allValues = this.statusList.map(opt => opt.value); // All possible option values (e.g., [0, 1, 2, 3])
-  const selectAllValue = 0; // Assuming 0 is the value for 'Select All'
+  const selected = event.value;
+  const selectAllValue = 0;
+  const allValues = this.statusList.map(opt => opt.value);
+  const allExceptSelectAll = allValues.filter(v => v !== selectAllValue);
 
-  // --- Determine which values should be set based on the user's action ---
-  let newValue: number[];
+  const wasSelectAllPreviouslySelected = this.previousSelected.includes(selectAllValue);
+  const isSelectAllNowSelected = selected.includes(selectAllValue);
 
-  // Scenario 1: The 'Select All' option (value 0) is among the values clicked by the user
-  if (selected.includes(selectAllValue)) {
-    // Check if the user's current selection includes ALL possible values.
-    // This happens when 'Select All' is clicked and everything is already selected,
-    // or when 'Select All' is clicked and it's the only item, causing everything to be selected.
-    if (selected.length === allValues.length) {
-      // If 'Select All' is clicked AND all items are selected, this means the user
-      // intends to UNSELECT ALL.
-      newValue = []; // Set value to an empty array to deselect everything
-    } else {
-      // If 'Select All' is clicked, but not all other items were selected,
-      // it means the user intends to SELECT ALL.
-      newValue = allValues; // Select all options (including the 'Select All' option itself)
-    }
+  // Case: User clicked "Select All"
+  if (!wasSelectAllPreviouslySelected && isSelectAllNowSelected) {
+    // Select all
+    this.statusControl.setValue(allValues);
   }
-  // Scenario 2: The 'Select All' option (value 0) is NOT among the values clicked by the user
+  // Case: User clicked "Select All" again to deselect all
+  else if (wasSelectAllPreviouslySelected && !isSelectAllNowSelected) {
+    // Deselect all
+    this.statusControl.setValue([]);
+  }
+  // Case: User manually selected all individual options (add Select All)
+  else if (selected.length === allExceptSelectAll.length && !isSelectAllNowSelected) {
+    this.statusControl.setValue([selectAllValue, ...allExceptSelectAll]);
+  }
+  // Other cases: partial selections
   else {
-    // Check if all individual options (excluding 'Select All') are now selected.
-    // If so, we should automatically select 'Select All' to reflect this state.
-    const allExceptSelectAll = allValues.filter(v => v !== selectAllValue);
-    if (selected.length === allExceptSelectAll.length) {
-      // All individual items are selected, so add 'Select All' to the selection.
-      newValue = [selectAllValue, ...selected];
+    // Remove Select All if other items were unselected
+    if (isSelectAllNowSelected && selected.length < allValues.length) {
+      this.statusControl.setValue(selected.filter(v => v !== selectAllValue));
     } else {
-      // User is either selecting/deselecting individual items, or has deselected
-      // something when 'Select All' was previously active.
-      // In this case, 'Select All' should *not* be selected, and we just use the user's selection.
-      newValue = selected.filter(v => v !== selectAllValue); // Ensure 'Select All' is removed if it somehow lingered
+      this.statusControl.setValue(selected);
     }
   }
 
-  // --- Apply the new value to the FormControl ---
-  // Only update if the new value is different to prevent infinite loops or unnecessary updates
-  if (!this.arraysAreEqual(this.statusControl.value, newValue)) {
-    this.statusControl.setValue(newValue);
-  }
-
-  // --- Update your component's selectedStatus property ---
   this.selectedStatus = this.statusControl.value;
-}
-
-// Helper function to compare arrays (needed because setValue can trigger change detection)
-private arraysAreEqual(arr1: any[], arr2: any[]): boolean {
-  if (!arr1 || !arr2) {
-    return false;
-  }
-  if (arr1.length !== arr2.length) {
-    return false;
-  }
-  const sortedArr1 = [...arr1].sort();
-  const sortedArr2 = [...arr2].sort();
-  for (let i = 0; i < sortedArr1.length; i++) {
-    if (sortedArr1[i] !== sortedArr2[i]) {
-      return false;
-    }
-  }
-  return true;
+  this.previousSelected = this.selectedStatus; // store latest
 }
