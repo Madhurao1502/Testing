@@ -149,3 +149,71 @@ textarea {
   border-color: green;
   background-color: #e6ffea;
 }
+
+
+onStatusChange(event: MatSelectChange) {
+  const selected = event.value; // The array of currently selected values
+  const allValues = this.statusList.map(opt => opt.value); // All possible option values (e.g., [0, 1, 2, 3])
+  const selectAllValue = 0; // Assuming 0 is the value for 'Select All'
+
+  // --- Determine which values should be set based on the user's action ---
+  let newValue: number[];
+
+  // Scenario 1: The 'Select All' option (value 0) is among the values clicked by the user
+  if (selected.includes(selectAllValue)) {
+    // Check if the user's current selection includes ALL possible values.
+    // This happens when 'Select All' is clicked and everything is already selected,
+    // or when 'Select All' is clicked and it's the only item, causing everything to be selected.
+    if (selected.length === allValues.length) {
+      // If 'Select All' is clicked AND all items are selected, this means the user
+      // intends to UNSELECT ALL.
+      newValue = []; // Set value to an empty array to deselect everything
+    } else {
+      // If 'Select All' is clicked, but not all other items were selected,
+      // it means the user intends to SELECT ALL.
+      newValue = allValues; // Select all options (including the 'Select All' option itself)
+    }
+  }
+  // Scenario 2: The 'Select All' option (value 0) is NOT among the values clicked by the user
+  else {
+    // Check if all individual options (excluding 'Select All') are now selected.
+    // If so, we should automatically select 'Select All' to reflect this state.
+    const allExceptSelectAll = allValues.filter(v => v !== selectAllValue);
+    if (selected.length === allExceptSelectAll.length) {
+      // All individual items are selected, so add 'Select All' to the selection.
+      newValue = [selectAllValue, ...selected];
+    } else {
+      // User is either selecting/deselecting individual items, or has deselected
+      // something when 'Select All' was previously active.
+      // In this case, 'Select All' should *not* be selected, and we just use the user's selection.
+      newValue = selected.filter(v => v !== selectAllValue); // Ensure 'Select All' is removed if it somehow lingered
+    }
+  }
+
+  // --- Apply the new value to the FormControl ---
+  // Only update if the new value is different to prevent infinite loops or unnecessary updates
+  if (!this.arraysAreEqual(this.statusControl.value, newValue)) {
+    this.statusControl.setValue(newValue);
+  }
+
+  // --- Update your component's selectedStatus property ---
+  this.selectedStatus = this.statusControl.value;
+}
+
+// Helper function to compare arrays (needed because setValue can trigger change detection)
+private arraysAreEqual(arr1: any[], arr2: any[]): boolean {
+  if (!arr1 || !arr2) {
+    return false;
+  }
+  if (arr1.length !== arr2.length) {
+    return false;
+  }
+  const sortedArr1 = [...arr1].sort();
+  const sortedArr2 = [...arr2].sort();
+  for (let i = 0; i < sortedArr1.length; i++) {
+    if (sortedArr1[i] !== sortedArr2[i]) {
+      return false;
+    }
+  }
+  return true;
+}
