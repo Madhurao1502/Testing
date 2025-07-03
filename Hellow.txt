@@ -1,36 +1,17 @@
-onStatusChange(event: MatSelectChange) {
-  const selected = event.value;
-  const selectAllValue = 0;
-  const allValues = this.statusList.map(opt => opt.value);
-  const allExceptSelectAll = allValues.filter(v => v !== selectAllValue);
+Dashboard Enhancements
 
-  const wasSelectAllPreviouslySelected = this.previousSelected.includes(selectAllValue);
-  const isSelectAllNowSelected = selected.includes(selectAllValue);
+Introduced filters and a chart view on the Home (Dashboard) screen for better data visualization and filtering capability.
 
-  // Case: User clicked "Select All"
-  if (!wasSelectAllPreviouslySelected && isSelectAllNowSelected) {
-    // Select all
-    this.statusControl.setValue(allValues);
-  }
-  // Case: User clicked "Select All" again to deselect all
-  else if (wasSelectAllPreviouslySelected && !isSelectAllNowSelected) {
-    // Deselect all
-    this.statusControl.setValue([]);
-  }
-  // Case: User manually selected all individual options (add Select All)
-  else if (selected.length === allExceptSelectAll.length && !isSelectAllNowSelected) {
-    this.statusControl.setValue([selectAllValue, ...allExceptSelectAll]);
-  }
-  // Other cases: partial selections
-  else {
-    // Remove Select All if other items were unselected
-    if (isSelectAllNowSelected && selected.length < allValues.length) {
-      this.statusControl.setValue(selected.filter(v => v !== selectAllValue));
-    } else {
-      this.statusControl.setValue(selected);
-    }
-  }
+UI/UX Improvements
 
-  this.selectedStatus = this.statusControl.value;
-  this.previousSelected = this.selectedStatus; // store latest
-}
+Side Navigation Bar has been narrowed down to increase the usable screen space for content.
+
+Updated the layout for Attribute Search, improving usability and alignment.
+
+Implemented UPC search via copy-paste and file upload, allowing faster and more flexible product lookups.
+
+Functional Updates
+
+Removed the alert that appeared when users attempted to proceed without selecting any attributes.
+
+The "Product Group Name" field is now editable until the "Ready to Process" button is clicked, offering more control during the editing phase.
