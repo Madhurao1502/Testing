@@ -23,3 +23,6 @@ proxy: none
 
 setx PATH "%PATH%;C:\Users\<YourUsername>\nvm;C:\Users\<YourUsername>\nvm\nodejs"
 
+mklink /D "C:\Users\%USERNAME%\nvm\nodejs" "C:\Users\%USERNAME%\nvm\v16.19.1"
+
+
