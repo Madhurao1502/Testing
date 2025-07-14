@@ -23,6 +23,22 @@ proxy: none
 
 setx PATH "%PATH%;C:\Users\<YourUsername>\nvm;C:\Users\<YourUsername>\nvm\nodejs"
 
+Want to Switch Later?
+If you want to switch between versions:
+
+Delete the existing symlink:
+
+bash
+Copy
+Edit
+rmdir C:\Users\%USERNAME%\nvm\nodejs
+Re-create it pointing to the other version:
+
+bash
+Copy
+Edit
+mklink /D "C:\Users\%USERNAME%\nvm\nodejs" "C:\Users\%USERNAME%\nvm\v22.17.0"
+
 mklink /D "C:\Users\%USERNAME%\nvm\nodejs" "C:\Users\%USERNAME%\nvm\v16.19.1"
 
 
