@@ -15,3 +15,8 @@ Functional Updates
 Removed the alert that appeared when users attempted to proceed without selecting any attributes.
 
 The "Product Group Name" field is now editable until the "Ready to Process" button is clicked, offering more control during the editing phase.
+
+root: C:\Users\<YourUsername>\nvm
+path: C:\Users\<YourUsername>\nvm\nodejs
+arch: 64
+proxy: none
