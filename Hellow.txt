@@ -39,6 +39,13 @@ Copy
 Edit
 mklink /D "C:\Users\%USERNAME%\nvm\nodejs" "C:\Users\%USERNAME%\nvm\v22.17.0"
 
+
+
 mklink /D "C:\Users\%USERNAME%\nvm\nodejs" "C:\Users\%USERNAME%\nvm\v16.19.1"
+
+
+I am currently unable to install Visual Studio 2022 on my system. I attempted to uninstall the previous installation, but the uninstallation process is failing repeatedly. I have tried multiple times, synced my PC, and also restarted it several times, but the issue persists.
+
+Requesting your assistance in completely removing the existing Visual Studio components and helping me with a clean installation of Visual Studio 2022.
 
 
