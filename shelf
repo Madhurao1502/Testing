@@ -193,3 +193,34 @@ export class ShelfMasterComponent {
   }
 }
 
+
+>>>>>>>>>>>>>>>>>>>>>
+
+function buildNestedTree(flatData: any[]): any[] {
+  const idMapping: { [key: number]: any } = {};
+  const rootNodes: any[] = [];
+
+  // Step 1: Map by ID
+  flatData.forEach(node => {
+    node.children = [];
+    idMapping[node.id] = node;
+  });
+
+  // Step 2: Build the hierarchy
+  flatData.forEach(node => {
+    if (node.pId && idMapping[node.pId]) {
+      idMapping[node.pId].children.push(node);
+    } else {
+      rootNodes.push(node);
+    }
+  });
+
+  return rootNodes;
+}
+
+ngOnInit(): void {
+  this.shelfService.getShelfVars(this.group).subscribe((data) => {
+    const nestedData = buildNestedTree(data);
+    this.dataSource.data = nestedData;
+  });
+}
