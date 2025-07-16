@@ -93,3 +93,57 @@ export class ShelfTreeComponent implements OnInit {
     return result;
   }
 }
+
+
+<h3>{{ title }}</h3>
+
+<mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
+  <!-- Node without children -->
+  <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
+    <button mat-icon-button disabled></button>
+    <span (click)="onSelect(node)">{{ node.name }}</span>
+  </mat-tree-node>
+
+  <!-- Node with children -->
+  <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild">
+    <div class="mat-tree-node" (click)="onSelect(node)">
+      <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'toggle ' + node.name">
+        <mat-icon>
+          {{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}
+        </mat-icon>
+      </button>
+      {{ node.name }}
+    </div>
+    <div *ngIf="treeControl.isExpanded(node)">
+      <ng-container matTreeNodeOutlet></ng-container>
+    </div>
+  </mat-nested-tree-node>
+</mat-tree>
+
+<div *ngIf="selectedNode" style="margin-top: 10px">
+  <h4>{{ title }} Limits</h4>
+
+  <div *ngIf="showLimits">
+    <mat-form-field>
+      <input matInput placeholder="Min" [(ngModel)]="selectedNode.mainMin"
+             (change)="updateValue('min', selectedNode.mainMin)" [disabled]="disableMinMax" />
+    </mat-form-field>
+
+    <mat-form-field>
+      <input matInput placeholder="Max" [(ngModel)]="selectedNode.mainMax"
+             (change)="updateValue('max', selectedNode.mainMax)" [disabled]="disableMinMax" />
+    </mat-form-field>
+  </div>
+
+  <div *ngIf="showChecks">
+    <mat-form-field>
+      <input matInput placeholder="Soft" [(ngModel)]="selectedNode.main_soft_check"
+             (change)="updateValue('soft', selectedNode.main_soft_check)" />
+    </mat-form-field>
+
+    <mat-form-field>
+      <input matInput placeholder="Hard" [(ngModel)]="selectedNode.main_hard_check"
+             (change)="updateValue('hard', selectedNode.main_hard_check)" />
+    </mat-form-field>
+  </div>
+</div>
