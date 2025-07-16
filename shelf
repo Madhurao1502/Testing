@@ -147,3 +147,49 @@ export class ShelfTreeComponent implements OnInit {
     </mat-form-field>
   </div>
 </div>
+
+***************************************
+
+<mat-tab-group>
+  <mat-tab label="Location">
+    <app-shelf-tree #treeLocation [group]="1" title="Location"></app-shelf-tree>
+  </mat-tab>
+  <mat-tab label="Section">
+    <app-shelf-tree #treeSection [group]="2" title="Section"></app-shelf-tree>
+  </mat-tab>
+  <mat-tab label="Shelf">
+    <app-shelf-tree #treeShelf [group]="3" title="Shelf"></app-shelf-tree>
+  </mat-tab>
+  <mat-tab label="UPC">
+    <app-shelf-tree #treeUPC [group]="4" title="UPC"></app-shelf-tree>
+  </mat-tab>
+</mat-tab-group>
+
+<button mat-raised-button color="primary" (click)="save()">Save Shelf Variables</button>
+
+
+import { Component, ViewChild } from '@angular/core';
+import { ShelfTreeComponent } from '../shelf-tree/shelf-tree.component';
+
+@Component({
+  selector: 'app-shelf-master',
+  templateUrl: './shelf-master.component.html',
+})
+export class ShelfMasterComponent {
+  @ViewChild('treeLocation') treeLocation!: ShelfTreeComponent;
+  @ViewChild('treeSection') treeSection!: ShelfTreeComponent;
+  @ViewChild('treeShelf') treeShelf!: ShelfTreeComponent;
+  @ViewChild('treeUPC') treeUPC!: ShelfTreeComponent;
+
+  save(): void {
+    const allData = [
+      ...this.treeLocation.getSelectedData(),
+      ...this.treeSection.getSelectedData(),
+      ...this.treeShelf.getSelectedData(),
+      ...this.treeUPC.getSelectedData(),
+    ];
+    console.log('Saving:', allData);
+    // Call ShelfService.saveShelfVars(allData) if needed
+  }
+}
+
