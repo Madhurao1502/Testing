@@ -1,0 +1,95 @@
+// shelf-tree.component.ts using Angular Material MatTree
+import { Component, Input, OnInit } from '@angular/core';
+import { NestedTreeControl } from '@angular/cdk/tree';
+import { MatTreeNestedDataSource } from '@angular/material/tree';
+import { ShelfService } from '../shelf.service';
+import { cloneDeep } from 'lodash';
+
+interface ShelfNode {
+  id: number;
+  name: string;
+  mainMin?: string;
+  mainMax?: string;
+  main_soft_check?: string;
+  main_hard_check?: string;
+  isNewlyAdded?: string;
+  children?: ShelfNode[];
+}
+
+@Component({
+  selector: 'app-shelf-tree',
+  templateUrl: './shelf-tree.component.html',
+  styleUrls: ['./shelf-tree.component.scss']
+})
+export class ShelfTreeComponent implements OnInit {
+  @Input() group!: number;
+  @Input() title!: string;
+
+  treeControl = new NestedTreeControl<ShelfNode>(node => node.children);
+  dataSource = new MatTreeNestedDataSource<ShelfNode>();
+
+  selectedNode: ShelfNode | null = null;
+  showLimits = false;
+  showChecks = false;
+  disableMinMax = false;
+
+  constructor(private shelfService: ShelfService) {}
+
+  ngOnInit(): void {
+    this.shelfService.getShelfVars(this.group).subscribe((data) => {
+      this.dataSource.data = data;
+    });
+  }
+
+  hasChild = (_: number, node: ShelfNode) => !!node.children && node.children.length > 0;
+
+  onSelect(node: ShelfNode): void {
+    this.selectedNode = node;
+    this.configureDisplayFields(node);
+  }
+
+  configureDisplayFields(node: ShelfNode): void {
+    const limitIds = [11160, 14825, 15490, 15995, 16910, 22700];
+    const checkIds = [10100, 20000, 30100];
+
+    this.disableMinMax = limitIds.includes(node.id);
+
+    if (this.disableMinMax) {
+      this.showLimits = true;
+      this.showChecks = false;
+    } else if (checkIds.includes(node.id)) {
+      this.showLimits = false;
+      this.showChecks = true;
+    } else {
+      this.showLimits = true;
+      this.showChecks = true;
+    }
+  }
+
+  updateValue(type: 'min' | 'max' | 'soft' | 'hard', value: string): void {
+    if (!this.selectedNode) return;
+
+    if (type === 'min') this.selectedNode.mainMin = value;
+    if (type === 'max') this.selectedNode.mainMax = value;
+    if (type === 'soft') this.selectedNode.main_soft_check = value;
+    if (type === 'hard') this.selectedNode.main_hard_check = value;
+
+    this.selectedNode.isNewlyAdded = 'U';
+  }
+
+  getSelectedData(): any[] {
+    const result: any[] = [];
+    const traverse = (node: ShelfNode) => {
+      if (node.isNewlyAdded === 'N' || node.isNewlyAdded === 'U') {
+        const cleaned = cloneDeep(node);
+        delete cleaned.children;
+        result.push(cleaned);
+      }
+      if (node.children) {
+        node.children.forEach(child => traverse(child));
+      }
+    };
+    this.dataSource.data.forEach(n => traverse(n));
+    return result;
+  }
+}
