@@ -38,7 +38,7 @@
     </mat-tree>
   </div>
 
-  <div *ngIf="selectedNode && (showLimits || showChecks)" class="form-panel">
+  <div *ngIf="selectedNode?.level === 0 && (showLimits || showChecks)" class="form-panel">
     <h4>Checks / Limits</h4>
 
     <div *ngIf="showLimits" class="form-section">
@@ -74,42 +74,68 @@
 
 .shelf-wrapper {
   display: flex;
-  flex-direction: row;
   gap: 24px;
   align-items: flex-start;
+  padding: 16px;
 }
 
 .tree-panel {
-  flex: 1;
-  max-height: 500px;
-  overflow-y: auto;
+  width: 320px;
+  min-width: 320px;
+  max-width: 320px;
   border: 1px solid #ccc;
-  border-radius: 6px;
+  border-radius: 8px;
+  background-color: #fafafa;
   padding: 12px;
-  background: #fafafa;
+  overflow-y: auto;
+  max-height: 600px;
+}
+
+.node-line {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.node-line:hover {
+  background: #e3f2fd;
+}
+
+.node-icon {
+  margin-right: 8px;
+  color: #3f51b5;
 }
 
 .form-panel {
-  width: 260px;
-  padding: 16px;
+  flex: 1;
   border: 1px solid #ccc;
-  border-radius: 6px;
-  background: #f0f4ff;
+  border-radius: 8px;
+  padding: 16px;
+  background: #ffffff;
+  max-width: 500px;
 }
 
 .form-panel h4 {
-  margin-bottom: 8px;
-  font-size: 16px;
-  color: #1a237e;
+  margin-bottom: 12px;
+  color: #1976d2;
+  font-weight: 500;
 }
 
 .form-section {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 8px;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
 mat-form-field {
-  width: 100%;
+  flex: 1 1 120px;
+}
+this.dataSource.data = nested;
+this.treeControl.expandAll();
+if (nested.length > 0) {
+  this.onSelect(nested[0]); // Select root
 }
