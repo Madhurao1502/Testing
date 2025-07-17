@@ -225,190 +225,70 @@ ngOnInit(): void {
   });
 }
 ****************************************************
-<h3>{{ title }}</h3>
-<div class="tree-container">
-  <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
-    <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding [matTreeNodePaddingIndent]="20" [matTreeNodeLevel]="node.level">
-      <div class="node-line" [class.selected]="node === selectedNode" (click)="onSelect(node)">
-        <button mat-icon-button disabled></button>
-        <mat-icon class="node-icon">insert_drive_file</mat-icon>
-        {{ node.name }}
-      </div>
-    </mat-tree-node>
+<mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
 
-    <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding [matTreeNodePaddingIndent]="20" [matTreeNodeLevel]="node.level">
-      <div class="node-line" [class.selected]="node === selectedNode" (click)="onSelect(node)">
-        <button mat-icon-button matTreeNodeToggle>
-          <mat-icon>
-            {{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}
-          </mat-icon>
-        </button>
-        <mat-icon class="node-icon">folder</mat-icon>
-        {{ node.name }}
-      </div>
-      <div *ngIf="treeControl.isExpanded(node)">
-        <ng-container matTreeNodeOutlet></ng-container>
-      </div>
-    </mat-nested-tree-node>
-  </mat-tree>
-</div>
+  <!-- Leaf node -->
+  <mat-tree-node *matTreeNodeDef="let node">
+    <div
+      class="node-line"
+      [ngStyle]="{ 'padding-left.px': (node.level || 0) * 20 }"
+      (click)="onSelect(node)"
+    >
+      <button mat-icon-button disabled></button>
+      <mat-icon class="node-icon">insert_drive_file</mat-icon>
+      {{ node.name }}
+    </div>
+  </mat-tree-node>
 
-<div *ngIf="selectedNode" class="form-panel">
-  <h4>Checks / Limits</h4>
-  <div *ngIf="showLimits" class="form-section">
-    <mat-form-field><input matInput placeholder="Min" [(ngModel)]="selectedNode.mainMin" (change)="updateValue('min', selectedNode.mainMin)" [disabled]="disableMinMax"/></mat-form-field>
-    <mat-form-field><input matInput placeholder="Max" [(ngModel)]="selectedNode.mainMax" (change)="updateValue('max', selectedNode.mainMax)" [disabled]="disableMinMax"/></mat-form-field>
-  </div>
-  <div *ngIf="showChecks" class="form-section">
-    <mat-form-field><input matInput placeholder="Soft" [(ngModel)]="selectedNode.main_soft_check" (change)="updateValue('soft', selectedNode.main_soft_check)"/></mat-form-field>
-    <mat-form-field><input matInput placeholder="Hard" [(ngModel)]="selectedNode.main_hard_check" (change)="updateValue('hard', selectedNode.main_hard_check)"/></mat-form-field>
-  </div>
-</div>
+  <!-- Expandable node -->
+  <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild">
+    <div
+      class="node-line"
+      [ngStyle]="{ 'padding-left.px': (node.level || 0) * 20 }"
+      (click)="onSelect(node)"
+    >
+      <button mat-icon-button matTreeNodeToggle>
+        <mat-icon>
+          {{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}
+        </mat-icon>
+      </button>
+      <mat-icon class="node-icon">folder</mat-icon>
+      {{ node.name }}
+    </div>
+    <div *ngIf="treeControl.isExpanded(node)">
+      <ng-container matTreeNodeOutlet></ng-container>
+    </div>
+  </mat-nested-tree-node>
 
+</mat-tree>
+🔧 Customize Indent Level
+Change 20 in padding-left.px to any value to control indent per level.
 
-import { Component, Input, OnInit } from '@angular/core';
-import { NestedTreeControl } from '@angular/cdk/tree';
-import { MatTreeNestedDataSource } from '@angular/material/tree';
-import { ShelfService } from '../shelf.service';
-import { cloneDeep } from 'lodash';
+✅ Result
+Each nested level will now be indented manually based on your level field — exactly matching your visual expectation.
 
-interface ShelfNode {
-  id: number;
-  pId?: number;
-  name: string;
-  level?: number;
-  mainMin?: string;
-  mainMax?: string;
-  main_soft_check?: string;
-  main_hard_check?: string;
-  isNewlyAdded?: string;
-  children?: ShelfNode[];
+✅ Bonus (CSS Cleanup)
+In your SCSS you can remove default Angular Material padding if needed:
+
+scss
+Copy
+Edit
+::ng-deep .mat-tree-node,
+::ng-deep .mat-nested-tree-node {
+  padding-left: 0 !important;
 }
+Let me know if you'd like me to regenerate the full HTML with this change.
 
-@Component({
-  selector: 'app-shelf-tree',
-  templateUrl: './shelf-tree.component.html',
-  styleUrls: ['./shelf-tree.component.scss']
-})
-export class ShelfTreeComponent implements OnInit {
-  @Input() group!: number;
-  @Input() title!: string;
 
-  treeControl = new NestedTreeControl<ShelfNode>(node => node.children);
-  dataSource = new MatTreeNestedDataSource<ShelfNode>();
 
-  selectedNode: ShelfNode | null = null;
-  showLimits = false;
-  showChecks = false;
-  disableMinMax = false;
 
-  ngOnInit(): void {
-    this.shelfService.getShelfVars(this.group)
-      .subscribe(data => {
-        const nested = this.buildNestedTree(data);
-        this.dataSource.data = nested;
-      });
-  }
 
-  hasChild = (_: number, node: ShelfNode) =>
-    !!node.children && node.children.length > 0;
 
-  onSelect(node: ShelfNode): void {
-    this.selectedNode = node;
-    this.configureDisplayFields(node);
-  }
 
-  configureDisplayFields(node: ShelfNode): void {
-    const limitIds = [11160, 14825, 15490, 15995, 16910, 22700];
-    const checkIds = [10100, 20000, 30100];
 
-    this.disableMinMax = limitIds.includes(node.id);
-    this.showLimits = !checkIds.includes(node.id);
-    this.showChecks = !this.disableMinMax;
-  }
+Ask ChatGPT
 
-  updateValue(type: 'min' | 'max' | 'soft' | 'hard', val: string) {
-    if (!this.selectedNode) return;
-    (this.selectedNode as any)[{
-      min: 'mainMin',
-      max: 'mainMax',
-      soft: 'main_soft_check',
-      hard: 'main_hard_check'
-    }[type]] = val;
-    this.selectedNode.isNewlyAdded = 'U';
-  }
 
-  getSelectedData(): any[] {
-    const res: any[] = [];
-    const walk = (node: ShelfNode) => {
-      if (['N', 'U'].includes(node.isNewlyAdded || '')) {
-        const copy = cloneDeep(node);
-        delete (copy as any).children;
-        res.push(copy);
-      }
-      node.children?.forEach(walk);
-    };
-    this.dataSource.data.forEach(walk);
-    return res;
-  }
-
-  private buildNestedTree(flat: ShelfNode[]): ShelfNode[] {
-    const map: { [id: number]: ShelfNode } = {};
-    const roots: ShelfNode[] = [];
-
-    flat.forEach(n => {
-      n.children = [];
-      n.level = 0;
-      map[n.id] = n;
-    });
-
-    flat.forEach(n => {
-      if (n.pId && map[n.pId]) {
-        n.level = (map[n.pId].level || 0) + 1;
-        map[n.pId].children!.push(n);
-      } else {
-        roots.push(n);
-      }
-    });
-
-    return roots;
-  }
-
-  constructor(private shelfService: ShelfService) {}
-}
-
-.tree-container {
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  background: #fdfdfd;
-  padding: 8px;
-  max-height: 500px;
-  overflow-y: auto;
-  margin-bottom: 16px;
-}
-
-.node-line {
-  display: flex;
-  align-items: center;
-  padding: 4px 0;
-  cursor: pointer;
-}
-
-.node-icon { margin: 0 8px; color: #3f51b5; }
-
-.node-line:hover { background: #e3f2fd; border-radius: 4px; }
-.selected { background: #bbdefb; border-radius: 4px; }
-
-.form-panel {
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  padding: 16px;
-  background: #fafafa;
-}
-
-.form-panel h4 { margin: 0 0 8px; color: #1976d2; }
-.form-section { display: flex; gap: 16px; margin-top: 8px; }
-mat-form-field { flex: 1; }
 
 
 
