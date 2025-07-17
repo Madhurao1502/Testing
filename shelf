@@ -352,3 +352,46 @@ mat-form-field {
 </div>
 
 
+....................
+
+.mat-tree-node,
+.mat-nested-tree-node {
+  position: relative;
+  padding-left: 1.5rem; // default base indentation
+  margin-left: 10px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0.6rem;
+    height: 100%;
+    width: 1px;
+    background-color: #ccc;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 1.25rem;
+    left: 0.6rem;
+    height: 1px;
+    width: calc(1.5rem - 8px);
+    background-color: #ccc;
+  }
+
+  &:last-child::before {
+    height: 1.25rem; // prevent long vertical lines on last node
+  }
+}
+
+// Optional: animate toggling (bonus)
+.mat-tree-node button.mat-icon-button {
+  transition: transform 0.2s ease;
+}
+
+.mat-tree-node button.mat-icon-button:focus {
+  outline: none;
+}
+
+
