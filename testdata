@@ -1,45 +1,63 @@
-confirmDialog(): void {
-  if (this.dialogMode === 'add') {
-    if (!this.rightClickedNode) return;
+import { Component, Inject } from '@angular/core';
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 
-    const parent = this.rightClickedNode;
-    parent.children = parent.children || [];
-    
-    // Generate new unique ID — your existing method or logic
-    const newId = this.generateNewNodeId(parent);
+export interface ShelfVarDialogData {
+  mode: 'add' | 'edit';
+  initialName: string;
+}
 
-    const newNode: ShelfNode = {
-      Id: newId,
-      PId: parent.Id,
-      Name: this.dialogNodeName.trim(),
-      optional: 'Y',
-      IsNewlyAdded: 'N',
-      children: []
-    };
+@Component({
+  selector: 'app-shelf-var-dialog',
+  templateUrl: './shelf-var-dialog.component.html',
+  styleUrls: ['./shelf-var-dialog.component.css']
+})
+export class ShelfVarDialogComponent {
+  name: string;
 
-    parent.children.push(newNode);
-    this.sortChildrenByName(parent);
-
-    this.treeControl.expand(parent);
-
-    // Refresh UI by replacing array reference
-    this.dataSource.data = this.dataSource.data.slice();
-  }
-  else if (this.dialogMode === 'edit') {
-    if (!this.rightClickedNode) return;
-    this.rightClickedNode.Name = this.dialogNodeName.trim();
-    this.rightClickedNode.IsNewlyAdded = 'U';
-
-    // Refresh UI for edits
-    this.dataSource.data = this.dataSource.data.slice();
+  constructor(
+    public dialogRef: MatDialogRef<ShelfVarDialogComponent>,
+    @Inject(MAT_DIALOG_DATA) public data: ShelfVarDialogData
+  ) {
+    this.name = data.initialName || '';
   }
 
-  this.showDialog = false;
+  onCancel(): void {
+    this.dialogRef.close(null);
+  }
+
+  onConfirm(): void {
+    const trimmedName = this.name.trim();
+    if (!trimmedName) {
+      alert('Name cannot be empty.');
+      return;
+    }
+
+    // Send name back to caller
+    this.dialogRef.close(trimmedName);
+  }
 }
 
 
-private generateNewNodeId(parent: ShelfNode): number {
-  const childIds = parent.children?.map(c => c.Id) || [];
-  const maxId = childIds.length ? Math.max(...childIds) : parent.Id * 1000; // Arbitrary scheme to avoid collisions
-  return maxId + 1;
+
+<h2 mat-dialog-title>
+  {{ data.mode === 'add' ? 'Add Shelf Variable' : 'Edit Shelf Variable' }}
+</h2>
+
+<div mat-dialog-content>
+  <mat-form-field appearance="fill" class="full-width">
+    <mat-label>Shelf Variable Name</mat-label>
+    <input matInput [(ngModel)]="name" />
+  </mat-form-field>
+</div>
+
+<div mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()">Cancel</button>
+  <button mat-raised-button color="primary" (click)="onConfirm()">
+    {{ data.mode === 'add' ? 'Add' : 'Save' }}
+  </button>
+</div>
+
+
+.full-width {
+  width: 100%;
 }
