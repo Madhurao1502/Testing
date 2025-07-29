@@ -484,3 +484,71 @@ private generateNewNodeId(parent: ShelfNode): number {
     <button mat-button (click)="cancelDialog()">Cancel</button>
   </div>
 </div>
+
+
+import { MatDialog } from '@angular/material/dialog';
+import { ShelfVarDialogComponent, ShelfVarDialogData } from '../shelf-var-dialog/shelf-var-dialog.component';
+
+constructor(
+  // other injections
+  private dialog: MatDialog,
+  // ...
+) { }
+
+openAddDialog(): void {
+  if (!this.canAdd()) return;
+  this.contextMenuVisible = false;
+
+  const dialogRef = this.dialog.open<ShelfVarDialogComponent, ShelfVarDialogData, string>(ShelfVarDialogComponent, {
+    width: '400px',
+    data: { mode: 'add', initialName: '' }
+  });
+
+  dialogRef.afterClosed().subscribe(name => {
+    if (name) {
+      if (!this.isDuplicateName(name.trim())) {
+        this._snackBar.openSnackBar(`Variable '${name.trim()}' already exists. Please choose a different name.`, 'error');
+        return;
+      }
+
+      const newNode: ShelfNode = {
+        Id: this.generateNewNodeId(this.rightClickedNode!),
+        PId: this.rightClickedNode!.Id,
+        Name: name.trim(),
+        optional: 'Y',
+        IsNewlyAdded: 'N',
+        AllowAdd: '',
+        children: []
+      };
+      this.rightClickedNode!.children = this.rightClickedNode!.children || [];
+      this.rightClickedNode!.children.push(newNode);
+
+      this.sortChildrenByName(this.rightClickedNode!);
+      this.treeControl.expand(this.rightClickedNode!);
+      this.dataSource.data = this.dataSource.data.slice();
+    }
+  });
+}
+
+openEditDialog(): void {
+  if (!this.canEdit() || !this.rightClickedNode) return;
+  this.contextMenuVisible = false;
+
+  const dialogRef = this.dialog.open<ShelfVarDialogComponent, ShelfVarDialogData, string>(ShelfVarDialogComponent, {
+    width: '400px',
+    data: { mode: 'edit', initialName: this.rightClickedNode.Name }
+  });
+
+  dialogRef.afterClosed().subscribe(name => {
+    if (name) {
+      if (!this.isDuplicateName(name.trim(), this.rightClickedNode!.Id)) {
+        this._snackBar.openSnackBar(`Variable '${name.trim()}' already exists. Please choose a different name.`, 'error');
+        return;
+      }
+      this.rightClickedNode!.Name = name.trim();
+      this.rightClickedNode!.IsNewlyAdded = 'U';
+      this.dataSource.data = this.dataSource.data.slice();
+    }
+  });
+}
+
