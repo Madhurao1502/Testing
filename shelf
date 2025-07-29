@@ -282,11 +282,393 @@ Let me know if you'd like me to regenerate the full HTML with this change.
 
 
 
+=================================================
+
+<div class="shelf-wrapper">
+  <div class="tree-panel">
+    <h3>{{ title }}</h3>
+
+    <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
+      <!-- Leaf node -->
+      <mat-tree-node *matTreeNodeDef="let node">
+        <div
+          class="node-line compact-node"
+          [class.selected]="node === selectedNode"
+          [ngStyle]="{ 'margin-left.px': (node.level || 0) * 20 }"
+          (click)="onSelect(node)"
+          (contextmenu)="onRightClick($event, node)"
+        >
+          <button mat-icon-button disabled></button>
+          <mat-icon class="node-icon">insert_drive_file</mat-icon>
+          {{ node.Name }}
+        </div>
+      </mat-tree-node>
+
+      <!-- Expandable node -->
+      <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild">
+        <div
+          class="node-line compact-node"
+          [class.selected]="node === selectedNode"
+          [ngStyle]="{ 'margin-left.px': (node.level || 0) * 20 }"
+          (click)="onSelect(node)"
+          (contextmenu)="onRightClick($event, node)"
+        >
+          <button mat-icon-button matTreeNodeToggle>
+            <mat-icon>
+              {{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}
+            </mat-icon>
+          </button>
+          <mat-icon class="node-icon">folder</mat-icon>
+          {{ node.Name }}
+        </div>
+        <div *ngIf="treeControl.isExpanded(node)">
+          <ng-container matTreeNodeOutlet></ng-container>
+        </div>
+      </mat-nested-tree-node>
+    </mat-tree>
+  </div>
+
+  <div *ngIf="selectedNode?.level === 0 && (showLimits || showChecks)" class="form-panel">
+    <h4>Checks / Limits</h4>
+
+    <div *ngIf="showLimits" class="form-section">
+      <mat-form-field appearance="outline">
+        <mat-label>Min</mat-label>
+        <input matInput [(ngModel)]="selectedNode.MainMin"
+               (change)="updateValue('min', selectedNode.MainMin)" [disabled]="disableMinMax" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Max</mat-label>
+        <input matInput [(ngModel)]="selectedNode.MainMax"
+               (change)="updateValue('max', selectedNode.MainMax)" [disabled]="disableMinMax" />
+      </mat-form-field>
+    </div>
+
+    <div *ngIf="showChecks" class="form-section">
+      <mat-form-field appearance="outline">
+        <mat-label>Soft</mat-label>
+        <input matInput [(ngModel)]="selectedNode.MainSoftCheck"
+               (change)="updateValue('soft', selectedNode.MainSoftCheck)" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Hard</mat-label>
+        <input matInput [(ngModel)]="selectedNode.MainHardCheck"
+               (change)="updateValue('hard', selectedNode.MainHardCheck)" />
+      </mat-form-field>
+    </div>
+  </div>
+</div>
+
+<!-- Right-click context menu -->
+<div class="rMenu" *ngIf="contextMenuVisible" [ngStyle]="{ top: contextY + 'px', left: contextX + 'px' }">
+  <ul>
+    <li><button [disabled]="!canAdd()" (click)="openAddDialog()">Add Variable</button></li>
+    <li><button [disabled]="!canEdit()" (click)="openEditDialog()">Edit Variable</button></li>
+    <li><button [disabled]="!canDelete()" (click)="deleteNode()">Delete Variable</button></li>
+    <li><button [disabled]="!canRetire()" (click)="retireNode()">Retire</button></li>
+    <li><button [disabled]="!canUnretire()" (click)="unretireNode()">Unretire</button></li>
+  </ul>
+</div>
+
+<!-- Add/Edit inline dialog -->
+<div class="dialog" *ngIf="showDialog">
+  <h3>{{ dialogMode === 'add' ? 'Add' : 'Edit' }} Shelf Variable</h3>
+  <mat-form-field appearance="fill">
+    <mat-label>Name</mat-label>
+    <input matInput [(ngModel)]="dialogNodeName" />
+  </mat-form-field>
+  <div class="actions">
+    <button mat-button (click)="confirmDialog()">{{ dialogMode === 'add' ? 'Add' : 'Save' }}</button>
+    <button mat-button (click)="cancelDialog()">Cancel</button>
+  </div>
+</div>
+
+======================================================
+
+import { Component, HostListener, Inject, Input, OnInit } from '@angular/core';
+import { NestedTreeControl } from '@angular/cdk/tree';
+import { MatTreeNestedDataSource } from '@angular/material/tree';
+import { cloneDeep } from 'lodash';
+import { HttpClient } from '@angular/common/http';
+import { MatDialog } from '@angular/material/dialog';
+import { Router, ActivatedRoute } from '@angular/router';
+import { CommonService } from '../shared/common.service';
+import { SnackbarService } from '../shared/snackbar.service';
+import { Subject, takeUntil } from 'rxjs';
+
+interface ShelfNode {
+  Id: number;
+  PId?: number;
+  Name: string;
+  level?: number;
+  MainMin?: string;
+  MainMax?: string;
+  MainSoftCheck?: string;
+  MainHardCheck?: string;
+  RetiredDate?:string;
+  optional?:string;
+  IsNewlyAdded?: string;
+  children?: ShelfNode[];
+}
+
+@Component({
+  selector: 'app-shelf-tree',
+  templateUrl: './shelf-tree.component.html',
+  styleUrls: ['./shelf-tree.component.css']
+})
+export class ShelfTreeComponent implements OnInit {
+@Input() group!: number;
+@Input() title!: string;
+treeControl = new NestedTreeControl<ShelfNode>(node => node.children);
+dataSource = new MatTreeNestedDataSource<ShelfNode>();
+selectedNode: ShelfNode | null = null;
+showLimits = false;
+showChecks = false;
+disableMinMax = false;
+loggedUser: string;
+showSpinner: boolean;
+
+rightClickedNode:ShelfNode | null = null;
+showDialog=false;
+dialogMode:'add'|'edit'='add';
+dialogNodeName='';
+
+contextMenuVisible=false;
+contextX=0;
+contextY=0;
+
+private unsubscribe$ = new Subject<void>();
+  constructor(
+    public http: HttpClient,
+        @Inject('BASE_URL') public baseUrl: string,
+        private router: Router,
+        private activatedRoute: ActivatedRoute,
+        private dialog: MatDialog,
+        public service: CommonService,
+        private _snackBar: SnackbarService, 
+  ) {  this.loggedUser = localStorage.getItem("loggedUserId");}
+
+  ngOnInit(): void {
+    this. getShelfVars()
+  }
+
+  getShelfVars(){
+    this.http.post<any>(this.baseUrl + `api/MasterShelfVariables/GetShelfVar`,{Group:Number(this.group)})
+        .pipe(takeUntil(this.unsubscribe$)).subscribe({next:(res)=>{
+          this.showSpinner = true
+            
+            if(res){
+              const nestedData = this.buildNestedTree(res);
+              this.dataSource.data=nestedData;
+              this.expandAllNodes(nestedData)
+              if (nestedData.length > 0) {
+                this.onSelect(nestedData[0]); // Select root
+              }
+            }
+          
+            this.showSpinner = false
+        },
+        error:(error)=>{console.error(error);  this.showSpinner = false}})
+    }
+        
+  
+
+  hasChild = (_: number, node: ShelfNode) => !!node.children && node.children.length > 0;
+
+  onSelect(node: ShelfNode): void {
+    this.selectedNode = node;
+    this.configureDisplayFields(node);
+  }
+
+  onRightClick(event:MouseEvent,node:ShelfNode):void{
+    event.preventDefault();
+    console.log(node)
+    this.contextX=event.clientX
+    this.contextY=event.clientY
+    this.contextMenuVisible=true
+    this.rightClickedNode=node
+  }
+
+  @HostListener('document:click')
+  hideContextMenu(){
+    this.contextMenuVisible=false
+  }
+
+  configureDisplayFields(node: ShelfNode): void {
+    const limitIds = [11160, 14825, 15490, 15995, 16910, 22700];
+    const checkIds = [10100, 20000, 30100];
+
+    this.disableMinMax = limitIds.includes(node.Id);
+    this.showLimits = !checkIds.includes(node.Id);
+    this.showChecks = !this.disableMinMax;
+  }
+
+ updateValue(type: 'min' | 'max' | 'soft' | 'hard', val: string) {
+    if (!this.selectedNode) return;
+    (this.selectedNode as any)[{
+      min: 'mainMin',
+      max: 'mainMax',
+      soft: 'main_soft_check',
+      hard: 'main_hard_check'
+    }[type]] = val;
+    this.selectedNode.IsNewlyAdded = 'U';
+  }
+
+  openAddDialog():void{
+    this.hideContextMenu();
+    this.dialogMode='add';
+    this.dialogNodeName=''
+    this.showDialog=true;
+  }
+
+  openEditDialog():void{
+    if(!this.rightClickedNode) return;
+    this.hideContextMenu();
+    this.dialogMode='edit';
+    this.dialogNodeName=this.rightClickedNode.Name;
+    this.showDialog=true;
+  }
+
+  confirmDialog(): void {
+    if (this.dialogMode === 'add') {
+      const newNode: ShelfNode = {
+        Id: Math.floor(Math.random() * 100000),
+        PId: this.rightClickedNode!.Id,
+        Name: this.dialogNodeName,
+        optional: 'Y',
+        IsNewlyAdded: 'N',
+        children: []
+      };
+      this.rightClickedNode!.children = this.rightClickedNode!.children || [];
+      this.rightClickedNode!.children.push(newNode);
+      this.treeControl.expand(this.rightClickedNode!);
+    } else if (this.dialogMode === 'edit') {
+      this.rightClickedNode!.Name = this.dialogNodeName;
+      this.rightClickedNode!.IsNewlyAdded = 'U';
+    }
+    this.showDialog = false;
+  }
+
+  cancelDialog(): void {
+    this.showDialog = false;
+  }
+
+  deleteNode(): void {
+    if (!this.rightClickedNode) return;
+    const parent = this.findParent(this.dataSource.data, this.rightClickedNode);
+    if (parent) {
+      parent.children = parent.children?.filter(c => c.Id !== this.rightClickedNode!.Id);
+    } else {
+      this.dataSource.data = this.dataSource.data.filter(c => c.Id !== this.rightClickedNode!.Id);
+    }
+    this.contextMenuVisible = false;
+  }
+
+  retireNode(): void {
+    if (!this.rightClickedNode) return;
+    this.rightClickedNode.Name += ' (Retired)';
+    this.rightClickedNode.RetiredDate = new Date().toLocaleDateString();
+    this.rightClickedNode.IsNewlyAdded = 'U';
+    this.contextMenuVisible = false;
+  }
 
 
 
+  unretireNode(): void {
+    if (!this.rightClickedNode) return;
+    this.rightClickedNode.Name = this.rightClickedNode.Name.replace(' (Retired)', '');
+    this.rightClickedNode.RetiredDate = '';
+    this.rightClickedNode.IsNewlyAdded = 'U';
+    this.contextMenuVisible = false;
+  }
 
-Ask ChatGPT
+
+  getSelectedData(): any[] {
+    const res: any[] = [];
+    const walk = (node: ShelfNode) => {
+      if (['N', 'U'].includes(node.IsNewlyAdded || '')) {
+        const copy = cloneDeep(node);
+        delete (copy as any).children;
+        res.push(copy);
+      }
+      node.children?.forEach(walk);
+    };
+    this.dataSource.data.forEach(walk);
+    return res;
+  }
+
+  private buildNestedTree(flat: ShelfNode[]): ShelfNode[] {
+    const map: { [Id: number]: ShelfNode } = {};
+    const roots: ShelfNode[] = [];
+
+    flat.forEach(n => {
+      n.children = [];
+      // n.level = 0;
+      map[n.Id] = n;
+    });
+
+    flat.forEach(n => {
+      if (n.PId && map[n.PId]) {
+        // n.level = (map[n.PId].level || 0) + 1;
+        map[n.PId].children!.push(n);
+      } else {
+        roots.push(n);
+      }
+    });
+
+    const setLevel = (node:ShelfNode,level:number)=>{
+      node.level=level
+      node.children?.forEach(child=>setLevel(child,level+1))
+    }
+
+    roots.forEach(root=>setLevel(root,0))
+
+    return roots;
+  }
+
+  private expandAllNodes(Node:ShelfNode[]):void{
+    Node.forEach(node=>{
+      this.treeControl.expand(node);
+      if(node.children&&node.children.length>0){
+        this.expandAllNodes(node.children)
+      }
+    })
+  }
+
+  private findParent(nodes: ShelfNode[], target: ShelfNode): ShelfNode | null {
+    for (const node of nodes) {
+      if (node.children?.some(child => child.Id === target.Id)) {
+        return node;
+      }
+      const parent = node.children ? this.findParent(node.children, target) : null;
+      if (parent) return parent;
+    }
+    return null;
+  }
+
+  canAdd(): boolean {
+  return this.group === 1 && (this.rightClickedNode?.level ?? 0) < 2;
+  }
+
+  canEdit(): boolean {
+    return !!this.rightClickedNode && this.rightClickedNode.level !== 0 &&!this.rightClickedNode.RetiredDate;
+  }
+
+  canDelete(): boolean {
+    return this.rightClickedNode?.IsNewlyAdded === 'N';
+  }
+
+  canRetire(): boolean {
+    return !!this.rightClickedNode && !this.rightClickedNode.RetiredDate;
+  }
+
+  canUnretire(): boolean {
+    return !!this.rightClickedNode && !!this.rightClickedNode.RetiredDate;
+  }
+}
+
 
 
 
