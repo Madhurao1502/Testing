@@ -1,26 +1,38 @@
 confirmDialog(): void {
-  if (this.dialogMode === 'add' && this.rightClickedNode) {
+  if (this.dialogMode === 'add') {
+    if (!this.rightClickedNode) return;
+
     const parent = this.rightClickedNode;
     parent.children = parent.children || [];
-    // Find max mainOrdinal for sequential insert
-    let maxOrdinal = 0;
-    if (parent.children.length) {
-      maxOrdinal = Math.max(...parent.children.map(c => Number(c.MainOrdinal || c.mainOrdinal || 0)));
-    }
+    
+    // Generate new unique ID — your existing method or logic
+    const newId = this.generateNewNodeId(parent);
+
     const newNode: ShelfNode = {
-      Id: this.generateNewNodeId(parent), // your helper
+      Id: newId,
       PId: parent.Id,
       Name: this.dialogNodeName.trim(),
       optional: 'Y',
       IsNewlyAdded: 'N',
-      MainOrdinal: maxOrdinal + 1,
       children: []
     };
+
     parent.children.push(newNode);
-    this.sortChildrenByOrdinal(parent);
+    this.sortChildrenByName(parent);
+
     this.treeControl.expand(parent);
-    this.dataSource.data = this.dataSource.data.slice(); // Ensures tree refresh
+
+    // Refresh UI by replacing array reference
+    this.dataSource.data = this.dataSource.data.slice();
   }
-  // ...rest of confirmDialog for edit
+  else if (this.dialogMode === 'edit') {
+    if (!this.rightClickedNode) return;
+    this.rightClickedNode.Name = this.dialogNodeName.trim();
+    this.rightClickedNode.IsNewlyAdded = 'U';
+
+    // Refresh UI for edits
+    this.dataSource.data = this.dataSource.data.slice();
+  }
+
   this.showDialog = false;
 }
