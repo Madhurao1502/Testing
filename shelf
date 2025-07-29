@@ -669,6 +669,87 @@ private unsubscribe$ = new Subject<void>();
   }
 }
 
+=================
+.shelf-wrapper {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  padding: 16px;
+}
+
+.tree-panel {
+  width: 600px;
+  min-width: 600px;
+  max-width: 600px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #fafafa;
+  padding: 12px;
+  overflow-y: auto;
+  max-height: 70vh;
+  min-height: 35vh;
+}
+
+.node-line {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.node-line:hover {
+  background: #e3f2fd;
+}
+
+.node-icon {
+  margin-right: 8px;
+  color: #3f51b5;
+}
+
+.form-panel {
+  flex: 1;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 16px;
+  background: #ffffff;
+  max-width: 500px;
+}
+
+.form-panel h4 {
+  margin-bottom: 12px;
+  color: #1976d2;
+  font-weight: 500;
+}
+
+.form-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.node-line.compact-node{
+  height: 30px;
+  display: flex;
+  align-items: center;
+}
+
+.rMenu{
+  position: fixed;
+  background: white;
+  border: 1px solid black;
+  z-index: 9999;
+  padding: 4px;
+}
+
+.selected { background: #bbdefb; border-radius: 4px; }
+
+mat-form-field {
+  flex: 1 1 120px;
+}
+
 
 
 
