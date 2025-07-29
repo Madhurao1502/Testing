@@ -1,120 +1,61 @@
-import { Component, Inject } from '@angular/core';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+/**
+ * Checks if the given name is unique among siblings of the rightClickedNode
+ * @param name Name to check for duplication
+ * @param excludeId Optional ID to exclude (when editing the same node)
+ * @returns true if the name is unique, false if duplicate exists
+ */
+isDuplicateName(name: string, excludeId?: number): boolean {
+  if (!this.rightClickedNode) return true; // no node selected means no duplicates
 
-export interface ShelfVarDialogData {
-  mode: 'add' | 'edit';
-  initialName: string;
-}
+  const parent = this.findParent(this.dataSource.data, this.rightClickedNode);
 
-@Component({
-  selector: 'app-shelf-var-dialog',
-  templateUrl: './shelf-var-dialog.component.html',
-  styleUrls: ['./shelf-var-dialog.component.css']
-})
-export class ShelfVarDialogComponent {
-  name: string;
+  // Determine siblings to check: children of parent or root nodes if no parent
+  const siblings = parent ? parent.children || [] : this.dataSource.data;
 
-  constructor(
-    public dialogRef: MatDialogRef<ShelfVarDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: ShelfVarDialogData
-  ) {
-    this.name = data.initialName || '';
-  }
-
-  onCancel(): void {
-    this.dialogRef.close(null);
-  }
-
-  onConfirm(): void {
-    const trimmedName = this.name.trim();
-    if (!trimmedName) {
-      alert('Name cannot be empty.');
-      return;
-    }
-
-    // Send name back to caller
-    this.dialogRef.close(trimmedName);
-  }
-}
-
-
-
-<h2 mat-dialog-title>
-  {{ data.mode === 'add' ? 'Add Shelf Variable' : 'Edit Shelf Variable' }}
-</h2>
-
-<div mat-dialog-content>
-  <mat-form-field appearance="fill" class="full-width">
-    <mat-label>Shelf Variable Name</mat-label>
-    <input matInput [(ngModel)]="name" />
-  </mat-form-field>
-</div>
-
-<div mat-dialog-actions align="end">
-  <button mat-button (click)="onCancel()">Cancel</button>
-  <button mat-raised-button color="primary" (click)="onConfirm()">
-    {{ data.mode === 'add' ? 'Add' : 'Save' }}
-  </button>
-</div>
-
-
-.full-width {
-  width: 100%;
-}
-
-
-import { MatDialog } from '@angular/material/dialog';
-import { ShelfVarDialogComponent, ShelfVarDialogData } from '../shelf-var-dialog/shelf-var-dialog.component';
-
-// Inject MatDialog in constructor:
-// constructor(private dialog: MatDialog) { }
-
-openAddDialog(): void {
-  if (!this.rightClickedNode) return;
-
-  const dialogRef = this.dialog.open<ShelfVarDialogComponent, ShelfVarDialogData, string>(
-    ShelfVarDialogComponent,
-    {
-      width: '400px',
-      data: { mode: 'add', initialName: '' }
-    }
+  // Check if any sibling has the same name (case-insensitive), excluding excludeId node
+  const nameLower = name.trim().toLowerCase();
+  return !siblings.some(
+    node => node.Name.trim().toLowerCase() === nameLower && node.Id !== excludeId
   );
-
-  dialogRef.afterClosed().subscribe(result => {
-    if (result) {
-      // result is the entered shelf variable name
-      const newNode: ShelfNode = {
-        Id: this.generateNewNodeId(this.rightClickedNode!),
-        PId: this.rightClickedNode!.Id,
-        Name: result,
-        optional: 'Y',
-        IsNewlyAdded: 'N',
-        children: []
-      };
-      this.rightClickedNode!.children = this.rightClickedNode!.children || [];
-      this.rightClickedNode!.children.push(newNode);
-      this.treeControl.expand(this.rightClickedNode!);
-      this.dataSource.data = this.dataSource.data.slice(); // Refresh tree UI
-    }
-  });
 }
 
-openEditDialog(): void {
-  if (!this.rightClickedNode) return;
+confirmDialog(): void {
+  if (!this.dialogNodeName.trim()) {
+    alert('Name cannot be empty.');
+    return;
+  }
 
-  const dialogRef = this.dialog.open<ShelfVarDialogComponent, ShelfVarDialogData, string>(
-    ShelfVarDialogComponent,
-    {
-      width: '400px',
-      data: { mode: 'edit', initialName: this.rightClickedNode.Name }
-    }
-  );
+  // Check for duplicate, excluding current node for edit
+  const excludeId = this.dialogMode === 'edit' && this.rightClickedNode ? this.rightClickedNode.Id : undefined;
 
-  dialogRef.afterClosed().subscribe(result => {
-    if (result) {
-      this.rightClickedNode!.Name = result;
-      this.rightClickedNode!.IsNewlyAdded = 'U';
-      this.dataSource.data = this.dataSource.data.slice(); // Refresh tree UI
+  if (!this.isDuplicateName(this.dialogNodeName, excludeId)) {
+    alert(`Variable "${this.dialogNodeName.trim()}" already exists. Please use a different name.`);
+    return;
+  }
+
+  if (this.dialogMode === 'add') {
+    // Add node logic (as you already have)
+    const newNode: ShelfNode = {
+      Id: Math.floor(Math.random() * 100000),
+      PId: this.rightClickedNode!.Id,
+      Name: this.dialogNodeName.trim(),
+      optional: 'Y',
+      IsNewlyAdded: 'N',
+      children: []
+    };
+    this.rightClickedNode!.children = this.rightClickedNode!.children || [];
+    this.rightClickedNode!.children.push(newNode);
+    this.treeControl.expand(this.rightClickedNode!);
+  } else if (this.dialogMode === 'edit') {
+    // Edit node logic
+    if (this.rightClickedNode) {
+      this.rightClickedNode.Name = this.dialogNodeName.trim();
+      this.rightClickedNode.IsNewlyAdded = 'U';
     }
-  });
+  }
+
+  // Refresh UI
+  this.dataSource.data = this.dataSource.data.slice();
+
+  this.showDialog = false;
 }
