@@ -568,3 +568,14 @@ private unsubscribe$ = new Subject<void>();
   this.selectedNode.IsNewlyAdded = 'U';
 }
 }
+
+
+this.selectedNode = newNode;
+
+  // Optionally scroll to the selected node (if your UI supports it)
+  setTimeout(() => {
+    const element = document.getElementById('node-' + newNode.Id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 100);
