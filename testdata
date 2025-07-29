@@ -61,3 +61,60 @@ export class ShelfVarDialogComponent {
 .full-width {
   width: 100%;
 }
+
+
+import { MatDialog } from '@angular/material/dialog';
+import { ShelfVarDialogComponent, ShelfVarDialogData } from '../shelf-var-dialog/shelf-var-dialog.component';
+
+// Inject MatDialog in constructor:
+// constructor(private dialog: MatDialog) { }
+
+openAddDialog(): void {
+  if (!this.rightClickedNode) return;
+
+  const dialogRef = this.dialog.open<ShelfVarDialogComponent, ShelfVarDialogData, string>(
+    ShelfVarDialogComponent,
+    {
+      width: '400px',
+      data: { mode: 'add', initialName: '' }
+    }
+  );
+
+  dialogRef.afterClosed().subscribe(result => {
+    if (result) {
+      // result is the entered shelf variable name
+      const newNode: ShelfNode = {
+        Id: this.generateNewNodeId(this.rightClickedNode!),
+        PId: this.rightClickedNode!.Id,
+        Name: result,
+        optional: 'Y',
+        IsNewlyAdded: 'N',
+        children: []
+      };
+      this.rightClickedNode!.children = this.rightClickedNode!.children || [];
+      this.rightClickedNode!.children.push(newNode);
+      this.treeControl.expand(this.rightClickedNode!);
+      this.dataSource.data = this.dataSource.data.slice(); // Refresh tree UI
+    }
+  });
+}
+
+openEditDialog(): void {
+  if (!this.rightClickedNode) return;
+
+  const dialogRef = this.dialog.open<ShelfVarDialogComponent, ShelfVarDialogData, string>(
+    ShelfVarDialogComponent,
+    {
+      width: '400px',
+      data: { mode: 'edit', initialName: this.rightClickedNode.Name }
+    }
+  );
+
+  dialogRef.afterClosed().subscribe(result => {
+    if (result) {
+      this.rightClickedNode!.Name = result;
+      this.rightClickedNode!.IsNewlyAdded = 'U';
+      this.dataSource.data = this.dataSource.data.slice(); // Refresh tree UI
+    }
+  });
+}
