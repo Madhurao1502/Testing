@@ -1,27 +1,25 @@
-import { Component, HostListener, Inject, Input, OnInit } from '@angular/core';
+import { Component, HostListener, Input, OnInit } from '@angular/core';
 import { NestedTreeControl } from '@angular/cdk/tree';
 import { MatTreeNestedDataSource } from '@angular/material/tree';
-import { cloneDeep } from 'lodash';
 import { HttpClient } from '@angular/common/http';
 import { MatDialog } from '@angular/material/dialog';
-import { Router, ActivatedRoute } from '@angular/router';
-import { CommonService } from '../shared/common.service';
 import { SnackbarService } from '../shared/snackbar.service';
 import { Subject, takeUntil } from 'rxjs';
+import { ShelfVarDialogComponent, ShelfVarDialogData } from '../shelf-var-dialog/shelf-var-dialog.component';
 
 interface ShelfNode {
   Id: number;
   PId?: number;
   Name: string;
   level?: number;
-  AllowAdd?:string;
-  optional?:string;
-  RetiredDate?:string;
-  IsNewlyAdded?: 'N'|'U'|'';
+  AllowAdd?: string;
+  optional?: string;
+  RetiredDate?: string | null;
+  IsNewlyAdded?: 'N' | 'U' | '';
   MainMin?: string;
   MainMax?: string;
   MainSoftCheck?: string;
-  MainHardCheck?: string; 
+  MainHardCheck?: string;
   children?: ShelfNode[];
 }
 
@@ -33,68 +31,52 @@ type UserAccessFlag = 'B' | 'U' | 'S';
   styleUrls: ['./shelf-tree.component.css']
 })
 export class ShelfTreeComponent implements OnInit {
-@Input() group!: number;
-@Input() title!: string;
-@Input() userAccess: UserAccessFlag='U';
-treeControl = new NestedTreeControl<ShelfNode>(node => node.children);
-dataSource = new MatTreeNestedDataSource<ShelfNode>();
-selectedNode: ShelfNode | null = null;
-rightClickedNode:ShelfNode | null = null;
+  @Input() group!: number;
+  @Input() title!: string;
+  @Input() userAccess: UserAccessFlag = 'U';
 
-contextMenuVisible=false;
-contextX=0;
-contextY=0;
+  treeControl = new NestedTreeControl<ShelfNode>(node => node.children);
+  dataSource = new MatTreeNestedDataSource<ShelfNode>();
 
-showDialog=false;
-dialogMode:'add'|'edit'='add';
-dialogNodeName='';
+  selectedNode: ShelfNode | null = null;
+  rightClickedNode: ShelfNode | null = null;
 
-showLimits = false;
-showChecks = false;
-disableMinMax = false;
-loggedUser: string;
-showSpinner: boolean;
+  contextMenuVisible = false;
+  contextX = 0;
+  contextY = 0;
 
+  showLimits = false;
+  showChecks = false;
+  disableMinMax = false;
+  showSpinner = false;
 
+  private unsubscribe$ = new Subject<void>();
 
-
-
-
-private unsubscribe$ = new Subject<void>();
   constructor(
-    public http: HttpClient,
-        @Inject('BASE_URL') public baseUrl: string,
-        private router: Router,
-        private activatedRoute: ActivatedRoute,
-        private dialog: MatDialog,
-        public service: CommonService,
-        private _snackBar: SnackbarService, 
-  ) {  this.loggedUser = localStorage.getItem("loggedUserId");}
+    private http: HttpClient,
+    private dialog: MatDialog,
+    private _snackBar: SnackbarService,
+  ) {}
 
   ngOnInit(): void {
-    this. getShelfVars()
+    this.getShelfVars();
   }
 
-  getShelfVars(){
-    this.http.post<any>(this.baseUrl + `api/MasterShelfVariables/GetShelfVar`,{Group:Number(this.group)})
-        .pipe(takeUntil(this.unsubscribe$)).subscribe({next:(res)=>{
-          this.showSpinner = true
-            
-            if(res){
-              const nestedData = this.buildNestedTree(res);
-              this.dataSource.data=nestedData;
-              this.expandAllNodes(nestedData)
-              if (nestedData.length > 0) {
-                this.onSelect(nestedData[0]); // Select root
-              }
-            }
-          
-            this.showSpinner = false
+  getShelfVars() {
+    this.showSpinner = true;
+    this.http.post<ShelfNode[]>(`/api/MasterShelfVariables/GetShelfVar`, { Group: Number(this.group) })
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe({
+        next: (res) => {
+          const nestedData = this.buildNestedTree(res);
+          this.dataSource.data = nestedData;
+          this.expandAllNodes(nestedData);
+          if (nestedData.length > 0) this.onSelect(nestedData[0]);
+          this.showSpinner = false;
         },
-        error:(error)=>{console.error(error);  this.showSpinner = false}})
-    }
-        
-  
+        error: () => this.showSpinner = false
+      });
+  }
 
   hasChild = (_: number, node: ShelfNode) => !!node.children && node.children.length > 0;
 
@@ -103,28 +85,27 @@ private unsubscribe$ = new Subject<void>();
     this.configureDisplayFields(node);
   }
 
-  onRightClick(event:MouseEvent,node:ShelfNode):void{
+  onRightClick(event: MouseEvent, node: ShelfNode): void {
     event.preventDefault();
-    if(this.userAccess=='U'){
-      this._snackBar.openSnackBar("You don't have a security level assigned for shelf master.",'error');
+
+    if (this.userAccess === 'U') {
+      this._snackBar.openSnackBar("You don't have a security level assigned for shelf master.", 'error');
+      return;
+    }
+    if (this.userAccess === 'B') {
+      this._snackBar.openSnackBar("You have read-only rights assigned for the shelf variable master screen. You will not be able to make changes.", 'warning');
       return;
     }
 
-     if(this.userAccess=='B'){
-      this._snackBar.openSnackBar("Yyou have read only rights assigned for the shelf variable master screen. You will not be able to make changes.",'warning');
-      return;
-    }
-
-    this.rightClickedNode=node;
-    this.contextMenuVisible=true;
-    this.contextX=event.clientX;
-    this.contextY=event.clientY;   
-  
+    this.rightClickedNode = node;
+    this.contextMenuVisible = true;
+    this.contextX = event.clientX;
+    this.contextY = event.clientY;
   }
 
   @HostListener('document:click')
-  hideContextMenu(){
-    this.contextMenuVisible=false
+  hideContextMenu() {
+    this.contextMenuVisible = false;
   }
 
   configureDisplayFields(node: ShelfNode): void {
@@ -136,106 +117,91 @@ private unsubscribe$ = new Subject<void>();
     this.showChecks = !this.disableMinMax;
   }
 
- updateValue(type: 'min' | 'max' | 'soft' | 'hard', val: string) {
-    if (!this.selectedNode) return;
-    (this.selectedNode as any)[{
-      min: 'mainMin',
-      max: 'mainMax',
-      soft: 'main_soft_check',
-      hard: 'main_hard_check'
-    }[type]] = val;
-    this.selectedNode.IsNewlyAdded = 'U';
-  }
-
-   openAddDialog() {
+  openAddDialog(): void {
     if (!this.canAdd()) return;
     this.contextMenuVisible = false;
-    this.dialogMode = 'add';
-    this.dialogNodeName = '';
-    this.showDialog = true;
-  } 
 
-    openEditDialog() {
-    if (!this.canEdit()) return;
-    if (!this.rightClickedNode) return;
-    this.contextMenuVisible = false;
-    this.dialogMode = 'edit';
-    this.dialogNodeName = this.rightClickedNode.Name;
-    this.showDialog = true;
-  }
+    const dialogRef = this.dialog.open<ShelfVarDialogComponent, ShelfVarDialogData, string>(ShelfVarDialogComponent, {
+      width: '400px',
+      data: { mode: 'add', initialName: '' }
+    });
 
-  confirmDialog(): void {
-    if (!this.dialogNodeName.trim()) {
-      alert('Name cannot be empty.');
-      return;
-    }
+    dialogRef.afterClosed().subscribe(name => {
+      if (!name) return;
 
-    if (this.dialogMode === 'add') {
-      if (!this.rightClickedNode) {
-        alert('Invalid parent node.');
-        this.showDialog = false;
-        return;
-      }
+      const trimmedName = name.trim();
 
-      if (!this.isUniqueNameInSiblings(this.rightClickedNode, this.dialogNodeName.trim())) {
-        alert(`Variable ${this.dialogNodeName.trim()} already exists. Please choose a different name.`);
+      if (!this.isUniqueNameInSiblings(this.rightClickedNode!, trimmedName)) {
+        this._snackBar.openSnackBar(`Variable "${trimmedName}" already exists. Please choose a different name.`, 'error');
         return;
       }
 
       const newNode: ShelfNode = {
-        Id: this.generateNewNodeId(this.rightClickedNode),
-        PId: this.rightClickedNode.Id,
-        Name: this.dialogNodeName.trim(),
+        Id: this.generateNewNodeId(this.rightClickedNode!),
+        PId: this.rightClickedNode!.Id,
+        Name: trimmedName,
         optional: 'Y',
         IsNewlyAdded: 'N',
-        AllowAdd: '', 
+        AllowAdd: '',
         children: []
       };
-      this.rightClickedNode.children = this.rightClickedNode.children || [];
-      this.rightClickedNode.children.push(newNode);
-      this.treeControl.collapse(this.rightClickedNode);
-      setTimeout(() => {
-      this.treeControl.expand(this.rightClickedNode);
-       this.dataSource.data = this.dataSource.data.slice();
-    }, 100);
-     
-    } else if (this.dialogMode === 'edit') {
-      if (!this.rightClickedNode) {
-        alert('No node selected to edit.');
-        this.showDialog = false;
-        return;
-      }
-      if (!this.isUniqueNameInSiblings(this.findParent(this.dataSource.data, this.rightClickedNode), this.dialogNodeName.trim(), this.rightClickedNode.Id)) {
-        alert(`Variable ${this.dialogNodeName.trim()} already exists. Please choose a different name.`);
-        return;
-      }
-      this.rightClickedNode.Name = this.dialogNodeName.trim();
-      this.rightClickedNode.IsNewlyAdded = 'U';
-    }
-    this.showDialog = false;
+
+      this.rightClickedNode!.children = this.rightClickedNode!.children || [];
+      this.rightClickedNode!.children.push(newNode);
+
+      this.sortChildrenByName(this.rightClickedNode!);
+      this.treeControl.expand(this.rightClickedNode!);
+      this.dataSource.data = this.dataSource.data.slice();
+    });
   }
 
+  openEditDialog(): void {
+    if (!this.canEdit() || !this.rightClickedNode) return;
+    this.contextMenuVisible = false;
 
+    const dialogRef = this.dialog.open<ShelfVarDialogComponent, ShelfVarDialogData, string>(ShelfVarDialogComponent, {
+      width: '400px',
+      data: { mode: 'edit', initialName: this.rightClickedNode.Name }
+    });
 
+    dialogRef.afterClosed().subscribe(name => {
+      if (!name) return;
+
+      const trimmedName = name.trim();
+
+      if (!this.isUniqueNameInSiblings(this.findParent(this.dataSource.data, this.rightClickedNode)!, trimmedName, this.rightClickedNode.Id)) {
+        this._snackBar.openSnackBar(`Variable "${trimmedName}" already exists. Please choose a different name.`, 'error');
+        return;
+      }
+
+      this.rightClickedNode!.Name = trimmedName;
+      this.rightClickedNode!.IsNewlyAdded = 'U';
+      this.dataSource.data = this.dataSource.data.slice();
+    });
+  }
+
+  confirmDialog(): void {
+    // Not needed anymore since handled with MatDialog
+  }
 
   cancelDialog(): void {
-    this.showDialog = false;
+    // Not needed anymore since handled with MatDialog
   }
 
-  deleteNode() {
-    if (!this.canDelete()) return;
-    if (!this.rightClickedNode) return;
+  deleteNode(): void {
+    if (!this.canDelete() || !this.rightClickedNode) return;
+
     const parent = this.findParent(this.dataSource.data, this.rightClickedNode);
     if (parent) {
       parent.children = parent.children!.filter(c => c.Id !== this.rightClickedNode!.Id);
     } else {
       this.dataSource.data = this.dataSource.data.filter(c => c.Id !== this.rightClickedNode!.Id);
     }
-    this.dataSource.data = this.dataSource.data.slice(); 
+    this.dataSource.data = this.dataSource.data.slice();
     this.contextMenuVisible = false;
   }
 
-   retireNode() {
+  retireNode(): void {
     if (!this.canRetire() || !this.rightClickedNode) return;
 
     const confirmRetire = confirm('Are you sure you want to retire the selected Shelf Variable?\nNOTE: This action will affect all child variables');
@@ -245,31 +211,28 @@ private unsubscribe$ = new Subject<void>();
     this.rightClickedNode.RetiredDate = new Date().toISOString();
     this.rightClickedNode.IsNewlyAdded = 'U';
 
-    this.dataSource.data = this.dataSource.data.slice(); 
+    this.dataSource.data = this.dataSource.data.slice();
     this.contextMenuVisible = false;
   }
 
-
-
-  unretireNode() {
+  unretireNode(): void {
     if (!this.canUnretire() || !this.rightClickedNode) return;
 
     const confirmUnretire = confirm('Are you sure you want to un-retire the selected Shelf Variable?\nNOTE: This action will affect all child variables');
     if (!confirmUnretire) return;
 
-    this.rightClickedNode.Name = this.rightClickedNode.Name.replace('(Retired)', '');
+    this.rightClickedNode.Name = this.rightClickedNode.Name.replace(' (Retired)', '');
     this.rightClickedNode.RetiredDate = null;
     this.rightClickedNode.IsNewlyAdded = 'U';
 
-    this.dataSource.data = this.dataSource.data.slice(); 
+    this.dataSource.data = this.dataSource.data.slice();
     this.contextMenuVisible = false;
   }
 
-
-    getSelectedData(): ShelfNode[] {
+  getSelectedData(): ShelfNode[] {
     const result: ShelfNode[] = [];
     const accumulate = (node: ShelfNode) => {
-      if (node.IsNewlyAdded == 'N' || node.IsNewlyAdded == 'U') {
+      if (node.IsNewlyAdded === 'N' || node.IsNewlyAdded === 'U') {
         const copy = { ...node };
         delete copy.children;
         result.push(copy);
@@ -297,28 +260,28 @@ private unsubscribe$ = new Subject<void>();
       }
     });
 
-    const setLevel = (node:ShelfNode,level:number)=>{
-      node.level=level
-      node.children?.forEach(child=>setLevel(child,level+1))
-    }
+    const setLevel = (node: ShelfNode, level: number) => {
+      node.level = level;
+      node.children?.forEach(child => setLevel(child, level + 1));
+    };
 
-    roots.forEach(root=>setLevel(root,0))
+    roots.forEach(root => setLevel(root, 0));
 
     return roots;
   }
 
-  private expandAllNodes(Node:ShelfNode[]):void{
-    Node.forEach(node=>{
+  private expandAllNodes(nodes: ShelfNode[]): void {
+    nodes.forEach(node => {
       this.treeControl.expand(node);
-      if(node.children&&node.children.length>0){
-        this.expandAllNodes(node.children)
+      if (node.children && node.children.length > 0) {
+        this.expandAllNodes(node.children);
       }
-    })
+    });
   }
 
   private findParent(nodes: ShelfNode[], target: ShelfNode): ShelfNode | null {
     for (const node of nodes) {
-      if (node.children?.some(child => child.Id == target.Id)) {
+      if (node.children?.some(child => child.Id === target.Id)) {
         return node;
       }
       const parent = node.children ? this.findParent(node.children, target) : null;
@@ -327,27 +290,29 @@ private unsubscribe$ = new Subject<void>();
     return null;
   }
 
- private isUniqueNameInSiblings(parent: ShelfNode | null, name: string, excludeId?: number): boolean {
+  isUniqueNameInSiblings(parent: ShelfNode | null, name: string, excludeId?: number): boolean {
     if (!parent) {
-      return !this.dataSource.data.some(n => n.Name.trim().toLowerCase() == name.toLowerCase() && n.Id != excludeId);
+      return !this.dataSource.data.some(n => n.Name.trim().toLowerCase() === name.toLowerCase() && n.Id !== excludeId);
     }
-    return !parent.children?.some(c => c.Name.trim().toLowerCase() == name.toLowerCase() && c.Id != excludeId);
+    return !parent.children?.some(c => c.Name.trim().toLowerCase() === name.toLowerCase() && c.Id !== excludeId);
   }
-  
-private generateNewNodeId(parent: ShelfNode): number {
-  const childIds = parent.children?.map(c => c.Id) || [];
-  const maxId = childIds.length ? Math.max(...childIds) : parent.Id * 1000;  
-  return maxId + 1;
-}
 
-  private sortChildrenByName(parent:ShelfNode){
-    if(parent.children){
-      parent.children.sort((a,b)=>a.Name.localeCompare(b.Name))
+  private generateNewNodeId(parent: ShelfNode): number {
+    const childIds = parent.children?.map(c => c.Id) || [];
+    const maxId = childIds.length ? Math.max(...childIds) : parent.Id * 1000;
+    return maxId + 1;
+  }
+
+  private sortChildrenByName(parent: ShelfNode): void {
+    if (parent.children) {
+      parent.children.sort((a, b) => a.Name.localeCompare(b.Name));
     }
   }
+
+  // Permissions checkers below:
 
   canAdd(): boolean {
-    if (this.userAccess !== 'S') return false; 
+    if (this.userAccess !== 'S') return false;
     if (!this.rightClickedNode) return false;
     return this.rightClickedNode.AllowAdd === 'Y' || this.rightClickedNode.AllowAdd === 'T';
   }
@@ -361,7 +326,6 @@ private generateNewNodeId(parent: ShelfNode): number {
   canDelete(): boolean {
     if (this.userAccess !== 'S') return false;
     if (!this.rightClickedNode) return false;
-   
     return this.rightClickedNode.IsNewlyAdded === 'N' && !this.rightClickedNode.RetiredDate;
   }
 
@@ -372,8 +336,7 @@ private generateNewNodeId(parent: ShelfNode): number {
     const parent = this.findParent(this.dataSource.data, this.rightClickedNode);
     if (!parent) return false;
     const parentAllowAdd = parent.AllowAdd || '';
-        console.log(((parentAllowAdd === 'Y' || parentAllowAdd === 'T')&& this.rightClickedNode.optional === 'Y')) 
-    return ((parentAllowAdd === 'Y' || parentAllowAdd === 'T') && this.rightClickedNode.optional === 'Y') 
+    return (parentAllowAdd === 'Y' || parentAllowAdd === 'T') && this.rightClickedNode.optional === 'Y';
   }
 
   canUnretire(): boolean {
@@ -384,39 +347,32 @@ private generateNewNodeId(parent: ShelfNode): number {
 }
 
 
+
 <div class="shelf-wrapper">
   <div class="tree-panel">
     <h3>{{ title }}</h3>
 
-    <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
-      <!-- Leaf node -->
-      <mat-tree-node *matTreeNodeDef="let node">
-        <div
-          class="node-line compact-node"
-          [class.selected]="node === selectedNode"
-          [ngStyle]="{ 'margin-left.px': (node.level || 0) * 20 }"
-          (click)="onSelect(node)"
-          (contextmenu)="onRightClick($event, node)"
-        >
-          <button mat-icon-button disabled></button>
-          <mat-icon class="node-icon">insert_drive_file</mat-icon>
-          {{ node.Name }}
-        </div>
+    <mat-tree [dataSource]="dataSource" [treeControl]="treeControl" class="tree-root">
+      <mat-tree-node *matTreeNodeDef="let node" class="node-line"
+        [class.selected]="node === selectedNode"
+        [ngStyle]="{ 'margin-left.px': (node.level || 0) * 20 }"
+        (click)="onSelect(node)"
+        (contextmenu)="onRightClick($event, node)"
+      >
+        <button mat-icon-button disabled></button>
+        <mat-icon class="node-icon">insert_drive_file</mat-icon>
+        {{ node.Name }}
       </mat-tree-node>
 
-      <!-- Expandable node -->
-      <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild">
-        <div
-          class="node-line compact-node"
-          [class.selected]="node === selectedNode"
-          [ngStyle]="{ 'margin-left.px': (node.level || 0) * 20 }"
-          (click)="onSelect(node)"
-          (contextmenu)="onRightClick($event, node)"
-        >
+      <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild" class="node-line"
+        [class.selected]="node === selectedNode"
+        [ngStyle]="{ 'margin-left.px': (node.level || 0) * 20 }"
+        (click)="onSelect(node)"
+        (contextmenu)="onRightClick($event, node)"
+      >
+        <div class="node-content">
           <button mat-icon-button matTreeNodeToggle>
-            <mat-icon>
-              {{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}
-            </mat-icon>
+            <mat-icon>{{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}</mat-icon>
           </button>
           <mat-icon class="node-icon">folder</mat-icon>
           {{ node.Name }}
@@ -428,41 +384,37 @@ private generateNewNodeId(parent: ShelfNode): number {
     </mat-tree>
   </div>
 
-  <div *ngIf="selectedNode?.level === 0 && (showLimits || showChecks)" class="form-panel">
+  <div *ngIf="selectedNode && (showLimits || showChecks)" class="form-panel">
     <h4>Checks / Limits</h4>
 
     <div *ngIf="showLimits" class="form-section">
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="outline" class="limit-field">
         <mat-label>Min</mat-label>
-        <input matInput [(ngModel)]="selectedNode.MainMin"
-               (change)="updateValue('min', selectedNode.MainMin)" [disabled]="disableMinMax" />
+        <input matInput [(ngModel)]="selectedNode.MainMin" (change)="updateValue('min', selectedNode.MainMin)" [disabled]="disableMinMax" />
       </mat-form-field>
 
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="outline" class="limit-field">
         <mat-label>Max</mat-label>
-        <input matInput [(ngModel)]="selectedNode.MainMax"
-               (change)="updateValue('max', selectedNode.MainMax)" [disabled]="disableMinMax" />
+        <input matInput [(ngModel)]="selectedNode.MainMax" (change)="updateValue('max', selectedNode.MainMax)" [disabled]="disableMinMax" />
       </mat-form-field>
     </div>
 
     <div *ngIf="showChecks" class="form-section">
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="outline" class="limit-field">
         <mat-label>Soft</mat-label>
-        <input matInput [(ngModel)]="selectedNode.MainSoftCheck"
-               (change)="updateValue('soft', selectedNode.MainSoftCheck)" />
+        <input matInput [(ngModel)]="selectedNode.MainSoftCheck" (change)="updateValue('soft', selectedNode.MainSoftCheck)" />
       </mat-form-field>
 
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="outline" class="limit-field">
         <mat-label>Hard</mat-label>
-        <input matInput [(ngModel)]="selectedNode.MainHardCheck"
-               (change)="updateValue('hard', selectedNode.MainHardCheck)" />
+        <input matInput [(ngModel)]="selectedNode.MainHardCheck" (change)="updateValue('hard', selectedNode.MainHardCheck)" />
       </mat-form-field>
     </div>
   </div>
 </div>
 
 <!-- Right-click context menu -->
-<div class="rMenu" *ngIf="contextMenuVisible" [ngStyle]="{ top: contextY + 'px', left: contextX + 'px' }">
+<div class="rMenu" *ngIf="contextMenuVisible" [ngStyle]="{ top: contextY + 'px', left: contextX + 'px' }" >
   <ul>
     <li><button [disabled]="!canAdd()" (click)="openAddDialog()">Add Variable</button></li>
     <li><button [disabled]="!canEdit()" (click)="openEditDialog()">Edit Variable</button></li>
@@ -472,97 +424,166 @@ private generateNewNodeId(parent: ShelfNode): number {
   </ul>
 </div>
 
-<!-- Add/Edit inline dialog -->
-<div class="dialog" *ngIf="showDialog">
-  <h3>{{ dialogMode === 'add' ? 'Add' : 'Edit' }} Shelf Variable</h3>
-  <mat-form-field appearance="fill">
-    <mat-label>Name</mat-label>
-    <input matInput [(ngModel)]="dialogNodeName" />
+
+
+.shelf-wrapper {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  padding: 12px;
+  gap: 20px;
+  font-family: Arial, sans-serif;
+}
+
+.tree-panel {
+  flex: 1;
+  max-width: 400px;
+  border: 1px solid #ccc;
+  background-color: #fafafa;
+  border-radius: 6px;
+  overflow-y: auto;
+  height: 500px;
+}
+
+.tree-root {
+  padding: 8px;
+}
+
+.node-line {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px 8px;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.node-line.selected {
+  background-color: #bbdefb;
+}
+
+.node-line:hover {
+  background-color: #e3f2fd;
+}
+
+.node-icon {
+  margin-right: 8px;
+  color: #3f51b5;
+}
+
+.form-panel {
+  flex: 1;
+  max-width: 350px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  border-radius: 6px;
+  padding: 16px;
+}
+
+.form-section {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.limit-field {
+  flex: 1;
+}
+
+.rMenu {
+  position: fixed;
+  z-index: 10000;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  padding: 8px 0;
+  width: 180px;
+}
+
+.rMenu ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.rMenu ul li {
+  margin: 0;
+  padding: 0;
+}
+
+.rMenu button {
+  width: 100%;
+  text-align: left;
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #444;
+}
+
+.rMenu button:disabled {
+  color: #aaa;
+  cursor: default;
+}
+
+.rMenu button:not(:disabled):hover {
+  background-color: #e3f2fd;
+}
+
+
+
+import { Component, Inject } from '@angular/core';
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+
+export interface ShelfVarDialogData {
+  mode: 'add' | 'edit';
+  initialName: string;
+}
+
+@Component({
+  selector: 'app-shelf-var-dialog',
+  templateUrl: './shelf-var-dialog.component.html',
+  styleUrls: ['./shelf-var-dialog.component.css'],
+})
+export class ShelfVarDialogComponent {
+  name: string;
+
+  constructor(
+    public dialogRef: MatDialogRef<ShelfVarDialogComponent>,
+    @Inject(MAT_DIALOG_DATA) public data: ShelfVarDialogData
+  ) {
+    this.name = data.initialName || '';
+  }
+
+  onCancel(): void {
+    this.dialogRef.close();
+  }
+
+  onConfirm(): void {
+    const trimmedName = this.name.trim();
+    if (!trimmedName) {
+      alert('Name cannot be empty.');
+      return;
+    }
+    this.dialogRef.close(trimmedName);
+  }
+}
+<h2 mat-dialog-title>
+  {{ data.mode === 'add' ? 'Add Shelf Variable' : 'Edit Shelf Variable' }}
+</h2>
+
+<div mat-dialog-content>
+  <mat-form-field appearance="fill" class="full-width">
+    <mat-label>Shelf Variable Name</mat-label>
+    <input matInput [(ngModel)]="name" />
   </mat-form-field>
-  <div class="actions">
-    <button mat-button (click)="confirmDialog()">{{ dialogMode === 'add' ? 'Add' : 'Save' }}</button>
-    <button mat-button (click)="cancelDialog()">Cancel</button>
-  </div>
 </div>
 
-
-import { MatDialog } from '@angular/material/dialog';
-import { ShelfVarDialogComponent, ShelfVarDialogData } from '../shelf-var-dialog/shelf-var-dialog.component';
-
-constructor(
-  // other injections
-  private dialog: MatDialog,
-  // ...
-) { }
-
-openAddDialog(): void {
-  if (!this.canAdd()) return;
-  this.contextMenuVisible = false;
-
-  const dialogRef = this.dialog.open<ShelfVarDialogComponent, ShelfVarDialogData, string>(ShelfVarDialogComponent, {
-    width: '400px',
-    data: { mode: 'add', initialName: '' }
-  });
-
-  dialogRef.afterClosed().subscribe(name => {
-    if (name) {
-      if (!this.isDuplicateName(name.trim())) {
-        this._snackBar.openSnackBar(`Variable '${name.trim()}' already exists. Please choose a different name.`, 'error');
-        return;
-      }
-
-      const newNode: ShelfNode = {
-        Id: this.generateNewNodeId(this.rightClickedNode!),
-        PId: this.rightClickedNode!.Id,
-        Name: name.trim(),
-        optional: 'Y',
-        IsNewlyAdded: 'N',
-        AllowAdd: '',
-        children: []
-      };
-      this.rightClickedNode!.children = this.rightClickedNode!.children || [];
-      this.rightClickedNode!.children.push(newNode);
-
-      this.sortChildrenByName(this.rightClickedNode!);
-      this.treeControl.expand(this.rightClickedNode!);
-      this.dataSource.data = this.dataSource.data.slice();
-    }
-  });
-}
-
-openEditDialog(): void {
-  if (!this.canEdit() || !this.rightClickedNode) return;
-  this.contextMenuVisible = false;
-
-  const dialogRef = this.dialog.open<ShelfVarDialogComponent, ShelfVarDialogData, string>(ShelfVarDialogComponent, {
-    width: '400px',
-    data: { mode: 'edit', initialName: this.rightClickedNode.Name }
-  });
-
-  dialogRef.afterClosed().subscribe(name => {
-    if (name) {
-      if (!this.isDuplicateName(name.trim(), this.rightClickedNode!.Id)) {
-        this._snackBar.openSnackBar(`Variable '${name.trim()}' already exists. Please choose a different name.`, 'error');
-        return;
-      }
-      this.rightClickedNode!.Name = name.trim();
-      this.rightClickedNode!.IsNewlyAdded = 'U';
-      this.dataSource.data = this.dataSource.data.slice();
-    }
-  });
-}
-
-
-
-isDuplicateName(name: string, excludeId?: number): boolean {
-  if (!this.rightClickedNode) return true;
-
-  const parent = this.findParent(this.dataSource.data, this.rightClickedNode);
-
-  const siblings = parent ? parent.children || [] : this.dataSource.data;
-
-  const nameLower = name.trim().toLowerCase();
-
-  // Returns true if no duplicate exists, false if duplicate found
-  return !siblings.some(node => node.Name.trim().toLowerCase() === nameLower && node.Id !== excludeId);
-}
+<div mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()">Cancel</button>
+  <button mat-raised-button color="primary" (click)="onConfirm()">
+    {{ data.mode === 'add' ? 'Add' : 'Save' }}
+  </button>
+</div>
