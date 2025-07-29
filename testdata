@@ -552,3 +552,17 @@ openEditDialog(): void {
   });
 }
 
+
+
+isDuplicateName(name: string, excludeId?: number): boolean {
+  if (!this.rightClickedNode) return true;
+
+  const parent = this.findParent(this.dataSource.data, this.rightClickedNode);
+
+  const siblings = parent ? parent.children || [] : this.dataSource.data;
+
+  const nameLower = name.trim().toLowerCase();
+
+  // Returns true if no duplicate exists, false if duplicate found
+  return !siblings.some(node => node.Name.trim().toLowerCase() === nameLower && node.Id !== excludeId);
+}
