@@ -587,3 +587,15 @@ export class ShelfVarDialogComponent {
     {{ data.mode === 'add' ? 'Add' : 'Save' }}
   </button>
 </div>
+
+updateValue(type: 'min' | 'max' | 'soft' | 'hard', val: string) {
+  if (!this.selectedNode) return;
+  (this.selectedNode as any)[{
+    min: 'mainMin',
+    max: 'mainMax',
+    soft: 'main_soft_check',
+    hard: 'main_hard_check'
+  }[type]] = val;
+  this.selectedNode.IsNewlyAdded = 'U';
+}
+
