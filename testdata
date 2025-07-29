@@ -1,25 +1,231 @@
-import { Component, HostListener, Input, OnInit } from '@angular/core';
+.shelf-wrapper {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  padding: 16px;
+}
+
+.tree-panel {
+  width: 600px;
+  min-width: 600px;
+  max-width: 600px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #fafafa;
+  padding: 12px;
+  overflow-y: auto;
+  max-height: 70vh;
+  min-height: 35vh;
+}
+
+.node-line {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.node-line:hover {
+  background: #e3f2fd;
+}
+
+.node-icon {
+  margin-right: 8px;
+  color: #3f51b5;
+}
+
+.form-panel {
+  flex: 1;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 16px;
+  background: #ffffff;
+  max-width: 500px;
+}
+
+.form-panel h4 {
+  margin-bottom: 12px;
+  color: #1976d2;
+  font-weight: 500;
+}
+
+.form-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.node-line.compact-node{
+  height: 30px;
+  display: flex;
+  align-items: center;
+}
+
+.rMenu {
+  position: fixed;
+  z-index: 10000;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  padding: 8px 0;
+  width: 180px;
+}
+
+.rMenu ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.rMenu ul li {
+  margin: 0;
+  padding: 0;
+}
+
+.rMenu button {
+  width: 100%;
+  text-align: left;
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #444;
+}
+
+.rMenu button:disabled {
+  color: #aaa;
+  cursor: default;
+}
+
+.rMenu button:not(:disabled):hover {
+  background-color: #e3f2fd;
+}
+
+.selected { background: #bbdefb; border-radius: 4px; }
+
+mat-form-field {
+  flex: 1 1 120px;
+}
+
+
+<div class="shelf-wrapper">
+  <div class="tree-panel">
+    <h3>{{ title }}</h3>
+
+    <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
+      <!-- Leaf node -->
+      <mat-tree-node *matTreeNodeDef="let node">
+        <div
+          class="node-line compact-node"
+          [class.selected]="node === selectedNode"
+          [ngStyle]="{ 'margin-left.px': (node.level || 0) * 20 }"
+          (click)="onSelect(node)"
+          (contextmenu)="onRightClick($event, node)"
+        >
+          <button mat-icon-button disabled></button>
+          <mat-icon class="node-icon">insert_drive_file</mat-icon>
+          {{ node.Name }}
+        </div>
+      </mat-tree-node>
+
+      <!-- Expandable node -->
+      <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild">
+        <div
+          class="node-line compact-node"
+          [class.selected]="node === selectedNode"
+          [ngStyle]="{ 'margin-left.px': (node.level || 0) * 20 }"
+          (click)="onSelect(node)"
+          (contextmenu)="onRightClick($event, node)"
+        >
+          <button mat-icon-button matTreeNodeToggle>
+            <mat-icon>
+              {{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}
+            </mat-icon>
+          </button>
+          <mat-icon class="node-icon">folder</mat-icon>
+          {{ node.Name }}
+        </div>
+        <div *ngIf="treeControl.isExpanded(node)">
+          <ng-container matTreeNodeOutlet></ng-container>
+        </div>
+      </mat-nested-tree-node>
+    </mat-tree>
+  </div>
+
+  <div *ngIf="selectedNode?.level === 0 && (showLimits || showChecks)" class="form-panel">
+    <h4>Checks / Limits</h4>
+
+    <div *ngIf="showLimits" class="form-section">
+      <mat-form-field appearance="outline">
+        <mat-label>Min</mat-label>
+        <input matInput [(ngModel)]="selectedNode.MainMin"
+               (change)="updateValue('min', selectedNode.MainMin)" [disabled]="disableMinMax" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Max</mat-label>
+        <input matInput [(ngModel)]="selectedNode.MainMax"
+               (change)="updateValue('max', selectedNode.MainMax)" [disabled]="disableMinMax" />
+      </mat-form-field>
+    </div>
+
+    <div *ngIf="showChecks" class="form-section">
+      <mat-form-field appearance="outline">
+        <mat-label>Soft</mat-label>
+        <input matInput [(ngModel)]="selectedNode.MainSoftCheck"
+               (change)="updateValue('soft', selectedNode.MainSoftCheck)" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Hard</mat-label>
+        <input matInput [(ngModel)]="selectedNode.MainHardCheck"
+               (change)="updateValue('hard', selectedNode.MainHardCheck)" />
+      </mat-form-field>
+    </div>
+  </div>
+</div>
+
+<!-- Right-click context menu -->
+<div class="rMenu" *ngIf="contextMenuVisible" [ngStyle]="{ top: contextY + 'px', left: contextX + 'px' }">
+  <ul>
+    <li><button [disabled]="!canAdd()" (click)="openAddDialog()">Add Variable</button></li>
+    <li><button [disabled]="!canEdit()" (click)="openEditDialog()">Edit Variable</button></li>
+    <li><button [disabled]="!canDelete()" (click)="deleteNode()">Delete Variable</button></li>
+    <li><button [disabled]="!canRetire()" (click)="retireNode()">Retire</button></li>
+    <li><button [disabled]="!canUnretire()" (click)="unretireNode()">Unretire</button></li>
+  </ul>
+</div>
+
+import { Component, HostListener, Inject, Input, OnInit } from '@angular/core';
 import { NestedTreeControl } from '@angular/cdk/tree';
 import { MatTreeNestedDataSource } from '@angular/material/tree';
+import { cloneDeep } from 'lodash';
 import { HttpClient } from '@angular/common/http';
 import { MatDialog } from '@angular/material/dialog';
+import { Router, ActivatedRoute } from '@angular/router';
+import { CommonService } from '../shared/common.service';
 import { SnackbarService } from '../shared/snackbar.service';
 import { Subject, takeUntil } from 'rxjs';
-import { ShelfVarDialogComponent, ShelfVarDialogData } from '../shelf-var-dialog/shelf-var-dialog.component';
+import { ShelfvarDialogComponent } from '../dialog/shelfvar-dialog/shelfvar-dialog.component';
 
 interface ShelfNode {
   Id: number;
   PId?: number;
   Name: string;
   level?: number;
-  AllowAdd?: string;
-  optional?: string;
-  RetiredDate?: string | null;
-  IsNewlyAdded?: 'N' | 'U' | '';
+  AllowAdd?:string;
+  optional?:string;
+  RetiredDate?:string;
+  IsNewlyAdded?: 'N'|'U'|'';
   MainMin?: string;
   MainMax?: string;
   MainSoftCheck?: string;
-  MainHardCheck?: string;
+  MainHardCheck?: string; 
   children?: ShelfNode[];
 }
 
@@ -31,32 +237,43 @@ type UserAccessFlag = 'B' | 'U' | 'S';
   styleUrls: ['./shelf-tree.component.css']
 })
 export class ShelfTreeComponent implements OnInit {
-  @Input() group!: number;
-  @Input() title!: string;
-  @Input() userAccess: UserAccessFlag = 'U';
+@Input() group!: number;
+@Input() title!: string;
+@Input() userAccess: UserAccessFlag='U';
+treeControl = new NestedTreeControl<ShelfNode>(node => node.children);
+dataSource = new MatTreeNestedDataSource<ShelfNode>();
+selectedNode: ShelfNode | null = null;
+rightClickedNode:ShelfNode | null = null;
 
-  treeControl = new NestedTreeControl<ShelfNode>(node => node.children);
-  dataSource = new MatTreeNestedDataSource<ShelfNode>();
+contextMenuVisible=false;
+contextX=0;
+contextY=0;
 
-  selectedNode: ShelfNode | null = null;
-  rightClickedNode: ShelfNode | null = null;
+showDialog=false;
+dialogMode:'add'|'edit'='add';
+dialogNodeName='';
 
-  contextMenuVisible = false;
-  contextX = 0;
-  contextY = 0;
+showLimits = false;
+showChecks = false;
+disableMinMax = false;
+loggedUser: string;
+showSpinner: boolean;
 
-  showLimits = false;
-  showChecks = false;
-  disableMinMax = false;
-  showSpinner = false;
 
-  private unsubscribe$ = new Subject<void>();
 
+
+
+
+private unsubscribe$ = new Subject<void>();
   constructor(
-    private http: HttpClient,
-    private dialog: MatDialog,
-    private _snackBar: SnackbarService,
-  ) {}
+    public http: HttpClient,
+        @Inject('BASE_URL') public baseUrl: string,
+        private router: Router,
+        private activatedRoute: ActivatedRoute,
+        private dialog: MatDialog,
+        public service: CommonService,
+        private _snackBar: SnackbarService, 
+  ) {  this.loggedUser = localStorage.getItem("loggedUserId");}
 
   ngOnInit(): void {
     this.getShelfVars();
@@ -121,7 +338,7 @@ export class ShelfTreeComponent implements OnInit {
     if (!this.canAdd()) return;
     this.contextMenuVisible = false;
 
-    const dialogRef = this.dialog.open<ShelfVarDialogComponent, ShelfVarDialogData, string>(ShelfVarDialogComponent, {
+    const dialogRef = this.dialog.open<ShelfvarDialogComponent>(ShelfvarDialogComponent, {
       width: '400px',
       data: { mode: 'add', initialName: '' }
     });
@@ -148,10 +365,13 @@ export class ShelfTreeComponent implements OnInit {
 
       this.rightClickedNode!.children = this.rightClickedNode!.children || [];
       this.rightClickedNode!.children.push(newNode);
-
+      this.treeControl.collapse(this.rightClickedNode!);
+      setTimeout(() => {
       this.sortChildrenByName(this.rightClickedNode!);
       this.treeControl.expand(this.rightClickedNode!);
       this.dataSource.data = this.dataSource.data.slice();
+      }, 100);
+      
     });
   }
 
@@ -159,7 +379,7 @@ export class ShelfTreeComponent implements OnInit {
     if (!this.canEdit() || !this.rightClickedNode) return;
     this.contextMenuVisible = false;
 
-    const dialogRef = this.dialog.open<ShelfVarDialogComponent, ShelfVarDialogData, string>(ShelfVarDialogComponent, {
+    const dialogRef = this.dialog.open<ShelfvarDialogComponent>(ShelfvarDialogComponent, {
       width: '400px',
       data: { mode: 'edit', initialName: this.rightClickedNode.Name }
     });
@@ -178,14 +398,6 @@ export class ShelfTreeComponent implements OnInit {
       this.rightClickedNode!.IsNewlyAdded = 'U';
       this.dataSource.data = this.dataSource.data.slice();
     });
-  }
-
-  confirmDialog(): void {
-    // Not needed anymore since handled with MatDialog
-  }
-
-  cancelDialog(): void {
-    // Not needed anymore since handled with MatDialog
   }
 
   deleteNode(): void {
@@ -344,251 +556,8 @@ export class ShelfTreeComponent implements OnInit {
     if (!this.rightClickedNode) return false;
     return !!this.rightClickedNode.RetiredDate;
   }
-}
 
-
-
-<div class="shelf-wrapper">
-  <div class="tree-panel">
-    <h3>{{ title }}</h3>
-
-    <mat-tree [dataSource]="dataSource" [treeControl]="treeControl" class="tree-root">
-      <mat-tree-node *matTreeNodeDef="let node" class="node-line"
-        [class.selected]="node === selectedNode"
-        [ngStyle]="{ 'margin-left.px': (node.level || 0) * 20 }"
-        (click)="onSelect(node)"
-        (contextmenu)="onRightClick($event, node)"
-      >
-        <button mat-icon-button disabled></button>
-        <mat-icon class="node-icon">insert_drive_file</mat-icon>
-        {{ node.Name }}
-      </mat-tree-node>
-
-      <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild" class="node-line"
-        [class.selected]="node === selectedNode"
-        [ngStyle]="{ 'margin-left.px': (node.level || 0) * 20 }"
-        (click)="onSelect(node)"
-        (contextmenu)="onRightClick($event, node)"
-      >
-        <div class="node-content">
-          <button mat-icon-button matTreeNodeToggle>
-            <mat-icon>{{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}</mat-icon>
-          </button>
-          <mat-icon class="node-icon">folder</mat-icon>
-          {{ node.Name }}
-        </div>
-        <div *ngIf="treeControl.isExpanded(node)">
-          <ng-container matTreeNodeOutlet></ng-container>
-        </div>
-      </mat-nested-tree-node>
-    </mat-tree>
-  </div>
-
-  <div *ngIf="selectedNode && (showLimits || showChecks)" class="form-panel">
-    <h4>Checks / Limits</h4>
-
-    <div *ngIf="showLimits" class="form-section">
-      <mat-form-field appearance="outline" class="limit-field">
-        <mat-label>Min</mat-label>
-        <input matInput [(ngModel)]="selectedNode.MainMin" (change)="updateValue('min', selectedNode.MainMin)" [disabled]="disableMinMax" />
-      </mat-form-field>
-
-      <mat-form-field appearance="outline" class="limit-field">
-        <mat-label>Max</mat-label>
-        <input matInput [(ngModel)]="selectedNode.MainMax" (change)="updateValue('max', selectedNode.MainMax)" [disabled]="disableMinMax" />
-      </mat-form-field>
-    </div>
-
-    <div *ngIf="showChecks" class="form-section">
-      <mat-form-field appearance="outline" class="limit-field">
-        <mat-label>Soft</mat-label>
-        <input matInput [(ngModel)]="selectedNode.MainSoftCheck" (change)="updateValue('soft', selectedNode.MainSoftCheck)" />
-      </mat-form-field>
-
-      <mat-form-field appearance="outline" class="limit-field">
-        <mat-label>Hard</mat-label>
-        <input matInput [(ngModel)]="selectedNode.MainHardCheck" (change)="updateValue('hard', selectedNode.MainHardCheck)" />
-      </mat-form-field>
-    </div>
-  </div>
-</div>
-
-<!-- Right-click context menu -->
-<div class="rMenu" *ngIf="contextMenuVisible" [ngStyle]="{ top: contextY + 'px', left: contextX + 'px' }" >
-  <ul>
-    <li><button [disabled]="!canAdd()" (click)="openAddDialog()">Add Variable</button></li>
-    <li><button [disabled]="!canEdit()" (click)="openEditDialog()">Edit Variable</button></li>
-    <li><button [disabled]="!canDelete()" (click)="deleteNode()">Delete Variable</button></li>
-    <li><button [disabled]="!canRetire()" (click)="retireNode()">Retire</button></li>
-    <li><button [disabled]="!canUnretire()" (click)="unretireNode()">Unretire</button></li>
-  </ul>
-</div>
-
-
-
-.shelf-wrapper {
-  display: flex;
-  flex-direction: row;
-  height: 100%;
-  padding: 12px;
-  gap: 20px;
-  font-family: Arial, sans-serif;
-}
-
-.tree-panel {
-  flex: 1;
-  max-width: 400px;
-  border: 1px solid #ccc;
-  background-color: #fafafa;
-  border-radius: 6px;
-  overflow-y: auto;
-  height: 500px;
-}
-
-.tree-root {
-  padding: 8px;
-}
-
-.node-line {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  padding: 4px 8px;
-  user-select: none;
-  transition: background-color 0.2s ease;
-}
-
-.node-line.selected {
-  background-color: #bbdefb;
-}
-
-.node-line:hover {
-  background-color: #e3f2fd;
-}
-
-.node-icon {
-  margin-right: 8px;
-  color: #3f51b5;
-}
-
-.form-panel {
-  flex: 1;
-  max-width: 350px;
-  border: 1px solid #ccc;
-  background-color: #fff;
-  border-radius: 6px;
-  padding: 16px;
-}
-
-.form-section {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.limit-field {
-  flex: 1;
-}
-
-.rMenu {
-  position: fixed;
-  z-index: 10000;
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  padding: 8px 0;
-  width: 180px;
-}
-
-.rMenu ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.rMenu ul li {
-  margin: 0;
-  padding: 0;
-}
-
-.rMenu button {
-  width: 100%;
-  text-align: left;
-  padding: 8px 16px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 14px;
-  color: #444;
-}
-
-.rMenu button:disabled {
-  color: #aaa;
-  cursor: default;
-}
-
-.rMenu button:not(:disabled):hover {
-  background-color: #e3f2fd;
-}
-
-
-
-import { Component, Inject } from '@angular/core';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-
-export interface ShelfVarDialogData {
-  mode: 'add' | 'edit';
-  initialName: string;
-}
-
-@Component({
-  selector: 'app-shelf-var-dialog',
-  templateUrl: './shelf-var-dialog.component.html',
-  styleUrls: ['./shelf-var-dialog.component.css'],
-})
-export class ShelfVarDialogComponent {
-  name: string;
-
-  constructor(
-    public dialogRef: MatDialogRef<ShelfVarDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: ShelfVarDialogData
-  ) {
-    this.name = data.initialName || '';
-  }
-
-  onCancel(): void {
-    this.dialogRef.close();
-  }
-
-  onConfirm(): void {
-    const trimmedName = this.name.trim();
-    if (!trimmedName) {
-      alert('Name cannot be empty.');
-      return;
-    }
-    this.dialogRef.close(trimmedName);
-  }
-}
-<h2 mat-dialog-title>
-  {{ data.mode === 'add' ? 'Add Shelf Variable' : 'Edit Shelf Variable' }}
-</h2>
-
-<div mat-dialog-content>
-  <mat-form-field appearance="fill" class="full-width">
-    <mat-label>Shelf Variable Name</mat-label>
-    <input matInput [(ngModel)]="name" />
-  </mat-form-field>
-</div>
-
-<div mat-dialog-actions align="end">
-  <button mat-button (click)="onCancel()">Cancel</button>
-  <button mat-raised-button color="primary" (click)="onConfirm()">
-    {{ data.mode === 'add' ? 'Add' : 'Save' }}
-  </button>
-</div>
-
-updateValue(type: 'min' | 'max' | 'soft' | 'hard', val: string) {
+  updateValue(type: 'min' | 'max' | 'soft' | 'hard', val: string) {
   if (!this.selectedNode) return;
   (this.selectedNode as any)[{
     min: 'mainMin',
@@ -598,4 +567,4 @@ updateValue(type: 'min' | 'max' | 'soft' | 'hard', val: string) {
   }[type]] = val;
   this.selectedNode.IsNewlyAdded = 'U';
 }
-
+}
