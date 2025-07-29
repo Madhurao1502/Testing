@@ -36,3 +36,10 @@ confirmDialog(): void {
 
   this.showDialog = false;
 }
+
+
+private generateNewNodeId(parent: ShelfNode): number {
+  const childIds = parent.children?.map(c => c.Id) || [];
+  const maxId = childIds.length ? Math.max(...childIds) : parent.Id * 1000; // Arbitrary scheme to avoid collisions
+  return maxId + 1;
+}
