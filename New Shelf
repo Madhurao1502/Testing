@@ -1,0 +1,588 @@
+.shelf-tree-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 8px;
+}
+
+h3 {
+  margin-bottom: 8px;
+  color: #1976d2;
+}
+
+.mat-tree {
+  height: 300px;
+  overflow: auto;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fafafa;
+  padding: 4px;
+}
+
+.node-line {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.node-line:hover {
+  background-color: #e3f2fd;
+}
+
+.node-line.selected {
+  background-color: #bbdefb;
+}
+
+.node-icon {
+  margin-right: 8px;
+  color: #3f51b5;
+}
+
+.retired-label {
+  color: #d32f2f;
+  font-style: italic;
+  margin-left: 8px;
+  font-weight: 600;
+}
+
+.limits-panel {
+  margin-top: 12px;
+  background: white;
+  border: 1px solid #ccc;
+  padding: 12px;
+  border-radius: 6px;
+}
+
+.limits-group,
+.checks-group {
+  display: flex;
+  gap: 12px;
+}
+
+.limit-field {
+  flex: 1 1 120px;
+}
+
+.context-menu {
+  position: fixed;
+  z-index: 100000;
+  background: white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 4px;
+}
+
+.context-menu ul {
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+}
+
+.context-menu ul li {
+  margin: 0;
+  padding: 0;
+}
+
+.context-menu button {
+  width: 180px;
+  padding: 6px 10px;
+  font-size: 1rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.context-menu button[disabled] {
+  color: #aaa;
+  cursor: default;
+}
+
+.context-menu button:not([disabled]):hover {
+  background-color: #e3f2fd;
+}
+
+.dialog-overlay {
+  position: fixed;
+  z-index: 110000;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.dialog-box {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  min-width: 320px;
+  max-width: 90vw;
+}
+
+.dialog-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+
+<div class="shelf-tree-wrapper">
+  <h3>{{ title }} Variables</h3>
+
+  <!-- Angular Material Tree -->
+  <mat-tree [dataSource]="dataSource" [treeControl]="treeControl" class="full-height">
+    <!-- Leaf node -->
+    <mat-tree-node *matTreeNodeDef="let node" class="node-line"
+      [class.selected]="node === selectedNode"
+      [ngStyle]="{'margin-left.px': (node.Level || 0) * 20}"
+      (click)="onSelect(node)"
+      (contextmenu)="onRightClick($event, node)">
+      <button mat-icon-button disabled></button>
+      <mat-icon class="node-icon">insert_drive_file</mat-icon>
+      {{ node.Name }}
+      <span *ngIf="node.RetiredDate" class="retired-label">(Retired)</span>
+    </mat-tree-node>
+
+    <!-- Expandable node -->
+    <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild" class="node-line"
+      [class.selected]="node === selectedNode"
+      [ngStyle]="{'margin-left.px': (node.Level || 0) * 20}"
+      (click)="onSelect(node)"
+      (contextmenu)="onRightClick($event, node)">
+      <div class="node-content">
+        <button mat-icon-button matTreeNodeToggle>
+          <mat-icon>{{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}</mat-icon>
+        </button>
+        <mat-icon class="node-icon">folder</mat-icon>
+        {{ node.Name }}
+        <span *ngIf="node.RetiredDate" class="retired-label">(Retired)</span>
+      </div>
+      <div [class.hidden]="!treeControl.isExpanded(node)">
+        <ng-container matTreeNodeOutlet></ng-container>
+      </div>
+    </mat-nested-tree-node>
+  </mat-tree>
+
+  <!-- Limits / Checks Panel -->
+  <div *ngIf="selectedNode" class="limits-panel">
+    <h4>Checks / Limits</h4>
+    <div *ngIf="showLimits" class="limits-group">
+      <mat-form-field appearance="outline" class="limit-field">
+        <mat-label>Min</mat-label>
+        <input matInput [(ngModel)]="selectedNode.MainMin" [disabled]="disableMinMax || userAccess !== 'S'">
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="limit-field">
+        <mat-label>Max</mat-label>
+        <input matInput [(ngModel)]="selectedNode.MainMax" [disabled]="disableMinMax || userAccess !== 'S'">
+      </mat-form-field>
+    </div>
+    <div *ngIf="showChecks" class="checks-group">
+      <mat-form-field appearance="outline" class="limit-field">
+        <mat-label>Soft</mat-label>
+        <input matInput [(ngModel)]="selectedNode.MainSoftCheck" [disabled]="userAccess !== 'S'">
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="limit-field">
+        <mat-label>Hard</mat-label>
+        <input matInput [(ngModel)]="selectedNode.MainHardCheck" [disabled]="userAccess !== 'S'">
+      </mat-form-field>
+    </div>
+  </div>
+
+  <!-- Right-click context menu -->
+  <div
+    class="context-menu"
+    *ngIf="contextMenuVisible"
+    [ngStyle]="{ top: contextMenuY + 'px', left: contextMenuX + 'px' }"
+  >
+    <ul>
+      <li><button [disabled]="!canAdd()" (click)="openAddDialog()">Add Variable</button></li>
+      <li><button [disabled]="!canEdit()" (click)="openEditDialog()">Edit Variable</button></li>
+      <li><button [disabled]="!canDelete()" (click)="deleteNode()">Delete Variable</button></li>
+      <li><button [disabled]="!canRetire()" (click)="retireNode()">Retire</button></li>
+      <li><button [disabled]="!canUnretire()" (click)="unretireNode()">Unretire</button></li>
+    </ul>
+  </div>
+
+  <!-- Add/Edit dialog -->
+  <div class="dialog-overlay" *ngIf="showDialog">
+    <div class="dialog-box">
+      <h3>{{ dialogMode === 'add' ? 'Add Shelf Variable' : 'Edit Shelf Variable' }}</h3>
+      <mat-form-field class="full-width" appearance="fill">
+        <mat-label>Name</mat-label>
+        <input matInput [(ngModel)]="dialogNodeName" />
+      </mat-form-field>
+      <div class="dialog-actions">
+        <button mat-raised-button color="primary" (click)="confirmDialog()">
+          {{ dialogMode === 'add' ? 'Add' : 'Save' }}
+        </button>
+        <button mat-button (click)="cancelDialog()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+import { Component, Input, OnInit, HostListener } from '@angular/core';
+import { NestedTreeControl } from '@angular/cdk/tree';
+import { MatTreeNestedDataSource } from '@angular/material/tree';
+import { cloneDeep } from 'lodash';
+
+export interface ShelfNode {
+  Id: number;
+  PId?: number;
+  Name: string;
+  Level?: number;
+  allow_add?: string;           // e.g. 'Y', 'T', ''
+  optional?: string;            // e.g. 'Y', ''
+  RetiredDate?: string | null;  // ISO string or null/undefined for active
+  IsNewlyAdded?: 'N' | 'U' | ''; // Flags for new or updated
+  MainMin?: string | null;
+  MainMax?: string | null;
+  MainSoftCheck?: string | null;
+  MainHardCheck?: string | null;
+  children?: ShelfNode[];
+}
+
+type UserAccessFlag = 'B' | 'U' | 'S';
+
+@Component({
+  selector: 'app-shelf-tree',
+  templateUrl: './shelf-tree.component.html',
+  styleUrls: ['./shelf-tree.component.css']
+})
+export class ShelfTreeComponent implements OnInit {
+  @Input() group!: number;
+  @Input() title!: string;
+  @Input() userAccess: UserAccessFlag = 'U';
+
+  treeControl = new NestedTreeControl<ShelfNode>(node => node.children);
+  dataSource = new MatTreeNestedDataSource<ShelfNode>();
+
+  selectedNode: ShelfNode | null = null;
+  rightClickedNode: ShelfNode | null = null;
+
+  // Context menu UI state
+  contextMenuVisible = false;
+  contextMenuX = 0;
+  contextMenuY = 0;
+
+  // Add/Edit dialog
+  showDialog = false;
+  dialogMode: 'add' | 'edit' = 'add';
+  dialogNodeName = '';
+
+  // Display controls for limits / checks (like jQuery "tabDummy" panel)
+  showLimits = false;
+  showChecks = false;
+  disableMinMax = false;
+
+  constructor() {}
+
+  ngOnInit() {
+    this.loadShelfVars();
+  }
+
+  loadShelfVars() {
+    // Placeholder: replace with actual HTTP call to fetch data by group
+    // e.g., this.http.post(url, { Group: this.group })...
+    // For now assume mock data or parent passes data.
+    // Example:
+    const mockData: ShelfNode[] = []; // load this from service or input
+    // For demo, start empty:
+    this.dataSource.data = this.buildNestedTree(mockData);
+    this.expandAllNodes(this.dataSource.data);
+  }
+
+  hasChild = (_: number, node: ShelfNode) => !!node.children && node.children.length > 0;
+
+  onSelect(node: ShelfNode) {
+    this.selectedNode = node;
+    this.configureLimitCheckDisplay(node);
+  }
+
+  private configureLimitCheckDisplay(node: ShelfNode) {
+    // Your domain logic for controls shown can use node.Id just like jQuery
+    // Example: IDs with limits
+    const limitIds = [11160, 14825, 15490, 15995, 16910, 22700];
+    const checkIds = [10100, 20000, 30100];
+
+    this.disableMinMax = limitIds.includes(node.Id);
+    // Show limits if not in checkIds, show checks if not in limitIds (toggle logic)
+    this.showLimits = !checkIds.includes(node.Id);
+    this.showChecks = !this.disableMinMax;
+  }
+
+  onRightClick(event: MouseEvent, node: ShelfNode) {
+    event.preventDefault();
+
+    // Block all if user has no access
+    if (this.userAccess === 'U') {
+      alert('You are not authorized to modify shelf variables.');
+      return;
+    }
+
+    // For read-only: alert on right-click attempt (jQuery style)
+    if (this.userAccess === 'B') {
+      alert('You have read-only rights assigned for the shelf variable master screen. You cannot make changes.');
+      // Do not show context menu
+      return;
+    }
+
+    this.rightClickedNode = node;
+    this.contextMenuVisible = true;
+    this.contextMenuX = event.clientX;
+    this.contextMenuY = event.clientY;
+  }
+
+  @HostListener('document:click')
+  onDocumentClick() {
+    this.contextMenuVisible = false;
+  }
+
+  // Dialog controls
+  openAddDialog() {
+    if (!this.canAdd()) return;
+    this.contextMenuVisible = false;
+    this.dialogMode = 'add';
+    this.dialogNodeName = '';
+    this.showDialog = true;
+  }
+
+  openEditDialog() {
+    if (!this.canEdit()) return;
+    if (!this.rightClickedNode) return;
+    this.contextMenuVisible = false;
+    this.dialogMode = 'edit';
+    this.dialogNodeName = this.rightClickedNode.Name;
+    this.showDialog = true;
+  }
+
+  confirmDialog() {
+    if (!this.dialogNodeName.trim()) {
+      alert('Name cannot be empty.');
+      return;
+    }
+
+    if (this.dialogMode === 'add') {
+      if (!this.rightClickedNode) {
+        alert('Invalid parent node.');
+        this.showDialog = false;
+        return;
+      }
+
+      if (!this.isUniqueNameInSiblings(this.rightClickedNode, this.dialogNodeName.trim())) {
+        alert(`Variable ${this.dialogNodeName.trim()} already exists. Please choose a different name.`);
+        return;
+      }
+
+      const newNode: ShelfNode = {
+        Id: this.generateNewNodeId(this.rightClickedNode),
+        PId: this.rightClickedNode.Id,
+        Name: this.dialogNodeName.trim(),
+        optional: 'Y',
+        IsNewlyAdded: 'N',
+        allow_add: '', // default empty. Could copy parent's allow_add if needed
+        children: []
+      };
+      this.rightClickedNode.children = this.rightClickedNode.children || [];
+      this.rightClickedNode.children.push(newNode);
+      this.treeControl.expand(this.rightClickedNode);
+      this.dataSource.data = this.dataSource.data.slice(); // trigger refresh
+    } else if (this.dialogMode === 'edit') {
+      if (!this.rightClickedNode) {
+        alert('No node selected to edit.');
+        this.showDialog = false;
+        return;
+      }
+      if (!this.isUniqueNameInSiblings(this.findParent(this.dataSource.data, this.rightClickedNode), this.dialogNodeName.trim(), this.rightClickedNode.Id)) {
+        alert(`Variable ${this.dialogNodeName.trim()} already exists. Please choose a different name.`);
+        return;
+      }
+      this.rightClickedNode.Name = this.dialogNodeName.trim();
+      this.rightClickedNode.IsNewlyAdded = 'U';
+    }
+    this.showDialog = false;
+  }
+
+  cancelDialog() {
+    this.showDialog = false;
+  }
+
+  deleteNode() {
+    if (!this.canDelete()) return;
+    if (!this.rightClickedNode) return;
+    const parent = this.findParent(this.dataSource.data, this.rightClickedNode);
+    if (parent) {
+      parent.children = parent.children!.filter(c => c.Id !== this.rightClickedNode!.Id);
+    } else {
+      this.dataSource.data = this.dataSource.data.filter(c => c.Id !== this.rightClickedNode!.Id);
+    }
+    this.dataSource.data = this.dataSource.data.slice(); // refresh
+    this.contextMenuVisible = false;
+  }
+
+  retireNode() {
+    if (!this.canRetire() || !this.rightClickedNode) return;
+
+    const confirmRetire = confirm('Are you sure you want to retire the selected Shelf Variable?\nNOTE: This action will affect all child variables');
+    if (!confirmRetire) return;
+
+    this.rightClickedNode.Name += ' (Retired)';
+    this.rightClickedNode.RetiredDate = new Date().toISOString();
+    this.rightClickedNode.IsNewlyAdded = 'U';
+
+    this.dataSource.data = this.dataSource.data.slice(); // refresh
+    this.contextMenuVisible = false;
+  }
+
+  unretireNode() {
+    if (!this.canUnretire() || !this.rightClickedNode) return;
+
+    const confirmUnretire = confirm('Are you sure you want to un-retire the selected Shelf Variable?\nNOTE: This action will affect all child variables');
+    if (!confirmUnretire) return;
+
+    this.rightClickedNode.Name = this.rightClickedNode.Name.replace(' (Retired)', '');
+    this.rightClickedNode.RetiredDate = null;
+    this.rightClickedNode.IsNewlyAdded = 'U';
+
+    this.dataSource.data = this.dataSource.data.slice(); // refresh
+    this.contextMenuVisible = false;
+  }
+
+  getSelectedData(): ShelfNode[] {
+    const result: ShelfNode[] = [];
+    const accumulate = (node: ShelfNode) => {
+      if (node.IsNewlyAdded === 'N' || node.IsNewlyAdded === 'U') {
+        // Shallow copy minus children
+        const copy = { ...node };
+        delete copy.children;
+        result.push(copy);
+      }
+      node.children?.forEach(accumulate);
+    };
+    this.dataSource.data.forEach(accumulate);
+    return result;
+  }
+
+  // Helpers
+
+  private buildNestedTree(flatNodes: ShelfNode[]): ShelfNode[] {
+    const map = new Map<number, ShelfNode>();
+    const roots: ShelfNode[] = [];
+
+    flatNodes.forEach(n => {
+      n.children = [];
+      map.set(n.Id, n);
+    });
+
+    flatNodes.forEach(n => {
+      if (n.PId && map.has(n.PId)) {
+        map.get(n.PId)!.children!.push(n);
+      } else {
+        roots.push(n);
+      }
+    });
+
+    const setLevel = (node: ShelfNode, level: number) => {
+      node.Level = level;
+      node.children?.forEach(child => setLevel(child, level + 1));
+    };
+    roots.forEach(r => setLevel(r, 0));
+
+    return roots;
+  }
+
+  private expandAllNodes(nodes: ShelfNode[]) {
+    nodes.forEach(node => {
+      this.treeControl.expand(node);
+      if (node.children && node.children.length > 0) {
+        this.expandAllNodes(node.children);
+      }
+    });
+  }
+
+  private findParent(nodes: ShelfNode[], child: ShelfNode): ShelfNode | null {
+    for (const node of nodes) {
+      if (node.children?.some(c => c.Id === child.Id)) {
+        return node;
+      }
+      const parent = node.children ? this.findParent(node.children, child) : null;
+      if (parent) return parent;
+    }
+    return null;
+  }
+
+  private isUniqueNameInSiblings(parent: ShelfNode | null, name: string, excludeId?: number): boolean {
+    if (!parent) {
+      // Unique among root nodes
+      return !this.dataSource.data.some(n => n.Name.trim().toLowerCase() === name.toLowerCase() && n.Id !== excludeId);
+    }
+    return !parent.children?.some(c => c.Name.trim().toLowerCase() === name.toLowerCase() && c.Id !== excludeId);
+  }
+
+  private generateNewNodeId(parentNode: ShelfNode): number {
+    let maxId = parentNode.Id * 1000; // arbitrary namespace for IDs under parent to avoid collisions
+    (parentNode.children || []).forEach(c => {
+      if (c.Id > maxId) maxId = c.Id;
+    });
+    return maxId + 1;
+  }
+
+  // Permission checks matching jQuery logic and your requirements:
+
+  canAdd(): boolean {
+    if (this.userAccess !== 'S') return false; // Only full access can Add
+    if (!this.rightClickedNode) return false;
+    // jQuery: allow_add must be 'Y' or 'T'
+    return this.rightClickedNode.allow_add === 'Y' || this.rightClickedNode.allow_add === 'T';
+  }
+
+  canEdit(): boolean {
+    if (this.userAccess !== 'S') return false;
+    if (!this.rightClickedNode) return false;
+    // cannot edit root (level 0) or retired nodes
+    return this.rightClickedNode.Level !== 0 && !this.rightClickedNode.RetiredDate;
+  }
+
+  canDelete(): boolean {
+    if (this.userAccess !== 'S') return false;
+    if (!this.rightClickedNode) return false;
+    // Only nodes with IsNewlyAdded = 'N' (existing nodes) can be deleted and must not be retired
+    return this.rightClickedNode.IsNewlyAdded === 'N' && !this.rightClickedNode.RetiredDate;
+  }
+
+  canRetire(): boolean {
+    if (this.userAccess !== 'S') return false;
+    if (!this.rightClickedNode) return false;
+    if (this.rightClickedNode.RetiredDate) return false;
+
+    // Retire only if optional is Y and parent has allow_add 'Y' or 'T'
+    const parent = this.findParent(this.dataSource.data, this.rightClickedNode);
+    if (!parent) return false;
+    const parentAllowAdd = parent.allow_add || '';
+    if ((parentAllowAdd === 'Y' || parentAllowAdd === 'T') && this.rightClickedNode.optional === 'Y') {
+      return true;
+    }
+    return false;
+  }
+
+  canUnretire(): boolean {
+    if (this.userAccess !== 'S') return false;
+    if (!this.rightClickedNode) return false;
+    return !!this.rightClickedNode.RetiredDate;
+  }
+}
