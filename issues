@@ -1,0 +1,194 @@
+ <ng-container matColumnDef="QCUnderPercent">
+          <th mat-header-cell *matHeaderCellDef>Pass/Fail%</th>
+          <td mat-cell *matCellDef="let category">
+            <input type="number" 
+                   [value]="getPercent(category)"
+                   [disabled]="isPercentDisabled(category)"
+                   (change)="onPercentChanged(category, $event.target.value)"
+                   (keypress)="onNumberInput($event)"
+                   class="percent-input"
+                   maxlength="2">
+          </td>
+        </ng-container>
+
+Property 'value' does not exist on type 'EventTarget'.ngtsc(2339)
+category-grid.component.ts(11, 2): Error occurs in the template of component CategoryGridComponent.
+any
+
+    <ng-container matColumnDef="NumberOfWeeks">
+          <th mat-header-cell *matHeaderCellDef>Weeks</th>
+          <td mat-cell *matCellDef="let category">
+            <input type="number" 
+                   [value]="getWeeks(category)"
+                   [disabled]="isWeeksDisabled(category)"
+                   (change)="onWeeksChanged(category, $event.target.value)"
+                   (keypress)="onNumberInput($event)"
+                   class="weeks-input"
+                   maxlength="2">
+          </td>
+        </ng-container>
+
+Property 'value' does not exist on type 'EventTarget'.ngtsc(2339)
+category-grid.component.ts(11, 2): Error occurs in the template of component CategoryGridComponent.
+any
+
+     <tr mat-row *matRowDef="let row; columns: ['expandedDetail']; when: isExpansionDetailRow"
+            class="expanded-row" [@detailExpand]="row.expanded ? 'expanded' : 'collapsed'">
+          <td mat-cell [attr.colspan]="displayedColumns.length">
+            <div class="keycats-container" *ngIf="keycats[row.ReviewCategoryNumber]">
+              <table mat-table [dataSource]="keycats[row.ReviewCategoryNumber]" class="keycats-table">
+                <!-- Keycat columns similar to above but for keycats -->
+                <ng-container matColumnDef="KeycatName">
+                  <th mat-header-cell *matHeaderCellDef>Keycat Name</th>
+                  <td mat-cell *matCellDef="let keycat">{{ keycat.KeycatName }}</td>
+                </ng-container>
+
+                <ng-container matColumnDef="KeycatSelected">
+                  <th mat-header-cell *matHeaderCellDef>Selected</th>
+                  <td mat-cell *matCellDef="let keycat">
+                    <mat-checkbox 
+                      [checked]="isSelected(keycat)"
+                      [disabled]="disabled"
+                      (change)="onKeycatSelected(keycat, $event.checked)">
+                    </mat-checkbox>
+                  </td>
+                </ng-container>
+
+                <!-- Additional keycat columns... -->
+                
+                <tr mat-header-row *matHeaderRowDef="['KeycatName', 'KeycatSelected', 'QCUnderReq', 'QCUnderPercent', 'NumberOfWeeks']"></tr>
+                <tr mat-row *matRowDef="let row; columns: ['KeycatName', 'KeycatSelected', 'QCUnderReq', 'QCUnderPercent', 'NumberOfWeeks'];"></tr>
+              </table>
+            </div>
+          </td>
+        </tr>
+
+<mat-tab-group [(selectedIndex)]="activeTabIndex" (selectedTabChange)="onTabChange($event.tab.textLabel.toLowerCase())">
+    <mat-tab label="Location">
+      <app-shelf-task-tree
+        [nodes]="locationTree"
+        [disabled]="isTaskLocked"
+        (nodeSelect)="onNodeSelect($event)"
+        (nodeCheck)="onNodeCheck($event)"
+        (selectAllChildren)="selectAllChildren($event)">
+      </app-shelf-task-tree>
+    </mat-tab>
+
+Property 'activeTabIndex' does not exist on type 'ShelfTaskComponent'.ngtsc(2339)
+shelf-task.component.ts(18, 22): Error occurs in the template of component ShelfTaskComponent.
+Property 'activeTabIndex' does not exist on type 'ShelfTaskComponent'.ngtsc(2339)
+shelf-task.component.ts(18, 22): Error occurs in the template of component ShelfTaskComponent.
+any
+
+ <div class="limits-section" *ngIf="showLimitsPanel">
+          <h3>Limits</h3>
+          <mat-form-field appearance="fill">
+            <mat-label>Min</mat-label>
+            <input matInput 
+                   type="number" 
+                   [(ngModel)]="limitsForm.min"
+                   (change)="onLimitChange('min', $event.target.value)"
+                   (keypress)="onNumberInput($event)"
+                   [disabled]="isTaskLocked"
+                   maxlength="3">
+          </mat-form-field>
+
+          <mat-form-field appearance="fill">
+            <mat-label>Max</mat-label>
+            <input matInput 
+                   type="number" 
+                   [(ngModel)]="limitsForm.max"
+                   (change)="onLimitChange('max', $event.target.value)"
+                   (keypress)="onNumberInput($event)"
+                   [disabled]="isTaskLocked"
+                   maxlength="3">
+          </mat-form-field>
+        </div>
+
+        <!-- Checks Section -->
+        <div class="checks-section" *ngIf="showChecksPanel">
+          <h3>Checks</h3>
+          <mat-form-field appearance="fill">
+            <mat-label>Soft</mat-label>
+            <input matInput 
+                   type="number" 
+                   [(ngModel)]="limitsForm.soft"
+                   (change)="onLimitChange('soft', $event.target.value)"
+                   (keypress)="onNumberInput($event)"
+                   [disabled]="isTaskLocked"
+                   maxlength="3">
+          </mat-form-field>
+
+          <mat-form-field appearance="fill">
+            <mat-label>Hard</mat-label>
+            <input matInput 
+                   type="number" 
+                   [(ngModel)]="limitsForm.hard"
+                   (change)="onLimitChange('hard', $event.target.value)"
+                   (keypress)="onNumberInput($event)"
+                   [disabled]="isTaskLocked"
+                   maxlength="3">
+          </mat-form-field>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+Property 'value' does not exist on type 'EventTarget'.ngtsc(2339)
+shelf-task.component.ts(18, 22): Error occurs in the template of component ShelfTaskComponent.
+
+ <div *ngIf="isOtherSectionWidth(node.data) && node.data.checked" 
+             class="custom-input-container">
+          <mat-form-field appearance="fill" class="custom-input">
+            <mat-label>Min</mat-label>
+            <input matInput 
+                   type="number"
+                   [value]="node.data.taskMin"
+                   (change)="onCustomInputChange(node.data, 'taskMin', $event.target.value)"
+                   [disabled]="disabled"
+                   [attr.min]="node.data.mainMin"
+                   [attr.max]="node.data.mainMax">
+          </mat-form-field>
+          
+          <mat-form-field appearance="fill" class="custom-input">
+            <mat-label>Max</mat-label>
+            <input matInput 
+                   type="number"
+                   [value]="node.data.taskMax"
+                   (change)="onCustomInputChange(node.data, 'taskMax', $event.target.value)"
+                   [disabled]="disabled"
+                   [attr.min]="node.data.mainMin"
+                   [attr.max]="node.data.mainMax">
+          </mat-form-field>
+        </div>
+
+        <!-- Custom Input for Other Height -->
+        <div *ngIf="isOtherHeight(node.data) && node.data.checked" 
+             class="custom-input-container">
+          <mat-form-field appearance="fill" class="custom-input">
+            <mat-label>Min</mat-label>
+            <input matInput 
+                   type="number"
+                   [value]="node.data.taskMin"
+                   (change)="onCustomInputChange(node.data, 'taskMin', $event.target.value)"
+                   [disabled]="disabled"
+                   [attr.min]="node.data.mainMin"
+                   [attr.max]="node.data.mainMax">
+          </mat-form-field>
+          
+          <mat-form-field appearance="fill" class="custom-input">
+            <mat-label>Max</mat-label>
+            <input matInput 
+                   type="number"
+                   [value]="node.data.taskMax"
+                   (change)="onCustomInputChange(node.data, 'taskMax', $event.target.value)"
+                   [disabled]="disabled"
+                   [attr.min]="node.data.mainMin"
+                   [attr.max]="node.data.mainMax">
+          </mat-form-field>
+
+Property 'value' does not exist on type 'EventTarget'.ngtsc(2339)
+shelf-task-tree.component.ts(19, 40): Error occurs in the template of component ShelfTaskTreeComponent.
+any
+Property 'isExpansionDetailRow' does not exist on type 'CategoryGridComponent'.ngtsc(2339)
+category-grid.component.ts(11, 2): Error occurs in the template of component CategoryGridComponent.
