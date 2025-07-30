@@ -579,3 +579,46 @@ this.selectedNode = newNode;
       element.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, 100);
+
+
+
+=======================
+
+onRightClick(event: MouseEvent, node: ShelfNode): void {
+  event.preventDefault();
+  // ... permission checking code ...
+
+  this.rightClickedNode = node;
+
+  // Calculate desired menu position
+  const menuHeight = 200; // Set menu height (in px) - adjust as needed!
+  const viewportHeight = window.innerHeight;
+  const spaceBelow = viewportHeight - event.clientY;
+  
+  if (spaceBelow < menuHeight) {
+    this.contextMenuDirection = 'up';
+    this.contextY = event.clientY - menuHeight;
+    // Make sure menu doesn't go off the top edge:
+    if (this.contextY < 0) this.contextY = 0;
+  } else {
+    this.contextMenuDirection = 'down';
+    this.contextY = event.clientY;
+  }
+  this.contextX = event.clientX;
+  this.contextMenuVisible = true;
+}
+
+
+<div
+  class="rMenu"
+  [class.menu-up]="contextMenuDirection === 'up'"
+  [class.menu-down]="contextMenuDirection === 'down'"
+  *ngIf="contextMenuVisible"
+  [ngStyle]="{ top: contextY + 'px', left: contextX + 'px' }"
+>
+  <ul>
+    <li><button ...>Add Variable</button></li>
+    <!-- other menu options -->
+  </ul>
+</div>
+
