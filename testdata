@@ -622,3 +622,37 @@ onRightClick(event: MouseEvent, node: ShelfNode): void {
   </ul>
 </div>
 
+
+saveShelfVariables(): void {
+  const changedNodes = this.getSelectedData();
+  if (changedNodes.length === 0) {
+    console.log('No changes to save.');
+    this._snackBar.openSnackBar('There are no changes to save.', 'info');
+    return;
+  }
+  console.log('Shelf Variables to save:', changedNodes);
+  // TODO: Replace with actual API call
+  // this.http.post('/api/saveShelfVars', changedNodes).subscribe(...)
+}
+
+
+saveShelfVariables(): void {
+  const allShelfData = [
+    ...(this.treeLocation?.getSelectedData() || []),
+    ...(this.treeSection?.getSelectedData() || []),
+    ...(this.treeShelf?.getSelectedData() || []),
+    ...(this.treeUPC?.getSelectedData() || [])
+  ];
+
+  if (allShelfData.length === 0) {
+    console.log('No changes to save.');
+    this._snackBar.openSnackBar('There are no changes to save.', 'info');
+    return;
+  }
+  
+  console.log('All Shelf Variables to save:', allShelfData);
+  // TODO: Replace with actual API call
+  // this.http.post('/api/saveShelfVars', allShelfData).subscribe(...)
+}
+
+
