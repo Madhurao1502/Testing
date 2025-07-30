@@ -1,51 +1,572 @@
-Dashboard Enhancements
+ models/node-payload.model.ts
 
-Introduced filters and a chart view on the Home (Dashboard) screen for better data visualization and filtering capability.
-
-UI/UX Improvements
-
-Side Navigation Bar has been narrowed down to increase the usable screen space for content.
-
-Updated the layout for Attribute Search, improving usability and alignment.
-
-Implemented UPC search via copy-paste and file upload, allowing faster and more flexible product lookups.
-
-Functional Updates
-
-Removed the alert that appeared when users attempted to proceed without selecting any attributes.
-
-The "Product Group Name" field is now editable until the "Ready to Process" button is clicked, offering more control during the editing phase.
-
-root: C:\Users\<YourUsername>\nvm
-path: C:\Users\<YourUsername>\nvm\nodejs
-arch: 64
-proxy: none
-
-setx PATH "%PATH%;C:\Users\<YourUsername>\nvm;C:\Users\<YourUsername>\nvm\nodejs"
-
-Want to Switch Later?
-If you want to switch between versions:
-
-Delete the existing symlink:
-
-bash
-Copy
-Edit
-rmdir C:\Users\%USERNAME%\nvm\nodejs
-Re-create it pointing to the other version:
-
-bash
-Copy
-Edit
-mklink /D "C:\Users\%USERNAME%\nvm\nodejs" "C:\Users\%USERNAME%\nvm\v22.17.0"
+export interface NodePayload {
+  id: number;
+  pId?: number;
+  name: string;
+  open?: string;
+  checked?: boolean;
+  varlabel?: string;
+  var_type_id?: number;
+  shelf_var_lookup?: string;
+  no_display?: string;
+  mainMin?: number;
+  mainMax?: number;
+  main_soft_check?: number;
+  main_hard_check?: number;
+  value?: number;
+  task_number?: number;
+  mainOrdinal?: number;
+  taskOrdinal?: number;
+  optional?: string;
+  taskMin?: number;
+  taskMax?: number;
+  task_soft_check?: number;
+  task_hard_check?: number;
+  children?: NodePayload[];
+  isParent?: boolean;
+  showLimits?: boolean;
+  showChecks?: boolean;
+}
 
 
+services/shelf-state.service.ts
 
-mklink /D "C:\Users\%USERNAME%\nvm\nodejs" "C:\Users\%USERNAME%\nvm\v16.19.1"
+import { Injectable } from '@angular/core';
+import { BehaviorSubject, Observable } from 'rxjs';
+import { NodePayload } from '../models/node-payload.model';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class ShelfStateService {
+  private _activeTab = new BehaviorSubject<'location' | 'section' | 'shelf' | 'upc'>('location');
+  private _selectedNode = new BehaviorSubject<NodePayload | null>(null);
+  private _limitsAllowed = new BehaviorSubject<boolean>(false);
+  private _checksAllowed = new BehaviorSubject<boolean>(false);
+
+  // Observables
+  activeTab$ = this._activeTab.asObservable();
+  selectedNode$ = this._selectedNode.asObservable();
+  limitsAllowed$ = this._limitsAllowed.asObservable();
+  checksAllowed$ = this._checksAllowed.asObservable();
+
+  // Methods to update state
+  setActiveTab(tab: 'location' | 'section' | 'shelf' | 'upc'): void {
+    this._activeTab.next(tab);
+  }
+
+  setSelectedNode(node: NodePayload | null): void {
+    this._selectedNode.next(node);
+    
+    // Update limits and checks allowed based on node
+    if (node) {
+      this._limitsAllowed.next(this.shouldShowLimits(node));
+      this._checksAllowed.next(this.shouldShowChecks(node));
+    } else {
+      this._limitsAllowed.next(false);
+      this._checksAllowed.next(false);
+    }
+  }
+
+  // Business logic
+  private shouldShowLimits(node: NodePayload): boolean {
+    const limitsNodes = [200, 10100, 20000, 30100, 22700, 11160, 14825, 15995, 15490, 16910];
+    return limitsNodes.includes(node.id);
+  }
+
+  private shouldShowChecks(node: NodePayload): boolean {
+    const checksNodes = [200, 10100, 20000, 30100];
+    return checksNodes.includes(node.id);
+  }
+
+  // Getters for current values
+  get currentActiveTab(): 'location' | 'section' | 'shelf' | 'upc' {
+    return this._activeTab.value;
+  }
+
+  get currentSelectedNode(): NodePayload | null {
+    return this._selectedNode.value;
+  }
+}
 
 
-I am currently unable to install Visual Studio 2022 on my system. I attempted to uninstall the previous installation, but the uninstallation process is failing repeatedly. I have tried multiple times, synced my PC, and also restarted it several times, but the issue persists.
+ components/shelf-task/shelf-task.component.ts
 
-Requesting your assistance in completely removing the existing Visual Studio components and helping me with a clean installation of Visual Studio 2022.
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { FormBuilder, FormGroup, Validators, AbstractControl } from '@angular/forms';
+import { Subject, takeUntil } from 'rxjs';
+import { ShelfStateService } from '../../services/shelf-state.service';
+import { NodePayload } from '../../models/node-payload.model';
+
+// Import JSON data
+import locationData from '../../mock-data/location.json';
+import sectionData from '../../mock-data/section.json';
+import shelfData from '../../mock-data/shelf.json';
+import upcData from '../../mock-data/upc.json';
+
+@Component({
+  selector: 'app-shelf-task',
+  templateUrl: './shelf-task.component.html',
+  styleUrls: ['./shelf-task.component.scss']
+})
+export class ShelfTaskComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
+
+  locationData = locationData as NodePayload[];
+  sectionData = sectionData as NodePayload[];
+  shelfData = shelfData as NodePayload[];
+  upcData = upcData as NodePayload[];
+  
+  currentTab: 'location' | 'section' | 'shelf' | 'upc' = 'location';
+  selectedNode: NodePayload | null = null;
+  limitsAllowed = false;
+  checksAllowed = false;
+
+  limitForm: FormGroup<{
+    min: AbstractControl<number | null>;
+    max: AbstractControl<number | null>;
+    soft: AbstractControl<number | null>;
+    hard: AbstractControl<number | null>;
+  }>;
+
+  categoryData: any[] = []; // Populate with your grid data
+  catDisplayedColumns = ['ReviewCategoryName', 'Selected', 'QCUnderReq', 'QCUnderPercent', 'NumberOfWeeks'];
+
+  constructor(
+    private fb: FormBuilder,
+    private shelfStateService: ShelfStateService
+  ) {
+    this.limitForm = this.fb.group({
+      min: [null as number | null, [Validators.min(0)]],
+      max: [null as number | null, [Validators.min(0)]],
+      soft: [null as number | null, [Validators.min(0)]],
+      hard: [null as number | null, [Validators.min(0)]]
+    });
+  }
+
+  ngOnInit(): void {
+    // Subscribe to state changes
+    this.shelfStateService.activeTab$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(tab => this.currentTab = tab);
+
+    this.shelfStateService.selectedNode$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(node => {
+        this.selectedNode = node;
+        this.updateFormFromNode(node);
+      });
+
+    this.shelfStateService.limitsAllowed$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(allowed => this.limitsAllowed = allowed);
+
+    this.shelfStateService.checksAllowed$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(allowed => this.checksAllowed = allowed);
+
+    // Subscribe to form changes for validation
+    this.limitForm.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(values => this.applyValidations(values));
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  onTabChanged(index: number): void {
+    const tabs: ('location' | 'section' | 'shelf' | 'upc')[] = ['location', 'section', 'shelf', 'upc'];
+    this.shelfStateService.setActiveTab(tabs[index]);
+  }
+
+  handleNodeSelect(node: NodePayload): void {
+    this.shelfStateService.setSelectedNode(node);
+  }
+
+  private updateFormFromNode(node: NodePayload | null): void {
+    if (!node) {
+      this.limitForm.reset();
+      return;
+    }
+
+    this.limitForm.patchValue({
+      min: node.taskMin ?? node.mainMin,
+      max: node.taskMax ?? node.mainMax,
+      soft: node.task_soft_check ?? node.main_soft_check,
+      hard: node.task_hard_check ?? node.main_hard_check
+    }, { emitEvent: false });
+  }
+
+  private applyValidations(values: any): void {
+    if (!values) return;
+    
+    const min = Number(values.min) || 0;
+    const max = Number(values.max) || 0;
+    const soft = Number(values.soft) || 0;
+    const hard = Number(values.hard) || 0;
+
+    // Reset errors
+    this.limitForm.get('soft')?.setErrors(null);
+    this.limitForm.get('hard')?.setErrors(null);
+
+    if (soft < min) {
+      this.limitForm.get('soft')?.setErrors({ belowMin: true });
+    }
+
+    if (hard < soft + 3) {
+      this.limitForm.get('hard')?.setErrors({ belowSoftPlus3: true });
+    }
+
+    if (this.currentTab === 'location' && hard > max) {
+      this.limitForm.get('hard')?.setErrors({ exceedsMax: true });
+    }
+  }
+
+  dataFor(tab: string): NodePayload[] {
+    switch (tab) {
+      case 'location': return this.locationData;
+      case 'section': return this.sectionData;
+      case 'shelf': return this.shelfData;
+      default: return this.upcData;
+    }
+  }
+}
+
+
+components/shelf-task/shelf-task.component.html
+
+<mat-tab-group (selectedIndexChange)="onTabChanged($event)">
+  <mat-tab label="Location">
+    <app-shelf-tree
+      [data]="dataFor('location')"
+      (nodeSelect)="handleNodeSelect($event)">
+    </app-shelf-tree>
+  </mat-tab>
+
+  <mat-tab label="Section">
+    <app-shelf-tree
+      [data]="dataFor('section')"
+      (nodeSelect)="handleNodeSelect($event)">
+    </app-shelf-tree>
+  </mat-tab>
+
+  <mat-tab label="Shelf">
+    <app-shelf-tree
+      [data]="dataFor('shelf')"
+      (nodeSelect)="handleNodeSelect($event)">
+    </app-shelf-tree>
+  </mat-tab>
+
+  <mat-tab label="UPC">
+    <app-shelf-tree
+      [data]="dataFor('upc')"
+      (nodeSelect)="handleNodeSelect($event)">
+    </app-shelf-tree>
+  </mat-tab>
+</mat-tab-group>
+
+<mat-card class="checks-card" *ngIf="selectedNode">
+  <mat-card-header>
+    <mat-card-title>Checks / Limits</mat-card-title>
+  </mat-card-header>
+  <mat-card-content>
+    <form [formGroup]="limitForm">
+      <div *ngIf="limitsAllowed" class="form-section">
+        <h4>Limits</h4>
+        <mat-form-field appearance="outline">
+          <mat-label>Min</mat-label>
+          <input matInput formControlName="min" type="number"/>
+          <mat-error *ngIf="limitForm.get('min')?.hasError('min')">
+            Min must be >= 0
+          </mat-error>
+        </mat-form-field>
+        
+        <mat-form-field appearance="outline">
+          <mat-label>Max</mat-label>
+          <input matInput formControlName="max" type="number"/>
+          <mat-error *ngIf="limitForm.get('max')?.hasError('min')">
+            Max must be >= 0
+          </mat-error>
+        </mat-form-field>
+      </div>
+
+      <div *ngIf="checksAllowed" class="form-section">
+        <h4>Checks</h4>
+        <mat-form-field appearance="outline">
+          <mat-label>Soft</mat-label>
+          <input matInput formControlName="soft" type="number"/>
+          <mat-error *ngIf="limitForm.get('soft')?.hasError('belowMin')">
+            Soft must be >= Min
+          </mat-error>
+        </mat-form-field>
+        
+        <mat-form-field appearance="outline">
+          <mat-label>Hard</mat-label>
+          <input matInput formControlName="hard" type="number"/>
+          <mat-error *ngIf="limitForm.get('hard')?.hasError('belowSoftPlus3')">
+            Hard must be >= Soft + 3
+          </mat-error>
+          <mat-error *ngIf="limitForm.get('hard')?.hasError('exceedsMax')">
+            Hard must be <= Max (for Location tab)
+          </mat-error>
+        </mat-form-field>
+      </div>
+    </form>
+  </mat-card-content>
+</mat-card>
+
+<div class="grid-section">
+  <h3>Collection Category Details</h3>
+  <app-category-grid></app-category-grid>
+</div>
+
+
+components/shelf-task/shelf-task.component.scss
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+mat-tab-group {
+  height: 400px;
+}
+
+.checks-card {
+  position: absolute;
+  top: 80px;
+  right: 24px;
+  width: 300px;
+  
+  .form-section {
+    margin-bottom: 1rem;
+    
+    h4 {
+      margin-bottom: 0.5rem;
+      color: #666;
+    }
+    
+    mat-form-field {
+      width: 100%;
+      margin-bottom: 0.5rem;
+    }
+  }
+}
+
+.grid-section {
+  margin-top: 420px;
+  
+  h3 {
+    margin-bottom: 1rem;
+  }
+}
+
+
+shelf-tree/shelf-tree.component.ts
+
+import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
+import { NodePayload } from '../../models/node-payload.model';
+
+@Component({
+  selector: 'app-shelf-tree',
+  templateUrl: './shelf-tree.component.html'
+})
+export class ShelfTreeComponent implements OnChanges {
+  @Input() data: NodePayload[] = [];
+  @Output() nodeSelect = new EventEmitter<NodePayload>();
+
+  treeNodes: any[] = [];
+  
+  options = {
+    useCheckbox: true,
+    useTristate: true,
+    actionMapping: {
+      mouse: {
+        click: (tree: any, node: any) => {
+          this.onNodeClick(node);
+        }
+      }
+    }
+  };
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['data'] && this.data) {
+      this.treeNodes = this.transformData(this.data);
+    }
+  }
+
+  private transformData(data: NodePayload[]): any[] {
+    return data.map(node => ({
+      id: node.id,
+      name: node.name,
+      children: node.children ? this.transformData(node.children) : [],
+      checked: node.checked || false,
+      ...node
+    }));
+  }
+
+  onNodeClick(node: any): void {
+    this.nodeSelect.emit(node.data as NodePayload);
+  }
+
+  onNodeActivate(event: any): void {
+    this.nodeSelect.emit(event.node.data as NodePayload);
+  }
+
+  onNodeSelect(event: any): void {
+    this.nodeSelect.emit(event.node.data as NodePayload);
+  }
+}
+
+ components/shelf-tree/shelf-tree.component.html
+
+<tree-root 
+  [nodes]="treeNodes" 
+  [options]="options"
+  (activate)="onNodeActivate($event)"
+  (select)="onNodeSelect($event)">
+</tree-root>
+
+
+ components/category-grid/category-grid.component.ts
+
+import { Component, OnInit } from '@angular/core';
+
+interface CategoryRow {
+  ReviewCategoryNumber: number;
+  ReviewCategoryName: string;
+  Selected: boolean;
+  QCUnderReq: boolean;
+  QCUnderPercent: number | null;
+  NumberOfWeeks: number | null;
+}
+
+@Component({
+  selector: 'app-category-grid',
+  templateUrl: './category-grid.component.html'
+})
+export class CategoryGridComponent implements OnInit {
+  displayedColumns = ['ReviewCategoryName', 'Selected', 'QCUnderReq', 'QCUnderPercent', 'NumberOfWeeks'];
+  dataSource: CategoryRow[] = [];
+
+  ngOnInit(): void {
+    // Initialize with sample data or load from service
+    this.dataSource = [
+      {
+        ReviewCategoryNumber: 1,
+        ReviewCategoryName: 'Sample Category 1',
+        Selected: false,
+        QCUnderReq: false,
+        QCUnderPercent: null,
+        NumberOfWeeks: null
+      },
+      {
+        ReviewCategoryNumber: 2,
+        ReviewCategoryName: 'Sample Category 2',
+        Selected: true,
+        QCUnderReq: true,
+        QCUnderPercent: 85,
+        NumberOfWeeks: 4
+      }
+    ];
+  }
+
+  onSelectionChange(element: CategoryRow, checked: boolean): void {
+    element.Selected = checked;
+  }
+
+  onQCUnderChange(element: CategoryRow, checked: boolean): void {
+    element.QCUnderReq = checked;
+  }
+
+  onPercentChange(element: CategoryRow, value: string): void {
+    element.QCUnderPercent = value ? parseInt(value, 10) : null;
+  }
+
+  onWeeksChange(element: CategoryRow, value: string): void {
+    element.NumberOfWeeks = value ? parseInt(value, 10) : null;
+  }
+}
+components/category-grid/category-grid.component.html
+
+<table mat-table [dataSource]="dataSource" class="mat-elevation-z8">
+  
+  <ng-container matColumnDef="ReviewCategoryName">
+    <th mat-header-cell *matHeaderCellDef>Review Category</th>
+    <td mat-cell *matCellDef="let element">
+      <strong>{{element.ReviewCategoryName}}</strong>
+    </td>
+  </ng-container>
+
+  <ng-container matColumnDef="Selected">
+    <th mat-header-cell *matHeaderCellDef>Selected</th>
+    <td mat-cell *matCellDef="let element">
+      <mat-checkbox 
+        [checked]="element.Selected"
+        (change)="onSelectionChange(element, $event.checked)">
+      </mat-checkbox>
+    </td>
+  </ng-container>
+
+  <ng-container matColumnDef="QCUnderReq">
+    <th mat-header-cell *matHeaderCellDef>QC Under</th>
+    <td mat-cell *matCellDef="let element">
+      <mat-checkbox 
+        [checked]="element.QCUnderReq"
+        (change)="onQCUnderChange(element, $event.checked)">
+      </mat-checkbox>
+    </td>
+  </ng-container>
+
+  <ng-container matColumnDef="QCUnderPercent">
+    <th mat-header-cell *matHeaderCellDef>Pass/Fail %</th>
+    <td mat-cell *matCellDef="let element">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <input matInput 
+               type="number" 
+               [value]="element.QCUnderPercent" 
+               (input)="onPercentChange(element, $any($event.target).value)"
+               [disabled]="!element.QCUnderReq"
+               maxlength="3">
+      </mat-form-field>
+    </td>
+  </ng-container>
+
+  <ng-container matColumnDef="NumberOfWeeks">
+    <th mat-header-cell *matHeaderCellDef>Weeks</th>
+    <td mat-cell *matCellDef="let element">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <input matInput 
+               type="number" 
+               [value]="element.NumberOfWeeks" 
+               (input)="onWeeksChange(element, $any($event.target).value)"
+               [disabled]="!element.QCUnderReq"
+               maxlength="2">
+      </mat-form-field>
+    </td>
+  </ng-container>
+
+  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+  <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+</table>
+
+
+styles.scss
+
+@import '@ali-hm/angular-tree-component/css/angular-tree-component.css';
+@import '@angular/material/prebuilt-themes/indigo-pink.css';
+
+html, body { height: 100%; }
+body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+.app-container {
+  padding: 20px;
+}
+
 
 
