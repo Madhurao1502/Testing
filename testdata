@@ -623,36 +623,33 @@ onRightClick(event: MouseEvent, node: ShelfNode): void {
 </div>
 
 
-saveShelfVariables(): void {
-  const changedNodes = this.getSelectedData();
-  if (changedNodes.length === 0) {
-    console.log('No changes to save.');
-    this._snackBar.openSnackBar('There are no changes to save.', 'info');
-    return;
-  }
-  console.log('Shelf Variables to save:', changedNodes);
-  // TODO: Replace with actual API call
-  // this.http.post('/api/saveShelfVars', changedNodes).subscribe(...)
+getSelectedData(): any[] {
+  const result: any[] = [];
+  const accumulate = (node: ShelfNode) => {
+    if (node.IsNewlyAdded === 'N' || node.IsNewlyAdded === 'U') {
+      result.push({
+        Id: node.Id,
+        pid: node.PId ?? null,   // Lowercase for backend compatibility
+        mainordinal: node['mainordinal'] ?? node['MainOrdinal'] ?? node.Id, // adjust as needed
+        name: node.Name,
+        allowadd: node.AllowAdd ?? '',  // Lowercase for backend
+        mainmin: node.MainMin ?? '',
+        mainmax: node.MainMax ?? '',
+        mainsoftcheck: node.MainSoftCheck ?? '',
+        mainhardcheck: node.MainHardCheck ?? '',
+        optional: node.optional ?? '',
+        value: node['value'] ?? '', // Add node.value if you have this field
+        retiredDate: node.RetiredDate ?? '',
+        lastupdateduser: node['lastupdateduser'] ?? '', // Or set using logged user
+        lastupdatedatetime: new Date().toISOString(), // Or mapped from node
+        isnewlyadded: node.IsNewlyAdded ?? '',
+      });
+    }
+    node.children?.forEach(accumulate);
+  };
+  this.dataSource.data.forEach(accumulate);
+  return result;
 }
 
-
-saveShelfVariables(): void {
-  const allShelfData = [
-    ...(this.treeLocation?.getSelectedData() || []),
-    ...(this.treeSection?.getSelectedData() || []),
-    ...(this.treeShelf?.getSelectedData() || []),
-    ...(this.treeUPC?.getSelectedData() || [])
-  ];
-
-  if (allShelfData.length === 0) {
-    console.log('No changes to save.');
-    this._snackBar.openSnackBar('There are no changes to save.', 'info');
-    return;
-  }
-  
-  console.log('All Shelf Variables to save:', allShelfData);
-  // TODO: Replace with actual API call
-  // this.http.post('/api/saveShelfVars', allShelfData).subscribe(...)
-}
 
 
