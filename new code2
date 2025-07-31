@@ -1,4 +1,5 @@
-Data Models (models/shelf-task.models.ts)```typescript
+Models
+
 export interface ShelfNode {
 id: number;
 pId: number | null;
@@ -65,19 +66,9 @@ childrenField: string;
 }
 
 
-## 2. **Service Layer (`services/shelf-task.service.ts`)**
+Servies 
 
-```typescript
-import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable } from 'rxjs';
-import { ShelfNode, ReviewCategory, TaskShelfVar } from '../models/shelf-task.models';
-
-@Injectable({
-  providedIn: 'root'
-})
-export class ShelfTaskService {
-  private taskId: number = 0;
+private taskId: number = 0;
   private taskVersion: string = '';
   private lockoutId: string = '';
   private currentUser: string = '';
@@ -100,9 +91,7 @@ export class ShelfTaskService {
   reviewCategories$ = this.reviewCategoriesSubject.asObservable();
   selectedReviewCategories$ = this.selectedReviewCategoriesSubject.asObservable();
 
-  constructor(private http: HttpClient) {}
-
-  initializeTask(taskId: number, taskVersion: string, lockoutId: string, currentUser: string) {
+initializeTask(taskId: number, taskVersion: string, lockoutId: string, currentUser: string) {
     this.taskId = taskId;
     this.taskVersion = taskVersion;
     this.lockoutId = lockoutId;
@@ -248,17 +237,621 @@ export class ShelfTaskService {
   get currentSelectedReviewCategories(): ReviewCategory[] {
     return this.selectedReviewCategoriesSubject.value;
   }
+
+
+<div class="review-categories-container">
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Categories / Keycats</mat-card-title>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <table mat-table [dataSource]="dataSource" class="categories-table" multiTemplateDataRows>
+        <ng-container matColumnDef="ReviewCategoryName">
+          <th mat-header-cell *matHeaderCellDef>Review Category</th>
+          <td mat-cell *matCellDef="let category">
+            <strong>{{ category.ReviewCategoryName }}</strong>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="Selected">
+          <th mat-header-cell *matHeaderCellDef>Selected</th>
+          <td mat-cell *matCellDef="let category">
+            <mat-checkbox 
+              [checked]="isSelected(category)"
+              [disabled]="disabled"
+              (change)="onCategorySelected(category, $event.checked)">
+            </mat-checkbox>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="QCUnderReq">
+          <th mat-header-cell *matHeaderCellDef>QC Under</th>
+          <td mat-cell *matCellDef="let category">
+            <mat-checkbox 
+              [checked]="isQCUnderSelected(category)"
+              [disabled]="disabled"
+              (change)="onQCUnderChanged(category, $event.checked)">
+            </mat-checkbox>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="QCUnderPercent">
+          <th mat-header-cell *matHeaderCellDef>Pass/Fail%</th>
+          <td mat-cell *matCellDef="let category">
+            <mat-form-field appearance="outline" class="percent-input">
+              <input matInput
+                     type="number" 
+                     [value]="getPercent(category)"
+                     [disabled]="isPercentDisabled(category)"
+                     (change)="onPercentChanged(category,$event)"
+                     (keypress)="onNumberInput($event)"
+                     maxlength="2">
+            </mat-form-field>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="NumberOfWeeks">
+          <th mat-header-cell *matHeaderCellDef>Weeks</th>
+          <td mat-cell *matCellDef="let category">
+            <mat-form-field appearance="outline" class="weeks-input">
+              <input matInput
+                     type="number" 
+                     [value]="getWeeks(category)"
+                     [disabled]="isWeeksDisabled(category)"
+                     (change)="onWeeksChanged(category, $event)"
+                     (keypress)="onNumberInput($event)"
+                     maxlength="2">
+            </mat-form-field>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="expand">
+          <th mat-header-cell *matHeaderCellDef aria-label="row actions">&nbsp;</th>
+          <td mat-cell *matCellDef="let category">
+            <button *ngIf="hasKeycats(category)"
+                    mat-icon-button 
+                    (click)="expandedElement = expandedElement === category ? null : category"
+                    [attr.aria-label]="'Expand ' + category.ReviewCategoryName">
+              <mat-icon>{{expandedElement === category ? 'expand_less' : 'expand_more'}}</mat-icon>
+            </button>
+          </td>
+        </ng-container>
+
+        <!-- Expanded Content Column - The expandable row is made up of this one column that spans across all columns -->
+        <ng-container matColumnDef="expandedDetail">
+          <td mat-cell *matCellDef="let category" [attr.colspan]="displayedColumns.length">
+            <div class="expanded-detail" [@detailExpand]="category == expandedElement ? 'expanded' : 'collapsed'">
+              <div class="keycats-container" *ngIf="keycats[category.ReviewCategoryNumber]">
+                <h4>Keycats for {{ category.ReviewCategoryName }}</h4>
+                <table mat-table [dataSource]="keycats[category.ReviewCategoryNumber]" class="keycats-table">
+                  <ng-container matColumnDef="KeycatName">
+                    <th mat-header-cell *matHeaderCellDef>Keycat Name</th>
+                    <td mat-cell *matCellDef="let keycat">{{ keycat.KeycatName }}</td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="KeycatSelected">
+                    <th mat-header-cell *matHeaderCellDef>Selected</th>
+                    <td mat-cell *matCellDef="let keycat">
+                      <mat-checkbox 
+                        [checked]="isSelected(keycat)"
+                        [disabled]="disabled"
+                        (change)="onKeycatSelected(keycat, $event.checked)">
+                      </mat-checkbox>
+                    </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="KeycatQCUnder">
+                    <th mat-header-cell *matHeaderCellDef>QC Under</th>
+                    <td mat-cell *matCellDef="let keycat">
+                      <mat-checkbox 
+                        [checked]="isQCUnderSelected(keycat)"
+                        [disabled]="disabled"
+                        (change)="onKeycatQCUnderChanged(keycat, $event.checked)">
+                      </mat-checkbox>
+                    </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="KeycatPercent">
+                    <th mat-header-cell *matHeaderCellDef>Pass/Fail%</th>
+                    <td mat-cell *matCellDef="let keycat">
+                      <mat-form-field appearance="outline" class="percent-input">
+                        <input matInput
+                               type="number" 
+                               [value]="getPercent(keycat)"
+                               [disabled]="isPercentDisabled(keycat)"
+                               (change)="onPercentChanged(keycat, $event)"
+                               (keypress)="onNumberInput($event)"
+                               maxlength="2">
+                      </mat-form-field>
+                    </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="KeycatWeeks">
+                    <th mat-header-cell *matHeaderCellDef>Weeks</th>
+                    <td mat-cell *matCellDef="let keycat">
+                      <mat-form-field appearance="outline" class="weeks-input">
+                        <input matInput
+                               type="number" 
+                               [value]="getWeeks(keycat)"
+                               [disabled]="isWeeksDisabled(keycat)"
+                               (change)="onWeeksChanged(keycat, $event)"
+                               (keypress)="onNumberInput($event)"
+                               maxlength="2">
+                      </mat-form-field>
+                    </td>
+                  </ng-container>
+
+                  <tr mat-header-row *matHeaderRowDef="['KeycatName', 'KeycatSelected', 'KeycatQCUnder', 'KeycatPercent', 'KeycatWeeks']"></tr>
+                  <tr mat-row *matRowDef="let row; columns: ['KeycatName', 'KeycatSelected', 'KeycatQCUnder', 'KeycatPercent', 'KeycatWeeks'];"></tr>
+                </table>
+              </div>
+            </div>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;" 
+            class="category-row"
+            [class.expanded-row]="expandedElement === row">
+        </tr>
+        <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="detail-row"></tr>
+      </table>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Selected Categories Display -->
+  <mat-card class="selected-categories" *ngIf="selectedCategories.length > 0">
+    <mat-card-header>
+      <mat-card-title>Selected Categories</mat-card-title>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <table mat-table [dataSource]="selectedDataSource" class="selected-table">
+        <ng-container matColumnDef="CategoryName">
+          <th mat-header-cell *matHeaderCellDef>Category Name</th>
+          <td mat-cell *matCellDef="let category">
+            {{ category.ReviewCategoryName || category.KeycatName }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="CatgDetail">
+          <th mat-header-cell *matHeaderCellDef>Type</th>
+          <td mat-cell *matCellDef="let category">
+            {{ category.KeycatNumber ? 'KeyCat' : 'Review Category' }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="CategoryID">
+          <th mat-header-cell *matHeaderCellDef>ID</th>
+          <td mat-cell *matCellDef="let category">
+            {{ category.KeycatNumber || category.ReviewCategoryNumber }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="QCUnderReq">
+          <th mat-header-cell *matHeaderCellDef>QC Under</th>
+          <td mat-cell *matCellDef="let category">
+            <mat-icon *ngIf="category.QCUnderReq === 1">check</mat-icon>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="QCUnderPercent">
+          <th mat-header-cell *matHeaderCellDef>Pass/Fail%</th>
+          <td mat-cell *matCellDef="let category">{{ category.QCUnderPercent }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="NumberOfWeeks">
+          <th mat-header-cell *matHeaderCellDef>Weeks</th>
+          <td mat-cell *matCellDef="let category">{{ category.NumberOfWeeks }}</td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="selectedDisplayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: selectedDisplayedColumns;"></tr>
+      </table>
+    </mat-card-content>
+  </mat-card>
+</div>
+
+import { Component, EventEmitter, Input, OnChanges, OnInit, Output } from '@angular/core';
+import { ReviewCategory } from '../shared/common.model';
+import { MatTableDataSource } from '@angular/material/table';
+interface CategoryRow {
+  ReviewCategoryNumber: number;
+  ReviewCategoryName: string;
+  Selected: boolean;
+  QCUnderReq: boolean;
+  QCUnderPercent: number | null;
+  NumberOfWeeks: number | null;
 }
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { Subject, takeUntil } from 'rxjs';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { ShelfTaskService } from '../services/shelf-task.service';
-import { ShelfNode, ReviewCategory, TaskShelfVar } from '../models/shelf-task.models';
+
+@Component({
+  selector: 'app-category-grid',
+  templateUrl: './category-grid.component.html',
+  styleUrls: ['./category-grid.component.css']
+})
+
+export class CategoryGridComponent implements OnInit, OnChanges {
+  @Input() categories: ReviewCategory[] = [];
+  @Input() selectedCategories: ReviewCategory[] = [];
+  @Input() disabled: boolean = false;
+  @Output() categoryChange = new EventEmitter<{category: ReviewCategory, field: string, value: any}>();
+
+  displayedColumns: string[] = [
+    'ReviewCategoryName', 
+    'Selected', 
+    'QCUnderReq', 
+    'QCUnderPercent', 
+    'NumberOfWeeks',
+    'expand'
+  ];
+
+  selectedDisplayedColumns: string[] = [
+    'CategoryName',
+    'CatgDetail', 
+    'CategoryID', 
+    'QCUnderReq', 
+    'QCUnderPercent', 
+    'NumberOfWeeks'
+  ];
+
+  reviewCategories: ReviewCategory[] = [];
+  keycats: { [key: number]: ReviewCategory[] } = {};
+  dataSource = new MatTableDataSource<ReviewCategory>();
+  selectedDataSource = new MatTableDataSource<ReviewCategory>();
+  expandedElement: ReviewCategory | null = null;
+
+  ngOnInit() {
+    this.processCategories();
+  }
+
+  ngOnChanges() {
+    this.processCategories();
+  }
+
+  private processCategories() {
+    this.reviewCategories = this.categories.filter(cat => 
+      !cat.KeycatNumber || cat.KeycatNumber === 0
+    );
+
+    this.keycats = {};
+    this.categories.forEach(cat => {
+      if (cat.KeycatNumber && cat.KeycatNumber > 0) {
+        if (!this.keycats[cat.ReviewCategoryNumber]) {
+          this.keycats[cat.ReviewCategoryNumber] = [];
+        }
+        this.keycats[cat.ReviewCategoryNumber].push(cat);
+      }
+    });
+
+    this.dataSource.data = this.reviewCategories;
+    this.selectedDataSource.data = this.selectedCategories;
+  }
+
+  onCategorySelected(category: ReviewCategory, selected: boolean) {
+    if (this.disabled) return;
+
+    if (selected) {
+      // Check if any keycats are already selected
+      const hasSelectedKeycats = this.hasSelectedKeycats(category.ReviewCategoryNumber);
+      if (hasSelectedKeycats) {
+        alert("You can't select a Category when a KeyCat from it is selected");
+        return;
+      }
+    }
+
+    this.categoryChange.emit({
+      category: category,
+      field: 'Selected',
+      value: selected ? 1 : null
+    });
+  }
+
+  onQCUnderChanged(category: ReviewCategory, qcUnder: boolean) {
+    if (this.disabled) return;
+
+    if (qcUnder) {
+      // Check if any keycats are already selected
+      const hasSelectedKeycats = this.hasSelectedKeycats(category.ReviewCategoryNumber);
+      if (hasSelectedKeycats) {
+        alert("You can't select a Category when a KeyCat from it is selected");
+        return;
+      }
+
+      // Auto-select the category and set default weeks
+      this.categoryChange.emit({
+        category: category,
+        field: 'Selected',
+        value: 1
+      });
+
+      this.categoryChange.emit({
+        category: category,
+        field: 'NumberOfWeeks',
+        value: 5
+      });
+    } else {
+      this.categoryChange.emit({
+        category: category,
+        field: 'NumberOfWeeks',
+        value: null
+      });
+
+      this.categoryChange.emit({
+        category: category,
+        field: 'QCUnderPercent',
+        value: null
+      });
+    }
+
+    this.categoryChange.emit({
+      category: category,
+      field: 'QCUnderReq',
+      value: qcUnder ? 1 : null
+    });
+  }
+
+  onPercentChanged(category: ReviewCategory, percent: Event) {
+    if (this.disabled) return;
+      const value = (percent.target as HTMLInputElement).value
+    this.categoryChange.emit({
+      category: category,
+      field: 'QCUnderPercent',
+      value: value || null
+    });
+  }
+
+  onWeeksChanged(category: ReviewCategory, weeks: Event) {
+    if (this.disabled) return;
+      const value = (weeks.target as HTMLInputElement).value
+    this.categoryChange.emit({
+      category: category,
+      field: 'NumberOfWeeks',
+      value: value || null
+    });
+  }
+
+  onKeycatSelected(keycat: ReviewCategory, selected: boolean) {
+    if (this.disabled) return;
+
+    if (selected) {
+      // Check if parent category is selected
+      const hasSelectedParent = this.hasSelectedParentCategory(keycat.ReviewCategoryNumber);
+      if (hasSelectedParent) {
+        alert("You can't select a KeyCat when its Category is selected");
+        return;
+      }
+    }
+
+    this.categoryChange.emit({
+      category: keycat,
+      field: 'Selected',
+      value: selected ? 1 : null
+    });
+  }
+
+  onKeycatQCUnderChanged(keycat: ReviewCategory, qcUnder: boolean) {
+    if (this.disabled) return;
+
+    if (qcUnder) {
+      // Check if parent category is selected
+      const hasSelectedParent = this.hasSelectedParentCategory(keycat.ReviewCategoryNumber);
+      if (hasSelectedParent) {
+        alert("You can't select a KeyCat when its Category is selected");
+        return;
+      }
+
+      // Auto-select the keycat and set default weeks
+      this.categoryChange.emit({
+        category: keycat,
+        field: 'Selected',
+        value: 1
+      });
+
+      this.categoryChange.emit({
+        category: keycat,
+        field: 'NumberOfWeeks',
+        value: 5
+      });
+    } else {
+      this.categoryChange.emit({
+        category: keycat,
+        field: 'NumberOfWeeks',
+        value: null
+      });
+
+      this.categoryChange.emit({
+        category: keycat,
+        field: 'QCUnderPercent',
+        value: null
+      });
+    }
+
+    this.categoryChange.emit({
+      category: keycat,
+      field: 'QCUnderReq',
+      value: qcUnder ? 1 : null
+    });
+  }
+
+  private hasSelectedKeycats(reviewCategoryNumber: number): boolean {
+    return this.selectedCategories.some(cat => 
+      cat.ReviewCategoryNumber === reviewCategoryNumber && 
+      cat.KeycatNumber && 
+      cat.KeycatNumber > 0
+    );
+  }
+
+  private hasSelectedParentCategory(reviewCategoryNumber: number): boolean {
+    return this.selectedCategories.some(cat => 
+      cat.ReviewCategoryNumber === reviewCategoryNumber && 
+      cat.Catg_Type === 'R'
+    );
+  }
+
+  isSelected(category: ReviewCategory): boolean {
+    return this.selectedCategories.some(selected => 
+      selected.ReviewCategoryNumber === category.ReviewCategoryNumber &&
+      selected.KeycatNumber === category.KeycatNumber &&
+      selected.Selected === 1
+    );
+  }
+
+  isQCUnderSelected(category: ReviewCategory): boolean {
+    return this.selectedCategories.some(selected => 
+      selected.ReviewCategoryNumber === category.ReviewCategoryNumber &&
+      selected.KeycatNumber === category.KeycatNumber &&
+      selected.QCUnderReq === 1
+    );
+  }
+
+  getPercent(category: ReviewCategory): number | null {
+    const selected = this.selectedCategories.find(s => 
+      s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
+      s.KeycatNumber === category.KeycatNumber
+    );
+    return selected?.QCUnderPercent || null;
+  }
+
+  getWeeks(category: ReviewCategory): number | null {
+    const selected = this.selectedCategories.find(s => 
+      s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
+      s.KeycatNumber === category.KeycatNumber
+    );
+    return selected?.NumberOfWeeks || null;
+  }
+
+  isPercentDisabled(category: ReviewCategory): boolean {
+    return this.disabled || !this.isQCUnderSelected(category);
+  }
+
+  isWeeksDisabled(category: ReviewCategory): boolean {
+    return this.disabled || !this.isQCUnderSelected(category);
+  }
+
+  hasKeycats(category: ReviewCategory): boolean {
+    return this.keycats[category.ReviewCategoryNumber] && 
+           this.keycats[category.ReviewCategoryNumber].length > 0;
+  }
+
+  // Number input validation
+  onNumberInput(event: KeyboardEvent): boolean {
+    const charCode = event.which ? event.which : event.keyCode;
+    if (charCode > 31 && (charCode < 48 || charCode > 57)) {
+      return false;
+    }
+    return true;
+  }
+}
+
+
+<div class="tree-container">
+  <app-shelf-task-tree
+    [nodes]="nodes"
+    [options]="treeOptions"
+    (activate)="onNodeActivate($event)"
+    (toggleCheckbox)="onNodeCheck($event)">
+    <ng-template #treeNodeTemplate let-node let-index="index">
+      <div class="tree-node-content">
+        <!-- Checkbox (controlled by Angular, not Tree's default ckb) -->
+        <input
+          type="checkbox"
+          [checked]="node.data.checked"
+          [disabled]="node.data.disabled || disabled"
+          (change)="onNodeCheckDirect(node)"
+          class="node-checkbox"
+        >
+
+        <!-- Node Name -->
+        <span class="node-name" [class.disabled]="node.data.disabled || disabled" (click)="onNodeActivateDirect(node)">
+          {{ node.data.name }}
+        </span>
+
+        <!-- Select All Children Action -->
+        <button
+          *ngIf="node.data.children?.length && !disabled && !node.data.disabled"
+          mat-button
+          class="select-all-btn"
+          (click)="onSelectAllChildren(node.data); $event.stopPropagation()"
+        >
+          <b>(Select all Child variables)</b>
+        </button>
+
+        <!-- Custom Input for Other Section Width -->
+        <div *ngIf="isOtherSectionWidth(node.data) && node.data.checked" class="custom-input-container">
+          <mat-form-field appearance="outline" class="custom-input">
+            <mat-label>Min</mat-label>
+            <input
+              matInput
+              type="number"
+              [value]="node.data.taskMin"
+              (input)="onCustomInputChange(node.data, 'taskMin', $event.target.value)"
+              [disabled]="disabled"
+              [min]="node.data.mainMin"
+              [max]="node.data.mainMax"
+            >
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="custom-input">
+            <mat-label>Max</mat-label>
+            <input
+              matInput
+              type="number"
+              [value]="node.data.taskMax"
+              (input)="onCustomInputChange(node.data, 'taskMax', $event.target.value)"
+              [disabled]="disabled"
+              [min]="node.data.mainMin"
+              [max]="node.data.mainMax"
+            >
+          </mat-form-field>
+        </div>
+
+        <!-- Custom Input for Other Height -->
+        <div *ngIf="isOtherHeight(node.data) && node.data.checked" class="custom-input-container">
+          <mat-form-field appearance="outline" class="custom-input">
+            <mat-label>Min</mat-label>
+            <input
+              matInput
+              type="number"
+              [value]="node.data.taskMin"
+              (input)="onCustomInputChange(node.data, 'taskMin', $event.target.value)"
+              [disabled]="disabled"
+              [min]="node.data.mainMin"
+              [max]="node.data.mainMax"
+            >
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="custom-input">
+            <mat-label>Max</mat-label>
+            <input
+              matInput
+              type="number"
+              [value]="node.data.taskMax"
+              (input)="onCustomInputChange(node.data, 'taskMax', $event.target.value)"
+              [disabled]="disabled"
+              [min]="node.data.mainMin"
+              [max]="node.data.mainMax"
+            >
+          </mat-form-field>
+        </div>
+      </div>
+    </ng-template>
+  </app-shelf-task-tree>
+</div>
+
+import { Component, OnInit, OnDestroy, Inject, Input } from '@angular/core';
+import { FormBuilder, FormGroup, Validators, AbstractControl } from '@angular/forms';
+import { forkJoin, Subject, takeUntil } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { MatDialog } from '@angular/material/dialog';
+import { CommonService } from '../shared/common.service';
+import { SnackbarService } from '../shared/snackbar.service';
+import { Router, ActivatedRoute } from '@angular/router';
+import { ReviewCategory, ShelfNode, TaskShelfVar } from '../shared/common.model';
+
 
 @Component({
   selector: 'app-shelf-task',
   templateUrl: './shelf-task.component.html',
-  styleUrls: ['./shelf-task.component.scss']
+  styleUrls: ['./shelf-task.component.css']
 })
 export class ShelfTaskComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
@@ -288,23 +881,33 @@ export class ShelfTaskComponent implements OnInit, OnDestroy {
   // Forms
   limitsForm: FormGroup;
 
-  constructor(
-    private shelfTaskService: ShelfTaskService,
-    private fb: FormBuilder
-  ) {
-    this.limitsForm = this.fb.group({
+  loggedUser: string;
+  @Input() taskId!: number;
+  @Input() taskVersion!: string;
+  @Input() lockoutId!: string;
+  
+
+  constructor(public http: HttpClient,
+      @Inject('BASE_URL') public baseUrl: string,
+      private router: Router,
+       private fb: FormBuilder,
+      private activatedRoute: ActivatedRoute,
+      private dialog: MatDialog,
+      public service: CommonService,
+      private _snackBar: SnackbarService) { this.loggedUser = localStorage.getItem('loggedUserId'); 
+      this.limitsForm = this.fb.group({
       min: ['', [Validators.pattern(/^\d+$/)]],
       max: ['', [Validators.pattern(/^\d+$/)]],
       soft: ['', [Validators.pattern(/^\d+$/)]],
       hard: ['', [Validators.pattern(/^\d+$/)]]
     });
-  }
+     }
 
   ngOnInit() {
     // Initialize with sample data (replace with actual initialization)
-    this.initializeTask(8946, 'DRAFT', '', 'currentUser');
+    this.initializeTask(this.taskId, this.taskVersion, this.lockoutId, this.loggedUser);
     
-    this.subscribeToDataStreams();
+     this.subscribeToDataStreams();
     this.loadInitialData();
     this.setupFormValidation();
   }
@@ -315,46 +918,46 @@ export class ShelfTaskComponent implements OnInit, OnDestroy {
   }
 
   private initializeTask(taskId: number, taskVersion: string, lockoutId: string, currentUser: string) {
-    this.shelfTaskService.initializeTask(taskId, taskVersion, lockoutId, currentUser);
-    this.isTaskLocked = this.shelfTaskService.isTaskLocked();
+    this.service.initializeTask(taskId, taskVersion, lockoutId, currentUser);
+    this.isTaskLocked = this.service.isTaskLocked();
   }
 
   private subscribeToDataStreams() {
     // Subscribe to tree data
-    this.shelfTaskService.locationTree$
+    this.service.locationTree$
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => this.locationTree = data);
 
-    this.shelfTaskService.sectionTree$
+    this.service.sectionTree$
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => this.sectionTree = data);
 
-    this.shelfTaskService.shelfTree$
+    this.service.shelfTree$
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => this.shelfTree = data);
 
-    this.shelfTaskService.upcTree$
+    this.service.upcTree$
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => this.upcTree = data);
 
     // Subscribe to review categories
-    this.shelfTaskService.reviewCategories$
+    this.service.reviewCategories$
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => this.reviewCategories = data);
 
-    this.shelfTaskService.selectedReviewCategories$
+    this.service.selectedReviewCategories$
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => this.selectedReviewCategories = data);
   }
 
   private loadInitialData() {
     // Load all tree data
-    this.shelfTaskService.loadAllTreeData();
+    this.service.loadAllTreeData();
 
     // Load review categories
-    this.shelfTaskService.loadReviewCategories().subscribe(result => {
-      this.shelfTaskService.updateReviewCategories(result.ReviewCategories);
-      this.shelfTaskService.updateSelectedReviewCategories(result.CollectionCategories);
+    this.service.loadReviewCategories().subscribe(result => {
+      this.service.updateReviewCategories(result.ReviewCategories);
+      this.service.updateSelectedReviewCategories(result.CollectionCategories);
     });
 
     // Set initial active tab
@@ -712,16 +1315,16 @@ export class ShelfTaskComponent implements OnInit, OnDestroy {
     // Update the appropriate tree based on current tab
     switch (this.activeTab) {
       case 'location':
-        this.shelfTaskService.updateLocationTree([...this.locationTree]);
+        this.service.updateLocationTree([...this.locationTree]);
         break;
       case 'section':
-        this.shelfTaskService.updateSectionTree([...this.sectionTree]);
+        this.service.updateSectionTree([...this.sectionTree]);
         break;
       case 'shelf':
-        this.shelfTaskService.updateShelfTree([...this.shelfTree]);
+        this.service.updateShelfTree([...this.shelfTree]);
         break;
       case 'upc':
-        this.shelfTaskService.updateUpcTree([...this.upcTree]);
+        this.service.updateUpcTree([...this.upcTree]);
         break;
     }
   }
@@ -753,7 +1356,7 @@ export class ShelfTaskComponent implements OnInit, OnDestroy {
 
     const shelfVarData = JSON.stringify(taskShelfVarObj);
 
-    this.shelfTaskService.saveShelfVarDetails(shelfVarData).subscribe({
+    this.service.saveShelfVarDetails(shelfVarData).subscribe({
       next: (result) => {
         console.log('Shelf data saved successfully', result);
         this.saveReviewCategoryDetails();
@@ -814,7 +1417,7 @@ export class ShelfTaskComponent implements OnInit, OnDestroy {
   private saveReviewCategoryDetails() {
     const reviewCats = JSON.stringify(this.selectedReviewCategories);
     
-    this.shelfTaskService.saveReviewCategoryDetails(reviewCats).subscribe({
+    this.service.saveReviewCategoryDetails(reviewCats).subscribe({
       next: (result) => {
         console.log('Review categories saved successfully', result);
         alert('Shelf data saved successfully!');
@@ -842,7 +1445,7 @@ export class ShelfTaskComponent implements OnInit, OnDestroy {
       });
     }
 
-    this.shelfTaskService.updateSelectedReviewCategories([...this.selectedReviewCategories]);
+    this.service.updateSelectedReviewCategories([...this.selectedReviewCategories]);
   }
 
   // Number-only input handler
@@ -854,16 +1457,123 @@ export class ShelfTaskComponent implements OnInit, OnDestroy {
     return true;
   }
 }
-import { Component, Input, Output, EventEmitter } from '@angular/core';
-import { ITreeOptions } from '@ali-hm/angular-tree-component';
-import { ShelfNode } from '../models/shelf-task.models';
+
+
+<div class="tree-container">
+  <tree-root 
+    [nodes]="nodes" 
+    [options]="treeOptions"
+    (activate)="onNodeActivate($event)"
+    (toggleExpanded)="onNodeCheck($event)">
+    
+    <ng-template #treeNodeTemplate let-node let-index="index">
+      <div class="tree-node-content">
+        <!-- Checkbox -->
+        <input type="checkbox" 
+               [checked]="node.data.checked"
+               [disabled]="node.data.disabled || disabled"
+               (change)="onNodeCheck($event)"
+               class="node-checkbox">
+
+        <!-- Node Name -->
+        <span class="node-name" 
+              [class.disabled]="node.data.disabled || disabled"
+              (click)="onNodeActivate($event)">
+          {{ node.data.name }}
+        </span>
+
+        <!-- Select All Children Button -->
+        <button *ngIf="node.data.isParent && !disabled" 
+                mat-button 
+                class="select-all-btn"
+                (click)="onSelectAllChildren(node.data)">
+          <b>(Select all Child variables)</b>
+        </button>
+
+        <!-- Custom Input for Other Section Width -->
+        <div *ngIf="isOtherSectionWidth(node.data) && node.data.checked" 
+             class="custom-input-container">
+          <mat-form-field appearance="outline" class="custom-input">
+            <mat-label>Min</mat-label>
+            <input matInput 
+                   type="number"
+                   [value]="node.data.taskMin"
+                   (change)="onCustomInputChange(node.data, 'taskMin', $event)"
+                   [disabled]="disabled"
+                   [min]="node.data.mainMin"
+                   [max]="node.data.mainMax">
+          </mat-form-field>
+          
+          <mat-form-field appearance="outline" class="custom-input">
+            <mat-label>Max</mat-label>
+            <input matInput 
+                   type="number"
+                   [value]="node.data.taskMax"
+                   (change)="onCustomInputChange(node.data, 'taskMax', $event)"
+                   [disabled]="disabled"
+                   [min]="node.data.mainMin"
+                   [max]="node.data.mainMax">
+          </mat-form-field>
+        </div>
+
+        <!-- Custom Input for Other Height -->
+        <div *ngIf="isOtherHeight(node.data) && node.data.checked" 
+             class="custom-input-container">
+          <mat-form-field appearance="outline" class="custom-input">
+            <mat-label>Min</mat-label>
+            <input matInput 
+                   type="number"
+                   [value]="node.data.taskMin"
+                   (change)="onCustomInputChange(node.data, 'taskMin', $event)"
+                   [disabled]="disabled"
+                   [min]="node.data.mainMin"
+                   [max]="node.data.mainMax">
+          </mat-form-field>
+          
+          <mat-form-field appearance="outline" class="custom-input">
+            <mat-label>Max</mat-label>
+            <input matInput 
+                   type="number"
+                   [value]="node.data.taskMax"
+                   (change)="onCustomInputChange(node.data, 'taskMax', $event)"
+                   [disabled]="disabled"
+                   [min]="node.data.mainMin"
+                   [max]="node.data.mainMax">
+          </mat-form-field>
+        </div>
+      </div>
+    </ng-template>
+  </tree-root>
+</div>
+import { Component, EventEmitter, Inject, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
+import {  ShelfNode } from '../shared/common.model';
+import { HttpClient } from '@angular/common/http';
+import { MatDialog } from '@angular/material/dialog';
+import { Router, ActivatedRoute } from '@angular/router';
+import { Subject, takeUntil } from 'rxjs';
+import { CommonService } from '../shared/common.service';
+import { SnackbarService } from '../shared/snackbar.service';
+import { ITreeOptions, TreeNode } from '@ali-hm/angular-tree-component';
 
 @Component({
-  selector: 'app-shelf-tree',
-  templateUrl: './shelf-tree.component.html',
-  styleUrls: ['./shelf-tree.component.scss']
+  selector: 'app-shelf-task-tree',
+  templateUrl: './shelf-task-tree.component.html',
+  styleUrls: ['./shelf-task-tree.component.css']
 })
-export class ShelfTreeComponent {
+export class ShelfTaskTreeComponent implements OnInit  {
+ 
+  showSpinner: boolean;
+  loggedUser: string;
+  private unsubscribe$ = new Subject<void>();
+  constructor( public http: HttpClient,
+          @Inject('BASE_URL') public baseUrl: string,
+          private router: Router,
+          private activatedRoute: ActivatedRoute,
+          private dialog: MatDialog,
+          public service: CommonService,
+          private _snackBar: SnackbarService, 
+    ) {  this.loggedUser = localStorage.getItem("loggedUserId");}
+
   @Input() nodes: ShelfNode[] = [];
   @Input() disabled: boolean = false;
   @Output() nodeSelect = new EventEmitter<ShelfNode>();
@@ -882,6 +1592,10 @@ export class ShelfTreeComponent {
   onNodeActivate(event: any) {
     const node: ShelfNode = event.node.data;
     this.nodeSelect.emit(node);
+  }
+
+  ngOnInit() {
+    
   }
 
   onNodeCheck(event: any) {
@@ -930,652 +1644,15 @@ export class ShelfTreeComponent {
     return node.name === 'Other Height' && node.var_type_id === 2;
   }
 
-  onCustomInputChange(node: ShelfNode, field: string, value: string) {
-    (node as any)[field] = value;
+  onCustomInputChange(node: ShelfNode, field: string, val: Event) {
+    const str = (val.target as HTMLInputElement).value;
+    (node as any)[field] = str;
     this.nodeCheck.emit(node);
   }
 }
-<div class="tree-container">
-  <tree-root 
-    [nodes]="nodes" 
-    [options]="treeOptions"
-    (activate)="onNodeActivate($event)"
-    (toggleExpanded)="onNodeCheck($event)">
-    
-    <ng-template #treeNodeTemplate let-node let-index="index">
-      <div class="tree-node-content">
-        <!-- Checkbox -->
-        <input type="checkbox" 
-               [checked]="node.data.checked"
-               [disabled]="node.data.disabled || disabled"
-               (change)="onNodeCheck($event)"
-               class="node-checkbox">
 
-        <!-- Node Name -->
-        <span class="node-name" 
-              [class.disabled]="node.data.disabled || disabled"
-              (click)="onNodeActivate($event)">
-          {{ node.data.name }}
-        </span>
 
-        <!-- Select All Children Button -->
-        <button *ngIf="node.data.isParent && !disabled" 
-                mat-button 
-                class="select-all-btn"
-                (click)="onSelectAllChildren(node.data)">
-          <b>(Select all Child variables)</b>
-        </button>
 
-        <!-- Custom Input for Other Section Width -->
-        <div *ngIf="isOtherSectionWidth(node.data) && node.data.checked" 
-             class="custom-input-container">
-          <mat-form-field appearance="outline" class="custom-input">
-            <mat-label>Min</mat-label>
-            <input matInput 
-                   type="number"
-                   [value]="node.data.taskMin"
-                   (change)="onCustomInputChange(node.data, 'taskMin', $event.target.value)"
-                   [disabled]="disabled"
-                   [min]="node.data.mainMin"
-                   [max]="node.data.mainMax">
-          </mat-form-field>
-          
-          <mat-form-field appearance="outline" class="custom-input">
-            <mat-label>Max</mat-label>
-            <input matInput 
-                   type="number"
-                   [value]="node.data.taskMax"
-                   (change)="onCustomInputChange(node.data, 'taskMax', $event.target.value)"
-                   [disabled]="disabled"
-                   [min]="node.data.mainMin"
-                   [max]="node.data.mainMax">
-          </mat-form-field>
-        </div>
 
-        <!-- Custom Input for Other Height -->
-        <div *ngIf="isOtherHeight(node.data) && node.data.checked" 
-             class="custom-input-container">
-          <mat-form-field appearance="outline" class="custom-input">
-            <mat-label>Min</mat-label>
-            <input matInput 
-                   type="number"
-                   [value]="node.data.taskMin"
-                   (change)="onCustomInputChange(node.data, 'taskMin', $event.target.value)"
-                   [disabled]="disabled"
-                   [min]="node.data.mainMin"
-                   [max]="node.data.mainMax">
-          </mat-form-field>
-          
-          <mat-form-field appearance="outline" class="custom-input">
-            <mat-label>Max</mat-label>
-            <input matInput 
-                   type="number"
-                   [value]="node.data.taskMax"
-                   (change)="onCustomInputChange(node.data, 'taskMax', $event.target.value)"
-                   [disabled]="disabled"
-                   [min]="node.data.mainMin"
-                   [max]="node.data.mainMax">
-          </mat-form-field>
-        </div>
-      </div>
-    </ng-template>
-  </tree-root>
-</div>
- Data Models (models/shelf-task.models.ts)```typescript
-export interface ShelfNode {
-id: number;
-pId: number | null;
-name: string;
-checked: boolean;
-children?: ShelfNode[];
-value?: number;
-optional?: string;
-varlabel?: string;
-var_type_id?: number;
-shelf_var_lookup?: string;
-no_display?: string;
-mainMin?: string | number;
-mainMax?: string | number;
-main_soft_check?: string | number;
-main_hard_check?: string | number;
-taskMin?: string | number;
-taskMax?: string | number;
-task_soft_check?: string | number;
-task_hard_check?: string | number;
-mainOrdinal?: number;
-taskOrdinal?: number;
-task_number?: number;
-disabled?: boolean;
-isParent?: boolean;
-open?: boolean;
-}
 
-export interface ReviewCategory {
-ReviewCategoryNumber: number;
-TaskNumber?: number;
-Catg_Type?: string;
-ReviewCategoryName: string;
-KeycatNumber?: number;
-KeycatName?: string;
-Selected?: number | null;
-QCUnderReq?: number | null;
-QCUnderPercent?: number | null;
-NumberOfWeeks?: number | null;
-Stub_Name?: string;
-Stub_Type?: string;
-TranslationTask?: any;
-}
 
-export interface TaskShelfVar {
-task_number: number;
-prompt_level: number;
-ShelfVarID: number;
-min?: string | number;
-max?: string | number;
-soft_check?: string | number;
-hard_check?: string | number;
-ordinal?: number;
-name: string;
-}
-
-export interface TreeOptions {
-useCheckbox: boolean;
-useTriState: boolean;
-allowDrag?: boolean;
-allowDrop?: boolean;
-displayField: string;
-childrenField: string;
-}import { Component, Input, Output, EventEmitter, OnInit, OnChanges } from '@angular/core';
-import { MatTableDataSource } from '@angular/material/table';
-import { ReviewCategory } from '../models/shelf-task.models';
-
-@Component({
-  selector: 'app-review-category-grid',
-  templateUrl: './review-category-grid.component.html',
-  styleUrls: ['./review-category-grid.component.scss']
-})
-export class ReviewCategoryGridComponent implements OnInit, OnChanges {
-  @Input() categories: ReviewCategory[] = [];
-  @Input() selectedCategories: ReviewCategory[] = [];
-  @Input() disabled: boolean = false;
-  @Output() categoryChange = new EventEmitter<{category: ReviewCategory, field: string, value: any}>();
-
-  displayedColumns: string[] = [
-    'ReviewCategoryName', 
-    'Selected', 
-    'QCUnderReq', 
-    'QCUnderPercent', 
-    'NumberOfWeeks',
-    'expand'
-  ];
-
-  selectedDisplayedColumns: string[] = [
-    'CategoryName',
-    'CatgDetail', 
-    'CategoryID', 
-    'QCUnderReq', 
-    'QCUnderPercent', 
-    'NumberOfWeeks'
-  ];
-
-  reviewCategories: ReviewCategory[] = [];
-  keycats: { [key: number]: ReviewCategory[] } = {};
-  dataSource = new MatTableDataSource<ReviewCategory>();
-  selectedDataSource = new MatTableDataSource<ReviewCategory>();
-  expandedElement: ReviewCategory | null = null;
-
-  ngOnInit() {
-    this.processCategories();
-  }
-
-  ngOnChanges() {
-    this.processCategories();
-  }
-
-  private processCategories() {
-    this.reviewCategories = this.categories.filter(cat => 
-      !cat.KeycatNumber || cat.KeycatNumber === 0
-    );
-
-    this.keycats = {};
-    this.categories.forEach(cat => {
-      if (cat.KeycatNumber && cat.KeycatNumber > 0) {
-        if (!this.keycats[cat.ReviewCategoryNumber]) {
-          this.keycats[cat.ReviewCategoryNumber] = [];
-        }
-        this.keycats[cat.ReviewCategoryNumber].push(cat);
-      }
-    });
-
-    this.dataSource.data = this.reviewCategories;
-    this.selectedDataSource.data = this.selectedCategories;
-  }
-
-  onCategorySelected(category: ReviewCategory, selected: boolean) {
-    if (this.disabled) return;
-
-    if (selected) {
-      // Check if any keycats are already selected
-      const hasSelectedKeycats = this.hasSelectedKeycats(category.ReviewCategoryNumber);
-      if (hasSelectedKeycats) {
-        alert("You can't select a Category when a KeyCat from it is selected");
-        return;
-      }
-    }
-
-    this.categoryChange.emit({
-      category: category,
-      field: 'Selected',
-      value: selected ? 1 : null
-    });
-  }
-
-  onQCUnderChanged(category: ReviewCategory, qcUnder: boolean) {
-    if (this.disabled) return;
-
-    if (qcUnder) {
-      // Check if any keycats are already selected
-      const hasSelectedKeycats = this.hasSelectedKeycats(category.ReviewCategoryNumber);
-      if (hasSelectedKeycats) {
-        alert("You can't select a Category when a KeyCat from it is selected");
-        return;
-      }
-
-      // Auto-select the category and set default weeks
-      this.categoryChange.emit({
-        category: category,
-        field: 'Selected',
-        value: 1
-      });
-
-      this.categoryChange.emit({
-        category: category,
-        field: 'NumberOfWeeks',
-        value: 5
-      });
-    } else {
-      this.categoryChange.emit({
-        category: category,
-        field: 'NumberOfWeeks',
-        value: null
-      });
-
-      this.categoryChange.emit({
-        category: category,
-        field: 'QCUnderPercent',
-        value: null
-      });
-    }
-
-    this.categoryChange.emit({
-      category: category,
-      field: 'QCUnderReq',
-      value: qcUnder ? 1 : null
-    });
-  }
-
-  onPercentChanged(category: ReviewCategory, percent: number) {
-    if (this.disabled) return;
-
-    this.categoryChange.emit({
-      category: category,
-      field: 'QCUnderPercent',
-      value: percent || null
-    });
-  }
-
-  onWeeksChanged(category: ReviewCategory, weeks: number) {
-    if (this.disabled) return;
-
-    this.categoryChange.emit({
-      category: category,
-      field: 'NumberOfWeeks',
-      value: weeks || null
-    });
-  }
-
-  onKeycatSelected(keycat: ReviewCategory, selected: boolean) {
-    if (this.disabled) return;
-
-    if (selected) {
-      // Check if parent category is selected
-      const hasSelectedParent = this.hasSelectedParentCategory(keycat.ReviewCategoryNumber);
-      if (hasSelectedParent) {
-        alert("You can't select a KeyCat when its Category is selected");
-        return;
-      }
-    }
-
-    this.categoryChange.emit({
-      category: keycat,
-      field: 'Selected',
-      value: selected ? 1 : null
-    });
-  }
-
-  onKeycatQCUnderChanged(keycat: ReviewCategory, qcUnder: boolean) {
-    if (this.disabled) return;
-
-    if (qcUnder) {
-      // Check if parent category is selected
-      const hasSelectedParent = this.hasSelectedParentCategory(keycat.ReviewCategoryNumber);
-      if (hasSelectedParent) {
-        alert("You can't select a KeyCat when its Category is selected");
-        return;
-      }
-
-      // Auto-select the keycat and set default weeks
-      this.categoryChange.emit({
-        category: keycat,
-        field: 'Selected',
-        value: 1
-      });
-
-      this.categoryChange.emit({
-        category: keycat,
-        field: 'NumberOfWeeks',
-        value: 5
-      });
-    } else {
-      this.categoryChange.emit({
-        category: keycat,
-        field: 'NumberOfWeeks',
-        value: null
-      });
-
-      this.categoryChange.emit({
-        category: keycat,
-        field: 'QCUnderPercent',
-        value: null
-      });
-    }
-
-    this.categoryChange.emit({
-      category: keycat,
-      field: 'QCUnderReq',
-      value: qcUnder ? 1 : null
-    });
-  }
-
-  private hasSelectedKeycats(reviewCategoryNumber: number): boolean {
-    return this.selectedCategories.some(cat => 
-      cat.ReviewCategoryNumber === reviewCategoryNumber && 
-      cat.KeycatNumber && 
-      cat.KeycatNumber > 0
-    );
-  }
-
-  private hasSelectedParentCategory(reviewCategoryNumber: number): boolean {
-    return this.selectedCategories.some(cat => 
-      cat.ReviewCategoryNumber === reviewCategoryNumber && 
-      cat.Catg_Type === 'R'
-    );
-  }
-
-  isSelected(category: ReviewCategory): boolean {
-    return this.selectedCategories.some(selected => 
-      selected.ReviewCategoryNumber === category.ReviewCategoryNumber &&
-      selected.KeycatNumber === category.KeycatNumber &&
-      selected.Selected === 1
-    );
-  }
-
-  isQCUnderSelected(category: ReviewCategory): boolean {
-    return this.selectedCategories.some(selected => 
-      selected.ReviewCategoryNumber === category.ReviewCategoryNumber &&
-      selected.KeycatNumber === category.KeycatNumber &&
-      selected.QCUnderReq === 1
-    );
-  }
-
-  getPercent(category: ReviewCategory): number | null {
-    const selected = this.selectedCategories.find(s => 
-      s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
-      s.KeycatNumber === category.KeycatNumber
-    );
-    return selected?.QCUnderPercent || null;
-  }
-
-  getWeeks(category: ReviewCategory): number | null {
-    const selected = this.selectedCategories.find(s => 
-      s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
-      s.KeycatNumber === category.KeycatNumber
-    );
-    return selected?.NumberOfWeeks || null;
-  }
-
-  isPercentDisabled(category: ReviewCategory): boolean {
-    return this.disabled || !this.isQCUnderSelected(category);
-  }
-
-  isWeeksDisabled(category: ReviewCategory): boolean {
-    return this.disabled || !this.isQCUnderSelected(category);
-  }
-
-  hasKeycats(category: ReviewCategory): boolean {
-    return this.keycats[category.ReviewCategoryNumber] && 
-           this.keycats[category.ReviewCategoryNumber].length > 0;
-  }
-
-  // Number input validation
-  onNumberInput(event: KeyboardEvent): boolean {
-    const charCode = event.which ? event.which : event.keyCode;
-    if (charCode > 31 && (charCode < 48 || charCode > 57)) {
-      return false;
-    }
-    return true;
-  }
-}
-<div class="review-categories-container">
-  <mat-card>
-    <mat-card-header>
-      <mat-card-title>Categories / Keycats</mat-card-title>
-    </mat-card-header>
-    
-    <mat-card-content>
-      <table mat-table [dataSource]="dataSource" class="categories-table" multiTemplateDataRows>
-        <ng-container matColumnDef="ReviewCategoryName">
-          <th mat-header-cell *matHeaderCellDef>Review Category</th>
-          <td mat-cell *matCellDef="let category">
-            <strong>{{ category.ReviewCategoryName }}</strong>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="Selected">
-          <th mat-header-cell *matHeaderCellDef>Selected</th>
-          <td mat-cell *matCellDef="let category">
-            <mat-checkbox 
-              [checked]="isSelected(category)"
-              [disabled]="disabled"
-              (change)="onCategorySelected(category, $event.checked)">
-            </mat-checkbox>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="QCUnderReq">
-          <th mat-header-cell *matHeaderCellDef>QC Under</th>
-          <td mat-cell *matCellDef="let category">
-            <mat-checkbox 
-              [checked]="isQCUnderSelected(category)"
-              [disabled]="disabled"
-              (change)="onQCUnderChanged(category, $event.checked)">
-            </mat-checkbox>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="QCUnderPercent">
-          <th mat-header-cell *matHeaderCellDef>Pass/Fail%</th>
-          <td mat-cell *matCellDef="let category">
-            <mat-form-field appearance="outline" class="percent-input">
-              <input matInput
-                     type="number" 
-                     [value]="getPercent(category)"
-                     [disabled]="isPercentDisabled(category)"
-                     (change)="onPercentChanged(category, $event.target.value)"
-                     (keypress)="onNumberInput($event)"
-                     maxlength="2">
-            </mat-form-field>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="NumberOfWeeks">
-          <th mat-header-cell *matHeaderCellDef>Weeks</th>
-          <td mat-cell *matCellDef="let category">
-            <mat-form-field appearance="outline" class="weeks-input">
-              <input matInput
-                     type="number" 
-                     [value]="getWeeks(category)"
-                     [disabled]="isWeeksDisabled(category)"
-                     (change)="onWeeksChanged(category, $event.target.value)"
-                     (keypress)="onNumberInput($event)"
-                     maxlength="2">
-            </mat-form-field>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="expand">
-          <th mat-header-cell *matHeaderCellDef aria-label="row actions">&nbsp;</th>
-          <td mat-cell *matCellDef="let category">
-            <button *ngIf="hasKeycats(category)"
-                    mat-icon-button 
-                    (click)="expandedElement = expandedElement === category ? null : category"
-                    [attr.aria-label]="'Expand ' + category.ReviewCategoryName">
-              <mat-icon>{{expandedElement === category ? 'expand_less' : 'expand_more'}}</mat-icon>
-            </button>
-          </td>
-        </ng-container>
-
-        <!-- Expanded Content Column - The expandable row is made up of this one column that spans across all columns -->
-        <ng-container matColumnDef="expandedDetail">
-          <td mat-cell *matCellDef="let category" [attr.colspan]="displayedColumns.length">
-            <div class="expanded-detail" [@detailExpand]="category == expandedElement ? 'expanded' : 'collapsed'">
-              <div class="keycats-container" *ngIf="keycats[category.ReviewCategoryNumber]">
-                <h4>Keycats for {{ category.ReviewCategoryName }}</h4>
-                <table mat-table [dataSource]="keycats[category.ReviewCategoryNumber]" class="keycats-table">
-                  <ng-container matColumnDef="KeycatName">
-                    <th mat-header-cell *matHeaderCellDef>Keycat Name</th>
-                    <td mat-cell *matCellDef="let keycat">{{ keycat.KeycatName }}</td>
-                  </ng-container>
-
-                  <ng-container matColumnDef="KeycatSelected">
-                    <th mat-header-cell *matHeaderCellDef>Selected</th>
-                    <td mat-cell *matCellDef="let keycat">
-                      <mat-checkbox 
-                        [checked]="isSelected(keycat)"
-                        [disabled]="disabled"
-                        (change)="onKeycatSelected(keycat, $event.checked)">
-                      </mat-checkbox>
-                    </td>
-                  </ng-container>
-
-                  <ng-container matColumnDef="KeycatQCUnder">
-                    <th mat-header-cell *matHeaderCellDef>QC Under</th>
-                    <td mat-cell *matCellDef="let keycat">
-                      <mat-checkbox 
-                        [checked]="isQCUnderSelected(keycat)"
-                        [disabled]="disabled"
-                        (change)="onKeycatQCUnderChanged(keycat, $event.checked)">
-                      </mat-checkbox>
-                    </td>
-                  </ng-container>
-
-                  <ng-container matColumnDef="KeycatPercent">
-                    <th mat-header-cell *matHeaderCellDef>Pass/Fail%</th>
-                    <td mat-cell *matCellDef="let keycat">
-                      <mat-form-field appearance="outline" class="percent-input">
-                        <input matInput
-                               type="number" 
-                               [value]="getPercent(keycat)"
-                               [disabled]="isPercentDisabled(keycat)"
-                               (change)="onPercentChanged(keycat, $event.target.value)"
-                               (keypress)="onNumberInput($event)"
-                               maxlength="2">
-                      </mat-form-field>
-                    </td>
-                  </ng-container>
-
-                  <ng-container matColumnDef="KeycatWeeks">
-                    <th mat-header-cell *matHeaderCellDef>Weeks</th>
-                    <td mat-cell *matCellDef="let keycat">
-                      <mat-form-field appearance="outline" class="weeks-input">
-                        <input matInput
-                               type="number" 
-                               [value]="getWeeks(keycat)"
-                               [disabled]="isWeeksDisabled(keycat)"
-                               (change)="onWeeksChanged(keycat, $event.target.value)"
-                               (keypress)="onNumberInput($event)"
-                               maxlength="2">
-                      </mat-form-field>
-                    </td>
-                  </ng-container>
-
-                  <tr mat-header-row *matHeaderRowDef="['KeycatName', 'KeycatSelected', 'KeycatQCUnder', 'KeycatPercent', 'KeycatWeeks']"></tr>
-                  <tr mat-row *matRowDef="let row; columns: ['KeycatName', 'KeycatSelected', 'KeycatQCUnder', 'KeycatPercent', 'KeycatWeeks'];"></tr>
-                </table>
-              </div>
-            </div>
-          </td>
-        </ng-container>
-
-        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;" 
-            class="category-row"
-            [class.expanded-row]="expandedElement === row">
-        </tr>
-        <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="detail-row"></tr>
-      </table>
-    </mat-card-content>
-  </mat-card>
-
-  <!-- Selected Categories Display -->
-  <mat-card class="selected-categories" *ngIf="selectedCategories.length > 0">
-    <mat-card-header>
-      <mat-card-title>Selected Categories</mat-card-title>
-    </mat-card-header>
-    
-    <mat-card-content>
-      <table mat-table [dataSource]="selectedDataSource" class="selected-table">
-        <ng-container matColumnDef="CategoryName">
-          <th mat-header-cell *matHeaderCellDef>Category Name</th>
-          <td mat-cell *matCellDef="let category">
-            {{ category.ReviewCategoryName || category.KeycatName }}
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="CatgDetail">
-          <th mat-header-cell *matHeaderCellDef>Type</th>
-          <td mat-cell *matCellDef="let category">
-            {{ category.KeycatNumber ? 'KeyCat' : 'Review Category' }}
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="CategoryID">
-          <th mat-header-cell *matHeaderCellDef>ID</th>
-          <td mat-cell *matCellDef="let category">
-            {{ category.KeycatNumber || category.ReviewCategoryNumber }}
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="QCUnderReq">
-          <th mat-header-cell *matHeaderCellDef>QC Under</th>
-          <td mat-cell *matCellDef="let category">
-            <mat-icon *ngIf="category.QCUnderReq === 1">check</mat-icon>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="QCUnderPercent">
-          <th mat-header-cell *matHeaderCellDef>Pass/Fail%</th>
-          <td mat-cell *matCellDef="let category">{{ category.QCUnderPercent }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="NumberOfWeeks">
-          <th mat-header-cell *matHeaderCellDef>Weeks</th>
-          <td mat-cell *matCellDef="let category">{{ category.NumberOfWeeks }}</td>
-        </ng-container>
-
-        <tr mat-header-row *matHeaderRowDef="selectedDisplayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: selectedDisplayedColumns;"></tr>
-      </table>
-    </mat-card-content>
-  </mat-card>
-</div>
