@@ -89,3 +89,29 @@
     </ng-template>
   </tree-root>
 </div>
+
+
+tabNames = ['location', 'section', 'shelf', 'upc'];  // Define tab names array once as property
+
+selectedTabIndex = 0;  // number for mat-tab-group selectedIndex
+
+// In ngOnInit or constructor, initialize selectedTabIndex from activeTab if needed
+ngOnInit() {
+  this.selectedTabIndex = this.tabNames.indexOf(this.activeTab);
+  // other code ...
+}
+
+// Update on tab change:
+onTabChangeByIndex(index: number) {
+  this.selectedTabIndex = index;
+  this.activeTab = this.tabNames[index];
+  
+  // any other logic on tab change...
+  this.onTabChange(this.activeTab);  // you already have an onTabChange method
+}
+<mat-tab-group 
+  [(selectedIndex)]="selectedTabIndex" 
+  (selectedIndexChange)="onTabChangeByIndex($event)">
+  <!-- tabs as before -->
+</mat-tab-group>
+
