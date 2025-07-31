@@ -1652,7 +1652,7 @@ export class ShelfTaskTreeComponent implements OnInit  {
 }
 
 
-
+  <app-shelf-task [taskId]="returnTaskID()" [lockoutId]="returnLockoutId()" [taskVersion]="returnVersionCode()"></app-shelf-task>
 
 
 
