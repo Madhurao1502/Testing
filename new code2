@@ -1,0 +1,1581 @@
+Data Models (models/shelf-task.models.ts)```typescript
+export interface ShelfNode {
+id: number;
+pId: number | null;
+name: string;
+checked: boolean;
+children?: ShelfNode[];
+value?: number;
+optional?: string;
+varlabel?: string;
+var_type_id?: number;
+shelf_var_lookup?: string;
+no_display?: string;
+mainMin?: string | number;
+mainMax?: string | number;
+main_soft_check?: string | number;
+main_hard_check?: string | number;
+taskMin?: string | number;
+taskMax?: string | number;
+task_soft_check?: string | number;
+task_hard_check?: string | number;
+mainOrdinal?: number;
+taskOrdinal?: number;
+task_number?: number;
+disabled?: boolean;
+isParent?: boolean;
+open?: boolean;
+}
+
+export interface ReviewCategory {
+ReviewCategoryNumber: number;
+TaskNumber?: number;
+Catg_Type?: string;
+ReviewCategoryName: string;
+KeycatNumber?: number;
+KeycatName?: string;
+Selected?: number | null;
+QCUnderReq?: number | null;
+QCUnderPercent?: number | null;
+NumberOfWeeks?: number | null;
+Stub_Name?: string;
+Stub_Type?: string;
+TranslationTask?: any;
+}
+
+export interface TaskShelfVar {
+task_number: number;
+prompt_level: number;
+ShelfVarID: number;
+min?: string | number;
+max?: string | number;
+soft_check?: string | number;
+hard_check?: string | number;
+ordinal?: number;
+name: string;
+}
+
+export interface TreeOptions {
+useCheckbox: boolean;
+useTriState: boolean;
+allowDrag?: boolean;
+allowDrop?: boolean;
+displayField: string;
+childrenField: string;
+}
+
+
+## 2. **Service Layer (`services/shelf-task.service.ts`)**
+
+```typescript
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { BehaviorSubject, Observable } from 'rxjs';
+import { ShelfNode, ReviewCategory, TaskShelfVar } from '../models/shelf-task.models';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class ShelfTaskService {
+  private taskId: number = 0;
+  private taskVersion: string = '';
+  private lockoutId: string = '';
+  private currentUser: string = '';
+
+  // Tree data subjects
+  private locationTreeSubject = new BehaviorSubject<ShelfNode[]>([]);
+  private sectionTreeSubject = new BehaviorSubject<ShelfNode[]>([]);
+  private shelfTreeSubject = new BehaviorSubject<ShelfNode[]>([]);
+  private upcTreeSubject = new BehaviorSubject<ShelfNode[]>([]);
+
+  // Review category subjects
+  private reviewCategoriesSubject = new BehaviorSubject<ReviewCategory[]>([]);
+  private selectedReviewCategoriesSubject = new BehaviorSubject<ReviewCategory[]>([]);
+
+  // Observable streams
+  locationTree$ = this.locationTreeSubject.asObservable();
+  sectionTree$ = this.sectionTreeSubject.asObservable();
+  shelfTree$ = this.shelfTreeSubject.asObservable();
+  upcTree$ = this.upcTreeSubject.asObservable();
+  reviewCategories$ = this.reviewCategoriesSubject.asObservable();
+  selectedReviewCategories$ = this.selectedReviewCategoriesSubject.asObservable();
+
+  constructor(private http: HttpClient) {}
+
+  initializeTask(taskId: number, taskVersion: string, lockoutId: string, currentUser: string) {
+    this.taskId = taskId;
+    this.taskVersion = taskVersion;
+    this.lockoutId = lockoutId;
+    this.currentUser = currentUser;
+  }
+
+  loadShelfVar(grp: number): Observable<ShelfNode[]> {
+    return this.http.post<ShelfNode[]>('/Task/GetTaskShelfVar', { 
+      taskId: this.taskId, 
+      grp: grp 
+    });
+  }
+
+  loadAllTreeData() {
+    // Load Location tree (grp: 1)
+    this.loadShelfVar(1).subscribe(data => {
+      const processedData = this.processTreeData(data);
+      this.locationTreeSubject.next(processedData);
+    });
+
+    // Load Section tree (grp: 2)
+    this.loadShelfVar(2).subscribe(data => {
+      const processedData = this.processTreeData(data);
+      this.sectionTreeSubject.next(processedData);
+    });
+
+    // Load Shelf tree (grp: 3)
+    this.loadShelfVar(3).subscribe(data => {
+      const processedData = this.processTreeData(data);
+      this.shelfTreeSubject.next(processedData);
+    });
+
+    // Load UPC tree (grp: 4)
+    this.loadShelfVar(4).subscribe(data => {
+      const processedData = this.processTreeData(data);
+      this.upcTreeSubject.next(processedData);
+    });
+  }
+
+  loadReviewCategories(): Observable<{ReviewCategories: ReviewCategory[], CollectionCategories: ReviewCategory[]}> {
+    return this.http.post<{ReviewCategories: ReviewCategory[], CollectionCategories: ReviewCategory[]}>(
+      '/Task/GetReviewCategoryDetailsForShelf', 
+      { task_number: this.taskId }
+    );
+  }
+
+  saveShelfVarDetails(shelfVarData: string): Observable<any> {
+    return this.http.post('/Task/SaveShelfVarDetails', {
+      shelfVarData: shelfVarData,
+      taskId: this.taskId
+    });
+  }
+
+  saveReviewCategoryDetails(reviewCats: string): Observable<any> {
+    return this.http.post('/Task/SaveReviewCategoryDetailsForShelf', {
+      reviewCats: reviewCats,
+      task_number: this.taskId
+    });
+  }
+
+  private processTreeData(data: ShelfNode[]): ShelfNode[] {
+    const nodeMap = new Map<number, ShelfNode>();
+    const rootNodes: ShelfNode[] = [];
+
+    // First pass: create all nodes
+    data.forEach(item => {
+      const node: ShelfNode = {
+        ...item,
+        children: [],
+        isParent: false,
+        disabled: this.isTaskLocked() || item.optional !== 'Y'
+      };
+      nodeMap.set(item.id, node);
+    });
+
+    // Second pass: build tree structure
+    data.forEach(item => {
+      const node = nodeMap.get(item.id)!;
+      if (item.pId === null || item.pId === 0) {
+        rootNodes.push(node);
+      } else {
+        const parent = nodeMap.get(item.pId);
+        if (parent) {
+          parent.children!.push(node);
+          parent.isParent = true;
+        }
+      }
+    });
+
+    return rootNodes;
+  }
+
+  isTaskLocked(): boolean {
+    return this.taskVersion === 'FNL' || this.lockoutId !== this.currentUser;
+  }
+
+  // Tree update methods
+  updateLocationTree(data: ShelfNode[]) {
+    this.locationTreeSubject.next(data);
+  }
+
+  updateSectionTree(data: ShelfNode[]) {
+    this.sectionTreeSubject.next(data);
+  }
+
+  updateShelfTree(data: ShelfNode[]) {
+    this.shelfTreeSubject.next(data);
+  }
+
+  updateUpcTree(data: ShelfNode[]) {
+    this.upcTreeSubject.next(data);
+  }
+
+  updateReviewCategories(data: ReviewCategory[]) {
+    this.reviewCategoriesSubject.next(data);
+  }
+
+  updateSelectedReviewCategories(data: ReviewCategory[]) {
+    this.selectedReviewCategoriesSubject.next(data);
+  }
+
+  // Current values getters
+  get currentLocationTree(): ShelfNode[] {
+    return this.locationTreeSubject.value;
+  }
+
+  get currentSectionTree(): ShelfNode[] {
+    return this.sectionTreeSubject.value;
+  }
+
+  get currentShelfTree(): ShelfNode[] {
+    return this.shelfTreeSubject.value;
+  }
+
+  get currentUpcTree(): ShelfNode[] {
+    return this.upcTreeSubject.value;
+  }
+
+  get currentReviewCategories(): ReviewCategory[] {
+    return this.reviewCategoriesSubject.value;
+  }
+
+  get currentSelectedReviewCategories(): ReviewCategory[] {
+    return this.selectedReviewCategoriesSubject.value;
+  }
+}
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Subject, takeUntil } from 'rxjs';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { ShelfTaskService } from '../services/shelf-task.service';
+import { ShelfNode, ReviewCategory, TaskShelfVar } from '../models/shelf-task.models';
+
+@Component({
+  selector: 'app-shelf-task',
+  templateUrl: './shelf-task.component.html',
+  styleUrls: ['./shelf-task.component.scss']
+})
+export class ShelfTaskComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
+
+  // Tree data
+  locationTree: ShelfNode[] = [];
+  sectionTree: ShelfNode[] = [];
+  shelfTree: ShelfNode[] = [];
+  upcTree: ShelfNode[] = [];
+
+  // Review categories
+  reviewCategories: ReviewCategory[] = [];
+  selectedReviewCategories: ReviewCategory[] = [];
+
+  // UI state
+  activeTab: string = 'location';
+  activeNode: ShelfNode | null = null;
+  showLimitsPanel: boolean = false;
+  showChecksPanel: boolean = false;
+  isTaskLocked: boolean = false;
+  currActiveTab: string = 'trLocation';
+
+  // Active section/shelf min/max tracking
+  activeSectionMinMax: number | null = null;
+  activeShelfMinMax: number | null = null;
+
+  // Forms
+  limitsForm: FormGroup;
+
+  constructor(
+    private shelfTaskService: ShelfTaskService,
+    private fb: FormBuilder
+  ) {
+    this.limitsForm = this.fb.group({
+      min: ['', [Validators.pattern(/^\d+$/)]],
+      max: ['', [Validators.pattern(/^\d+$/)]],
+      soft: ['', [Validators.pattern(/^\d+$/)]],
+      hard: ['', [Validators.pattern(/^\d+$/)]]
+    });
+  }
+
+  ngOnInit() {
+    // Initialize with sample data (replace with actual initialization)
+    this.initializeTask(8946, 'DRAFT', '', 'currentUser');
+    
+    this.subscribeToDataStreams();
+    this.loadInitialData();
+    this.setupFormValidation();
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private initializeTask(taskId: number, taskVersion: string, lockoutId: string, currentUser: string) {
+    this.shelfTaskService.initializeTask(taskId, taskVersion, lockoutId, currentUser);
+    this.isTaskLocked = this.shelfTaskService.isTaskLocked();
+  }
+
+  private subscribeToDataStreams() {
+    // Subscribe to tree data
+    this.shelfTaskService.locationTree$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => this.locationTree = data);
+
+    this.shelfTaskService.sectionTree$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => this.sectionTree = data);
+
+    this.shelfTaskService.shelfTree$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => this.shelfTree = data);
+
+    this.shelfTaskService.upcTree$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => this.upcTree = data);
+
+    // Subscribe to review categories
+    this.shelfTaskService.reviewCategories$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => this.reviewCategories = data);
+
+    this.shelfTaskService.selectedReviewCategories$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => this.selectedReviewCategories = data);
+  }
+
+  private loadInitialData() {
+    // Load all tree data
+    this.shelfTaskService.loadAllTreeData();
+
+    // Load review categories
+    this.shelfTaskService.loadReviewCategories().subscribe(result => {
+      this.shelfTaskService.updateReviewCategories(result.ReviewCategories);
+      this.shelfTaskService.updateSelectedReviewCategories(result.CollectionCategories);
+    });
+
+    // Set initial active tab
+    this.onTabChange('location');
+  }
+
+  private setupFormValidation() {
+    // Setup real-time validation
+    this.limitsForm.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      if (this.activeNode) {
+        this.validateAndUpdateNode();
+      }
+    });
+  }
+
+  onTabChange(tabName: string) {
+    this.activeTab = tabName;
+    this.currActiveTab = `tr${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`;
+    
+    // Reset active node and panels
+    this.activeNode = null;
+    this.hideAllPanels();
+
+    // Set default node selection based on tab
+    setTimeout(() => {
+      this.selectDefaultNode(tabName);
+    }, 100);
+  }
+
+  private selectDefaultNode(tabName: string) {
+    let tree: ShelfNode[] = [];
+    
+    switch(tabName) {
+      case 'location': tree = this.locationTree; break;
+      case 'section': tree = this.sectionTree; break;
+      case 'shelf': tree = this.shelfTree; break;
+      case 'upc': tree = this.upcTree; break;
+    }
+
+    if (tree.length > 0) {
+      const rootNode = tree[0];
+      this.onNodeSelect(rootNode);
+    }
+  }
+
+  onNodeSelect(node: ShelfNode) {
+    this.activeNode = node;
+    this.showHideVarDiv(node);
+  }
+
+  onNodeCheck(node: ShelfNode) {
+    if (node.disabled) return;
+
+    node.checked = !node.checked;
+    
+    // Handle special logic for specific nodes
+    this.handleSpecialNodeLogic(node);
+    
+    // Update tree
+    this.updateTreeData();
+    
+    // Show/hide panels
+    this.showHideVarDiv(node);
+  }
+
+  private handleSpecialNodeLogic(node: ShelfNode) {
+    // Handle Section tab special logic (nodes 11930, 11960)
+    if ((node.id === 11930 || node.id === 11960) && this.activeTab === 'section') {
+      const sectionTree = this.sectionTree;
+      const node1 = this.findNodeById(sectionTree, 11930);
+      const node2 = this.findNodeById(sectionTree, 11960);
+      
+      if (node1 && node2 && !node1.checked && !node2.checked) {
+        node.checked = true;
+      }
+    }
+
+    // Handle parent-child relationships
+    if (node.children && node.checked) {
+      this.checkAllChildren(node);
+    }
+  }
+
+  private findNodeById(nodes: ShelfNode[], id: number): ShelfNode | null {
+    for (let node of nodes) {
+      if (node.id === id) return node;
+      if (node.children) {
+        const found = this.findNodeById(node.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  private showHideVarDiv(treeNode: ShelfNode) {
+    // Reset all panels first
+    this.hideAllPanels();
+    this.resetActiveSectionShelf();
+
+    // Handle specific node types
+    if (this.isShelfHeightNode(treeNode)) {
+      this.showLimitsPanel = true;
+      this.populateLimitsForm(treeNode);
+      this.activeShelfMinMax = treeNode.id;
+      return;
+    }
+
+    if (this.isSectionWidthNode(treeNode)) {
+      this.showLimitsPanel = true;
+      this.populateLimitsForm(treeNode);
+      this.activeSectionMinMax = treeNode.id;
+      return;
+    }
+
+    if (this.isMainVariableNode(treeNode)) {
+      this.showLimitsPanel = true;
+      this.showChecksPanel = true;
+      this.populateFullForm(treeNode);
+    }
+  }
+
+  private isShelfHeightNode(node: ShelfNode): boolean {
+    return node.id === 22700; // Other Height in Shelf
+  }
+
+  private isSectionWidthNode(node: ShelfNode): boolean {
+    const sectionWidthIds = [11160, 14825, 15995, 15490, 16910];
+    return sectionWidthIds.includes(node.id);
+  }
+
+  private isMainVariableNode(node: ShelfNode): boolean {
+    const mainVarIds = [200, 10100, 20000, 30100];
+    return mainVarIds.includes(node.id);
+  }
+
+  private populateLimitsForm(node: ShelfNode) {
+    this.limitsForm.patchValue({
+      min: (node.taskMin || node.mainMin || '').toString(),
+      max: (node.taskMax || node.mainMax || '').toString(),
+      soft: '',
+      hard: ''
+    }, { emitEvent: false });
+  }
+
+  private populateFullForm(node: ShelfNode) {
+    this.limitsForm.patchValue({
+      min: (node.taskMin || node.mainMin || '').toString(),
+      max: (node.taskMax || node.mainMax || '').toString(),
+      soft: (node.task_soft_check || node.main_soft_check || '').toString(),
+      hard: (node.task_hard_check || node.main_hard_check || '').toString()
+    }, { emitEvent: false });
+  }
+
+  private hideAllPanels() {
+    this.showLimitsPanel = false;
+    this.showChecksPanel = false;
+  }
+
+  private resetActiveSectionShelf() {
+    this.activeSectionMinMax = null;
+    this.activeShelfMinMax = null;
+  }
+
+  private validateAndUpdateNode() {
+    if (!this.activeNode || !this.limitsForm.valid) return;
+
+    const formValues = this.limitsForm.value;
+    
+    // Validate based on current context
+    if (this.currActiveTab === 'trShelf' && this.activeShelfMinMax) {
+      if (!this.validateShelfLimits(formValues)) return;
+    } else if (this.currActiveTab === 'trSection' && this.activeSectionMinMax) {
+      if (!this.validateSectionLimits(formValues)) return;
+    } else {
+      if (!this.validateGeneralLimits(formValues)) return;
+    }
+
+    // Update the active node
+    this.updateNodeValues(this.activeNode, formValues);
+    this.updateTreeData();
+  }
+
+  private validateShelfLimits(values: any): boolean {
+    const min = parseInt(values.min, 10);
+    const max = parseInt(values.max, 10);
+
+    if (!isNaN(min)) {
+      const minVal = this.getMinMaxValueForShelf(1);
+      if (min > minVal) {
+        alert('The value for Min must be less than the smallest selected width variable');
+        this.resetFormValue('min');
+        return false;
+      }
+    }
+
+    if (!isNaN(max)) {
+      if (max === 0) {
+        alert('A value is required for Max');
+        this.resetFormValue('max');
+        return false;
+      }
+      const maxVal = this.getMinMaxValueForShelf(2);
+      if (max < maxVal) {
+        alert('The value of Max must be greater than the largest selected width variable');
+        this.resetFormValue('max');
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private validateSectionLimits(values: any): boolean {
+    const min = parseInt(values.min, 10);
+    const max = parseInt(values.max, 10);
+
+    if (!isNaN(min)) {
+      const minVal = this.getMinMaxValueOfSection(1);
+      if (min > minVal && minVal !== -1) {
+        alert('The value for Min must be less than the smallest selected width variable');
+        this.resetFormValue('min');
+        return false;
+      }
+    }
+
+    if (!isNaN(max)) {
+      if (max === 0) {
+        alert('A value is required for Max');
+        this.resetFormValue('max');
+        return false;
+      }
+      const maxVal = this.getMinMaxValueOfSection(2);
+      if (max < maxVal && maxVal !== -1) {
+        alert('The value of Max must be greater than the largest selected width variable');
+        this.resetFormValue('max');
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private validateGeneralLimits(values: any): boolean {
+    const min = parseInt(values.min, 10) || 0;
+    const soft = parseInt(values.soft, 10) || 0;
+    const hard = parseInt(values.hard, 10) || 0;
+    const max = parseInt(values.max, 10) || 0;
+
+    if (soft > 0 && soft < min) {
+      alert("'Soft Check' must be greater than or equal to the Min Limit");
+      this.resetFormValue('soft');
+      return false;
+    }
+
+    if (hard > 0 && hard < (soft + 3)) {
+      alert("The value for 'Hard Check' must be at least 3 greater than the value of 'Soft Check'");
+      this.resetFormValue('hard');
+      return false;
+    }
+
+    if (this.currActiveTab === 'trLocation' && hard > max) {
+      alert("Max Limit must be greater than the Hard Check");
+      this.resetFormValue('hard');
+      return false;
+    }
+
+    return true;
+  }
+
+  private getMinMaxValueForShelf(type: 1 | 2): number {
+    const shelfTree = this.shelfTree;
+    const values: number[] = [];
+
+    this.collectHeightValues(shelfTree, values);
+
+    if (values.length === 0) return type === 1 ? 0 : 999;
+    
+    return type === 1 ? Math.min(...values) : Math.max(...values);
+  }
+
+  private collectHeightValues(nodes: ShelfNode[], values: number[]) {
+    nodes.forEach(node => {
+      if (node.name === 'Height' && node.children) {
+        node.children.forEach(child => {
+          if (child.checked && child.name !== 'Other Height' && child.value) {
+            values.push(child.value);
+          }
+        });
+      }
+      if (node.children) {
+        this.collectHeightValues(node.children, values);
+      }
+    });
+  }
+
+  private getMinMaxValueOfSection(type: 1 | 2): number {
+    const sectionTree = this.sectionTree;
+    let parentNode: ShelfNode | null = null;
+
+    // Find the correct parent node based on activeSectionMinMax
+    if (this.activeSectionMinMax === 11160) {
+      parentNode = this.findNodeById(sectionTree, 10210); // Section Width under Presence of Section
+    } else if (this.activeSectionMinMax === 15490) {
+      parentNode = this.findNodeById(sectionTree, 15000); // Coffin Section Width
+    } else if (this.activeSectionMinMax === 15995) {
+      parentNode = this.findNodeById(sectionTree, 15500); // Upright Section Width
+    } else if (this.activeSectionMinMax === 14825) {
+      parentNode = this.findNodeById(sectionTree, 14000); // Shelf Section Width
+    } else if (this.activeSectionMinMax === 16910) {
+      parentNode = this.findNodeById(sectionTree, 16500); // Section Depth
+    }
+
+    if (!parentNode || !parentNode.children) return -1;
+
+    const values: number[] = [];
+    parentNode.children.forEach(child => {
+      if (child.checked && 
+          child.name !== 'Other Section Width' && 
+          child.name !== 'Other Section Depth' && 
+          child.value) {
+        values.push(child.value);
+      }
+    });
+
+    if (values.length === 0) return -1;
+    
+    return type === 1 ? Math.min(...values) : Math.max(...values);
+  }
+
+  private updateNodeValues(node: ShelfNode, values: any) {
+    node.taskMin = values.min || node.taskMin;
+    node.taskMax = values.max || node.taskMax;
+    node.task_soft_check = values.soft || node.task_soft_check;
+    node.task_hard_check = values.hard || node.task_hard_check;
+  }
+
+  private resetFormValue(field: string) {
+    if (!this.activeNode) return;
+
+    const currentValue = this.getCurrentNodeValue(this.activeNode, field);
+    this.limitsForm.patchValue({ [field]: currentValue }, { emitEvent: false });
+  }
+
+  private getCurrentNodeValue(node: ShelfNode, field: string): string {
+    switch (field) {
+      case 'min': return (node.taskMin || node.mainMin || '').toString();
+      case 'max': return (node.taskMax || node.mainMax || '').toString();
+      case 'soft': return (node.task_soft_check || node.main_soft_check || '').toString();
+      case 'hard': return (node.task_hard_check || node.main_hard_check || '').toString();
+      default: return '';
+    }
+  }
+
+  private updateTreeData() {
+    // Update the appropriate tree based on current tab
+    switch (this.activeTab) {
+      case 'location':
+        this.shelfTaskService.updateLocationTree([...this.locationTree]);
+        break;
+      case 'section':
+        this.shelfTaskService.updateSectionTree([...this.sectionTree]);
+        break;
+      case 'shelf':
+        this.shelfTaskService.updateShelfTree([...this.shelfTree]);
+        break;
+      case 'upc':
+        this.shelfTaskService.updateUpcTree([...this.upcTree]);
+        break;
+    }
+  }
+
+  checkAllChildren(node: ShelfNode) {
+    if (!node.children || this.isTaskLocked) return;
+
+    node.checked = true;
+    node.children.forEach(child => {
+      if (!child.disabled) {
+        child.checked = true;
+      }
+    });
+
+    this.updateTreeData();
+  }
+
+  // Save functionality
+  saveShelfData() {
+    if (!this.validateShelfData()) return;
+
+    const taskShelfVarObj: TaskShelfVar[] = [];
+    
+    // Populate from all trees
+    this.populateShelfVarObject(taskShelfVarObj, this.locationTree);
+    this.populateShelfVarObject(taskShelfVarObj, this.sectionTree);
+    this.populateShelfVarObject(taskShelfVarObj, this.shelfTree);
+    this.populateShelfVarObject(taskShelfVarObj, this.upcTree);
+
+    const shelfVarData = JSON.stringify(taskShelfVarObj);
+
+    this.shelfTaskService.saveShelfVarDetails(shelfVarData).subscribe({
+      next: (result) => {
+        console.log('Shelf data saved successfully', result);
+        this.saveReviewCategoryDetails();
+      },
+      error: (error) => {
+        console.error('Error saving shelf data', error);
+        alert('Error occurred while saving shelf data.');
+      }
+    });
+  }
+
+  private validateShelfData(): boolean {
+    // Check that at least one location is selected
+    const checkedLocationCount = this.countCheckedNodes(this.locationTree);
+    
+    if (checkedLocationCount === 0) {
+      alert('Please select at least one Location!');
+      return false;
+    }
+
+    return true;
+  }
+
+  private countCheckedNodes(nodes: ShelfNode[]): number {
+    let count = 0;
+    nodes.forEach(node => {
+      if (node.checked) count++;
+      if (node.children) {
+        count += this.countCheckedNodes(node.children);
+      }
+    });
+    return count;
+  }
+
+  private populateShelfVarObject(taskShelfVarObj: TaskShelfVar[], nodes: ShelfNode[]) {
+    nodes.forEach(node => {
+      if (node.checked) {
+        const shelfVar: TaskShelfVar = {
+          task_number: 8946, // This should come from service
+          prompt_level: 0,
+          ShelfVarID: node.id,
+          min: node.taskMin,
+          max: node.taskMax,
+          soft_check: node.task_soft_check,
+          hard_check: node.task_hard_check,
+          ordinal: node.mainOrdinal,
+          name: node.name
+        };
+        taskShelfVarObj.push(shelfVar);
+      }
+
+      if (node.children) {
+        this.populateShelfVarObject(taskShelfVarObj, node.children);
+      }
+    });
+  }
+
+  private saveReviewCategoryDetails() {
+    const reviewCats = JSON.stringify(this.selectedReviewCategories);
+    
+    this.shelfTaskService.saveReviewCategoryDetails(reviewCats).subscribe({
+      next: (result) => {
+        console.log('Review categories saved successfully', result);
+        alert('Shelf data saved successfully!');
+      },
+      error: (error) => {
+        console.error('Error saving review categories', error);
+        alert('Error occurred while saving collection categories data for shelf.');
+      }
+    });
+  }
+
+  // Review category methods
+  onReviewCategoryChange(category: ReviewCategory, field: string, value: any) {
+    // Update the category
+    const index = this.selectedReviewCategories.findIndex(c => 
+      c.ReviewCategoryNumber === category.ReviewCategoryNumber);
+    
+    if (index !== -1) {
+      (this.selectedReviewCategories[index] as any)[field] = value;
+    } else if (value) {
+      // Add new category if it doesn't exist and value is set
+      this.selectedReviewCategories.push({
+        ...category,
+        [field]: value
+      });
+    }
+
+    this.shelfTaskService.updateSelectedReviewCategories([...this.selectedReviewCategories]);
+  }
+
+  // Number-only input handler
+  onNumberInput(event: KeyboardEvent): boolean {
+    const charCode = event.which ? event.which : event.keyCode;
+    if (charCode > 31 && (charCode < 48 || charCode > 57)) {
+      return false;
+    }
+    return true;
+  }
+}
+import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { ITreeOptions } from '@ali-hm/angular-tree-component';
+import { ShelfNode } from '../models/shelf-task.models';
+
+@Component({
+  selector: 'app-shelf-tree',
+  templateUrl: './shelf-tree.component.html',
+  styleUrls: ['./shelf-tree.component.scss']
+})
+export class ShelfTreeComponent {
+  @Input() nodes: ShelfNode[] = [];
+  @Input() disabled: boolean = false;
+  @Output() nodeSelect = new EventEmitter<ShelfNode>();
+  @Output() nodeCheck = new EventEmitter<ShelfNode>();
+  @Output() selectAllChildren = new EventEmitter<ShelfNode>();
+
+  treeOptions: ITreeOptions = {
+    useCheckbox: true,
+    useTriState: true,
+    displayField: 'name',
+    childrenField: 'children',
+    allowDrag: (node) => this.canDrag(node.data),
+    allowDrop: (dragNode, dropNode) => this.canDrop(dragNode.data, dropNode.data)
+  };
+
+  onNodeActivate(event: any) {
+    const node: ShelfNode = event.node.data;
+    this.nodeSelect.emit(node);
+  }
+
+  onNodeCheck(event: any) {
+    const node: ShelfNode = event.node.data;
+    this.nodeCheck.emit(node);
+  }
+
+  onSelectAllChildren(node: ShelfNode) {
+    if (!this.disabled) {
+      this.selectAllChildren.emit(node);
+    }
+  }
+
+  private canDrag(node: ShelfNode): boolean {
+    if (this.disabled || !node.children || node.children.length === 0) return false;
+    
+    const allowedParents = ['Display Location', 'Department', 'Stocking Location', 'Shelf Type'];
+    return this.hasValidParent(node, allowedParents);
+  }
+
+  private canDrop(dragNode: ShelfNode, dropNode: ShelfNode): boolean {
+    if (this.disabled) return false;
+    
+    const dragParent = this.getParentNodeName(dragNode);
+    const dropParent = this.getParentNodeName(dropNode);
+    
+    return dragParent === dropParent;
+  }
+
+  private hasValidParent(node: ShelfNode, allowedParents: string[]): boolean {
+    const parentName = this.getParentNodeName(node);
+    return allowedParents.includes(parentName);
+  }
+
+  private getParentNodeName(node: ShelfNode): string {
+    // This would need to be implemented based on your tree structure
+    // For now, returning a placeholder
+    return 'Unknown';
+  }
+
+  isOtherSectionWidth(node: ShelfNode): boolean {
+    return node.name === 'Other Section Width' && node.var_type_id === 2;
+  }
+
+  isOtherHeight(node: ShelfNode): boolean {
+    return node.name === 'Other Height' && node.var_type_id === 2;
+  }
+
+  onCustomInputChange(node: ShelfNode, field: string, value: string) {
+    (node as any)[field] = value;
+    this.nodeCheck.emit(node);
+  }
+}
+<div class="tree-container">
+  <tree-root 
+    [nodes]="nodes" 
+    [options]="treeOptions"
+    (activate)="onNodeActivate($event)"
+    (toggleExpanded)="onNodeCheck($event)">
+    
+    <ng-template #treeNodeTemplate let-node let-index="index">
+      <div class="tree-node-content">
+        <!-- Checkbox -->
+        <input type="checkbox" 
+               [checked]="node.data.checked"
+               [disabled]="node.data.disabled || disabled"
+               (change)="onNodeCheck($event)"
+               class="node-checkbox">
+
+        <!-- Node Name -->
+        <span class="node-name" 
+              [class.disabled]="node.data.disabled || disabled"
+              (click)="onNodeActivate($event)">
+          {{ node.data.name }}
+        </span>
+
+        <!-- Select All Children Button -->
+        <button *ngIf="node.data.isParent && !disabled" 
+                mat-button 
+                class="select-all-btn"
+                (click)="onSelectAllChildren(node.data)">
+          <b>(Select all Child variables)</b>
+        </button>
+
+        <!-- Custom Input for Other Section Width -->
+        <div *ngIf="isOtherSectionWidth(node.data) && node.data.checked" 
+             class="custom-input-container">
+          <mat-form-field appearance="outline" class="custom-input">
+            <mat-label>Min</mat-label>
+            <input matInput 
+                   type="number"
+                   [value]="node.data.taskMin"
+                   (change)="onCustomInputChange(node.data, 'taskMin', $event.target.value)"
+                   [disabled]="disabled"
+                   [min]="node.data.mainMin"
+                   [max]="node.data.mainMax">
+          </mat-form-field>
+          
+          <mat-form-field appearance="outline" class="custom-input">
+            <mat-label>Max</mat-label>
+            <input matInput 
+                   type="number"
+                   [value]="node.data.taskMax"
+                   (change)="onCustomInputChange(node.data, 'taskMax', $event.target.value)"
+                   [disabled]="disabled"
+                   [min]="node.data.mainMin"
+                   [max]="node.data.mainMax">
+          </mat-form-field>
+        </div>
+
+        <!-- Custom Input for Other Height -->
+        <div *ngIf="isOtherHeight(node.data) && node.data.checked" 
+             class="custom-input-container">
+          <mat-form-field appearance="outline" class="custom-input">
+            <mat-label>Min</mat-label>
+            <input matInput 
+                   type="number"
+                   [value]="node.data.taskMin"
+                   (change)="onCustomInputChange(node.data, 'taskMin', $event.target.value)"
+                   [disabled]="disabled"
+                   [min]="node.data.mainMin"
+                   [max]="node.data.mainMax">
+          </mat-form-field>
+          
+          <mat-form-field appearance="outline" class="custom-input">
+            <mat-label>Max</mat-label>
+            <input matInput 
+                   type="number"
+                   [value]="node.data.taskMax"
+                   (change)="onCustomInputChange(node.data, 'taskMax', $event.target.value)"
+                   [disabled]="disabled"
+                   [min]="node.data.mainMin"
+                   [max]="node.data.mainMax">
+          </mat-form-field>
+        </div>
+      </div>
+    </ng-template>
+  </tree-root>
+</div>
+ Data Models (models/shelf-task.models.ts)```typescript
+export interface ShelfNode {
+id: number;
+pId: number | null;
+name: string;
+checked: boolean;
+children?: ShelfNode[];
+value?: number;
+optional?: string;
+varlabel?: string;
+var_type_id?: number;
+shelf_var_lookup?: string;
+no_display?: string;
+mainMin?: string | number;
+mainMax?: string | number;
+main_soft_check?: string | number;
+main_hard_check?: string | number;
+taskMin?: string | number;
+taskMax?: string | number;
+task_soft_check?: string | number;
+task_hard_check?: string | number;
+mainOrdinal?: number;
+taskOrdinal?: number;
+task_number?: number;
+disabled?: boolean;
+isParent?: boolean;
+open?: boolean;
+}
+
+export interface ReviewCategory {
+ReviewCategoryNumber: number;
+TaskNumber?: number;
+Catg_Type?: string;
+ReviewCategoryName: string;
+KeycatNumber?: number;
+KeycatName?: string;
+Selected?: number | null;
+QCUnderReq?: number | null;
+QCUnderPercent?: number | null;
+NumberOfWeeks?: number | null;
+Stub_Name?: string;
+Stub_Type?: string;
+TranslationTask?: any;
+}
+
+export interface TaskShelfVar {
+task_number: number;
+prompt_level: number;
+ShelfVarID: number;
+min?: string | number;
+max?: string | number;
+soft_check?: string | number;
+hard_check?: string | number;
+ordinal?: number;
+name: string;
+}
+
+export interface TreeOptions {
+useCheckbox: boolean;
+useTriState: boolean;
+allowDrag?: boolean;
+allowDrop?: boolean;
+displayField: string;
+childrenField: string;
+}import { Component, Input, Output, EventEmitter, OnInit, OnChanges } from '@angular/core';
+import { MatTableDataSource } from '@angular/material/table';
+import { ReviewCategory } from '../models/shelf-task.models';
+
+@Component({
+  selector: 'app-review-category-grid',
+  templateUrl: './review-category-grid.component.html',
+  styleUrls: ['./review-category-grid.component.scss']
+})
+export class ReviewCategoryGridComponent implements OnInit, OnChanges {
+  @Input() categories: ReviewCategory[] = [];
+  @Input() selectedCategories: ReviewCategory[] = [];
+  @Input() disabled: boolean = false;
+  @Output() categoryChange = new EventEmitter<{category: ReviewCategory, field: string, value: any}>();
+
+  displayedColumns: string[] = [
+    'ReviewCategoryName', 
+    'Selected', 
+    'QCUnderReq', 
+    'QCUnderPercent', 
+    'NumberOfWeeks',
+    'expand'
+  ];
+
+  selectedDisplayedColumns: string[] = [
+    'CategoryName',
+    'CatgDetail', 
+    'CategoryID', 
+    'QCUnderReq', 
+    'QCUnderPercent', 
+    'NumberOfWeeks'
+  ];
+
+  reviewCategories: ReviewCategory[] = [];
+  keycats: { [key: number]: ReviewCategory[] } = {};
+  dataSource = new MatTableDataSource<ReviewCategory>();
+  selectedDataSource = new MatTableDataSource<ReviewCategory>();
+  expandedElement: ReviewCategory | null = null;
+
+  ngOnInit() {
+    this.processCategories();
+  }
+
+  ngOnChanges() {
+    this.processCategories();
+  }
+
+  private processCategories() {
+    this.reviewCategories = this.categories.filter(cat => 
+      !cat.KeycatNumber || cat.KeycatNumber === 0
+    );
+
+    this.keycats = {};
+    this.categories.forEach(cat => {
+      if (cat.KeycatNumber && cat.KeycatNumber > 0) {
+        if (!this.keycats[cat.ReviewCategoryNumber]) {
+          this.keycats[cat.ReviewCategoryNumber] = [];
+        }
+        this.keycats[cat.ReviewCategoryNumber].push(cat);
+      }
+    });
+
+    this.dataSource.data = this.reviewCategories;
+    this.selectedDataSource.data = this.selectedCategories;
+  }
+
+  onCategorySelected(category: ReviewCategory, selected: boolean) {
+    if (this.disabled) return;
+
+    if (selected) {
+      // Check if any keycats are already selected
+      const hasSelectedKeycats = this.hasSelectedKeycats(category.ReviewCategoryNumber);
+      if (hasSelectedKeycats) {
+        alert("You can't select a Category when a KeyCat from it is selected");
+        return;
+      }
+    }
+
+    this.categoryChange.emit({
+      category: category,
+      field: 'Selected',
+      value: selected ? 1 : null
+    });
+  }
+
+  onQCUnderChanged(category: ReviewCategory, qcUnder: boolean) {
+    if (this.disabled) return;
+
+    if (qcUnder) {
+      // Check if any keycats are already selected
+      const hasSelectedKeycats = this.hasSelectedKeycats(category.ReviewCategoryNumber);
+      if (hasSelectedKeycats) {
+        alert("You can't select a Category when a KeyCat from it is selected");
+        return;
+      }
+
+      // Auto-select the category and set default weeks
+      this.categoryChange.emit({
+        category: category,
+        field: 'Selected',
+        value: 1
+      });
+
+      this.categoryChange.emit({
+        category: category,
+        field: 'NumberOfWeeks',
+        value: 5
+      });
+    } else {
+      this.categoryChange.emit({
+        category: category,
+        field: 'NumberOfWeeks',
+        value: null
+      });
+
+      this.categoryChange.emit({
+        category: category,
+        field: 'QCUnderPercent',
+        value: null
+      });
+    }
+
+    this.categoryChange.emit({
+      category: category,
+      field: 'QCUnderReq',
+      value: qcUnder ? 1 : null
+    });
+  }
+
+  onPercentChanged(category: ReviewCategory, percent: number) {
+    if (this.disabled) return;
+
+    this.categoryChange.emit({
+      category: category,
+      field: 'QCUnderPercent',
+      value: percent || null
+    });
+  }
+
+  onWeeksChanged(category: ReviewCategory, weeks: number) {
+    if (this.disabled) return;
+
+    this.categoryChange.emit({
+      category: category,
+      field: 'NumberOfWeeks',
+      value: weeks || null
+    });
+  }
+
+  onKeycatSelected(keycat: ReviewCategory, selected: boolean) {
+    if (this.disabled) return;
+
+    if (selected) {
+      // Check if parent category is selected
+      const hasSelectedParent = this.hasSelectedParentCategory(keycat.ReviewCategoryNumber);
+      if (hasSelectedParent) {
+        alert("You can't select a KeyCat when its Category is selected");
+        return;
+      }
+    }
+
+    this.categoryChange.emit({
+      category: keycat,
+      field: 'Selected',
+      value: selected ? 1 : null
+    });
+  }
+
+  onKeycatQCUnderChanged(keycat: ReviewCategory, qcUnder: boolean) {
+    if (this.disabled) return;
+
+    if (qcUnder) {
+      // Check if parent category is selected
+      const hasSelectedParent = this.hasSelectedParentCategory(keycat.ReviewCategoryNumber);
+      if (hasSelectedParent) {
+        alert("You can't select a KeyCat when its Category is selected");
+        return;
+      }
+
+      // Auto-select the keycat and set default weeks
+      this.categoryChange.emit({
+        category: keycat,
+        field: 'Selected',
+        value: 1
+      });
+
+      this.categoryChange.emit({
+        category: keycat,
+        field: 'NumberOfWeeks',
+        value: 5
+      });
+    } else {
+      this.categoryChange.emit({
+        category: keycat,
+        field: 'NumberOfWeeks',
+        value: null
+      });
+
+      this.categoryChange.emit({
+        category: keycat,
+        field: 'QCUnderPercent',
+        value: null
+      });
+    }
+
+    this.categoryChange.emit({
+      category: keycat,
+      field: 'QCUnderReq',
+      value: qcUnder ? 1 : null
+    });
+  }
+
+  private hasSelectedKeycats(reviewCategoryNumber: number): boolean {
+    return this.selectedCategories.some(cat => 
+      cat.ReviewCategoryNumber === reviewCategoryNumber && 
+      cat.KeycatNumber && 
+      cat.KeycatNumber > 0
+    );
+  }
+
+  private hasSelectedParentCategory(reviewCategoryNumber: number): boolean {
+    return this.selectedCategories.some(cat => 
+      cat.ReviewCategoryNumber === reviewCategoryNumber && 
+      cat.Catg_Type === 'R'
+    );
+  }
+
+  isSelected(category: ReviewCategory): boolean {
+    return this.selectedCategories.some(selected => 
+      selected.ReviewCategoryNumber === category.ReviewCategoryNumber &&
+      selected.KeycatNumber === category.KeycatNumber &&
+      selected.Selected === 1
+    );
+  }
+
+  isQCUnderSelected(category: ReviewCategory): boolean {
+    return this.selectedCategories.some(selected => 
+      selected.ReviewCategoryNumber === category.ReviewCategoryNumber &&
+      selected.KeycatNumber === category.KeycatNumber &&
+      selected.QCUnderReq === 1
+    );
+  }
+
+  getPercent(category: ReviewCategory): number | null {
+    const selected = this.selectedCategories.find(s => 
+      s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
+      s.KeycatNumber === category.KeycatNumber
+    );
+    return selected?.QCUnderPercent || null;
+  }
+
+  getWeeks(category: ReviewCategory): number | null {
+    const selected = this.selectedCategories.find(s => 
+      s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
+      s.KeycatNumber === category.KeycatNumber
+    );
+    return selected?.NumberOfWeeks || null;
+  }
+
+  isPercentDisabled(category: ReviewCategory): boolean {
+    return this.disabled || !this.isQCUnderSelected(category);
+  }
+
+  isWeeksDisabled(category: ReviewCategory): boolean {
+    return this.disabled || !this.isQCUnderSelected(category);
+  }
+
+  hasKeycats(category: ReviewCategory): boolean {
+    return this.keycats[category.ReviewCategoryNumber] && 
+           this.keycats[category.ReviewCategoryNumber].length > 0;
+  }
+
+  // Number input validation
+  onNumberInput(event: KeyboardEvent): boolean {
+    const charCode = event.which ? event.which : event.keyCode;
+    if (charCode > 31 && (charCode < 48 || charCode > 57)) {
+      return false;
+    }
+    return true;
+  }
+}
+<div class="review-categories-container">
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Categories / Keycats</mat-card-title>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <table mat-table [dataSource]="dataSource" class="categories-table" multiTemplateDataRows>
+        <ng-container matColumnDef="ReviewCategoryName">
+          <th mat-header-cell *matHeaderCellDef>Review Category</th>
+          <td mat-cell *matCellDef="let category">
+            <strong>{{ category.ReviewCategoryName }}</strong>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="Selected">
+          <th mat-header-cell *matHeaderCellDef>Selected</th>
+          <td mat-cell *matCellDef="let category">
+            <mat-checkbox 
+              [checked]="isSelected(category)"
+              [disabled]="disabled"
+              (change)="onCategorySelected(category, $event.checked)">
+            </mat-checkbox>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="QCUnderReq">
+          <th mat-header-cell *matHeaderCellDef>QC Under</th>
+          <td mat-cell *matCellDef="let category">
+            <mat-checkbox 
+              [checked]="isQCUnderSelected(category)"
+              [disabled]="disabled"
+              (change)="onQCUnderChanged(category, $event.checked)">
+            </mat-checkbox>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="QCUnderPercent">
+          <th mat-header-cell *matHeaderCellDef>Pass/Fail%</th>
+          <td mat-cell *matCellDef="let category">
+            <mat-form-field appearance="outline" class="percent-input">
+              <input matInput
+                     type="number" 
+                     [value]="getPercent(category)"
+                     [disabled]="isPercentDisabled(category)"
+                     (change)="onPercentChanged(category, $event.target.value)"
+                     (keypress)="onNumberInput($event)"
+                     maxlength="2">
+            </mat-form-field>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="NumberOfWeeks">
+          <th mat-header-cell *matHeaderCellDef>Weeks</th>
+          <td mat-cell *matCellDef="let category">
+            <mat-form-field appearance="outline" class="weeks-input">
+              <input matInput
+                     type="number" 
+                     [value]="getWeeks(category)"
+                     [disabled]="isWeeksDisabled(category)"
+                     (change)="onWeeksChanged(category, $event.target.value)"
+                     (keypress)="onNumberInput($event)"
+                     maxlength="2">
+            </mat-form-field>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="expand">
+          <th mat-header-cell *matHeaderCellDef aria-label="row actions">&nbsp;</th>
+          <td mat-cell *matCellDef="let category">
+            <button *ngIf="hasKeycats(category)"
+                    mat-icon-button 
+                    (click)="expandedElement = expandedElement === category ? null : category"
+                    [attr.aria-label]="'Expand ' + category.ReviewCategoryName">
+              <mat-icon>{{expandedElement === category ? 'expand_less' : 'expand_more'}}</mat-icon>
+            </button>
+          </td>
+        </ng-container>
+
+        <!-- Expanded Content Column - The expandable row is made up of this one column that spans across all columns -->
+        <ng-container matColumnDef="expandedDetail">
+          <td mat-cell *matCellDef="let category" [attr.colspan]="displayedColumns.length">
+            <div class="expanded-detail" [@detailExpand]="category == expandedElement ? 'expanded' : 'collapsed'">
+              <div class="keycats-container" *ngIf="keycats[category.ReviewCategoryNumber]">
+                <h4>Keycats for {{ category.ReviewCategoryName }}</h4>
+                <table mat-table [dataSource]="keycats[category.ReviewCategoryNumber]" class="keycats-table">
+                  <ng-container matColumnDef="KeycatName">
+                    <th mat-header-cell *matHeaderCellDef>Keycat Name</th>
+                    <td mat-cell *matCellDef="let keycat">{{ keycat.KeycatName }}</td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="KeycatSelected">
+                    <th mat-header-cell *matHeaderCellDef>Selected</th>
+                    <td mat-cell *matCellDef="let keycat">
+                      <mat-checkbox 
+                        [checked]="isSelected(keycat)"
+                        [disabled]="disabled"
+                        (change)="onKeycatSelected(keycat, $event.checked)">
+                      </mat-checkbox>
+                    </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="KeycatQCUnder">
+                    <th mat-header-cell *matHeaderCellDef>QC Under</th>
+                    <td mat-cell *matCellDef="let keycat">
+                      <mat-checkbox 
+                        [checked]="isQCUnderSelected(keycat)"
+                        [disabled]="disabled"
+                        (change)="onKeycatQCUnderChanged(keycat, $event.checked)">
+                      </mat-checkbox>
+                    </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="KeycatPercent">
+                    <th mat-header-cell *matHeaderCellDef>Pass/Fail%</th>
+                    <td mat-cell *matCellDef="let keycat">
+                      <mat-form-field appearance="outline" class="percent-input">
+                        <input matInput
+                               type="number" 
+                               [value]="getPercent(keycat)"
+                               [disabled]="isPercentDisabled(keycat)"
+                               (change)="onPercentChanged(keycat, $event.target.value)"
+                               (keypress)="onNumberInput($event)"
+                               maxlength="2">
+                      </mat-form-field>
+                    </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="KeycatWeeks">
+                    <th mat-header-cell *matHeaderCellDef>Weeks</th>
+                    <td mat-cell *matCellDef="let keycat">
+                      <mat-form-field appearance="outline" class="weeks-input">
+                        <input matInput
+                               type="number" 
+                               [value]="getWeeks(keycat)"
+                               [disabled]="isWeeksDisabled(keycat)"
+                               (change)="onWeeksChanged(keycat, $event.target.value)"
+                               (keypress)="onNumberInput($event)"
+                               maxlength="2">
+                      </mat-form-field>
+                    </td>
+                  </ng-container>
+
+                  <tr mat-header-row *matHeaderRowDef="['KeycatName', 'KeycatSelected', 'KeycatQCUnder', 'KeycatPercent', 'KeycatWeeks']"></tr>
+                  <tr mat-row *matRowDef="let row; columns: ['KeycatName', 'KeycatSelected', 'KeycatQCUnder', 'KeycatPercent', 'KeycatWeeks'];"></tr>
+                </table>
+              </div>
+            </div>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;" 
+            class="category-row"
+            [class.expanded-row]="expandedElement === row">
+        </tr>
+        <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="detail-row"></tr>
+      </table>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Selected Categories Display -->
+  <mat-card class="selected-categories" *ngIf="selectedCategories.length > 0">
+    <mat-card-header>
+      <mat-card-title>Selected Categories</mat-card-title>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <table mat-table [dataSource]="selectedDataSource" class="selected-table">
+        <ng-container matColumnDef="CategoryName">
+          <th mat-header-cell *matHeaderCellDef>Category Name</th>
+          <td mat-cell *matCellDef="let category">
+            {{ category.ReviewCategoryName || category.KeycatName }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="CatgDetail">
+          <th mat-header-cell *matHeaderCellDef>Type</th>
+          <td mat-cell *matCellDef="let category">
+            {{ category.KeycatNumber ? 'KeyCat' : 'Review Category' }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="CategoryID">
+          <th mat-header-cell *matHeaderCellDef>ID</th>
+          <td mat-cell *matCellDef="let category">
+            {{ category.KeycatNumber || category.ReviewCategoryNumber }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="QCUnderReq">
+          <th mat-header-cell *matHeaderCellDef>QC Under</th>
+          <td mat-cell *matCellDef="let category">
+            <mat-icon *ngIf="category.QCUnderReq === 1">check</mat-icon>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="QCUnderPercent">
+          <th mat-header-cell *matHeaderCellDef>Pass/Fail%</th>
+          <td mat-cell *matCellDef="let category">{{ category.QCUnderPercent }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="NumberOfWeeks">
+          <th mat-header-cell *matHeaderCellDef>Weeks</th>
+          <td mat-cell *matCellDef="let category">{{ category.NumberOfWeeks }}</td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="selectedDisplayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: selectedDisplayedColumns;"></tr>
+      </table>
+    </mat-card-content>
+  </mat-card>
+</div>
