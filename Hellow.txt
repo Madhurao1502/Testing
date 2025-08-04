@@ -53,7 +53,7 @@
       <ng-container matColumnDef="expand">
         <th mat-header-cell *matHeaderCellDef></th>
         <td mat-cell *matCellDef="let cat">
-          <button mat-icon-button *ngIf="hasKeycats(cat)" (click)="expandedCategory = expandedCategory === cat ? null : cat">
+          <button mat-icon-button *ngIf="hasKeycats(cat)" (click)="onToggleExpand(cat)">
             <mat-icon>{{expandedCategory === cat ? 'expand_less' : 'expand_more'}}</mat-icon>
           </button>
         </td>
@@ -127,7 +127,7 @@
         <th mat-header-cell *matHeaderCellDef>Category</th>
         <td mat-cell *matCellDef="let cat">{{cat.CategoryName || cat.KeycatName}}</td>
       </ng-container>
-      <ng-container matColumnDef="CatDetail">
+      <ng-container matColumnDef="CatgDetail">
         <th mat-header-cell *matHeaderCellDef>Type</th>
         <td mat-cell *matCellDef="let cat">{{cat.KeycatNumber && cat.KeycatNumber > 0 ? 'Keycat' : 'Category'}}</td>
       </ng-container>
@@ -154,7 +154,6 @@
     </table>
   </mat-card>
 </div>
-
 
 import { Component, EventEmitter, Input, OnChanges, OnInit, Output } from '@angular/core';
 import { ReviewCategory } from '../shared/common.model';
@@ -263,7 +262,7 @@ export class CategoryGridComponent implements OnInit, OnChanges {
   onPercentChanged(cat: ReviewCategory, e: Event) {
     if (this.disabled) return;
     const val = (e.target as HTMLInputElement).value;
-    this.categoryChange.emit({ category: cat, field: 'PassFailPercent', value: val ? Number(val) : null });
+    this.categoryChange.emit({ category: cat, field: 'QCUnderPercent', value: val ? Number(val) : null });
   }
 
   onWeeksChanged(cat: ReviewCategory, e: Event) {
@@ -314,16 +313,197 @@ export class CategoryGridComponent implements OnInit, OnChanges {
   }
 
   hasKeycats(category: ReviewCategory): boolean {
-    return this.keycatsMap[category.ReviewCategoryNumber]?.length > 0;
+    return !!this.keycatsMap[category.ReviewCategoryNumber]?.length;
   }
 
   onNumberOnlyInput(e: KeyboardEvent): boolean {
     const charCode = e.which || e.keyCode;
     return charCode < 32 || (charCode >= 48 && charCode <= 57);
   }
+
+  onToggleExpand(cat:ReviewCategory){
+    this.expandedCategory = this.expandedCategory?.ReviewCategoryNumber==cat.ReviewCategoryNumber?null:cat;
+  }
 }
 
+********************
+serverice
 
+initializeTask(taskId: number, taskVersion: string, lockoutId: string, currentUser: string) {
+    this.taskId = taskId;
+    this.taskVersion = taskVersion;
+    this.lockoutId = lockoutId;
+    this.currentUser = currentUser;
+  }
+
+  loadShelfVar(grp: number): Observable<ShelfNode[]> {
+    return this.http.post<ShelfNode[]>(this.baseUrl +'api/MasterShelfVariables/GetTaskShelfVar', { 
+      TaskId: this.taskId, 
+      Group: grp 
+    });
+  }
+
+  loadAllTreeData() {
+    // Load Location tree (grp: 1)
+    this.loadShelfVar(1).subscribe(data => {
+      const processedData = this.processTreeData(data);
+      this.locationTreeSubject.next(processedData);
+    });
+
+    // Load Section tree (grp: 2)
+    this.loadShelfVar(2).subscribe(data => {
+      const processedData = this.processTreeData(data);
+      this.sectionTreeSubject.next(processedData);
+    });
+
+    // Load Shelf tree (grp: 3)
+    this.loadShelfVar(3).subscribe(data => {
+      const processedData = this.processTreeData(data);
+      this.shelfTreeSubject.next(processedData);
+    });
+
+    // Load UPC tree (grp: 4)
+    this.loadShelfVar(4).subscribe(data => {
+      const processedData = this.processTreeData(data);
+      this.upcTreeSubject.next(processedData);
+    });
+
+    this.loadReviewCategories().subscribe(data=>{
+      this.reviewCategoriesSubject.next(data.CollectionCategories)
+      this.selectedReviewCategoriesSubject.next(data.ReviewCategories)
+    })
+  }
+
+  loadReviewCategories(): Observable<{ReviewCategories: ReviewCategory[], CollectionCategories: ReviewCategory[]}> {
+    return this.http.post<{ReviewCategories: ReviewCategory[], CollectionCategories: ReviewCategory[]}>(
+      this.baseUrl +'api/MasterShelfVariables/GetReviewCategoryDetailsForShelf', 
+      { TaskId: this.taskId }
+    );
+  }
+
+  saveShelfVarDetails(shelfVarData: string): Observable<any> {
+    return this.http.post('api/Task/SaveShelfVarDetails', {
+      shelfVarData: shelfVarData,
+      taskId: this.taskId
+    });
+  }
+
+  saveReviewCategoryDetails(reviewCats: string): Observable<any> {
+    return this.http.post('/Task/SaveReviewCategoryDetailsForShelf', {
+      reviewCats: reviewCats,
+      task_number: this.taskId
+    });
+  }
+
+  private processTreeData(data: ShelfNode[]): ShelfNode[] {
+    const nodeMap = new Map<number|string, ShelfNode>();
+    const rootNodes: ShelfNode[] = [];
+    // First pass: create all nodes
+    data.forEach(item => {
+      const node: ShelfNode = {
+        ...item,
+        children: [],
+        isParent: false,
+        disabled: this.isTaskLocked() || (item.optional !== 'Y'&& item.optional!==undefined)
+      };
+      nodeMap.set(item.id, node);
+    });
+
+    // Second pass: build tree structure
+    data.forEach(item => {
+      const node = nodeMap.get(item.id)!;
+      const parent=nodeMap.get(item.pId)
+      if(parent){
+        parent.children!.push(node);
+        parent.isParent=true
+      }else{
+        rootNodes.push(node)
+      }
+    });
+    return rootNodes;
+  }
+
+  isTaskLocked(): boolean {
+    return this.taskVersion === 'FNL' || this.lockoutId !== this.currentUser;
+  }
+
+  // Tree update methods
+  updateLocationTree(data: ShelfNode[]) {
+    this.locationTreeSubject.next(data);
+  }
+
+  updateSectionTree(data: ShelfNode[]) {
+    this.sectionTreeSubject.next(data);
+  }
+
+  updateShelfTree(data: ShelfNode[]) {
+    this.shelfTreeSubject.next(data);
+  }
+
+  updateUpcTree(data: ShelfNode[]) {
+    this.upcTreeSubject.next(data);
+  }
+
+  updateReviewCategories(data: ReviewCategory[]) {
+    this.reviewCategoriesSubject.next(data);
+  }
+
+  updateSelectedReviewCategories(data: ReviewCategory[]) {
+    this.selectedReviewCategoriesSubject.next(data);
+  }
+
+  // Current values getters
+  get currentLocationTree(): ShelfNode[] {
+    return this.locationTreeSubject.value;
+  }
+
+  get currentSectionTree(): ShelfNode[] {
+    return this.sectionTreeSubject.value;
+  }
+
+  get currentShelfTree(): ShelfNode[] {
+    return this.shelfTreeSubject.value;
+  }
+
+  get currentUpcTree(): ShelfNode[] {
+    return this.upcTreeSubject.value;
+  }
+
+  get currentReviewCategories(): ReviewCategory[] {
+    return this.reviewCategoriesSubject.value;
+  }
+
+  get currentSelectedReviewCategories(): ReviewCategory[] {
+    return this.selectedReviewCategoriesSubject.value;
+  }
+
+*************************
+
+  <div *ngIf="reviewCategories.length>0">
+      <app-category-grid
+      [categories]="selectedCategories"
+      [selectedCategories]="reviewCategories"
+      [disabled]="isLocked"
+      (categoryChange)="onCategoryGridChange($event)"
+      ></app-category-grid>
+  </div>
+
+import { Component, OnInit, OnDestroy, Inject, Input } from '@angular/core';
+import { FormBuilder, FormGroup, Validators, AbstractControl } from '@angular/forms';
+import { forkJoin, Subject, takeUntil } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { MatDialog } from '@angular/material/dialog';
+import { CommonService } from '../shared/common.service';
+import { SnackbarService } from '../shared/snackbar.service';
+import { Router, ActivatedRoute } from '@angular/router';
+import { ReviewCategory, ShelfNode, TaskShelfVar } from '../shared/common.model';
+
+
+@Component({
+  selector: 'app-shelf-task',
+  templateUrl: './shelf-task.component.html',
+  styleUrls: ['./shelf-task.component.css']
+})
 export class ShelfTaskComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 @Input() taskId!: number;
@@ -798,151 +978,6 @@ export class ShelfTaskComponent implements OnInit, OnDestroy {
     }
     return true;
   }
-}
-
-<!-- <div class="shelf-task-container">
-  <mat-tab-group [(selectedIndex)]="selectedTabIndex" 
-  (selectedIndexChange)="onTabChangeByIndex($event)">
-    <mat-tab label="Location">
-      <app-shelf-task-tree [nodes]="locationTree" [disabled]="isLocked"
-        (nodeCheck)="toggleNodeCheck($event)" (nodeSelect)="selectNode($event)"
-        (selectAllChildren)="checkAllChildren($event)"></app-shelf-task-tree>
-    </mat-tab>
-    <mat-tab label="Section">
-      <app-shelf-task-tree [nodes]="sectionTree" [disabled]="isLocked"
-        (nodeCheck)="toggleNodeCheck($event)" (nodeSelect)="selectNode($event)"
-        (selectAllChildren)="checkAllChildren($event)"></app-shelf-task-tree>
-    </mat-tab>
-    <mat-tab label="Shelf">
-      <app-shelf-task-tree [nodes]="shelfTree" [disabled]="isLocked"
-        (nodeCheck)="toggleNodeCheck($event)" (nodeSelect)="selectNode($event)"
-        (selectAllChildren)="checkAllChildren($event)"></app-shelf-task-tree>
-    </mat-tab>
-    <mat-tab label="UPC">
-      <app-shelf-task-tree [nodes]="upcTree" [disabled]="isLocked"
-        (nodeCheck)="toggleNodeCheck($event)" (nodeSelect)="selectNode($event)"
-        (selectAllChildren)="checkAllChildren($event)"></app-shelf-task-tree>
-    </mat-tab>
-  </mat-tab-group> -->
-
-  <!-- Limit / checks panel -->
-  <!-- <div *ngIf="showLimitsPanel" class="limits-panel">
-    <form [formGroup]="limitsForm">
-      <mat-form-field>
-        <mat-label>Min</mat-label>
-        <input matInput formControlName="min" [disabled]="isLocked" />
-      </mat-form-field>
-      <mat-form-field>
-        <mat-label>Max</mat-label>
-        <input matInput formControlName="max" [disabled]="isLocked" />
-      </mat-form-field>
-
-      <mat-form-field *ngIf="showChecksPanel">
-        <mat-label>Soft Check</mat-label>
-        <input matInput formControlName="soft" [disabled]="isLocked" />
-      </mat-form-field>
-      <mat-form-field *ngIf="showChecksPanel">
-        <mat-label>Hard Check</mat-label>
-        <input matInput formControlName="hard" [disabled]="isLocked" />
-      </mat-form-field>
-    </form>
-  </div>
-
-  <button mat-raised-button color="primary" (click)="saveData()" [disabled]="isLocked">Save</button>
-</div> -->
-
-<div class="shelf-task-container" style="display: flex; gap: 20px;">
-  <div class="tree-container" style="flex: 1; max-width: 60%;">
-    <mat-tab-group [(selectedIndex)]="selectedTabIndex" 
-  (selectedIndexChange)="onTabChangeByIndex($event)">
-    <mat-tab label="Location">
-      <app-shelf-task-tree [nodes]="locationTree" [disabled]="isLocked"
-        (nodeCheck)="toggleNodeCheck($event)" (nodeSelect)="selectNode($event)"
-        (selectAllChildren)="checkAllChildren($event)"></app-shelf-task-tree>
-    </mat-tab>
-    <mat-tab label="Section">
-      <app-shelf-task-tree [nodes]="sectionTree" [disabled]="isLocked"
-        (nodeCheck)="toggleNodeCheck($event)" (nodeSelect)="selectNode($event)"
-        (selectAllChildren)="checkAllChildren($event)"></app-shelf-task-tree>
-    </mat-tab>
-    <mat-tab label="Shelf">
-      <app-shelf-task-tree [nodes]="shelfTree" [disabled]="isLocked"
-        (nodeCheck)="toggleNodeCheck($event)" (nodeSelect)="selectNode($event)"
-        (selectAllChildren)="checkAllChildren($event)"></app-shelf-task-tree>
-    </mat-tab>
-    <mat-tab label="UPC">
-      <app-shelf-task-tree [nodes]="upcTree" [disabled]="isLocked"
-        (nodeCheck)="toggleNodeCheck($event)" (nodeSelect)="selectNode($event)"
-        (selectAllChildren)="checkAllChildren($event)"></app-shelf-task-tree>
-    </mat-tab>
-  </mat-tab-group> 
-  </div>
-
-  <div class="limits-container" style="flex: 0 0 300px;">
-    <div *ngIf="showLimitsPanel">
-      <form [formGroup]="limitsForm">
-        <mat-form-field *ngIf="activeTab === 'location'">
-          <mat-label>Min</mat-label>
-          <input matInput formControlName="min" [disabled]="isLocked" />
-        </mat-form-field>
-        <mat-form-field *ngIf="activeTab === 'location'">
-          <mat-label>Max</mat-label>
-          <input matInput formControlName="max" [disabled]="isLocked" />
-        </mat-form-field>
-
-        <mat-form-field *ngIf="showChecksPanel">
-          <mat-label>Soft Check</mat-label>
-          <input matInput formControlName="soft" [disabled]="isLocked" />
-        </mat-form-field>
-        <mat-form-field *ngIf="showChecksPanel">
-          <mat-label>Hard Check</mat-label>
-          <input matInput formControlName="hard" [disabled]="isLocked" />
-        </mat-form-field>
-      </form>
-    </div>
-  </div>
- 
-</div>
- <!-- <button mat-raised-button color="primary" (click)="saveData()" [disabled]="isLocked">Save</button> -->
-  <div *ngIf="reviewCategories.length>0">
-      <app-category-grid></app-category-grid>
-  </div>
-
-
-onCategoryGridChange(evt: { category: ReviewCategory; field: string; value: any }) {
-  const { category, field, value } = evt;
-  // Find the index in selectedCategories
-  const idx = this.selectedCategories.findIndex(
-    s =>
-      s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
-      s.KeycatNumber      === category.KeycatNumber
-  );
-
-  if (field === 'Selected') {
-    if (value === 1) {
-      // Add if not present
-      if (idx < 0) this.selectedCategories.push({ ...category, Selected: 1 });
-    } else {
-      if (idx >= 0) this.selectedCategories.splice(idx, 1);
-    }
-  }
-  else if (field === 'QCUnderReq') {
-    if (idx < 0 && value === 1) {
-      this.selectedCategories.push({ ...category, QCUnderReq: 1, NumberOfWeeks: 5 });
-    } else if (idx >= 0) {
-      this.selectedCategories[idx].QCUnderReq = value;
-    }
-  }
-  else if (field === 'PassFailPercent') {
-    if (idx >= 0) this.selectedCategories[idx].QCUnderPercent = value;
-  }
-  else if (field === 'NumberOfWeeks') {
-    if (idx >= 0) this.selectedCategories[idx].NumberOfWeeks = value;
-  }
-
-  // Refresh data-bound inputs
-  this.selectedCategories = [...this.selectedCategories];
-}
 
 onCategoryGridChange(event: { category: ReviewCategory, field: string, value: any }) {
   const { category, field, value } = event;
@@ -965,5 +1000,4 @@ onCategoryGridChange(event: { category: ReviewCategory, field: string, value: an
     }
   }
 }
-
-
+}
