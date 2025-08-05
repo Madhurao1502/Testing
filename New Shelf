@@ -1,3 +1,105 @@
+onCategorySelected(cat: ReviewCategory, checked: boolean) {
+  if (this.disabled) return;
+  const idx = this.selectedCategories.findIndex(s =>
+    s.ReviewCategoryNumber === cat.ReviewCategoryNumber && !s.KeycatNumber);
+  if (!checked && idx >= 0) {
+    // Remove the parent entry immediately
+    this.selectedCategories.splice(idx, 1);
+    this.dataSource.data = this.reviewCategories;           // Refresh main grid
+    this.selectedDataSource.data = this.selectedCategories; // Refresh selected grid
+  }
+  // Rest of logic unchanged…
+}
+
+
+
+onKeycatSelected(cat: ReviewCategory, checked: boolean) {
+  if (this.disabled) return;
+
+  // Recompute selectedCategories so parent unchecks propagate
+  this.selectedCategories = this.selectedCategories.filter(s =>
+    !(s.ReviewCategoryNumber === cat.ReviewCategoryNumber && !s.KeycatNumber));
+  this.selectedDataSource.data = this.selectedCategories;
+
+  // Now allow child selection without parent
+  const idx = this.selectedCategories.findIndex(s =>
+    s.ReviewCategoryNumber === cat.ReviewCategoryNumber && s.KeycatNumber === cat.KeycatNumber);
+  if (checked && idx < 0) {
+    this.selectedCategories.push({ ...cat, Selected: 1 });
+    this.selectedDataSource.data = this.selectedCategories;
+  } else if (!checked && idx >= 0) {
+    this.selectedCategories.splice(idx, 1);
+    this.selectedDataSource.data = this.selectedCategories;
+  }
+}
+
+
+
+private updateSelection(category: ReviewCategory, field: 'Selected' | 'QCUnderReq', value: number|null) {
+  const isKeycat = !!category.KeycatNumber;
+  // Find existing
+  const idx = this.selectedCategories.findIndex(s =>
+    s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
+    s.KeycatNumber === category.KeycatNumber);
+  // Remove when unchecking
+  if (field === 'Selected' && !value && idx >= 0) {
+    this.selectedCategories.splice(idx, 1);
+  }
+  // Add when checking
+  else if (field === 'Selected' && value && idx < 0) {
+    this.selectedCategories.push({ ...category, Selected: 1, QCUnderReq: 0, QCUnderPercent: null, NumberOfWeeks: null });
+  }
+  // Update QCUnderReq, QCUnderPercent, NumberOfWeeks
+  else if (idx >= 0) {
+    (this.selectedCategories[idx] as any)[field] = value;
+    if (field === 'QCUnderReq' && value) {
+      this.selectedCategories[idx].NumberOfWeeks = 5;
+    }
+    if (field === 'QCUnderReq' && !value) {
+      this.selectedCategories[idx].QCUnderPercent = null;
+      this.selectedCategories[idx].NumberOfWeeks = null;
+    }
+  }
+  this.selectedDataSource.data = this.selectedCategories;
+}
+
+
+onCategorySelected(cat, checked) {
+  if (checked && this.hasSelectedKeycats(cat.ReviewCategoryNumber)) {
+    alert("Can't select a Category when Keycats under it are selected");
+    return;
+  }
+  this.updateSelection(cat, 'Selected', checked ? 1 : null);
+}
+
+onCategoryQCUnderChanged(cat, checked) {
+  if (checked && this.hasSelectedKeycats(cat.ReviewCategoryNumber)) {
+    alert("Can't select a Category when Keycats under it are selected");
+    return;
+  }
+  this.updateSelection(cat, 'Selected', checked ? 1 : null);
+  this.updateSelection(cat, 'QCUnderReq', checked ? 1 : null);
+}
+
+onKeycatSelected(cat, checked) {
+  if (checked && this.hasSelectedParentCategory(cat.ReviewCategoryNumber)) {
+    alert("Can't select a Keycat when its Category is selected");
+    return;
+  }
+  this.updateSelection(cat, 'Selected', checked ? 1 : null);
+}
+
+onKeycatQCUnderChanged(cat, checked) {
+  if (checked && this.hasSelectedParentCategory(cat.ReviewCategoryNumber)) {
+    alert("Can't select a Keycat when its Category is selected");
+    return;
+  }
+  this.updateSelection(cat, 'Selected', checked ? 1 : null);
+  this.updateSelection(cat, 'QCUnderReq', checked ? 1 : null);
+}
+
+
+
 .shelf-tree-wrapper {
   display: flex;
   flex-direction: column;
