@@ -1001,3 +1001,9 @@ onCategoryGridChange(event: { category: ReviewCategory, field: string, value: an
   }
 }
 }
+
+I wanted to inform you that I will not be able to attend today’s meeting as I have another meeting scheduled at the same time regarding a critical production issue.
+
+Would it be possible to kindly reschedule our meeting for tomorrow at a convenient time?
+
+Apologies for the short notice, and thank you for your understanding.
