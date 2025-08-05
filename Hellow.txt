@@ -657,6 +657,14 @@ onCategoryGridChange(event: { category: ReviewCategory, field: string, value: an
     return;
   }
 
+if (field === 'Selected' && category.KeycatNumber === 0 && value == null) {
+    // Parent Category was unchecked → remove all its Keycats too
+    this.selectedCategories = this.selectedCategories.filter(s =>
+      s.ReviewCategoryNumber !== category.ReviewCategoryNumber
+    );
+    return;
+  }
+
   // Existing logic for add/remove/update
   if (field === 'Selected') {
     if (value === 1 && idx < 0) {
@@ -667,5 +675,7 @@ onCategoryGridChange(event: { category: ReviewCategory, field: string, value: an
   } else if (idx >= 0) {
     (this.selectedCategories[idx] as any)[field] = value;
   }
+
+this.selectedCategories = [...this.selectedCategories]
 }
 
