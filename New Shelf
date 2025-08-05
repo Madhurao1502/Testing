@@ -533,3 +533,39 @@ multiTemplateDataRows = true;
   );
 }
 }
+
+
+onQCUnderChanged(cat: any, checked: boolean) {
+  if (this.disabled) {
+    return;
+  }
+
+  // Prevent QCUnder if a child/parent is selected
+  const isKeycat   = cat.KeycatNumber > 0;
+  const hasLocked  = isKeycat
+    ? this.hasSelectedParentCategory(cat.ReviewCategoryNumber)
+    : this.hasSelectedKeycats(cat.ReviewCategoryNumber);
+
+  if (checked && hasLocked) {
+    alert(`Can't select QC Under when ${isKeycat ? 'Category' : 'Keycats'} is selected`);
+    return;
+  }
+
+  // Delegate to the parent component to update selectedCategories
+  // First: if unchecking QCUnder, clear QCUnderReq, QCUnderPercent, NumberOfWeeks
+  if (!checked) {
+    this.categoryChange.emit({ category: cat, field: 'QCUnderReq',    value: null });
+    this.categoryChange.emit({ category: cat, field: 'QCUnderPercent', value: null });
+    this.categoryChange.emit({ category: cat, field: 'NumberOfWeeks',  value: null });
+    return;
+  }
+
+  // If checking QCUnder:
+  // 1) ensure Selected is true
+  this.categoryChange.emit({ category: cat, field: 'Selected',       value: 1 });
+  // 2) set QCUnderReq
+  this.categoryChange.emit({ category: cat, field: 'QCUnderReq',    value: 1 });
+  // 3) default weeks to 5
+  this.categoryChange.emit({ category: cat, field: 'NumberOfWeeks',  value: 5 });
+}
+
