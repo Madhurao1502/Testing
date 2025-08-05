@@ -618,3 +618,22 @@ displayedColumns = ['ReviewCategoryName', 'Keycat', 'KeycatName', 'Selected', 'Q
 selectedDisplayedColumns = ['CategoryName','CatgDetail','CategoryID','QCUnderReq','QCUnderPercent','NumberOfWeeks'];
 multiTemplateDataRows = true;
 
+
+/**
+ * Returns true if the given category’s parent (i.e. its ReviewCategory without a KeycatNumber)
+ * is currently selected in selectedCategories.
+ */
+private isParentSelected(cat: ReviewCategory): boolean {
+  // A cat whose KeycatNumber > 0 is a keycat; its parent category has the same ReviewCategoryNumber and KeycatNumber = 0
+  if (!cat.KeycatNumber || cat.KeycatNumber === 0) {
+    // This is a parent itself, so no higher parent exists
+    return false;
+  }
+
+  return this.selectedCategories.some(selected =>
+    selected.ReviewCategoryNumber === cat.ReviewCategoryNumber &&
+    (!selected.KeycatNumber || selected.KeycatNumber === 0) &&
+    selected.Selected === 1
+  );
+}
+
