@@ -637,3 +637,35 @@ private isParentSelected(cat: ReviewCategory): boolean {
   );
 }
 
+
+
+onCategoryGridChange(event: { category: ReviewCategory, field: string, value: any }) {
+  const { category, field, value } = event;
+  const idx = this.selectedCategories.findIndex(s =>
+    s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
+    s.KeycatNumber        === category.KeycatNumber
+  );
+
+  if (field === 'Selected' && category.KeycatNumber > 0 && value == null && idx >= 0) {
+    // Child Keycat was unchecked → remove _all_ selected entries for this Keycat
+    this.selectedCategories = this.selectedCategories.filter(s =>
+      !(
+        s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
+        s.KeycatNumber        === category.KeycatNumber
+      )
+    );
+    return;
+  }
+
+  // Existing logic for add/remove/update
+  if (field === 'Selected') {
+    if (value === 1 && idx < 0) {
+      this.selectedCategories.push({ ...category, Selected: 1 });
+    } else if (!value && idx >= 0) {
+      this.selectedCategories.splice(idx, 1);
+    }
+  } else if (idx >= 0) {
+    (this.selectedCategories[idx] as any)[field] = value;
+  }
+}
+
