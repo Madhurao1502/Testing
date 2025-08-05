@@ -396,3 +396,225 @@ save() {
       this.snackBar.open('Saved successfully', 'Close', { duration: 2000 });
     });
 }
+
+
+
+
+
+
+<div class="category-grid-container">
+  <mat-card>
+    <mat-card-title>Categories</mat-card-title>
+    <table mat-table
+           [dataSource]="dataSource"
+           multiTemplateDataRows
+           class="mat-elevation-z8">
+
+      <!-- Category Name Column -->
+      <ng-container matColumnDef="ReviewCategoryName">
+        <th mat-header-cell *matHeaderCellDef>Category</th>
+        <td mat-cell *matCellDef="let row"><strong>{{ row.ReviewCategoryName }}</strong></td>
+      </ng-container>
+
+      <!-- Key Cat Number Column -->
+      <ng-container matColumnDef="Keycat">
+        <th mat-header-cell *matHeaderCellDef>Key Cat</th>
+        <td mat-cell *matCellDef="let row">{{ row.KeycatNumber || '' }}</td>
+      </ng-container>
+
+      <!-- Key Cat Name Column -->
+      <ng-container matColumnDef="KeycatName">
+        <th mat-header-cell *matHeaderCellDef>Key Cat Name</th>
+        <td mat-cell *matCellDef="let row">{{ row.KeycatName }}</td>
+      </ng-container>
+
+      <!-- Selected Checkbox -->
+      <ng-container matColumnDef="Selected">
+        <th mat-header-cell *matHeaderCellDef>Select</th>
+        <td mat-cell *matCellDef="let row">
+          <mat-checkbox
+            [checked]="isSelected(row)"
+            [disabled]="(row.KeycatNumber && isParentSelected(row)) || disabled"
+            (change)="onCategorySelected(row, $event.checked)">
+          </mat-checkbox>
+        </td>
+      </ng-container>
+
+      <!-- QC Under Checkbox -->
+      <ng-container matColumnDef="QCUnderReq">
+        <th mat-header-cell *matHeaderCellDef>QC Under</th>
+        <td mat-cell *matCellDef="let row">
+          <mat-checkbox
+            [checked]="isQCUnder(row)"
+            [disabled]="(row.KeycatNumber && isParentSelected(row)) || disabled"
+            (change)="onQCUnderChanged(row, $event.checked)">
+          </mat-checkbox>
+        </td>
+      </ng-container>
+
+      <!-- Pass/Fail % Input -->
+      <ng-container matColumnDef="QCUnderPercent">
+        <th mat-header-cell *matHeaderCellDef>Pass/Fail %</th>
+        <td mat-cell *matCellDef="let row">
+          <input matInput
+                 type="number"
+                 maxlength="2"
+                 [value]="getQCPercent(row)"
+                 [disabled]="!isQCUnder(row) || disabled"
+                 (change)="onPercentChanged(row, $event)"
+                 (keypress)="onNumberOnlyInput($event)" />
+        </td>
+      </ng-container>
+
+      <!-- Weeks Input -->
+      <ng-container matColumnDef="NumberOfWeeks">
+        <th mat-header-cell *matHeaderCellDef>Weeks</th>
+        <td mat-cell *matCellDef="let row">
+          <input matInput
+                 type="number"
+                 maxlength="2"
+                 [value]="getWeeks(row)"
+                 [disabled]="!isQCUnder(row) || disabled"
+                 (change)="onWeeksChanged(row, $event)"
+                 (keypress)="onNumberOnlyInput($event)" />
+        </td>
+      </ng-container>
+
+      <!-- Expand Toggle -->
+      <ng-container matColumnDef="expand">
+        <th mat-header-cell *matHeaderCellDef></th>
+        <td mat-cell *matCellDef="let row">
+          <button mat-icon-button
+                  *ngIf="hasKeycats(row)"
+                  (click)="onToggleExpand(row)">
+            <mat-icon>
+              {{ expandedCategory === row ? 'expand_less' : 'expand_more' }}
+            </mat-icon>
+          </button>
+        </td>
+      </ng-container>
+
+      <!-- Expanded Detail Column -->
+      <ng-container matColumnDef="expandedDetail">
+        <td mat-cell *matCellDef="let row" [attr.colspan]="displayedColumns.length">
+          <ng-container *ngIf="expandedCategory === row">
+            <table mat-table
+                   [dataSource]="keycatsMap[row.ReviewCategoryNumber]"
+                   class="sub-table">
+
+              <ng-container matColumnDef="KeycatName">
+                <th mat-header-cell *matHeaderCellDef>Keycat</th>
+                <td mat-cell *matCellDef="let k">{{ k.KeycatName }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="Selected">
+                <th mat-header-cell *matHeaderCellDef>Select</th>
+                <td mat-cell *matCellDef="let k">
+                  <mat-checkbox
+                    [checked]="isSelected(k)"
+                    [disabled]="isParentSelected(row) || disabled"
+                    (change)="onKeycatSelected(k, $event.checked)">
+                  </mat-checkbox>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="QCUnderReq">
+                <th mat-header-cell *matHeaderCellDef>QC Under</th>
+                <td mat-cell *matCellDef="let k">
+                  <mat-checkbox
+                    [checked]="isQCUnder(k)"
+                    [disabled]="isParentSelected(row) || disabled"
+                    (change)="onKeycatQCUnderChanged(k, $event.checked)">
+                  </mat-checkbox>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="QCUnderPercent">
+                <th mat-header-cell *matHeaderCellDef>Pass/Fail %</th>
+                <td mat-cell *matCellDef="let k">
+                  <input matInput
+                         type="number"
+                         maxlength="2"
+                         [value]="getQCPercent(k)"
+                         [disabled]="!isQCUnder(k) || disabled"
+                         (change)="onPercentChanged(k, $event)"
+                         (keypress)="onNumberOnlyInput($event)" />
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="NumberOfWeeks">
+                <th mat-header-cell *matHeaderCellDef>Weeks</th>
+                <td mat-cell *matCellDef="let k">
+                  <input matInput
+                         type="number"
+                         maxlength="2"
+                         [value]="getWeeks(k)"
+                         [disabled]="!isQCUnder(k) || disabled"
+                         (change)="onWeeksChanged(k, $event)"
+                         (keypress)="onNumberOnlyInput($event)" />
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="['KeycatName','Selected','QCUnderReq','QCUnderPercent','NumberOfWeeks']"></tr>
+              <tr mat-row *matRowDef="let row; columns: ['KeycatName','Selected','QCUnderReq','QCUnderPercent','NumberOfWeeks']"></tr>
+            </table>
+          </ng-container>
+        </td>
+      </ng-container>
+
+      <!-- Header & Row Definitions -->
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="main-row"></tr>
+      <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="detail-row"></tr>
+    </table>
+  </mat-card>
+
+  <mat-card *ngIf="selectedCategories.length > 0" class="selected-categories">
+    <mat-card-title>Selected Categories</mat-card-title>
+    <table mat-table [dataSource]="selectedDataSource">
+
+      <ng-container matColumnDef="CategoryName">
+        <th mat-header-cell *matHeaderCellDef>Category</th>
+        <td mat-cell *matCellDef="let cat">{{ cat.CategoryName || cat.KeycatName }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="CatgDetail">
+        <th mat-header-cell *matHeaderCellDef>Type</th>
+        <td mat-cell *matCellDef="let cat">
+          {{ cat.KeycatNumber && cat.KeycatNumber > 0 ? 'Keycat' : 'Category' }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="CategoryID">
+        <th mat-header-cell *matHeaderCellDef>ID</th>
+        <td mat-cell *matCellDef="let cat">
+          {{ cat.KeycatNumber ? cat.KeycatNumber : cat.ReviewCategoryNumber }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="QCUnderReq">
+        <th mat-header-cell *matHeaderCellDef>QC Under</th>
+        <td mat-cell *matCellDef="let cat">
+          <mat-icon *ngIf="cat.QCUnderReq === 1">check</mat-icon>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="QCUnderPercent">
+        <th mat-header-cell *matHeaderCellDef>Pass/Fail %</th>
+        <td mat-cell *matCellDef="let cat">{{ cat.QCUnderPercent }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="NumberOfWeeks">
+        <th mat-header-cell *matHeaderCellDef>Weeks</th>
+        <td mat-cell *matCellDef="let cat">{{ cat.NumberOfWeeks }}</td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="selectedDisplayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: selectedDisplayedColumns"></tr>
+    </table>
+  </mat-card>
+</div>
+displayedColumns = ['ReviewCategoryName', 'Keycat', 'KeycatName', 'Selected', 'QCUnderReq', 'QCUnderPercent', 'NumberOfWeeks', 'expand'];
+selectedDisplayedColumns = ['CategoryName','CatgDetail','CategoryID','QCUnderReq','QCUnderPercent','NumberOfWeeks'];
+multiTemplateDataRows = true;
+
