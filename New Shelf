@@ -1,3 +1,55 @@
+
+onCategoryGridChange(event: { category: ReviewCategory, field: string, value: any }) {
+  const { category, field, value } = event;
+  const isKeycat = category.KeycatNumber > 0;
+  const idx = this.selectedCategories.findIndex(s =>
+    s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
+    s.KeycatNumber        === category.KeycatNumber
+  );
+
+  // 1. Remove on uncheck (Selected → null)
+  if (field === 'Selected' && value == null) {
+    // Filter out this category or keycat
+    this.selectedCategories = this.selectedCategories.filter(s =>
+      !(
+        s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
+        s.KeycatNumber        === category.KeycatNumber
+      )
+    );
+    return;
+  }
+
+  // 2. Add on check
+  if (field === 'Selected' && value === 1 && idx < 0) {
+    this.selectedCategories = [
+      ...this.selectedCategories,
+      { ...category, Selected: 1 }
+    ];
+    return;
+  }
+
+  // 3. Update other fields (QCUnderReq, QCUnderPercent, NumberOfWeeks)
+  if (idx >= 0 && field !== 'Selected') {
+    const updated = { ...this.selectedCategories[idx], [field]: value };
+    // If QCUnderReq toggled off, also clear percent & weeks
+    if (field === 'QCUnderReq' && value == null) {
+      updated.QCUnderPercent = null;
+      updated.NumberOfWeeks  = null;
+    }
+    // If QCUnderReq toggled on, default weeks = 5
+    if (field === 'QCUnderReq' && value === 1) {
+      updated.NumberOfWeeks = 5;
+    }
+    this.selectedCategories = [
+      ...this.selectedCategories.slice(0, idx),
+      updated,
+      ...this.selectedCategories.slice(idx + 1),
+    ];
+    return;
+  }
+}
+
+
 onCategoryGridChange(event: { category: ReviewCategory, field: string, value: any }) {
   const { category, field, value } = event;
   const idx = this.selectedCategories.findIndex(s =>
