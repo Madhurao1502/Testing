@@ -569,3 +569,30 @@ onQCUnderChanged(cat: any, checked: boolean) {
   this.categoryChange.emit({ category: cat, field: 'NumberOfWeeks',  value: 5 });
 }
 
+
+onKeycatQCUnderChanged(cat: any, checked: MatCheckboxChange) {
+  if (this.disabled) {
+    return;
+  }
+
+  // Block if parent is selected
+  if (checked.checked && this.hasSelectedParentCategory(cat.ReviewCategoryNumber)) {
+    alert("Can't select QC Under when its Category is selected");
+    checked.source.checked = false;
+    return;
+  }
+
+  // On uncheck: clear QCUnderReq, QCUnderPercent, NumberOfWeeks
+  if (!checked.checked) {
+    this.categoryChange.emit({ category: cat, field: 'QCUnderReq',    value: null });
+    this.categoryChange.emit({ category: cat, field: 'QCUnderPercent', value: null });
+    this.categoryChange.emit({ category: cat, field: 'NumberOfWeeks',  value: null });
+    return;
+  }
+
+  // On check: ensure Selected=1, QCUnderReq=1, default Weeks=5
+  this.categoryChange.emit({ category: cat, field: 'Selected',       value: 1 });
+  this.categoryChange.emit({ category: cat, field: 'QCUnderReq',    value: 1 });
+  this.categoryChange.emit({ category: cat, field: 'NumberOfWeeks',  value: 5 });
+}
+
