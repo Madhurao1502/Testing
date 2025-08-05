@@ -1,125 +1,53 @@
-<ng-container matColumnDef="QCUnderPercent">
-          <th mat-header-cell *matHeaderCellDef>Pass/Fail%</th>
-          <td mat-cell *matCellDef="let category">
-            <mat-form-field appearance="outline" class="percent-input">
-              <input matInput
-                     type="number" 
-                     [value]="getPercent(category)"
-                     [disabled]="isPercentDisabled(category)"
-                     (change)="onPercentChanged(category, $event.target.value)"
-                     (keypress)="onNumberInput($event)"
-                     maxlength="2">
-            </mat-form-field>
-          </td>
-        </ng-container>
+<div class="shelf-task-container" style="display: flex; gap: 20px;">
+  <div class="tree-container" style="flex: 1; max-width: 60%;">
+    <mat-tab-group [(selectedIndex)]="selectedTabIndex" 
+  (selectedIndexChange)="onTabChangeByIndex($event)">
+    <mat-tab label="Location">
+      <app-shelf-task-tree [nodes]="locationTree" [disabled]="isLocked"
+        (nodeCheck)="toggleNodeCheck($event)" (nodeSelect)="selectNode($event)"
+        (selectAllChildren)="checkAllChildren($event)"></app-shelf-task-tree>
+    </mat-tab>
+    <mat-tab label="Section">
+      <app-shelf-task-tree [nodes]="sectionTree" [disabled]="isLocked"
+        (nodeCheck)="toggleNodeCheck($event)" (nodeSelect)="selectNode($event)"
+        (selectAllChildren)="checkAllChildren($event)"></app-shelf-task-tree>
+    </mat-tab>
+    <mat-tab label="Shelf">
+      <app-shelf-task-tree [nodes]="shelfTree" [disabled]="isLocked"
+        (nodeCheck)="toggleNodeCheck($event)" (nodeSelect)="selectNode($event)"
+        (selectAllChildren)="checkAllChildren($event)"></app-shelf-task-tree>
+    </mat-tab>
+    <mat-tab label="UPC">
+      <app-shelf-task-tree [nodes]="upcTree" [disabled]="isLocked"
+        (nodeCheck)="toggleNodeCheck($event)" (nodeSelect)="selectNode($event)"
+        (selectAllChildren)="checkAllChildren($event)"></app-shelf-task-tree>
+    </mat-tab>
+  </mat-tab-group> 
+  </div>
 
- (change)="onPercentChanged(category, $event.target.value)"
+  <div class="limits-container" style="flex: 0 0 300px;" *ngIf="showLimitsPanel">
+    <div *ngIf="showLimitsPanel">
+      <form [formGroup]="limitsForm">
+        <mat-form-field *ngIf="activeTab === 'location'">
+          <mat-label>Min</mat-label>
+          <input matInput formControlName="min" [disabled]="isLocked" />
+        </mat-form-field>
+        <mat-form-field *ngIf="activeTab === 'location'">
+          <mat-label>Max</mat-label>
+          <input matInput formControlName="max" [disabled]="isLocked" />
+        </mat-form-field>
 
-Property 'value' does not exist on type 'EventTarget'.ngtsc(2339)
-category-grid.component.ts(12, 8): Error occurs in the template of component CategoryGridComponent.
-
-<div class="tree-container">
-  <app-shelf-task-tree
-    [nodes]="nodes"
-    [options]="treeOptions"
-    (activate)="onNodeActivate($event)"
-    (toggleCheckbox)="onNodeCheck($event)">
-    <ng-template #treeNodeTemplate let-node let-index="index">
-      <div class="tree-node-content">
-        <!-- Checkbox (controlled by Angular, not Tree's default ckb) -->
-        <input
-          type="checkbox"
-          [checked]="node.data.checked"
-          [disabled]="node.data.disabled || disabled"
-          (change)="onNodeCheckDirect(node)"
-          class="node-checkbox"
-        >
-
-        <!-- Node Name -->
-        <span class="node-name" [class.disabled]="node.data.disabled || disabled" (click)="onNodeActivateDirect(node)">
-          {{ node.data.name }}
-        </span>
-
-        <!-- Select All Children Action -->
-        <button
-          *ngIf="node.data.children?.length && !disabled && !node.data.disabled"
-          mat-button
-          class="select-all-btn"
-          (click)="onSelectAllChildren(node.data); $event.stopPropagation()"
-        >
-          <b>(Select all Child variables)</b>
-        </button>
-
-        <!-- Custom Input for Other Section Width -->
-        <div *ngIf="isOtherSectionWidth(node.data) && node.data.checked" class="custom-input-container">
-          <mat-form-field appearance="outline" class="custom-input">
-            <mat-label>Min</mat-label>
-            <input
-              matInput
-              type="number"
-              [value]="node.data.taskMin"
-              (input)="onCustomInputChange(node.data, 'taskMin', $event.target.value)"
-              [disabled]="disabled"
-              [min]="node.data.mainMin"
-              [max]="node.data.mainMax"
-            >
-          </mat-form-field>
-          <mat-form-field appearance="outline" class="custom-input">
-            <mat-label>Max</mat-label>
-            <input
-              matInput
-              type="number"
-              [value]="node.data.taskMax"
-              (input)="onCustomInputChange(node.data, 'taskMax', $event.target.value)"
-              [disabled]="disabled"
-              [min]="node.data.mainMin"
-              [max]="node.data.mainMax"
-            >
-          </mat-form-field>
-        </div>
-
-        <!-- Custom Input for Other Height -->
-        <div *ngIf="isOtherHeight(node.data) && node.data.checked" class="custom-input-container">
-          <mat-form-field appearance="outline" class="custom-input">
-            <mat-label>Min</mat-label>
-            <input
-              matInput
-              type="number"
-              [value]="node.data.taskMin"
-              (input)="onCustomInputChange(node.data, 'taskMin', $event.target.value)"
-              [disabled]="disabled"
-              [min]="node.data.mainMin"
-              [max]="node.data.mainMax"
-            >
-          </mat-form-field>
-          <mat-form-field appearance="outline" class="custom-input">
-            <mat-label>Max</mat-label>
-            <input
-              matInput
-              type="number"
-              [value]="node.data.taskMax"
-              (input)="onCustomInputChange(node.data, 'taskMax', $event.target.value)"
-              [disabled]="disabled"
-              [min]="node.data.mainMin"
-              [max]="node.data.mainMax"
-            >
-          </mat-form-field>
-        </div>
-      </div>
-    </ng-template>
-  </app-shelf-task-tree>
-</div>
-
-import { Component, OnInit, OnDestroy, Inject, Input } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, AbstractControl } from '@angular/forms';
-import { forkJoin, Subject, takeUntil } from 'rxjs';
-import { HttpClient } from '@angular/common/http';
-import { MatDialog } from '@angular/material/dialog';
-import { CommonService } from '../shared/common.service';
-import { SnackbarService } from '../shared/snackbar.service';
-import { Router, ActivatedRoute } from '@angular/router';
-import { ReviewCategory, ShelfNode, TaskShelfVar } from '../shared/common.model';
-
+        <mat-form-field *ngIf="showChecksPanel">
+          <mat-label>Soft Check</mat-label>
+          <input matInput formControlName="soft" [disabled]="isLocked" />
+        </mat-form-field>
+        <mat-form-field *ngIf="showChecksPanel">
+          <mat-label>Hard Check</mat-label>
+          <input matInput formControlName="hard" [disabled]="isLocked" />
+        </mat-form-field>
+      </form>
+    </div>
+  </div>
 
 @Component({
   selector: 'app-shelf-task',
@@ -128,38 +56,35 @@ import { ReviewCategory, ShelfNode, TaskShelfVar } from '../shared/common.model'
 })
 export class ShelfTaskComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
+@Input() taskId!: number;
+  @Input() taskVersion!: string;
+  @Input() lockoutId!: string;
 
-  // Tree data
+  activeTab = 'location';
+  currTabCode = 'trLocation';
+
+  // Trees
   locationTree: ShelfNode[] = [];
   sectionTree: ShelfNode[] = [];
   shelfTree: ShelfNode[] = [];
   upcTree: ShelfNode[] = [];
 
-  // Review categories
-  reviewCategories: ReviewCategory[] = [];
-  selectedReviewCategories: ReviewCategory[] = [];
-
-  // UI state
-  activeTab: string = 'location';
   activeNode: ShelfNode | null = null;
-  showLimitsPanel: boolean = false;
-  showChecksPanel: boolean = false;
-  isTaskLocked: boolean = false;
-  currActiveTab: string = 'trLocation';
+  showLimitsPanel = false;
+  showChecksPanel = false;
 
-  // Active section/shelf min/max tracking
-  activeSectionMinMax: number | null = null;
-  activeShelfMinMax: number | null = null;
-
-  // Forms
-  limitsForm: FormGroup;
-
-  loggedUser: string;
-  @Input() taskId!: number;
-  @Input() taskVersion!: string;
-  @Input() lockoutId!: string;
+  activeSectionLimitId: number | null = null;
+  activeShelfLimitId: number | null = null;
   
+  // Categories
+  reviewCategories: ReviewCategory[] = [];
+  selectedCategories: ReviewCategory[] = [];
+  isLocked = false;
 
+  limitsForm: FormGroup;
+  loggedUser: string;
+  tabNames = ['location', 'section', 'shelf', 'upc'];
+  selectedTabIndex = 0;
   constructor(public http: HttpClient,
       @Inject('BASE_URL') public baseUrl: string,
       private router: Router,
@@ -177,12 +102,54 @@ export class ShelfTaskComponent implements OnInit, OnDestroy {
      }
 
   ngOnInit() {
-    // Initialize with sample data (replace with actual initialization)
-    this.initializeTask(this.taskId, this.taskVersion, this.lockoutId, this.loggedUser);
+    this.selectedTabIndex = this.tabNames.indexOf(this.activeTab);
+     this.service.initializeTask(this.taskId, this.taskVersion, this.lockoutId, localStorage.getItem('loggedUserId')!);
+    this.isLocked = this.service.isTaskLocked();
+    this.service.loadAllTreeData();
+    this.service.locationTree$.pipe(takeUntil(this.destroy$)).subscribe(data =>{
+      this.locationTree = data
+      if(this.locationTree.length>0){
+        const firstNode = this.locationTree[0]
+        firstNode.checked=true;
+        this.updatePanelsForNode(firstNode)
+      }
+    });
+    this.service.sectionTree$.pipe(takeUntil(this.destroy$)).subscribe(data =>{
+      this.sectionTree = data
+      if(this.sectionTree.length>0){
+        const firstNode = this.sectionTree[0]
+        firstNode.checked=true;
+        this.updatePanelsForNode(firstNode)
+      }
+    });
+    this.service.shelfTree$.pipe(takeUntil(this.destroy$)).subscribe(data => {      
+      this.shelfTree = data
+      if(this.shelfTree.length>0){
+        const firstNode = this.shelfTree[0]
+        firstNode.checked=true;
+        this.updatePanelsForNode(firstNode)
+      }
+    });
+    this.service.upcTree$.pipe(takeUntil(this.destroy$)).subscribe(data =>{
+      this.upcTree = data
+      if(this.upcTree.length>0){
+        const firstNode = this.upcTree[0]
+        firstNode.checked=true;
+        this.updatePanelsForNode(firstNode)
+      }
+    });
+    this.service.reviewCategories$.pipe(takeUntil(this.destroy$)).subscribe(data =>     
+       this.reviewCategories = data
     
-     this.subscribeToDataStreams();
-    this.loadInitialData();
-    this.setupFormValidation();
+    );
+    this.service.selectedReviewCategories$.pipe(takeUntil(this.destroy$)).subscribe(data =>
+       this.selectedCategories = data
+  
+      );
+
+    
+
+    this.limitsForm.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => this.onLimitsFormChange());
   }
 
   ngOnDestroy() {
@@ -190,132 +157,275 @@ export class ShelfTaskComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  private initializeTask(taskId: number, taskVersion: string, lockoutId: string, currentUser: string) {
-    this.service.initializeTask(taskId, taskVersion, lockoutId, currentUser);
-    this.isTaskLocked = this.service.isTaskLocked();
-  }
+  onTabChangeByIndex(index: number) {
+  this.selectedTabIndex = index;
+  this.activeTab = this.tabNames[index];
+  this.onTabChange(this.activeTab);  
+}
 
-  private subscribeToDataStreams() {
-    // Subscribe to tree data
-    this.service.locationTree$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(data => this.locationTree = data);
-
-    this.service.sectionTree$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(data => this.sectionTree = data);
-
-    this.service.shelfTree$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(data => this.shelfTree = data);
-
-    this.service.upcTree$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(data => this.upcTree = data);
-
-    // Subscribe to review categories
-    this.service.reviewCategories$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(data => this.reviewCategories = data);
-
-    this.service.selectedReviewCategories$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(data => this.selectedReviewCategories = data);
-  }
-
-  private loadInitialData() {
-    // Load all tree data
-    this.service.loadAllTreeData();
-
-    // Load review categories
-    this.service.loadReviewCategories().subscribe(result => {
-      this.service.updateReviewCategories(result.ReviewCategories);
-      this.service.updateSelectedReviewCategories(result.CollectionCategories);
-    });
-
-    // Set initial active tab
-    this.onTabChange('location');
-  }
-
-  private setupFormValidation() {
-    // Setup real-time validation
-    this.limitsForm.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      if (this.activeNode) {
-        this.validateAndUpdateNode();
-      }
-    });
-  }
-
-  onTabChange(tabName: string) {
-    this.activeTab = tabName;
-    this.currActiveTab = `tr${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`;
-    
-    // Reset active node and panels
+  onTabChange(tab: string) {
+    this.activeTab = tab;
+    this.currTabCode = 'tr' + tab.charAt(0).toUpperCase() + tab.slice(1);
     this.activeNode = null;
-    this.hideAllPanels();
+    this.showLimitsPanel = false;
+    this.showChecksPanel = false;
 
-    // Set default node selection based on tab
     setTimeout(() => {
-      this.selectDefaultNode(tabName);
+      const firstNode = this.getTreeForActiveTab()[0];
+      if (firstNode) {
+        this.selectNode(firstNode);
+      }
     }, 100);
   }
 
-  private selectDefaultNode(tabName: string) {
-    let tree: ShelfNode[] = [];
-    
-    switch(tabName) {
-      case 'location': tree = this.locationTree; break;
-      case 'section': tree = this.sectionTree; break;
-      case 'shelf': tree = this.shelfTree; break;
-      case 'upc': tree = this.upcTree; break;
-    }
 
-    if (tree.length > 0) {
-      const rootNode = tree[0];
-      this.onNodeSelect(rootNode);
+
+  getTreeForActiveTab(): ShelfNode[] {
+    switch (this.activeTab) {
+      case 'location': return this.locationTree;
+      case 'section': return this.sectionTree;
+      case 'shelf': return this.shelfTree;
+      case 'upc': return this.upcTree;
+      default: return [];
     }
   }
 
-  onNodeSelect(node: ShelfNode) {
+  selectNode(node: ShelfNode) {
     this.activeNode = node;
-    this.showHideVarDiv(node);
+    this.updatePanelsForNode(node);
   }
 
-  onNodeCheck(node: ShelfNode) {
-    if (node.disabled) return;
-
+  toggleNodeCheck(node: ShelfNode) {
+    if (this.isLocked || node.disabled) return;
     node.checked = !node.checked;
-    
-    // Handle special logic for specific nodes
     this.handleSpecialNodeLogic(node);
-    
-    // Update tree
+    this.setCheckedForAllChildren(node,node.checked)
     this.updateTreeData();
-    
-    // Show/hide panels
-    this.showHideVarDiv(node);
+    this.updatePanelsForNode(node);
+  }
+
+  private setCheckedForAllChildren(node:ShelfNode,checked:boolean){
+    if(!node.children) return;
+    node.children.forEach(child=>{
+      if(!child.disabled){
+        child.checked =checked;
+        this.setCheckedForAllChildren(child,checked)
+      }
+    })
   }
 
   private handleSpecialNodeLogic(node: ShelfNode) {
-    // Handle Section tab special logic (nodes 11930, 11960)
     if ((node.id === 11930 || node.id === 11960) && this.activeTab === 'section') {
-      const sectionTree = this.sectionTree;
-      const node1 = this.findNodeById(sectionTree, 11930);
-      const node2 = this.findNodeById(sectionTree, 11960);
-      
+      const sTree = this.sectionTree;
+      const node1 = this.findNodeById(sTree, 11930);
+      const node2 = this.findNodeById(sTree, 11960);
       if (node1 && node2 && !node1.checked && !node2.checked) {
-        node.checked = true;
+        node.checked = true; // prevent both unchecked
       }
-    }
-
-    // Handle parent-child relationships
-    if (node.children && node.checked) {
-      this.checkAllChildren(node);
     }
   }
 
+   checkAllChildren(node: ShelfNode) {
+    if (!node.children || this.isLocked) return; 
+    this.setCheckedForAllChildren(node,true)
+    this.updateTreeData()
+    this.updatePanelsForNode(node)
+
+    node.open=false;
+    setTimeout(() => {
+      node.open=true;
+    }, 100);
+  }
+
+  private updatePanelsForNode(node: ShelfNode) {
+    this.showLimitsPanel = false;
+    this.showChecksPanel = false;
+    this.activeShelfLimitId = null;
+    this.activeSectionLimitId = null;
+
+    if (node.id === 22700) {
+      // Shelf: Other height node
+      if (node.checked) {
+        this.showLimitsPanel = true;
+        this.setLimitsForm(node);
+        this.activeShelfLimitId = node.id;
+      }
+      return;
+    }
+
+    const sectionLimits = [11160, 15490, 15995, 14825, 16910];
+    if (sectionLimits.includes(node.id)) {
+      if (node.checked) {
+        this.showLimitsPanel = true;
+        this.setLimitsForm(node);
+        this.activeSectionLimitId = node.id;
+      }
+      return;
+    }
+
+    const specialIds = [200, 10100, 20000, 30100];
+    if (specialIds.includes(node.id)) {
+      this.showLimitsPanel = true;
+      this.showChecksPanel = true;
+      this.setFullForm(node);
+    }
+  }
+
+  private setLimitsForm(node: ShelfNode) {
+    this.limitsForm.patchValue({
+      min: node.taskMin ?? node.mainMin ?? '',
+      max: node.taskMax ?? node.mainMax ?? '',
+      soft: '',
+      hard: ''
+    }, { emitEvent: false });
+  }
+
+  private setFullForm(node: ShelfNode) {
+    this.limitsForm.patchValue({
+      min: node.taskMin ?? node.mainMin ?? '',
+      max: node.taskMax ?? node.mainMax ?? '',
+      soft: node.task_soft_check ?? node.main_soft_check ?? '',
+      hard: node.task_hard_check ?? node.main_hard_check ?? ''
+    }, { emitEvent: false });
+  }
+
+  private onLimitsFormChange() {
+    if (!this.activeNode) return;
+    if (this.limitsForm.invalid) return;
+
+    if (this.activeShelfLimitId)
+      if (!this.validateShelfLimits(this.limitsForm.value)) return;
+
+    if (this.activeSectionLimitId)
+      if (!this.validateSectionLimits(this.limitsForm.value)) return;
+
+    if (['location', 'section', 'shelf', 'upc'].includes(this.activeTab) && !this.activeShelfLimitId && !this.activeSectionLimitId) {
+      if (!this.validateGeneralLimits(this.limitsForm.value)) return;
+    }
+
+    this.updateNodeLimits(this.activeNode, this.limitsForm.value);
+    this.updateTreeData();
+  }
+
+  private validateShelfLimits(vals: any): boolean {
+    const minVal = this.getShelfMinVal();
+    const maxVal = this.getShelfMaxVal();
+    const min = Number(vals.min);
+    const max = Number(vals.max);
+
+    if (!isNaN(min) && min > minVal) {
+      alert(`Min must be less or equal than smallest selected shelf width (${minVal})`);
+      this.resetFormField('min');
+      return false;
+    }
+    if (!max || max <= maxVal) {
+      alert(`Max must be greater than largest selected shelf width (${maxVal})`);
+      this.resetFormField('max');
+      return false;
+    }
+    return true;
+  }
+
+  private validateSectionLimits(vals: any): boolean {
+    const minVal = this.getSectionMinVal();
+    const maxVal = this.getSectionMaxVal();
+    const min = Number(vals.min);
+    const max = Number(vals.max);
+
+    if (!isNaN(min) && min > minVal && minVal !== -1) {
+      alert(`Min must be less than smallest selected section width (${minVal})`);
+      this.resetFormField('min');
+      return false;
+    }
+    if (!max || max <= maxVal && maxVal !== -1) {
+      alert(`Max must be greater than largest selected section width (${maxVal})`);
+      this.resetFormField('max');
+      return false;
+    }
+    return true;
+  }
+
+  private validateGeneralLimits(vals: any): boolean {
+    const min = Number(vals.min);
+    const soft = Number(vals.soft);
+    const hard = Number(vals.hard);
+    const max = Number(vals.max);
+
+    if (soft < min) {
+      alert('Soft check must be >= Min');
+      this.resetFormField('soft');
+      return false;
+    }
+    if (hard < soft + 3) {
+      alert('Hard check must be at least 3 more than soft check');
+      this.resetFormField('hard');
+      return false;
+    }
+    if (this.activeTab === 'location' && hard > max) {
+      alert('Hard check must be <= Max');
+      this.resetFormField('hard');
+      return false;
+    }
+    return true;
+  }
+
+  private getShelfMinVal(): number {
+    let vals: number[] = [];
+    this.collectValuesForShelf(this.shelfTree, vals, true, ['Height'], 'checked');
+    return vals.length ? Math.min(...vals) : 0;
+  }
+
+  private getShelfMaxVal(): number {
+    let vals: number[] = [];
+    this.collectValuesForShelf(this.shelfTree, vals, true, ['Height'], 'checked');
+    return vals.length ? Math.max(...vals) : 999;
+  }
+
+  private collectValuesForShelf(nodes: ShelfNode[], collector: number[], requireChecked: boolean, varNames: string[], valueField: keyof ShelfNode) {
+    for (const node of nodes) {
+      if (varNames.includes(node.name)) {
+        if (node.children) {
+          for (const child of node.children) {
+            if ((!requireChecked || child.checked) && child.name !== 'Other Height' && typeof child.value === 'number') {
+              collector.push(child.value);
+            }
+          }
+        }
+      }
+      if (node.children) {
+        this.collectValuesForShelf(node.children, collector, requireChecked, varNames, valueField);
+      }
+    }
+  }
+
+  private getSectionMinVal(): number {
+    const parent = this.findSectionLimitParent();
+    if (!parent) return -1;
+    const vals = parent.children?.filter(c => c.checked && !c.name.startsWith('Other'))?.map(c => Number(c.value)) ?? [];
+    return vals.length ? Math.min(...vals) : -1;
+  }
+  private getSectionMaxVal(): number {
+    const parent = this.findSectionLimitParent();
+    if (!parent) return -1;
+    const vals = parent.children?.filter(c => c.checked && !c.name.startsWith('Other'))?.map(c => Number(c.value)) ?? [];
+    return vals.length ? Math.max(...vals) : -1;
+  }
+  private findSectionLimitParent(): ShelfNode | null {
+    if (!this.sectionTree) return null;
+    const map = {
+      11160: 10210,
+      15490: 15000,
+      15995: 15500,
+      14825: 14000,
+      16910: 16500
+    };
+    const parentId = this.activeSectionLimitId ? map[this.activeSectionLimitId] : null;
+    if (!parentId) return null;
+    return this.findNodeById(this.sectionTree, parentId);
+  }
+
   private findNodeById(nodes: ShelfNode[], id: number): ShelfNode | null {
-    for (let node of nodes) {
+    for (const node of nodes) {
       if (node.id === id) return node;
       if (node.children) {
         const found = this.findNodeById(node.children, id);
@@ -325,350 +435,66 @@ export class ShelfTaskComponent implements OnInit, OnDestroy {
     return null;
   }
 
-  private showHideVarDiv(treeNode: ShelfNode) {
-    // Reset all panels first
-    this.hideAllPanels();
-    this.resetActiveSectionShelf();
-
-    // Handle specific node types
-    if (this.isShelfHeightNode(treeNode)) {
-      this.showLimitsPanel = true;
-      this.populateLimitsForm(treeNode);
-      this.activeShelfMinMax = treeNode.id;
-      return;
-    }
-
-    if (this.isSectionWidthNode(treeNode)) {
-      this.showLimitsPanel = true;
-      this.populateLimitsForm(treeNode);
-      this.activeSectionMinMax = treeNode.id;
-      return;
-    }
-
-    if (this.isMainVariableNode(treeNode)) {
-      this.showLimitsPanel = true;
-      this.showChecksPanel = true;
-      this.populateFullForm(treeNode);
-    }
+  private updateNodeLimits(node: ShelfNode, vals: any) {
+    if (vals.min !== undefined) node.taskMin = vals.min;
+    if (vals.max !== undefined) node.taskMax = vals.max;
+    if (vals.soft !== undefined) node.main_soft_check = vals.soft;
+    if (vals.hard !== undefined) node.task_hard_check = vals.hard;
   }
 
-  private isShelfHeightNode(node: ShelfNode): boolean {
-    return node.id === 22700; // Other Height in Shelf
-  }
-
-  private isSectionWidthNode(node: ShelfNode): boolean {
-    const sectionWidthIds = [11160, 14825, 15995, 15490, 16910];
-    return sectionWidthIds.includes(node.id);
-  }
-
-  private isMainVariableNode(node: ShelfNode): boolean {
-    const mainVarIds = [200, 10100, 20000, 30100];
-    return mainVarIds.includes(node.id);
-  }
-
-  private populateLimitsForm(node: ShelfNode) {
-    this.limitsForm.patchValue({
-      min: (node.taskMin || node.mainMin || '').toString(),
-      max: (node.taskMax || node.mainMax || '').toString(),
-      soft: '',
-      hard: ''
-    }, { emitEvent: false });
-  }
-
-  private populateFullForm(node: ShelfNode) {
-    this.limitsForm.patchValue({
-      min: (node.taskMin || node.mainMin || '').toString(),
-      max: (node.taskMax || node.mainMax || '').toString(),
-      soft: (node.task_soft_check || node.main_soft_check || '').toString(),
-      hard: (node.task_hard_check || node.main_hard_check || '').toString()
-    }, { emitEvent: false });
-  }
-
-  private hideAllPanels() {
-    this.showLimitsPanel = false;
-    this.showChecksPanel = false;
-  }
-
-  private resetActiveSectionShelf() {
-    this.activeSectionMinMax = null;
-    this.activeShelfMinMax = null;
-  }
-
-  private validateAndUpdateNode() {
-    if (!this.activeNode || !this.limitsForm.valid) return;
-
-    const formValues = this.limitsForm.value;
-    
-    // Validate based on current context
-    if (this.currActiveTab === 'trShelf' && this.activeShelfMinMax) {
-      if (!this.validateShelfLimits(formValues)) return;
-    } else if (this.currActiveTab === 'trSection' && this.activeSectionMinMax) {
-      if (!this.validateSectionLimits(formValues)) return;
-    } else {
-      if (!this.validateGeneralLimits(formValues)) return;
-    }
-
-    // Update the active node
-    this.updateNodeValues(this.activeNode, formValues);
-    this.updateTreeData();
-  }
-
-  private validateShelfLimits(values: any): boolean {
-    const min = parseInt(values.min, 10);
-    const max = parseInt(values.max, 10);
-
-    if (!isNaN(min)) {
-      const minVal = this.getMinMaxValueForShelf(1);
-      if (min > minVal) {
-        alert('The value for Min must be less than the smallest selected width variable');
-        this.resetFormValue('min');
-        return false;
-      }
-    }
-
-    if (!isNaN(max)) {
-      if (max === 0) {
-        alert('A value is required for Max');
-        this.resetFormValue('max');
-        return false;
-      }
-      const maxVal = this.getMinMaxValueForShelf(2);
-      if (max < maxVal) {
-        alert('The value of Max must be greater than the largest selected width variable');
-        this.resetFormValue('max');
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  private validateSectionLimits(values: any): boolean {
-    const min = parseInt(values.min, 10);
-    const max = parseInt(values.max, 10);
-
-    if (!isNaN(min)) {
-      const minVal = this.getMinMaxValueOfSection(1);
-      if (min > minVal && minVal !== -1) {
-        alert('The value for Min must be less than the smallest selected width variable');
-        this.resetFormValue('min');
-        return false;
-      }
-    }
-
-    if (!isNaN(max)) {
-      if (max === 0) {
-        alert('A value is required for Max');
-        this.resetFormValue('max');
-        return false;
-      }
-      const maxVal = this.getMinMaxValueOfSection(2);
-      if (max < maxVal && maxVal !== -1) {
-        alert('The value of Max must be greater than the largest selected width variable');
-        this.resetFormValue('max');
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  private validateGeneralLimits(values: any): boolean {
-    const min = parseInt(values.min, 10) || 0;
-    const soft = parseInt(values.soft, 10) || 0;
-    const hard = parseInt(values.hard, 10) || 0;
-    const max = parseInt(values.max, 10) || 0;
-
-    if (soft > 0 && soft < min) {
-      alert("'Soft Check' must be greater than or equal to the Min Limit");
-      this.resetFormValue('soft');
-      return false;
-    }
-
-    if (hard > 0 && hard < (soft + 3)) {
-      alert("The value for 'Hard Check' must be at least 3 greater than the value of 'Soft Check'");
-      this.resetFormValue('hard');
-      return false;
-    }
-
-    if (this.currActiveTab === 'trLocation' && hard > max) {
-      alert("Max Limit must be greater than the Hard Check");
-      this.resetFormValue('hard');
-      return false;
-    }
-
-    return true;
-  }
-
-  private getMinMaxValueForShelf(type: 1 | 2): number {
-    const shelfTree = this.shelfTree;
-    const values: number[] = [];
-
-    this.collectHeightValues(shelfTree, values);
-
-    if (values.length === 0) return type === 1 ? 0 : 999;
-    
-    return type === 1 ? Math.min(...values) : Math.max(...values);
-  }
-
-  private collectHeightValues(nodes: ShelfNode[], values: number[]) {
-    nodes.forEach(node => {
-      if (node.name === 'Height' && node.children) {
-        node.children.forEach(child => {
-          if (child.checked && child.name !== 'Other Height' && child.value) {
-            values.push(child.value);
-          }
-        });
-      }
-      if (node.children) {
-        this.collectHeightValues(node.children, values);
-      }
-    });
-  }
-
-  private getMinMaxValueOfSection(type: 1 | 2): number {
-    const sectionTree = this.sectionTree;
-    let parentNode: ShelfNode | null = null;
-
-    // Find the correct parent node based on activeSectionMinMax
-    if (this.activeSectionMinMax === 11160) {
-      parentNode = this.findNodeById(sectionTree, 10210); // Section Width under Presence of Section
-    } else if (this.activeSectionMinMax === 15490) {
-      parentNode = this.findNodeById(sectionTree, 15000); // Coffin Section Width
-    } else if (this.activeSectionMinMax === 15995) {
-      parentNode = this.findNodeById(sectionTree, 15500); // Upright Section Width
-    } else if (this.activeSectionMinMax === 14825) {
-      parentNode = this.findNodeById(sectionTree, 14000); // Shelf Section Width
-    } else if (this.activeSectionMinMax === 16910) {
-      parentNode = this.findNodeById(sectionTree, 16500); // Section Depth
-    }
-
-    if (!parentNode || !parentNode.children) return -1;
-
-    const values: number[] = [];
-    parentNode.children.forEach(child => {
-      if (child.checked && 
-          child.name !== 'Other Section Width' && 
-          child.name !== 'Other Section Depth' && 
-          child.value) {
-        values.push(child.value);
-      }
-    });
-
-    if (values.length === 0) return -1;
-    
-    return type === 1 ? Math.min(...values) : Math.max(...values);
-  }
-
-  private updateNodeValues(node: ShelfNode, values: any) {
-    node.taskMin = values.min || node.taskMin;
-    node.taskMax = values.max || node.taskMax;
-    node.task_soft_check = values.soft || node.task_soft_check;
-    node.task_hard_check = values.hard || node.task_hard_check;
-  }
-
-  private resetFormValue(field: string) {
+  private resetFormField(field: string) {
     if (!this.activeNode) return;
-
-    const currentValue = this.getCurrentNodeValue(this.activeNode, field);
-    this.limitsForm.patchValue({ [field]: currentValue }, { emitEvent: false });
+    const val = this.fieldValueFromNode(this.activeNode, field);
+    this.limitsForm.patchValue({ [field]: val ?? '' }, { emitEvent: false });
   }
 
-  private getCurrentNodeValue(node: ShelfNode, field: string): string {
-    switch (field) {
-      case 'min': return (node.taskMin || node.mainMin || '').toString();
-      case 'max': return (node.taskMax || node.mainMax || '').toString();
-      case 'soft': return (node.task_soft_check || node.main_soft_check || '').toString();
-      case 'hard': return (node.task_hard_check || node.main_hard_check || '').toString();
-      default: return '';
-    }
+  private fieldValueFromNode(node: ShelfNode, field: string): any {
+    return {
+      min: node.taskMin ?? node.mainMin ?? '',
+      max: node.taskMax ?? node.mainMax ?? '',
+      soft: node.main_soft_check ?? node.main_soft_check ?? '',
+      hard: node.task_hard_check ?? node.main_hard_check ?? ''
+    }[field];
   }
 
-  private updateTreeData() {
-    // Update the appropriate tree based on current tab
+  updateTreeData() {
     switch (this.activeTab) {
       case 'location':
-        this.service.updateLocationTree([...this.locationTree]);
+        this.service.updateLocationTree(this.locationTree);
         break;
       case 'section':
-        this.service.updateSectionTree([...this.sectionTree]);
+        this.service.updateSectionTree(this.sectionTree);
         break;
       case 'shelf':
-        this.service.updateShelfTree([...this.shelfTree]);
+        this.service.updateShelfTree(this.shelfTree);
         break;
       case 'upc':
-        this.service.updateUpcTree([...this.upcTree]);
+        this.service.updateUpcTree(this.upcTree);
         break;
     }
   }
 
-  checkAllChildren(node: ShelfNode) {
-    if (!node.children || this.isTaskLocked) return;
+  saveData() {
+    if (!this.validateBeforeSave()) return;
 
-    node.checked = true;
-    node.children.forEach(child => {
-      if (!child.disabled) {
-        child.checked = true;
-      }
+    const taskVars: TaskShelfVar[] = [];
+    ['locationTree', 'sectionTree', 'shelfTree', 'upcTree'].forEach(treeName => {
+      const tree = (this as any)[treeName] as ShelfNode[];
+      this.addCheckedNodesToSave(tree, taskVars);
     });
 
-    this.updateTreeData();
-  }
-
-  // Save functionality
-  saveShelfData() {
-    if (!this.validateShelfData()) return;
-
-    const taskShelfVarObj: TaskShelfVar[] = [];
-    
-    // Populate from all trees
-    this.populateShelfVarObject(taskShelfVarObj, this.locationTree);
-    this.populateShelfVarObject(taskShelfVarObj, this.sectionTree);
-    this.populateShelfVarObject(taskShelfVarObj, this.shelfTree);
-    this.populateShelfVarObject(taskShelfVarObj, this.upcTree);
-
-    const shelfVarData = JSON.stringify(taskShelfVarObj);
-
-    this.service.saveShelfVarDetails(shelfVarData).subscribe({
-      next: (result) => {
-        console.log('Shelf data saved successfully', result);
-        this.saveReviewCategoryDetails();
-      },
-      error: (error) => {
-        console.error('Error saving shelf data', error);
-        alert('Error occurred while saving shelf data.');
-      }
+    const shelfDataJson = JSON.stringify(taskVars);
+    this.service.saveShelfVarDetails(shelfDataJson).subscribe({
+      next: () => this.saveCategories(),
+      error: () => alert('Error saving shelf data.')
     });
   }
 
-  private validateShelfData(): boolean {
-    // Check that at least one location is selected
-    const checkedLocationCount = this.countCheckedNodes(this.locationTree);
-    
-    if (checkedLocationCount === 0) {
-      alert('Please select at least one Location!');
-      return false;
-    }
-
-    return true;
-  }
-
-  private countCheckedNodes(nodes: ShelfNode[]): number {
-    let count = 0;
-    nodes.forEach(node => {
-      if (node.checked) count++;
-      if (node.children) {
-        count += this.countCheckedNodes(node.children);
-      }
-    });
-    return count;
-  }
-
-  private populateShelfVarObject(taskShelfVarObj: TaskShelfVar[], nodes: ShelfNode[]) {
-    nodes.forEach(node => {
+  private addCheckedNodesToSave(nodes: ShelfNode[], collector: TaskShelfVar[]) {
+    for (const node of nodes) {
       if (node.checked) {
-        const shelfVar: TaskShelfVar = {
-          task_number: 8946, // This should come from service
+        collector.push({
+          task_number: this.taskId,
           prompt_level: 0,
           ShelfVarID: node.id,
           min: node.taskMin,
@@ -677,96 +503,114 @@ export class ShelfTaskComponent implements OnInit, OnDestroy {
           hard_check: node.task_hard_check,
           ordinal: node.mainOrdinal,
           name: node.name
-        };
-        taskShelfVarObj.push(shelfVar);
+        });
       }
-
-      if (node.children) {
-        this.populateShelfVarObject(taskShelfVarObj, node.children);
-      }
-    });
-  }
-
-  private saveReviewCategoryDetails() {
-    const reviewCats = JSON.stringify(this.selectedReviewCategories);
-    
-    this.service.saveReviewCategoryDetails(reviewCats).subscribe({
-      next: (result) => {
-        console.log('Review categories saved successfully', result);
-        alert('Shelf data saved successfully!');
-      },
-      error: (error) => {
-        console.error('Error saving review categories', error);
-        alert('Error occurred while saving collection categories data for shelf.');
-      }
-    });
-  }
-
-  // Review category methods
-  onReviewCategoryChange(category: ReviewCategory, field: string, value: any) {
-    // Update the category
-    const index = this.selectedReviewCategories.findIndex(c => 
-      c.ReviewCategoryNumber === category.ReviewCategoryNumber);
-    
-    if (index !== -1) {
-      (this.selectedReviewCategories[index] as any)[field] = value;
-    } else if (value) {
-      // Add new category if it doesn't exist and value is set
-      this.selectedReviewCategories.push({
-        ...category,
-        [field]: value
-      });
+      if (node.children) this.addCheckedNodesToSave(node.children, collector);
     }
-
-    this.service.updateSelectedReviewCategories([...this.selectedReviewCategories]);
   }
 
-  // Number-only input handler
-  onNumberInput(event: KeyboardEvent): boolean {
-    const charCode = event.which ? event.which : event.keyCode;
-    if (charCode > 31 && (charCode < 48 || charCode > 57)) {
+  private saveCategories() {
+    const catsJson = JSON.stringify(this.selectedCategories);
+    this.service.saveReviewCategoryDetails(catsJson).subscribe({
+      next: () => alert('Saved successfully'),
+      error: () => alert('Error saving categories')
+    });
+  }
+
+  private validateBeforeSave(): boolean {
+    const anyChecked = this.locationTree.some(n => n.checked) 
+      || this.sectionTree.some(n => n.checked)
+      || this.shelfTree.some(n => n.checked)
+      || this.upcTree.some(n => n.checked);
+    if (!anyChecked) {
+      alert('Select at least one location');
       return false;
     }
     return true;
   }
+
+
+<ul class="shelf-tree-list">
+  <ng-container *ngFor="let node of nodes">
+    <li>
+      <div class="node-content">
+        <button class="select-all" *ngIf="node.children?.length"
+                (click)="node.open = !node.open; $event.stopPropagation()">
+          {{ node.open ? '-' : '+' }}
+        </button>
+
+        <input type="checkbox" [checked]="node.checked" [disabled]="node.disabled || disabled"
+               (change)="toggleCheck(node)" (click)="$event.stopPropagation()" />
+        <span [class.disabled]="node.disabled || disabled" (click)="selectNode(node)">{{ node.name }}</span>
+
+        <button *ngIf="node.children?.length && !disabled && !node.disabled"
+                (click)="onSelectAllChildrenClick(node, $event)"> <b>(Select all Child variables)</b></button>
+      </div>
+
+      <app-shelf-task-tree *ngIf="node.children?.length && node.open"
+        [nodes]="node.children"
+        [disabled]="disabled"
+        (nodeCheck)="nodeCheck.emit($event)"
+        (nodeSelect)="nodeSelect.emit($event);"
+        (selectAllChildren)="selectAllChildren.emit($event)">
+      </app-shelf-task-tree>
+    </li>
+  </ng-container>
+</ul>
+
+import { Component, EventEmitter, Inject, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
+import {  ShelfNode } from '../shared/common.model';
+import { HttpClient } from '@angular/common/http';
+import { MatDialog } from '@angular/material/dialog';
+import { Router, ActivatedRoute } from '@angular/router';
+import { Subject, takeUntil } from 'rxjs';
+import { CommonService } from '../shared/common.service';
+import { SnackbarService } from '../shared/snackbar.service';
+import { ITreeOptions, TreeNode } from '@ali-hm/angular-tree-component';
+
+@Component({
+  selector: 'app-shelf-task-tree',
+  templateUrl: './shelf-task-tree.component.html',
+  styleUrls: ['./shelf-task-tree.component.css']
+})
+export class ShelfTaskTreeComponent implements OnInit  {
+ 
+  showSpinner: boolean;
+  loggedUser: string;
+  private unsubscribe$ = new Subject<void>();
+  constructor( public http: HttpClient,
+          @Inject('BASE_URL') public baseUrl: string,
+          private router: Router,
+          private activatedRoute: ActivatedRoute,
+          private dialog: MatDialog,
+          public service: CommonService,
+          private _snackBar: SnackbarService, 
+    ) {  this.loggedUser = localStorage.getItem("loggedUserId");}
+
+@Input() nodes: ShelfNode[] = [];
+  @Input() disabled = false;
+  @Output() nodeCheck = new EventEmitter<ShelfNode>();
+  @Output() nodeSelect = new EventEmitter<ShelfNode>();
+  @Output() selectAllChildren = new EventEmitter<ShelfNode>();
+
+  ngOnInit(): void {}
+
+  toggleCheck(node: ShelfNode) {
+    if (this.disabled || node.disabled) return;
+    node.checked = !node.checked;
+    this.nodeCheck.emit(node);
+  }
+
+  selectNode(node: ShelfNode) {
+    if (this.disabled) return;
+    this.nodeSelect.emit(node);
+  }
+
+  onSelectAllChildrenClick(node: ShelfNode, event: Event) {
+    event.stopPropagation();
+    if (this.disabled) return;
+    this.selectAllChildren.emit(node);
+  }
 }
 
-
-  Property 'nodes' does not exist on type 'ShelfTaskComponent'.ngtsc(2339)
-shelf-task.component.ts(19, 33): Error occurs in the template of component ShelfTaskComponent.
-
-Can't bind to 'options' since it isn't a known property of 'app-shelf-task-tree'.
-1. If 'app-shelf-task-tree' is an Angular component and it has 'options' input, then verify that it is part of this module.
-2. If 'app-shelf-task-tree' is a Web Component then add 'CUSTOM_ELEMENTS_SCHEMA' to the '@NgModule.schemas' of this component to suppress this message.
-3. To allow any property add 'NO_ERRORS_SCHEMA' to the '@NgModule.schemas' of this component.ngtsc(-998002)
-shelf-task.component.ts(19, 33): Error occurs in the template of component ShelfTaskComponent.
-
-Property 'onNodeActivate' does not exist on type 'ShelfTaskComponent'.ngtsc(2339)
-shelf-task.component.ts(19, 33): Error occurs in the template of component ShelfTaskComponent.
-
-Argument of type 'Event' is not assignable to parameter of type 'ShelfNode'.
-  Type 'Event' is missing the following properties from type 'ShelfNode': id, pId, name, checkedngtsc(2345)
-shelf-task.component.ts(19, 33): Error occurs in the template of component ShelfTaskComponent.
-
-Property 'disabled' does not exist on type 'ShelfTaskComponent'.ngtsc(2339)
-shelf-task.component.ts(19, 33): Error occurs in the template of component ShelfTaskComponent.
-
-Property 'onNodeActivateDirect' does not exist on type 'ShelfTaskComponent'.ngtsc(2339)
-shelf-task.component.ts(19, 33): Error occurs in the template of component ShelfTaskComponent.
-
-Property 'onSelectAllChildren' does not exist on type 'ShelfTaskComponent'.ngtsc(2339)
-shelf-task.component.ts(19, 33): Error occurs in the template of component ShelfTaskComponent.
-
-Property 'isOtherSectionWidth' does not exist on type 'ShelfTaskComponent'.ngtsc(2339)
-shelf-task.component.ts(19, 33): Error occurs in the template of component ShelfTaskComponent.
-
-Property 'onCustomInputChange' does not exist on type 'ShelfTaskComponent'.ngtsc(2339)
-shelf-task.component.ts(19, 33): Error occurs in the template of component ShelfTaskComponent.
-
-Property 'onCustomInputChange' does not exist on type 'ShelfTaskComponent'.ngtsc(2339)
-shelf-task.component.ts(19, 33): Error occurs in the template of component ShelfTaskComponent.
-any
-
-Property 'isOtherHeight' does not exist on type 'ShelfTaskComponent'.ngtsc(2339)
-shelf-task.component.ts(19, 33): Error occurs in the template of component ShelfTaskComponent.
-any
+</div>
