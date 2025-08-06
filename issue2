@@ -726,4 +726,31 @@ export class ShelfTaskTreeComponent implements OnInit  {
 mat-form-field {
   width: 100%;
   margin-bottom: 12px;
+}\
+
+
+
+======
+.node-content > button.select-all {
+  background: transparent;
+  border: none;
+  color: #0a58ca;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 2px 4px;
+  margin-left: auto;
+  transition: color 0.2s ease, background 0.2s ease;
+  border-radius: 4px;
+}
+
+.node-content > button.select-all:hover {
+  color: #004a9f;
+  background-color: rgba(10, 88, 202, 0.08);
+}
+
+.node-content > button.select-all:focus {
+  outline: 2px solid #0a58ca;
+  outline-offset: 2px;
 }
