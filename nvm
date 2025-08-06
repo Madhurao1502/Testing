@@ -1,0 +1,93 @@
+ Step-by-Step: Install nvm-windows Without Admin Access
+🎯 Goal:
+Install nvm-windows manually
+
+Set required environment variables using setx (no admin needed)
+
+Use it to install and switch Node.js versions locally
+
+🛠️ Step 1: Download nvm-noinstall.zip
+Visit: https://github.com/coreybutler/nvm-windows/releases
+
+Scroll down and download the file called:
+👉 nvm-noinstall.zip
+
+Extract the zip to a folder you control, e.g.:
+
+makefile
+Copy
+Edit
+C:\Users\<your-username>\nvm
+🧾 Step 2: Set Environment Variables (User-Level Only)
+Use these commands in a normal Command Prompt (no admin required).
+
+cmd
+Copy
+Edit
+setx NVM_HOME "C:\Users\<your-username>\nvm"
+setx NVM_SYMLINK "C:\Users\<your-username>\AppData\Roaming\npm"
+setx PATH "%PATH%;%NVM_HOME%;%NVM_SYMLINK%"
+🔁 Replace <your-username> with your Windows user folder name.
+
+⚠️ You need to restart Command Prompt after this for changes to take effect.
+
+📄 Step 3: Create settings.txt
+Inside your C:\Users\<your-username>\nvm folder, create a file called settings.txt with this content:
+
+makefile
+Copy
+Edit
+root: C:\Users\<your-username>\nvm
+path: C:\Users\<your-username>\AppData\Roaming\npm
+arch: 64
+proxy: none
+🚀 Step 4: Use nvm to Install and Use Node.js
+Open a new Command Prompt window
+
+Check if nvm works:
+
+cmd
+Copy
+Edit
+nvm version
+Install a supported version (e.g., Node.js 16 for Angular 13):
+
+c
+Copy
+Edit
+nvm install 16.20.2
+Use the installed version:
+
+cmd
+Copy
+Edit
+nvm use 16.20.2
+Check the installed versions:
+
+cmd
+Copy
+Edit
+node -v
+npm -v
+✅ Success — You Now Have Node.js + npm Without Admin!
+You can now:
+
+Run any Node.js app
+
+Install Angular 13 CLI:
+
+cmd
+Copy
+Edit
+npm install -g @angular/cli@13
+🔁 Optional: Switch Node.js Versions
+c
+Copy
+Edit
+nvm install 18.18.2
+nvm use 18.18.2
+🧹 Clean Unused Versions
+cmd
+Copy
+Edit
+nvm uninstall 16.20.2
