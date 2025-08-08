@@ -7,6 +7,14 @@ The issue has now been identified and resolved. Everything should be working as 
 Please let me know if any further action is needed from my side.
 
 
+I wanted to provide an update on the logic implemented around the Next Gen and Run Imputation buttons in the application.
+
+The Next Gen button will be disabled when a delivery is not in 'Initial' or 'New' status, ensuring users can only proceed with valid deliveries. Additionally, when a user selects the Next Gen option, the Run Imputation button in AQ will be disabled to prevent any conflicting actions during the process.
+
+During testing with cloned projects, we observed that the toggle state was not updating correctly. This was due to the enablement logic not being applied alongside the disablement logic. This behavior has now been addressed, and the toggle updates correctly in all scenarios.
+
+Please let me know if you notice anything unusual or if further adjustments are needed.
+
 
 
 body {
