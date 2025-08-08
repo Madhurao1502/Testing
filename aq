@@ -1,3 +1,14 @@
+I wanted to inform you about a recent issue I encountered in the new Angular version of the application.
+
+While sending data to the middleware (where the list is processed and passed to the UI for rendering the dropdown), I mistakenly sent "detail-self" instead of the correct key "det-shelf". This mismatch caused the project with ID: 414 to appear incorrectly in the UI.
+
+The issue has now been identified and resolved. Everything should be working as expected.
+
+Please let me know if any further action is needed from my side.
+
+
+
+
 body {
     margin: 0;
     font-family: Verdana,sans-serif,Roboto, "Helvetica Neue";
