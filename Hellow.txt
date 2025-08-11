@@ -1,681 +1,236 @@
-<div class="category-grid-container">
-  <mat-card>
-    <mat-card-title>Categories</mat-card-title>
-    <table mat-table [dataSource]="dataSource" multiTemplateDataRows>
+<div class="card text-center container">
+  <div class="card-body">
+    <div class="form-group row mb-2">
+      <label id="bodytext" for="txtDelivery" class="col-sm-2 col-form-label"
+        >Delivery</label
+      >
+      <div class="col-sm-10">
+        <input
+          type="text"
+          class="form-control"
+          id="txtDelivery"
+          placeholder="Enter delivery id or name"
+          [formControl]="delControl"
+          [matAutocomplete]="auto"
+        />
+        <mat-autocomplete #auto="matAutocomplete">
+          <mat-option
+            *ngFor="let del of filteredDel | async"
+            [value]="del.deliveryName"
+            (click)="GetProjectList()"
+          >
+            {{ del.deliveryName }}
+          </mat-option>
+        </mat-autocomplete>
+      </div>
+    </div>
 
-      <ng-container matColumnDef="ReviewCategoryName">
-        <th mat-header-cell *matHeaderCellDef>Category</th>
-        <td mat-cell *matCellDef="let cat"><strong>{{cat.ReviewCategoryName}}</strong></td>
-      </ng-container>
+    <div class="form-group row mb-1" *ngIf="showProjectdata">
+      <label id="bodytext" for="Project" class="col-sm-2 col-form-label"
+        >Project</label
+      >
+      <div class="col-sm-10">
+        <input
+          type="text"
+          readonly
+          class="form-control-plaintext"
+          id="Project"
+          value="{{ projectNameControl.value }}"
+        />
+      </div>
+    </div>
 
-      <ng-container matColumnDef="Keycat">
-        <th mat-header-cell *matHeaderCellDef>Key Cat</th>
-        <td mat-cell *matCellDef="let cat">
-          {{cat.KeycatNumber || ""}}
+    <div class="form-group row mb-1" *ngIf="showProjectdata">
+      <label id="bodytext" for="mdm" class="col-sm-2 col-form-label">Key ID</label>
+      <div class="col-sm-10">
+        <input
+          type="text"
+          readonly
+          class="form-control-plaintext"
+          id="mdm"
+          value="{{ mdmIdControl.value }}"
+        />
+      </div>
+    </div>
+
+    <div class="form-group row mb-1" *ngIf="showProjectdata">
+      <label id="tSVVersion" for="tsvversion" class="col-sm-2 col-form-label">TSV Version</label>
+      <div class="col-sm-10">
+       <mat-select [formControl]="tsvVersion" required class="left-align-options">   
+    <mat-option *ngFor="let tsvVersion of tsvVersionNumber" [value]="tsvVersion.tsvVersionID" (onSelectionChange)="onOptionChange($event)">
+      {{tsvVersion.tsvVersionNumber}}
+    </mat-option>
+  </mat-select>
+      </div>
+    </div>
+
+    <div class="form-group row mb-1" *ngIf="showProjectdata">
+      <label id="bodytext" for="tsv" class="col-sm-2 col-form-label"
+        >TSV Category
+      </label>
+
+      <div class="col-sm-10" style="width: 80%">
+        <ng-multiselect-dropdown
+          class="custom-border"
+          #multiSelect
+          [settings]="categorySettings"
+          [placeholder]="'TSV category'"
+          [data]="categoryList"
+          [formControl]="categoryListControl"
+          (onSelect)="onItemSelect()"
+          (onDeSelect)="onDeSelect()"
+          (onSelectAll)="onSelectAll($event)"
+        >
+        </ng-multiselect-dropdown>
+        <span style="font-style: italic; float: right"
+          >{{ slecteditems }} / 200</span
+        >
+      </div>
+      <span class="resticon">
+        <i class="fa fa-undo" (click)="reset()" aria-hidden="true"></i
+      ></span>
+      <div></div>
+      <div>
+        <div class="buttons">
+          <button
+            type="button"
+            class="btn btn-primary"
+            (click)="onSubmit()"
+            *ngIf="!!categoryListControl.value.length"
+          >
+            Submit
+          </button>
+          <button
+            style="margin-left: 5px"
+            type="button"
+            class="btn btn-danger"
+            (click)="onCancel()"
+            *ngIf="!!categoryListControl.value.length"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+<!-- 
+  <div id="footerText" class="card-footer text-muted">
+
+    <span class="disclaimer"> Important </span>
+    <span class="disclaimer-text">-Please make sure to enter the Product definition information, detailed below, into the Client Delivery application for the deliverable that will be using this information. Once complete you can then select the delivery and complete the TSV request. </span>
+   <br>
+   <br>
+    <span class="footer">
+      The following information should be specified in the Project that will be
+      using this TSV information. Please make sure this is completed before
+      submitting this request. An incorrect Job Log ID will result in data not
+      being processed.
+    </span>
+    <ul class="mt-2">
+      <li class="orderlist">Spec ID can be any number</li>
+      <li class="orderlist">Week number can be any week</li>
+      <li class="orderlist">Job Log ID should be the Project ID</li>
+    </ul>
+  </div> -->
+
+  <div  id="footerText" class="card-footer text-muted"><span class="disclaimer"> Important </span><br _ngcontent-ng-cli-universal-c90=""><span  class="disclaimer-text">• Please make sure to enter the Product definition information, detailed below, into the Client Delivery application for the deliverable that will be using this information. Once complete you can then select the delivery and complete the TSV request.</span><br ><br _ngcontent-ng-cli-universal-c90=""><span  class="disclaimer-text">• Only Deliverables associated with Projects whose MDM is in the “Re-process” or “Ready to Process” status will appear. If your project does not display, please check the status of the Product definition section.</span><br ><br ><span  class="footer"> The following information should be specified in the Project that will be using this TSV information. Please make sure this is completed before submitting this request. An incorrect Job Log ID will result in data not being processed. </span><ul  class="mt-2" style="display: flex;"><li  class="orderlist">Spec ID can be any number</li><li  class="orderlist">Week number can be any week</li><li  class="orderlist">Job Log ID should be the Project ID</li></ul></div>
+
+  <div class="card text-center" style="margin-top: 1%; margin-bottom: 1%">
+    <div class="refresh-button">
+      <button
+        mat-raised-button
+        class="refresh-button"
+        (click)="GetProjectGridData()"
+      >
+        Refresh
+      </button>
+    </div>
+
+    <table
+      id="projectgrid"
+      mat-table
+      [dataSource]="gridData"
+      class="mat-elevation-z8"
+    >
+      <ng-container matColumnDef="project">
+        <th mat-header-cell *matHeaderCellDef>Project</th>
+        <td mat-cell *matCellDef="let element">
+          {{ element.projectId }} - {{ element.projectName }}
         </td>
       </ng-container>
 
-      <ng-container matColumnDef="KeycatName">
-        <th mat-header-cell *matHeaderCellDef>Key Cat</th>
-        <td mat-cell *matCellDef="let cat">
-          {{cat.KeycatName}}
+      <ng-container matColumnDef="keyId">
+        <th mat-header-cell *matHeaderCellDef>Key ID</th>
+        <td mat-cell *matCellDef="let element">{{ element.mdmId }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="submittedby">
+        <th mat-header-cell *matHeaderCellDef>Submitted by</th>
+        <td mat-cell *matCellDef="let element">{{ element.userId }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="submitteddate">
+        <th mat-header-cell *matHeaderCellDef>Submitted Date</th>
+        <td mat-cell *matCellDef="let element">
+          {{ element.submittedDate | date : "MMMM d, y" }}
         </td>
       </ng-container>
 
-      <ng-container matColumnDef="Selected">
-        <th mat-header-cell *matHeaderCellDef>Select</th>
-        <td mat-cell *matCellDef="let cat">
-          <mat-checkbox [checked]="isSelected(cat)" [disabled]="isParentCheckDisabled(cat) || disabled"
-                        (change)="onCategorySelected(cat, $event.checked)">
-          </mat-checkbox>
+      <ng-container matColumnDef="categories">
+        <th mat-header-cell *matHeaderCellDef>Categories</th>
+        <td
+          mat-cell
+          *matCellDef="let element"
+          (click)="toShowCatDialog(element)"
+        >
+          {{ element.categoryNames.substr(0, 30) + "..." }}
         </td>
       </ng-container>
 
-      <ng-container matColumnDef="QCUnderReq">
-        <th mat-header-cell *matHeaderCellDef>QC Under</th>
-        <td mat-cell *matCellDef="let cat">
-          <mat-checkbox [checked]="isQCUnder(cat)" [disabled]="isParentCheckDisabled(cat) || disabled"
-                        (change)="onQCUnderChanged(cat, $event.checked)">
-          </mat-checkbox>
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>Status</th>
+        <td
+          mat-cell
+          *matCellDef="let element"
+          (click)="toShowCatDialog(element)"
+        >
+          {{ element.statusDescription }}
         </td>
       </ng-container>
 
-      <ng-container matColumnDef="QCUnderPercent">
-        <th mat-header-cell *matHeaderCellDef>Pass/Fail %</th>
-        <td mat-cell *matCellDef="let cat">
-          <input matInput type="number" maxlength="2"
-                 [value]="getQCPercent(cat)"
-                 [disabled]="isPercentDisabled(cat)"
-                 (change)="onPercentChanged(cat, $event)" (keypress)="onNumberOnlyInput($event)" />
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="NumberOfWeeks">
-        <th mat-header-cell *matHeaderCellDef>Weeks</th>
-        <td mat-cell *matCellDef="let cat">
-          <input matInput type="number" maxlength="2"
-                 [value]="getWeeks(cat)"
-                 [disabled]="isWeeksDisabled(cat)"
-                 (change)="onWeeksChanged(cat, $event)" (keypress)="onNumberOnlyInput($event)" />
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="expand">
-        <th mat-header-cell *matHeaderCellDef></th>
-        <td mat-cell *matCellDef="let cat">
-          <button mat-icon-button *ngIf="hasKeycats(cat)" (click)="onToggleExpand(cat)">
-            <mat-icon>{{expandedCategory === cat ? 'expand_less' : 'expand_more'}}</mat-icon>
+      <ng-container matColumnDef="action">
+        <th mat-header-cell *matHeaderCellDef>Action</th>
+        <td mat-cell *matCellDef="let element">
+          <button
+            mat-icon-button
+            class="action-button"
+            (click)="onDelete(element)"
+            [disabled]="element.processStatus != '6'"
+          >
+            <mat-icon> delete </mat-icon>
           </button>
         </td>
       </ng-container>
-
-      <!-- Main rows -->
       <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns" class="main-row"></tr>
-
-      <!-- Expanded detail row -->
-      <tr *ngIf="expandedCategory && expandedCategory.ReviewCategoryNumber == row.ReviewCategoryNumber"
-          class="expanded-row" mat-row>
-        <td colspan="8">
-          <table mat-table [dataSource]="keycatsMap[expandedCategory.ReviewCategoryNumber]" class="sub-table">
-            <ng-container matColumnDef="KeycatName">
-              <th mat-header-cell *matHeaderCellDef>Keycat</th>
-              <td mat-cell *matCellDef="let k">{{k.KeycatName}}</td>
-            </ng-container>
-            <ng-container matColumnDef="Selected">
-              <th mat-header-cell *matHeaderCellDef>Selected</th>
-              <td mat-cell *matCellDef="let k">
-                <mat-checkbox [checked]="isSelected(k)" [disabled]="isChildCheckDisabled(k) || disabled"
-                              (change)="onKeycatSelected(k, $event.checked)">
-                </mat-checkbox>
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="QCUnderReq">
-              <th mat-header-cell *matHeaderCellDef>QC Under</th>
-              <td mat-cell *matCellDef="let k">
-                <mat-checkbox [checked]="isQCUnder(k)" [disabled]="isChildCheckDisabled(k) || disabled"
-                              (change)="onKeycatQCUnderChanged(k, $event.checked)">
-                </mat-checkbox>
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="QCUnderPercent">
-              <th mat-header-cell *matHeaderCellDef>Pass/Fail %</th>
-              <td mat-cell *matCellDef="let k">
-                <input matInput type="number" maxlength="2"
-                       [value]="getQCPercent(k)"
-                       [disabled]="isPercentDisabled(k)"
-                       (change)="onPercentChanged(k, $event)" (keypress)="onNumberOnlyInput($event)">
-              </td>
-            </ng-container>
-            <ng-container matColumnDef="NumberOfWeeks">
-              <th mat-header-cell *matHeaderCellDef>Weeks</th>
-              <td mat-cell *matCellDef="let k">
-                <input matInput type="number" maxlength="2"
-                       [value]="getWeeks(k)"
-                       [disabled]="isWeeksDisabled(k)"
-                       (change)="onWeeksChanged(k, $event)" (keypress)="onNumberOnlyInput($event)">
-              </td>
-            </ng-container>
-            <tr mat-header-row *matHeaderRowDef="['KeycatName','Selected','QCUnderReq','QCUnderPercent','NumberOfWeeks']"></tr>
-            <tr mat-row *matRowDef="let row; columns: ['KeycatName','Selected','QCUnderReq','QCUnderPercent','NumberOfWeeks']"></tr>
-          </table>
-        </td>
-      </tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
     </table>
-  </mat-card>
+    <mat-card
+      *ngIf="showSpinner"
+      style="display: flex; justify-content: center; align-items: center"
+    >
+      <mat-progress-spinner color="primary" mode="indeterminate">
+      </mat-progress-spinner>
+    </mat-card>
+    <mat-card><p *ngIf="gridData.length == 0">No Data Found</p></mat-card>
+  </div>
 
-  <mat-card *ngIf="selectedCategories.length > 0" class="selected-categories">
-    <mat-card-title>Selected Categories</mat-card-title>
-    <table mat-table [dataSource]="selectedDataSource">
-      <ng-container matColumnDef="CategoryName">
-        <th mat-header-cell *matHeaderCellDef>Category</th>
-        <td mat-cell *matCellDef="let cat">{{cat.CategoryName || cat.KeycatName}}</td>
-      </ng-container>
-      <ng-container matColumnDef="CatgDetail">
-        <th mat-header-cell *matHeaderCellDef>Type</th>
-        <td mat-cell *matCellDef="let cat">{{cat.KeycatNumber && cat.KeycatNumber > 0 ? 'Keycat' : 'Category'}}</td>
-      </ng-container>
-      <ng-container matColumnDef="CategoryID">
-        <th mat-header-cell *matHeaderCellDef>ID</th>
-        <td mat-cell *matCellDef="let cat">{{cat.KeycatNumber ? cat.KeycatNumber : cat.ReviewCategoryNumber}}</td>
-      </ng-container>
-      <ng-container matColumnDef="QCUnderReq">
-        <th mat-header-cell *matHeaderCellDef>QC Under</th>
-        <td mat-cell *matCellDef="let cat">
-          <mat-icon *ngIf="cat.QCUnderReq === 1">check</mat-icon>
-        </td>
-      </ng-container>
-      <ng-container matColumnDef="QCUnderPercent">
-        <th mat-header-cell *matHeaderCellDef>Pass/Fail %</th>
-        <td mat-cell *matCellDef="let cat">{{cat.QCUnderPercent}}</td>
-      </ng-container>
-      <ng-container matColumnDef="NumberOfWeeks">
-        <th mat-header-cell *matHeaderCellDef>Weeks</th>
-        <td mat-cell *matCellDef="let cat">{{cat.NumberOfWeeks}}</td>
-      </ng-container>
-      <tr mat-header-row *matHeaderRowDef="selectedDisplayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: selectedDisplayedColumns"></tr>
-    </table>
-  </mat-card>
+  <ng-template #dialogRef let-mydata>
+    <div class="card" style="width: 18rem">
+      <ul class="list-group list-group-flush">
+        <li class="list-group-item" *ngFor="let item of categotyDialogList">
+          {{ item }}
+        </li>
+      </ul>
+    </div>
+  </ng-template>
 </div>
-
-
-import { Component, EventEmitter, Input, OnChanges, OnInit, Output } from '@angular/core';
-import { MatTableDataSource } from '@angular/material/table';
-
-@Component({
-  selector: 'app-category-grid',
-  templateUrl: './category-grid.component.html',
-  styleUrls: ['./category-grid.component.css']
-})
-export class CategoryGridComponent implements OnInit, OnChanges {
-  @Input() categories: any[] = [];
-  @Input() selectedCategories: any[] = [];
-  @Input() disabled = false;
-  @Output() categoryChange = new EventEmitter<{ category: any, field: string, value: any }>();
-
-  displayedColumns: string[] = [
-    'expand',
-    'ReviewCategoryName',
-    'Keycat',
-    'KeycatName',
-    'Selected',
-    'QCUnderReq',
-    'QCUnderPercent',
-    'NumberOfWeeks'
-  ];
-  selectedDisplayedColumns: string[] = [
-    'CategoryName',
-    'CatgDetail',
-    'CategoryID',
-    'QCUnderReq',
-    'QCUnderPercent',
-    'NumberOfWeeks'
-  ];
-  reviewCategories: any[] = [];
-  keycatsMap: { [catId: number]: any[] } = {};
-  dataSource = new MatTableDataSource<any>();
-  selectedDataSource = new MatTableDataSource<any>();
-  expandedCategory: any | null = null;
-
-  ngOnInit() { this.refreshData(); }
-  ngOnChanges() { this.refreshData(); }
-
-  private refreshData() {
-    this.reviewCategories = this.categories.filter(c => !c.KeycatNumber || c.KeycatNumber === 0);
-    this.keycatsMap = {};
-    for (const cat of this.categories) {
-      if (cat.KeycatNumber && cat.KeycatNumber > 0) {
-        this.keycatsMap[cat.ReviewCategoryNumber] = this.keycatsMap[cat.ReviewCategoryNumber] || [];
-        this.keycatsMap[cat.ReviewCategoryNumber].push(cat);
-      }
-    }
-    this.dataSource.data = this.reviewCategories;
-    this.selectedDataSource.data = this.selectedCategories;
-  }
-
-  // --- Functionality Replication ---
-
-  isSelected(cat: any): boolean {
-    return this.selectedCategories.some(s =>
-      s.ReviewCategoryNumber === cat.ReviewCategoryNumber &&
-      s.KeycatNumber === cat.KeycatNumber &&
-      s.Selected === 1
-    );
-  }
-  isQCUnder(cat: any): boolean {
-    return this.selectedCategories.some(s =>
-      s.ReviewCategoryNumber === cat.ReviewCategoryNumber &&
-      s.KeycatNumber === cat.KeycatNumber &&
-      s.QCUnderReq === 1
-    );
-  }
-  getQCPercent(cat: any): number | null {
-    const found = this.selectedCategories.find(s =>
-      s.ReviewCategoryNumber === cat.ReviewCategoryNumber &&
-      s.KeycatNumber === cat.KeycatNumber
-    );
-    return found ? found.QCUnderPercent : null;
-  }
-  getWeeks(cat: any): number | null {
-    const found = this.selectedCategories.find(s =>
-      s.ReviewCategoryNumber === cat.ReviewCategoryNumber &&
-      s.KeycatNumber === cat.KeycatNumber
-    );
-    return found ? found.NumberOfWeeks : null;
-  }
-
-  // Expand/collapse keycat rows
-  onToggleExpand(cat: any) {
-    this.expandedCategory = this.expandedCategory?.ReviewCategoryNumber === cat.ReviewCategoryNumber ? null : cat;
-  }
-  hasKeycats(category: any): boolean {
-    return !!this.keycatsMap[category.ReviewCategoryNumber]?.length;
-  }
-
-  // Validation: only allow selecting parent or children, not both
-  hasSelectedKeycats(catNumber: number): boolean {
-    return this.selectedCategories.some(s =>
-      s.ReviewCategoryNumber === catNumber && s.KeycatNumber && s.Selected === 1
-    );
-  }
-  hasSelectedParentCategory(catNumber: number): boolean {
-    return this.selectedCategories.some(s =>
-      s.ReviewCategoryNumber === catNumber && (!s.KeycatNumber || s.KeycatNumber === 0) && s.Selected === 1
-    );
-  }
-  isParentCheckDisabled(cat: any): boolean {
-    return this.hasSelectedKeycats(cat.ReviewCategoryNumber);
-  }
-  isChildCheckDisabled(child: any): boolean {
-    return this.hasSelectedParentCategory(child.ReviewCategoryNumber);
-  }
-
-  // Editable fields enablement
-  isPercentDisabled(cat: any): boolean {
-    return this.disabled || !this.isQCUnder(cat);
-  }
-  isWeeksDisabled(cat: any): boolean {
-    return this.disabled || !this.isQCUnder(cat);
-  }
-
-  // --- Event Handlers ---
-
-  onCategorySelected(cat: any, checked: boolean) {
-    if (this.disabled) return;
-    if (checked && this.hasSelectedKeycats(cat.ReviewCategoryNumber)) {
-      alert("Can't select a Category when Keycats under it are selected");
-      return;
-    }
-    this.categoryChange.emit({ category: cat, field: 'Selected', value: checked ? 1 : null });
-  }
-
-  onQCUnderChanged(cat: any, checked: boolean) {
-    if (this.disabled) return;
-    if (checked && this.hasSelectedKeycats(cat.ReviewCategoryNumber)) {
-      alert("Can't select a Category when Keycats under it are selected");
-      return;
-    }
-    if (checked) {
-      this.categoryChange.emit({ category: cat, field: 'Selected', value: 1 });
-      this.categoryChange.emit({ category: cat, field: 'NumberOfWeeks', value: 5 });
-    } else {
-      this.categoryChange.emit({ category: cat, field: 'NumberOfWeeks', value: null });
-      this.categoryChange.emit({ category: cat, field: 'QCUnderPercent', value: null });
-    }
-    this.categoryChange.emit({ category: cat, field: 'QCUnderReq', value: checked ? 1 : null });
-  }
-
-  onPercentChanged(cat: any, e: Event) {
-    if (this.disabled) return;
-    const val = (e.target as HTMLInputElement).value;
-    this.categoryChange.emit({ category: cat, field: 'QCUnderPercent', value: val ? Number(val) : null });
-  }
-
-  onWeeksChanged(cat: any, e: Event) {
-    if (this.disabled) return;
-    const val = (e.target as HTMLInputElement).value;
-    this.categoryChange.emit({ category: cat, field: 'NumberOfWeeks', value: val ? Number(val) : null });
-  }
-
-  onKeycatSelected(cat: any, checked: boolean) {
-    if (this.disabled) return;
-    if (checked && this.hasSelectedParentCategory(cat.ReviewCategoryNumber)) {
-      alert("Can't select Keycat when its Category is selected");
-      return;
-    }
-    this.categoryChange.emit({ category: cat, field: 'Selected', value: checked ? 1 : null });
-  }
-
-  onKeycatQCUnderChanged(cat: any, checked: boolean) {
-    if (this.disabled) return;
-    if (checked && this.hasSelectedParentCategory(cat.ReviewCategoryNumber)) {
-      alert("Can't select Keycat when Category is selected");
-      return;
-    }
-    if (checked) {
-      this.categoryChange.emit({ category: cat, field: 'Selected', value: 1 });
-      this.categoryChange.emit({ category: cat, field: 'NumberOfWeeks', value: 5 });
-    } else {
-      this.categoryChange.emit({ category: cat, field: 'NumberOfWeeks', value: null });
-      this.categoryChange.emit({ category: cat, field: 'QCUnderPercent', value: null });
-    }
-    this.categoryChange.emit({ category: cat, field: 'QCUnderReq', value: checked ? 1 : null });
-  }
-
-  onNumberOnlyInput(e: KeyboardEvent): boolean {
-    const charCode = e.which || e.keyCode;
-    if (charCode < 32) { return true; }
-    if (charCode >= 48 && charCode <= 57) { return true; }
-    e.preventDefault();
-    return false;
-  }
-}
-
-
-onCategoryGridChange(event: { category: ReviewCategory, field: string, value: any }) {
-  const { category, field, value } = event;
-  const idx = this.selectedCategories.findIndex(s =>
-    s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
-    s.KeycatNumber === category.KeycatNumber
-  );
-
-  if (field === 'Selected') {
-    if (value === 1 && idx < 0) {
-      this.selectedCategories.push({ ...category, Selected: 1 });
-    } else if (!value && idx >= 0) {
-      this.selectedCategories.splice(idx, 1);
-    }
-  } else {
-    if (idx >= 0) {
-      (this.selectedCategories[idx] as any)[field] = value;
-    }
-  }
-
-  // Reassign to trigger Material table update
-  this.selectedCategories = [...this.selectedCategories];
-}
-
-
-<button mat-raised-button color="primary"
-        (click)="save()"
-        [disabled]="isLocked || selectedCategories.length === 0">
-  Save
-</button>
-
-
-
-save() {
-  // Prepare payload
-  const payload = {
-    shelfVars: this.shelfVarSelections,
-    reviewCategories: this.selectedCategories
-  };
-  this.myService.saveShelfSetup(payload)
-    .subscribe(() => {
-      this.snackBar.open('Saved successfully', 'Close', { duration: 2000 });
-    });
-}
-
-
-
-
-
-
-<div class="category-grid-container">
-  <mat-card>
-    <mat-card-title>Categories</mat-card-title>
-    <table mat-table
-           [dataSource]="dataSource"
-           multiTemplateDataRows
-           class="mat-elevation-z8">
-
-      <!-- Category Name Column -->
-      <ng-container matColumnDef="ReviewCategoryName">
-        <th mat-header-cell *matHeaderCellDef>Category</th>
-        <td mat-cell *matCellDef="let row"><strong>{{ row.ReviewCategoryName }}</strong></td>
-      </ng-container>
-
-      <!-- Key Cat Number Column -->
-      <ng-container matColumnDef="Keycat">
-        <th mat-header-cell *matHeaderCellDef>Key Cat</th>
-        <td mat-cell *matCellDef="let row">{{ row.KeycatNumber || '' }}</td>
-      </ng-container>
-
-      <!-- Key Cat Name Column -->
-      <ng-container matColumnDef="KeycatName">
-        <th mat-header-cell *matHeaderCellDef>Key Cat Name</th>
-        <td mat-cell *matCellDef="let row">{{ row.KeycatName }}</td>
-      </ng-container>
-
-      <!-- Selected Checkbox -->
-      <ng-container matColumnDef="Selected">
-        <th mat-header-cell *matHeaderCellDef>Select</th>
-        <td mat-cell *matCellDef="let row">
-          <mat-checkbox
-            [checked]="isSelected(row)"
-            [disabled]="(row.KeycatNumber && isParentSelected(row)) || disabled"
-            (change)="onCategorySelected(row, $event.checked)">
-          </mat-checkbox>
-        </td>
-      </ng-container>
-
-      <!-- QC Under Checkbox -->
-      <ng-container matColumnDef="QCUnderReq">
-        <th mat-header-cell *matHeaderCellDef>QC Under</th>
-        <td mat-cell *matCellDef="let row">
-          <mat-checkbox
-            [checked]="isQCUnder(row)"
-            [disabled]="(row.KeycatNumber && isParentSelected(row)) || disabled"
-            (change)="onQCUnderChanged(row, $event.checked)">
-          </mat-checkbox>
-        </td>
-      </ng-container>
-
-      <!-- Pass/Fail % Input -->
-      <ng-container matColumnDef="QCUnderPercent">
-        <th mat-header-cell *matHeaderCellDef>Pass/Fail %</th>
-        <td mat-cell *matCellDef="let row">
-          <input matInput
-                 type="number"
-                 maxlength="2"
-                 [value]="getQCPercent(row)"
-                 [disabled]="!isQCUnder(row) || disabled"
-                 (change)="onPercentChanged(row, $event)"
-                 (keypress)="onNumberOnlyInput($event)" />
-        </td>
-      </ng-container>
-
-      <!-- Weeks Input -->
-      <ng-container matColumnDef="NumberOfWeeks">
-        <th mat-header-cell *matHeaderCellDef>Weeks</th>
-        <td mat-cell *matCellDef="let row">
-          <input matInput
-                 type="number"
-                 maxlength="2"
-                 [value]="getWeeks(row)"
-                 [disabled]="!isQCUnder(row) || disabled"
-                 (change)="onWeeksChanged(row, $event)"
-                 (keypress)="onNumberOnlyInput($event)" />
-        </td>
-      </ng-container>
-
-      <!-- Expand Toggle -->
-      <ng-container matColumnDef="expand">
-        <th mat-header-cell *matHeaderCellDef></th>
-        <td mat-cell *matCellDef="let row">
-          <button mat-icon-button
-                  *ngIf="hasKeycats(row)"
-                  (click)="onToggleExpand(row)">
-            <mat-icon>
-              {{ expandedCategory === row ? 'expand_less' : 'expand_more' }}
-            </mat-icon>
-          </button>
-        </td>
-      </ng-container>
-
-      <!-- Expanded Detail Column -->
-      <ng-container matColumnDef="expandedDetail">
-        <td mat-cell *matCellDef="let row" [attr.colspan]="displayedColumns.length">
-          <ng-container *ngIf="expandedCategory === row">
-            <table mat-table
-                   [dataSource]="keycatsMap[row.ReviewCategoryNumber]"
-                   class="sub-table">
-
-              <ng-container matColumnDef="KeycatName">
-                <th mat-header-cell *matHeaderCellDef>Keycat</th>
-                <td mat-cell *matCellDef="let k">{{ k.KeycatName }}</td>
-              </ng-container>
-
-              <ng-container matColumnDef="Selected">
-                <th mat-header-cell *matHeaderCellDef>Select</th>
-                <td mat-cell *matCellDef="let k">
-                  <mat-checkbox
-                    [checked]="isSelected(k)"
-                    [disabled]="isParentSelected(row) || disabled"
-                    (change)="onKeycatSelected(k, $event.checked)">
-                  </mat-checkbox>
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="QCUnderReq">
-                <th mat-header-cell *matHeaderCellDef>QC Under</th>
-                <td mat-cell *matCellDef="let k">
-                  <mat-checkbox
-                    [checked]="isQCUnder(k)"
-                    [disabled]="isParentSelected(row) || disabled"
-                    (change)="onKeycatQCUnderChanged(k, $event.checked)">
-                  </mat-checkbox>
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="QCUnderPercent">
-                <th mat-header-cell *matHeaderCellDef>Pass/Fail %</th>
-                <td mat-cell *matCellDef="let k">
-                  <input matInput
-                         type="number"
-                         maxlength="2"
-                         [value]="getQCPercent(k)"
-                         [disabled]="!isQCUnder(k) || disabled"
-                         (change)="onPercentChanged(k, $event)"
-                         (keypress)="onNumberOnlyInput($event)" />
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="NumberOfWeeks">
-                <th mat-header-cell *matHeaderCellDef>Weeks</th>
-                <td mat-cell *matCellDef="let k">
-                  <input matInput
-                         type="number"
-                         maxlength="2"
-                         [value]="getWeeks(k)"
-                         [disabled]="!isQCUnder(k) || disabled"
-                         (change)="onWeeksChanged(k, $event)"
-                         (keypress)="onNumberOnlyInput($event)" />
-                </td>
-              </ng-container>
-
-              <tr mat-header-row *matHeaderRowDef="['KeycatName','Selected','QCUnderReq','QCUnderPercent','NumberOfWeeks']"></tr>
-              <tr mat-row *matRowDef="let row; columns: ['KeycatName','Selected','QCUnderReq','QCUnderPercent','NumberOfWeeks']"></tr>
-            </table>
-          </ng-container>
-        </td>
-      </ng-container>
-
-      <!-- Header & Row Definitions -->
-      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="main-row"></tr>
-      <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="detail-row"></tr>
-    </table>
-  </mat-card>
-
-  <mat-card *ngIf="selectedCategories.length > 0" class="selected-categories">
-    <mat-card-title>Selected Categories</mat-card-title>
-    <table mat-table [dataSource]="selectedDataSource">
-
-      <ng-container matColumnDef="CategoryName">
-        <th mat-header-cell *matHeaderCellDef>Category</th>
-        <td mat-cell *matCellDef="let cat">{{ cat.CategoryName || cat.KeycatName }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="CatgDetail">
-        <th mat-header-cell *matHeaderCellDef>Type</th>
-        <td mat-cell *matCellDef="let cat">
-          {{ cat.KeycatNumber && cat.KeycatNumber > 0 ? 'Keycat' : 'Category' }}
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="CategoryID">
-        <th mat-header-cell *matHeaderCellDef>ID</th>
-        <td mat-cell *matCellDef="let cat">
-          {{ cat.KeycatNumber ? cat.KeycatNumber : cat.ReviewCategoryNumber }}
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="QCUnderReq">
-        <th mat-header-cell *matHeaderCellDef>QC Under</th>
-        <td mat-cell *matCellDef="let cat">
-          <mat-icon *ngIf="cat.QCUnderReq === 1">check</mat-icon>
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="QCUnderPercent">
-        <th mat-header-cell *matHeaderCellDef>Pass/Fail %</th>
-        <td mat-cell *matCellDef="let cat">{{ cat.QCUnderPercent }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="NumberOfWeeks">
-        <th mat-header-cell *matHeaderCellDef>Weeks</th>
-        <td mat-cell *matCellDef="let cat">{{ cat.NumberOfWeeks }}</td>
-      </ng-container>
-
-      <tr mat-header-row *matHeaderRowDef="selectedDisplayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: selectedDisplayedColumns"></tr>
-    </table>
-  </mat-card>
-</div>
-displayedColumns = ['ReviewCategoryName', 'Keycat', 'KeycatName', 'Selected', 'QCUnderReq', 'QCUnderPercent', 'NumberOfWeeks', 'expand'];
-selectedDisplayedColumns = ['CategoryName','CatgDetail','CategoryID','QCUnderReq','QCUnderPercent','NumberOfWeeks'];
-multiTemplateDataRows = true;
-
-
-/**
- * Returns true if the given category’s parent (i.e. its ReviewCategory without a KeycatNumber)
- * is currently selected in selectedCategories.
- */
-private isParentSelected(cat: ReviewCategory): boolean {
-  // A cat whose KeycatNumber > 0 is a keycat; its parent category has the same ReviewCategoryNumber and KeycatNumber = 0
-  if (!cat.KeycatNumber || cat.KeycatNumber === 0) {
-    // This is a parent itself, so no higher parent exists
-    return false;
-  }
-
-  return this.selectedCategories.some(selected =>
-    selected.ReviewCategoryNumber === cat.ReviewCategoryNumber &&
-    (!selected.KeycatNumber || selected.KeycatNumber === 0) &&
-    selected.Selected === 1
-  );
-}
-
-
-
-onCategoryGridChange(event: { category: ReviewCategory, field: string, value: any }) {
-  const { category, field, value } = event;
-  const idx = this.selectedCategories.findIndex(s =>
-    s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
-    s.KeycatNumber        === category.KeycatNumber
-  );
-
-  if (field === 'Selected' && category.KeycatNumber > 0 && value == null && idx >= 0) {
-    // Child Keycat was unchecked → remove _all_ selected entries for this Keycat
-    this.selectedCategories = this.selectedCategories.filter(s =>
-      !(
-        s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
-        s.KeycatNumber        === category.KeycatNumber
-      )
-    );
-    return;
-  }
-
-if (field === 'Selected' && category.KeycatNumber === 0 && value == null) {
-    // Parent Category was unchecked → remove all its Keycats too
-    this.selectedCategories = this.selectedCategories.filter(s =>
-      s.ReviewCategoryNumber !== category.ReviewCategoryNumber
-    );
-    return;
-  }
-
-  // Existing logic for add/remove/update
-  if (field === 'Selected') {
-    if (value === 1 && idx < 0) {
-      this.selectedCategories.push({ ...category, Selected: 1 });
-    } else if (!value && idx >= 0) {
-      this.selectedCategories.splice(idx, 1);
-    }
-  } else if (idx >= 0) {
-    (this.selectedCategories[idx] as any)[field] = value;
-  }
-
-this.selectedCategories = [...this.selectedCategories]
-}
-
