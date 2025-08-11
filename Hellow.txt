@@ -1,236 +1,57 @@
-<div class="card text-center container">
-  <div class="card-body">
-    <div class="form-group row mb-2">
-      <label id="bodytext" for="txtDelivery" class="col-sm-2 col-form-label"
-        >Delivery</label
-      >
-      <div class="col-sm-10">
-        <input
-          type="text"
-          class="form-control"
-          id="txtDelivery"
-          placeholder="Enter delivery id or name"
-          [formControl]="delControl"
-          [matAutocomplete]="auto"
-        />
-        <mat-autocomplete #auto="matAutocomplete">
-          <mat-option
-            *ngFor="let del of filteredDel | async"
-            [value]="del.deliveryName"
-            (click)="GetProjectList()"
-          >
-            {{ del.deliveryName }}
-          </mat-option>
-        </mat-autocomplete>
-      </div>
-    </div>
+.form-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 18px;
+}
 
-    <div class="form-group row mb-1" *ngIf="showProjectdata">
-      <label id="bodytext" for="Project" class="col-sm-2 col-form-label"
-        >Project</label
-      >
-      <div class="col-sm-10">
-        <input
-          type="text"
-          readonly
-          class="form-control-plaintext"
-          id="Project"
-          value="{{ projectNameControl.value }}"
-        />
-      </div>
-    </div>
+.form-label {
+  min-width: 160px;
+  font-weight: 500;
+}
 
-    <div class="form-group row mb-1" *ngIf="showProjectdata">
-      <label id="bodytext" for="mdm" class="col-sm-2 col-form-label">Key ID</label>
-      <div class="col-sm-10">
-        <input
-          type="text"
-          readonly
-          class="form-control-plaintext"
-          id="mdm"
-          value="{{ mdmIdControl.value }}"
-        />
-      </div>
-    </div>
+.form-field {
+  flex: 1;
+  margin-left: 10px;
+}
 
-    <div class="form-group row mb-1" *ngIf="showProjectdata">
-      <label id="tSVVersion" for="tsvversion" class="col-sm-2 col-form-label">TSV Version</label>
-      <div class="col-sm-10">
-       <mat-select [formControl]="tsvVersion" required class="left-align-options">   
-    <mat-option *ngFor="let tsvVersion of tsvVersionNumber" [value]="tsvVersion.tsvVersionID" (onSelectionChange)="onOptionChange($event)">
-      {{tsvVersion.tsvVersionNumber}}
-    </mat-option>
-  </mat-select>
-      </div>
-    </div>
+.select-width {
+  min-width: 320px;
+}
 
-    <div class="form-group row mb-1" *ngIf="showProjectdata">
-      <label id="bodytext" for="tsv" class="col-sm-2 col-form-label"
-        >TSV Category
-      </label>
 
-      <div class="col-sm-10" style="width: 80%">
-        <ng-multiselect-dropdown
-          class="custom-border"
-          #multiSelect
-          [settings]="categorySettings"
-          [placeholder]="'TSV category'"
-          [data]="categoryList"
-          [formControl]="categoryListControl"
-          (onSelect)="onItemSelect()"
-          (onDeSelect)="onDeSelect()"
-          (onSelectAll)="onSelectAll($event)"
-        >
-        </ng-multiselect-dropdown>
-        <span style="font-style: italic; float: right"
-          >{{ slecteditems }} / 200</span
-        >
-      </div>
-      <span class="resticon">
-        <i class="fa fa-undo" (click)="reset()" aria-hidden="true"></i
-      ></span>
-      <div></div>
-      <div>
-        <div class="buttons">
-          <button
-            type="button"
-            class="btn btn-primary"
-            (click)="onSubmit()"
-            *ngIf="!!categoryListControl.value.length"
-          >
-            Submit
-          </button>
-          <button
-            style="margin-left: 5px"
-            type="button"
-            class="btn btn-danger"
-            (click)="onCancel()"
-            *ngIf="!!categoryListControl.value.length"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-<!-- 
-  <div id="footerText" class="card-footer text-muted">
-
-    <span class="disclaimer"> Important </span>
-    <span class="disclaimer-text">-Please make sure to enter the Product definition information, detailed below, into the Client Delivery application for the deliverable that will be using this information. Once complete you can then select the delivery and complete the TSV request. </span>
-   <br>
-   <br>
-    <span class="footer">
-      The following information should be specified in the Project that will be
-      using this TSV information. Please make sure this is completed before
-      submitting this request. An incorrect Job Log ID will result in data not
-      being processed.
-    </span>
-    <ul class="mt-2">
-      <li class="orderlist">Spec ID can be any number</li>
-      <li class="orderlist">Week number can be any week</li>
-      <li class="orderlist">Job Log ID should be the Project ID</li>
-    </ul>
-  </div> -->
-
-  <div  id="footerText" class="card-footer text-muted"><span class="disclaimer"> Important </span><br _ngcontent-ng-cli-universal-c90=""><span  class="disclaimer-text">• Please make sure to enter the Product definition information, detailed below, into the Client Delivery application for the deliverable that will be using this information. Once complete you can then select the delivery and complete the TSV request.</span><br ><br _ngcontent-ng-cli-universal-c90=""><span  class="disclaimer-text">• Only Deliverables associated with Projects whose MDM is in the “Re-process” or “Ready to Process” status will appear. If your project does not display, please check the status of the Product definition section.</span><br ><br ><span  class="footer"> The following information should be specified in the Project that will be using this TSV information. Please make sure this is completed before submitting this request. An incorrect Job Log ID will result in data not being processed. </span><ul  class="mt-2" style="display: flex;"><li  class="orderlist">Spec ID can be any number</li><li  class="orderlist">Week number can be any week</li><li  class="orderlist">Job Log ID should be the Project ID</li></ul></div>
-
-  <div class="card text-center" style="margin-top: 1%; margin-bottom: 1%">
-    <div class="refresh-button">
-      <button
-        mat-raised-button
-        class="refresh-button"
-        (click)="GetProjectGridData()"
-      >
-        Refresh
-      </button>
-    </div>
-
-    <table
-      id="projectgrid"
-      mat-table
-      [dataSource]="gridData"
-      class="mat-elevation-z8"
-    >
-      <ng-container matColumnDef="project">
-        <th mat-header-cell *matHeaderCellDef>Project</th>
-        <td mat-cell *matCellDef="let element">
-          {{ element.projectId }} - {{ element.projectName }}
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="keyId">
-        <th mat-header-cell *matHeaderCellDef>Key ID</th>
-        <td mat-cell *matCellDef="let element">{{ element.mdmId }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="submittedby">
-        <th mat-header-cell *matHeaderCellDef>Submitted by</th>
-        <td mat-cell *matCellDef="let element">{{ element.userId }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="submitteddate">
-        <th mat-header-cell *matHeaderCellDef>Submitted Date</th>
-        <td mat-cell *matCellDef="let element">
-          {{ element.submittedDate | date : "MMMM d, y" }}
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="categories">
-        <th mat-header-cell *matHeaderCellDef>Categories</th>
-        <td
-          mat-cell
-          *matCellDef="let element"
-          (click)="toShowCatDialog(element)"
-        >
-          {{ element.categoryNames.substr(0, 30) + "..." }}
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="status">
-        <th mat-header-cell *matHeaderCellDef>Status</th>
-        <td
-          mat-cell
-          *matCellDef="let element"
-          (click)="toShowCatDialog(element)"
-        >
-          {{ element.statusDescription }}
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="action">
-        <th mat-header-cell *matHeaderCellDef>Action</th>
-        <td mat-cell *matCellDef="let element">
-          <button
-            mat-icon-button
-            class="action-button"
-            (click)="onDelete(element)"
-            [disabled]="element.processStatus != '6'"
-          >
-            <mat-icon> delete </mat-icon>
-          </button>
-        </td>
-      </ng-container>
-      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-    </table>
-    <mat-card
-      *ngIf="showSpinner"
-      style="display: flex; justify-content: center; align-items: center"
-    >
-      <mat-progress-spinner color="primary" mode="indeterminate">
-      </mat-progress-spinner>
-    </mat-card>
-    <mat-card><p *ngIf="gridData.length == 0">No Data Found</p></mat-card>
+<div class="form-container">
+  <div class="form-row">
+    <label class="form-label" for="txtDelivery">Delivery</label>
+    <mat-select class="form-field select-width" id="txtDelivery" [(value)]="delivery">
+      <mat-option *ngFor="let del of deliveryList" [value]="del.deliveryName">
+        {{ del.deliveryName }}
+      </mat-option>
+    </mat-select>
   </div>
 
-  <ng-template #dialogRef let-mydata>
-    <div class="card" style="width: 18rem">
-      <ul class="list-group list-group-flush">
-        <li class="list-group-item" *ngFor="let item of categotyDialogList">
-          {{ item }}
-        </li>
-      </ul>
-    </div>
-  </ng-template>
+  <div class="form-row">
+    <label class="form-label" for="Project">Project</label>
+    <input type="text" class="form-field" id="Project" [value]="projectName" readonly>
+  </div>
+
+  <div class="form-row">
+    <label class="form-label" for="mdm">Key ID</label>
+    <input type="text" class="form-field" id="mdm" [value]="keyId" readonly>
+  </div>
+
+  <div class="form-row">
+    <label class="form-label" for="tsvversion">TSV Version</label>
+    <mat-select class="form-field select-width" id="tsvversion" [(value)]="tsvVersion">
+      <mat-option *ngFor="let tsv of tsvVersionNumber" [value]="tsv.tsvVersionID">
+        {{ tsv.tsvVersionNumber }}
+      </mat-option>
+    </mat-select>
+  </div>
+
+  <div class="form-row">
+    <label class="form-label" for="tsvcategory">TSV Category</label>
+    <mat-select class="form-field select-width" id="tsvcategory" [(value)]="tsvCategory">
+      <mat-option *ngFor="let cat of categoryList" [value]="cat">{{ cat }}</mat-option>
+    </mat-select>
+  </div>
 </div>
