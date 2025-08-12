@@ -92,3 +92,6 @@ Copy
 Edit
 nvm uninstall 16.20.2
 setx PATH "C:\Users\Steve\nodejs;%PATH%"
+
+setx PATH "%NVM_HOME%;%NVM_SYMLINK%;%PATH%;C:\Users\Steve\nodejs"
+
