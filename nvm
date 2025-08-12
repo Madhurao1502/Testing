@@ -91,3 +91,4 @@ cmd
 Copy
 Edit
 nvm uninstall 16.20.2
+setx PATH "C:\Users\Steve\nodejs;%PATH%"
