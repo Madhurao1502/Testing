@@ -1,3 +1,46 @@
+Subject: Request for Leave (September 2 – September 5)
+
+Dear [Manager’s Name],
+
+I hope this message finds you well.
+
+As you are aware, I had taken leave from August 13 to September 1 for my marriage. I resumed work on September 1, but unfortunately, I need to request additional leave from September 2 to September 5.
+
+The reason is that my family (including my parents, my wife, and myself) is currently suffering from typhoid fever, and I need time to recover and take care of them.
+
+I sincerely apologize for the short notice and the extended absence, and I assure you that I will resume work promptly on September 6. Please let me know if you need any supporting medical documents.
+
+Thank you for your kind understanding.
+
+Best regards,
+[Your Name]
+
+Do you want me to make it more formal (like HR leave application style), or softer/personal since it’s about your health and family?
+
+You said:
+more formal with softer
+ChatGPT said:
+
+Got it 👍 Here’s a more formal but softer version of your email:
+
+Subject: Leave Request from September 2 to September 5
+
+Dear [Manager’s Name],
+
+I hope you are doing well.
+
+As you know, I was on leave from August 13 to September 1 for my marriage. I resumed work on September 1, but unfortunately, I need to request additional leave from September 2 to September 5.
+
+The reason is that my parents, my wife, and I are all unwell and have been diagnosed with typhoid fever. I kindly request your understanding and approval for this short extension so I can focus on recovery and supporting my family.
+
+I sincerely apologize for the inconvenience caused due to my extended absence and assure you that I will be back at work from September 6. Please let me know if you require any medical documentation.
+
+Thank you very much for your support and consideration.
+
+Warm regards,
+[Your Name]
+
+
 I wanted to inform you about a recent issue I encountered in the new Angular version of the application.
 
 While sending data to the middleware (where the list is processed and passed to the UI for rendering the dropdown), I mistakenly sent "detail-self" instead of the correct key "det-shelf". This mismatch caused the project with ID: 414 to appear incorrectly in the UI.
