@@ -1,57 +1,24 @@
-.form-row {
-  display: flex;
-  align-items: center;
-  margin-bottom: 18px;
-}
+Release Notes
+Enhancements & Fixes
 
-.form-label {
-  min-width: 160px;
-  font-weight: 500;
-}
+Eralogram Toggle (DET Delivery Type)
 
-.form-field {
-  flex: 1;
-  margin-left: 10px;
-}
+Added a new toggle for Eralogram functionality.
 
-.select-width {
-  min-width: 320px;
-}
+This toggle will be visible only for DET delivery type.
 
+Access restricted: it will be available only to users who are part of the techgroup.
 
-<div class="form-container">
-  <div class="form-row">
-    <label class="form-label" for="txtDelivery">Delivery</label>
-    <mat-select class="form-field select-width" id="txtDelivery" [(value)]="delivery">
-      <mat-option *ngFor="let del of deliveryList" [value]="del.deliveryName">
-        {{ del.deliveryName }}
-      </mat-option>
-    </mat-select>
-  </div>
+Configuration Section – Save Functionality Update
 
-  <div class="form-row">
-    <label class="form-label" for="Project">Project</label>
-    <input type="text" class="form-field" id="Project" [value]="projectName" readonly>
-  </div>
+Enhanced the save process when a user enters a Delivery Task Number that already exists.
 
-  <div class="form-row">
-    <label class="form-label" for="mdm">Key ID</label>
-    <input type="text" class="form-field" id="mdm" [value]="keyId" readonly>
-  </div>
+Upon clicking Save, the system now calls the stored procedure Validated.
 
-  <div class="form-row">
-    <label class="form-label" for="tsvversion">TSV Version</label>
-    <mat-select class="form-field select-width" id="tsvversion" [(value)]="tsvVersion">
-      <mat-option *ngFor="let tsv of tsvVersionNumber" [value]="tsv.tsvVersionID">
-        {{ tsv.tsvVersionNumber }}
-      </mat-option>
-    </mat-select>
-  </div>
+If matching entries are found, a popup is displayed with the list of deliveries associated with that Delivery Task Number.
 
-  <div class="form-row">
-    <label class="form-label" for="tsvcategory">TSV Category</label>
-    <mat-select class="form-field select-width" id="tsvcategory" [(value)]="tsvCategory">
-      <mat-option *ngFor="let cat of categoryList" [value]="cat">{{ cat }}</mat-option>
-    </mat-select>
-  </div>
-</div>
+User options:
+
+Continue → The configuration section will be saved.
+
+Cancel → The operation will be aborted, and no changes will be saved.
