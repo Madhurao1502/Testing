@@ -1,24 +1,25 @@
-Release Notes
-Enhancements & Fixes
+Subject: Update on Redirection and AQ Dashboard Deliveries
 
-Eralogram Toggle (DET Delivery Type)
+Hi [Manager/Team],
 
-Added a new toggle for Eralogram functionality.
+The recent redirection issue was caused by an unexpected modification to the URL during the production deployment. This has now been corrected, and the redirection is working as intended, pointing to the correct web application.
 
-This toggle will be visible only for DET delivery type.
+On the AQ dashboard, deliveries are displayed where:
 
-Access restricted: it will be available only to users who are part of the techgroup.
+Delivery type = DET-Shelf
 
-Configuration Section – Save Functionality Update
+Signoff ∈ (2, 3) → In Collection or Collection Complete
 
-Enhanced the save process when a user enters a Delivery Task Number that already exists.
+Status ID = 8 (In Progress)
 
-Upon clicking Save, the system now calls the stored procedure Validated.
+Under lan_id = foezm (Eric Harzman):
 
-If matching entries are found, a popup is displayed with the list of deliveries associated with that Delivery Task Number.
+7 deliveries were found with status_id = 8 (In Progress), delivery_type = DET-Shelf, and signoff ∈ (2,3).
 
-User options:
+257 deliveries were found with status_id = 9 (Succeeded), delivery_type = DET-Shelf, and signoff ∈ (2,3), which are currently not being displayed.
 
-Continue → The configuration section will be saved.
+Below is the query that was used to bring up this data:
+[You can insert the query here]
 
-Cancel → The operation will be aborted, and no changes will be saved.
+Best regards,
+[Your Name]
