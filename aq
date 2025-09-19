@@ -1,1560 +1,3410 @@
-Subject: Request for Leave (September 2 – September 5)
-
-Dear [Manager’s Name],
-
-I hope this message finds you well.
-
-As you are aware, I had taken leave from August 13 to September 1 for my marriage. I resumed work on September 1, but unfortunately, I need to request additional leave from September 2 to September 5.
-
-The reason is that my family (including my parents, my wife, and myself) is currently suffering from typhoid fever, and I need time to recover and take care of them.
-
-I sincerely apologize for the short notice and the extended absence, and I assure you that I will resume work promptly on September 6. Please let me know if you need any supporting medical documents.
-
-Thank you for your kind understanding.
-
-Best regards,
-[Your Name]
-
-Do you want me to make it more formal (like HR leave application style), or softer/personal since it’s about your health and family?
-
-You said:
-more formal with softer
-ChatGPT said:
-
-Got it 👍 Here’s a more formal but softer version of your email:
-
-Subject: Leave Request from September 2 to September 5
-
-Dear [Manager’s Name],
-
-I hope you are doing well.
-
-As you know, I was on leave from August 13 to September 1 for my marriage. I resumed work on September 1, but unfortunately, I need to request additional leave from September 2 to September 5.
-
-The reason is that my parents, my wife, and I are all unwell and have been diagnosed with typhoid fever. I kindly request your understanding and approval for this short extension so I can focus on recovery and supporting my family.
-
-I sincerely apologize for the inconvenience caused due to my extended absence and assure you that I will be back at work from September 6. Please let me know if you require any medical documentation.
-
-Thank you very much for your support and consideration.
-
-Warm regards,
-[Your Name]
-
-
-I wanted to inform you about a recent issue I encountered in the new Angular version of the application.
-
-While sending data to the middleware (where the list is processed and passed to the UI for rendering the dropdown), I mistakenly sent "detail-self" instead of the correct key "det-shelf". This mismatch caused the project with ID: 414 to appear incorrectly in the UI.
-
-The issue has now been identified and resolved. Everything should be working as expected.
-
-Please let me know if any further action is needed from my side.
-
-
-I wanted to provide an update on the logic implemented around the Next Gen and Run Imputation buttons in the application.
-
-The Next Gen button will be disabled when a delivery is not in 'Initial' or 'New' status, ensuring users can only proceed with valid deliveries. Additionally, when a user selects the Next Gen option, the Run Imputation button in AQ will be disabled to prevent any conflicting actions during the process.
-
-During testing with cloned projects, we observed that the toggle state was not updating correctly. This was due to the enablement logic not being applied alongside the disablement logic. This behavior has now been addressed, and the toggle updates correctly in all scenarios.
-
-Please let me know if you notice anything unusual or if further adjustments are needed.
-
-
-
-body {
-    margin: 0;
-    font-family: Verdana,sans-serif,Roboto, "Helvetica Neue";
-    font-size: 14px;
-  }
-
-.content{
-  margin-bottom: 5px;
+src/├── app/│ ├── components/│ │ ├── dashboard-layout/│ │ │ ├── dashboard-layout.component.ts│ │ │ ├── dashboard-layout.component.html│ │ │ └── dashboard-layout.component.scss│ │ ├── store-table/│ │ │ ├── store-table.component.ts│ │ │ ├── store-table.component.html│ │ │ └── store-table.component.scss│ │ └── filter-sidebar/│ │ ├── filter-sidebar.component.ts│ │ ├── filter-sidebar.component.html│ │ └── filter-sidebar.component.scss│ ├── services/│ │ ├── common.service.ts│ │ └── store.service.ts│ ├── models/│ │ └── common.model.ts│ ├── app.component.ts│ ├── app.component.html│ ├── app.component.scss│ └── app.module.ts
+ng add @angular/material
+Choose these options when prompted:
+import
+{
+NgModule
 }
-h1,h2{
-  font-size: medium;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
+from
+'@angular/core'
+;
+import
+{
+BrowserModule
 }
-.accordion-container{
-  display: grid;
-  gap: 10px;
+from
+'@angular/platform-browser'
+;
+import
+{
+BrowserAnimationsModule
 }
-.sidenav1{ 
-    flex: 0 0 30%;
-    max-width: 325px;
-    min-width: 325px;
-    background-color: white;
-    overflow-y: auto;
+from
+'@angular/platform-browser/animations'
+;
+import
+{
+ReactiveFormsModule
+,
+FormsModule
 }
-
-.mat-toolbar-row, .mat-toolbar-single-row {
-  display: flex;
-  box-sizing: border-box;
-  padding: 0 16px;
-  width: 100%;
-  flex-direction: row;
-  align-items: center;
-  white-space: nowrap;
-  height: 30px;
+from
+'@angular/forms'
+;
+Angular 13 Dashboard Implementation Guide
+Project Structure Setup
+Step 1: Install Angular Material
+Material theme:
+Custom
+or
+Indigo/Pink
+Typography styles:
+Yes
+Animations:
+Yes
+Step 2: Update app.module.ts
+// Angular Material Imports
+import
+{
+MatToolbarModule
 }
-
-.sidenav-container {
-    display: flex;
-    height: calc(100vh - 130px);
-  }
-
-  .toggle-button{
-    position:absolute;
-    top: 50%;
-    left: 0;
-    transform: translateY(-50%);
-    background-color: #1976d2;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    padding: 8px 8px;
-    cursor: pointer; 
-    writing-mode: vertical-lr;
-    text-orientation: mixed;
-    transition: transform 0.2s ease ,opacity 0.2s ease;
-    font-weight: 600;
-    
-    &:hover{
-      background-color: #1565c0;
-    }
-
-  }
-
-  .mat-drawer-inner-container {
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
+from
+'@angular/material/toolbar'
+;
+import
+{
+MatSidenavModule
 }
-  
-  .sidenav {
-    /* width: 300px;
-    padding: 16px;
-    background-color: #f4f4f4;
-
-    @media (max-width:1024px) {
-        width: 240px;
-    }
-
-    @media (max-width:768px) {
-        width: 200px;
-    }
-
-    &.mat-sidenav-opened{
-        transition: width 0.3s ease-in-out;
-    }
-
-    &.mat-sidenav-closed{
-        width: 0;
-    } */
-
-    flex: 0 0 30%;
-    max-width: 300px;
-    background-color: #f4f4f4;
-    overflow-y: auto;
-  }
-
-  .mat-sidenav-content{
-    flex: 1;
-    padding: 0px 10px;
-    /* margin-left: 300px; */
-    overflow-y: auto;
-  }
-  
-  .filter-section {
-     margin: 5px; 
-  
-    .filter-field {
-      width: 100%;
-      /* margin-bottom: 16px; */
-    }
-  
-    .search-box {
-      /* margin-top: 16px; */
-      padding-bottom: 0;
-    }
-  }
-  
-  .projects-or-deliverables {
-    /* margin: 5px; */
-    height: 51vh;
-    /* padding: 10px; */
-    overflow: auto;
-    h3 {
-      margin-bottom: 16px;
-      font-size: 1.2rem;
-      font-weight: bold;
-    }
-  
-    .data-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 5px 10px;
-      border-radius: 10px;
-      border-bottom: 1px solid #ddd;
-      cursor: pointer;
-      transition: background-color 0.2s ease,transform 0.2s ease;
-    
-      &:hover{
-        background-color: lightgray;
-        /* transform: translate(4px); */
-      }
-
-      .project-name {
-        font-size: 1rem;
-        color: #333;
-      }
-  
-      .delivery-count {
-        background-color: lightgray;
-        color: black;
-        font-size: 0.8rem;
-        font-weight: 400;
-        width: 25px;
-        height: 25px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        border-radius: 50%;
-        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2);
-      }
-    }
-  }
-  
-  .content-area {
-    /* display: grid; */
-    gap: 10px;
-    padding: 0px;   
-    h2 {
-      margin-bottom: 16px;
-    }  
-   
-  }
-
-  .content-area1 {
-    /* display: grid; */
-    gap: 10px;
-    padding: 10px;   
-    margin-left: 20px;
-    height: 95%;
-    overflow: auto;
-    h2 {
-      margin-bottom: 16px;
-    }  
-   
-  }
-  
-  .footer {
-    text-align: center;
-    padding: 16px;
-    background-color: #f4f4f4;
-    color: #666;
-  }
-
-  .search-container{
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;
-    
-  }
-
-  .deliverables{
-    overflow: auto;
-    height: 90%;
-    h3 {
-      margin-bottom: 16px;
-      font-size: 1.2rem;
-      font-weight: bold;
-    }
-  
-    .deliverables-data {
-      display: flex;
-      justify-content: flex-start;
-      align-items: center;
-      padding: 5px 10px;
-      height: 25px;
-      border-radius: 10px;
-      border-bottom: 1px solid #ddd;
-      cursor: pointer;
-      transition: background-color 0.2s ease,transform 0.2s ease;
-    
-      &:hover{
-        background-color: lightgray;
-        color: white;
-        /* transform: translate(4px); */
-      }
-
-      .delivery-name {
-        font-size: 1rem;
-        /* margin-left: 10px; */
-        /* color: #333; */
-      }
-  
-      .delivery-number {       
-        font-size: 1rem;
-        /* color: #333;         */
-      }
-    }
-  }
-
-  .selected-item{
-    background-color: #00b0f0;
-    color: #fff;
-    /* font-weight: bold; */
-    border-radius: 5px;
-    &:hover{
-      color: #333;
-      /* transform: translate(4px); */
-    }
-
-  }
-
- 
-
-  .nav-header-icons-container{
-    display: flex ;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    justify-content: space-between;
-    align-items: center;
-    height: 35px;
-    h2{
-      margin: 0;
-    }
-    .nav-header{
-      height: 30px;
-      cursor: pointer; 
-      padding: 5px;
-    }
-    .nav-header-icon button{
-      border: none;   
-      height: 30px;
-      background-color: white;
-      cursor: pointer;   
-      padding: 5px;
-    }
-
-    /* .nav-header-icon .add-icon{
-      border: none;      
-    } */
-    .nav-header-icon .pin-icon{
-      margin-left: 10px;      
-    }
-  }
-
-  .status-circle{
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    margin-right: 5px;
-    border-radius: 50%;
-    border: 1px solid transparent;
-  }
-
-  .status-failed{
-    background-color: red;
-  }
-
-  .status-success{
-    background-color: green;
-  }
-
-  .status-initial{
-    background-color: white;
-    border: 1px solid #ccc;
-  }
-
-  .status-inprogress{
-    background-color: #001aff;
-  }
-
-  .status-reprogress{
-    background-color: #ff6500;
-  }
-  .status-unknown{
-    background-color: white;
-    border: 1px solid #ccc;
-  }
-
-
-
-  .status-abandon{
-    background-color: #ffff00;
-  }
-
-  .mat-form-field-appearance-standard .mat-form-field-flex {
-    padding-top: 5px;
-  }
-
- @media screen and (min-width:1000px) and (max-width:1280px) {
-  .projects-or-deliverables{
-    /* margin: 10px; */
-    height: 41vh;
-    overflow: auto;
-  }
-  
- }
-
- @media screen and (min-width:1281px) and (max-width:1366px) {
-  .projects-or-deliverables{
-    /* margin: 10px; */
-    height: 42vh;
-    overflow: auto;
-  }
-
-   .content-area{
-    width: 150% !important;
-  }
-  
- }
-
- @media screen and (min-width:1366px) and (max-width:1439px) {
-  .projects-or-deliverables{
-    /* margin: 10px; */
-    height: 49vh;
-    overflow: auto;
-  }
-  
- }
-
- @media screen and (min-width:1440px) and (max-width:1600px) {
-  .projects-or-deliverables{
-    /* margin: 10px; */
-    height: 50vh;
-    overflow: auto;
-  }
-  
- }
-
- @media screen and (min-width:1601px) and (max-width:1800px) {
-  .projects-or-deliverables{
-    /* margin: 10px; */
-    height: 53vh;
-    overflow: auto;
-  }
-
-  
-  
- }
-
-
- @media screen and (min-width:1801px) and (max-width:2700px) {
-  .projects-or-deliverables{
-    margin: 10px;
-    height: 60vh;
-    overflow: auto;
-  }
-
-  
-  
- }
-
- @media screen and (min-width:400px) and (max-width:1250px){
- .content-area {
-    width: 1000px !important;
-  }
- }
-
- 
-
-.chart {
-  height: 100%;
-  width: 100%;
+from
+'@angular/material/sidenav'
+;
+import
+{
+MatButtonModule
 }
-
-
-
-*************
-body {
-  margin: 0;
-  font-family: Verdana,sans-serif,Roboto, "Helvetica Neue";
-  font-size: 14px;
+from
+'@angular/material/button'
+;
+import
+{
+MatIconModule
 }
-.metrics-chart{
-width: 55%;
+from
+'@angular/material/icon'
+;
+import
+{
+MatCardModule
 }
-
-.metrics-section{
-width: 45%;
+from
+'@angular/material/card'
+;
+import
+{
+MatTableModule
 }
-
-.dashboard-container{
-display: flex;
-justify-content: space-between;
-gap: 10px;
-padding-top: 10px;
+from
+'@angular/material/table'
+;
+import
+{
+MatPaginatorModule
 }
-.mat-card {
-  padding: 10px;
+from
+'@angular/material/paginator'
+;
+import
+{
+MatSortModule
 }
-.stats-card{
- margin-bottom: 10px;
+from
+'@angular/material/sort'
+;
+import
+{
+MatFormFieldModule
 }
-
-.stats-card p{
-    font-size: 16px;
-    margin: 4px 0;
+from
+'@angular/material/form-field'
+;
+import
+{
+MatInputModule
 }
-
-
-
-.status-cards{
-display: flex;
-justify-content: space-around;
-gap: 15px;
+from
+'@angular/material/input'
+;
+import
+{
+MatSelectModule
 }
-
-.mat-tab-label {
-  height: 30px;
-  padding: 0px 15px;
+from
+'@angular/material/select'
+;
+import
+{
+MatDatepickerModule
 }
-
-.card {
-width: 80px;
-height: 40px;
-border-radius: 8px;
-text-align: center;
-display: flex;
-flex-direction: column;
-justify-content: center;
-box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-transition: transform 0.2s ease-in-out;
+from
+'@angular/material/datepicker'
+;
+import
+{
+MatNativeDateModule
 }
-
-.approved{
-    border: 2px solid green;
-    color: green;
-    background-color: rgba(0,128,0,0.1);
+from
+'@angular/material/core'
+;
+import
+{
+MatSlideToggleModule
 }
-
-.DROPPED{
-    border: 2px solid red;
-    color: red;
-    background-color: rgba(255,0,0,0.1);
+from
+'@angular/material/slide-toggle'
+;
+import
+{
+MatCheckboxModule
 }
-
-.ns{
-    border: 2px solid gray;
-    color: gray;
-    background-color: rgba(128,128,128,0.1);
+from
+'@angular/material/checkbox'
+;
+import
+{
+MatChipsModule
 }
-
-.tab-container{
-    background: #f4f4f4;
-    padding: 10px;
-    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-    margin-bottom: 10px;
+from
+'@angular/material/chips'
+;
+import
+{
+AppComponent
 }
-.territory-selection-container{    
-    display: flex;
-    flex-direction: row-reverse;
-    justify-content: space-between;
-    margin-top: 8px;
+from
+'./app.component'
+;
+import
+{
+DashboardLayoutComponent
 }
-/* .territory-selection-container .mat-radio-group-container{
-    margin-top: 15px;
-    padding-bottom: 1.25em;
-} */
-
-
-
-.table-container{
-    min-height: 300px;
-    max-height: 300px;
-    overflow: auto;
-  }
-  .mat-table {
-    width: 100%;
-    margin-bottom: 16px;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-  
-  th {
-    background-color: lightgray;
-    color: black;
-    font-weight: 500;
-    padding: 12px;
-  }
-  
-  td {
-    padding: 12px;
-    border-bottom: 1px solid #ddd;
-  }
-
-  tr.mat-header-row {
-    height: 40px;
-  }
-
-  tr.mat-row, tr.mat-footer-row {
-    height: 30px;
+from
+'./components/dashboard-layout/dashboard-layout.
+import
+{
+StoreTableComponent
 }
-
-  .mat-row:hover{
-    background-color: #f5f5f5;
-    cursor: pointer;
-    transition: backgroud-color 0.3s ease-in-out;
-  }
-
-
-.chart {
-  height: 220px;
-  width: 220px;
-  flex: 1 1;
-  /*  max-width:20px;*/
+from
+'./components/store-table/store-table.component'
+;
+import
+{
+FilterSidebarComponent
 }
-
-/*.chart-bar {
-  height: 300px;
-  width: 500px;
-  flex: 1 1;
-}*/
-
-.chart-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 20px;
+from
+'./components/filter-sidebar/filter-sidebar.compon
+@NgModule
+({
+declarations
+: [
+AppComponent
+,
+DashboardLayoutComponent
+,
+StoreTableComponent
+,
+FilterSidebarComponent
+],
+imports
+: [
+BrowserModule
+,
+BrowserAnimationsModule
+,
+ReactiveFormsModule
+,
+FormsModule
+,
+MatToolbarModule
+,
+MatSidenavModule
+,
+MatButtonModule
+,
+MatIconModule
+,
+MatCardModule
+,
+MatTableModule
+,
+MatPaginatorModule
+,
+MatSortModule
+,
+MatFormFieldModule
+,
+MatInputModule
+,
+MatSelectModule
+,
+MatDatepickerModule
+,
+MatNativeDateModule
+,
+MatSlideToggleModule
+,
+MatCheckboxModule
+,
+MatChipsModule
+],
+providers
+: [],
+bootstrap
+: [
+AppComponent
+]})
+export
+class
+AppModule
+{ }
+export
+interface
+Store
+{
+id
+?:
+number
+;
+name
+:
+string
+;
+territory
+:
+string
+;
+location
+:
+string
+;
+status
+:
+'Active'
+|
+'Pending'
+|
+'Canceled'
+;
+storeType
+:
+string
+;
+assignment
+:
+string
+;
+fsr
+:
+string
+;
+dateCreated
+:
+Date
+;}
+export
+interface
+FilterOptions
+{
+territories
+:
+string
+[];
+locations
+:
+string
+[];
+statuses
+:
+string
+[];
+storeTypes
+:
+string
+[];
+assignments
+:
+string
+[];}
+export
+interface
+StoreFilter
+{
+quickSearch
+:
+string
+;
+territory
+:
+string
+;
+location
+:
+string
+;
+status
+:
+string
+;
+storeType
+:
+string
+;
+assignment
+:
+string
+;
+dateFrom
+:
+Date
+|
+null
+;
+dateTo
+:
+Date
+|
+null
+;
+multiFsr
+:
+boolean
+;}
+export
+interface
+PaginationData
+{
+pageIndex
+:
+number
+;
+pageSize
+:
+number
+;
+length
+:
+number
+;}
+import
+{
+Injectable
 }
-
-
-th.mat-header-cell:last-of-type, td.mat-cell:last-of-type, td.mat-footer-cell:last-of-type {
-    padding-right: 0px !important;
+from
+'@angular/core'
+;
+import
+{
+BehaviorSubject
+,
+Observable
 }
-
-th.mat-header-cell:first-of-type, td.mat-cell:first-of-type, td.mat-footer-cell:first-of-type
- {
-    padding-left: 10px !important;
+from
+'rxjs'
+;
+import
+{
+Store
+,
+FilterOptions
+,
+StoreFilter
 }
-<div class="dashboard-container">
-    <div class="metrics-section">
-        <div class="stats">
-            <mat-card style="box-shadow: 0px 2px 3px 2px rgba(0, 0, 0, 0.12), 0px 2px 1px -1px rgba(0, 0, 0, 0.2), 0px 1px 1px 0px rgba(0, 0, 0, 0.14), 0px 1px 3px 0px rgba(0, 0, 0, 0.12);">
-                <mat-card class="stats-card" style="box-shadow: 0px 2px 3px 2px rgba(0, 0, 0, 0.12), 0px 2px 1px -1px rgba(0, 0, 0, 0.2), 0px 1px 1px 0px rgba(0, 0, 0, 0.14), 0px 1px 3px 0px rgba(0, 0, 0, 0.12);">
-                    <p> <span style="color: gray;">Total Stores Collected</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:<span matTooltip="{{rmaMetricsData?.storeColl}}/{{rmaMetricsData?.storeCollTotal}}"> &nbsp;<strong>{{rmaMetricsData?.storeCollPerc}} </strong><span *ngIf="rmaMetricsData&&rmaMetricsData.storeCollPerc!='0'">%</span> </span> </p>
-                    <p><span style="color: gray;">Effective Store Collection</span>  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:<span matTooltip="{{rmaMetricsData?.effStoreColl}}/{{rmaMetricsData?.effStoreTotal}}">&nbsp; <strong>{{rmaMetricsData?.effStorePerc}} </strong><span *ngIf="rmaMetricsData&&rmaMetricsData.effStorePerc!='0'">%</span></span> </p>
-                    <p> <span style="color: gray;">Dropped Store Collection Cost</span> &nbsp;:<span> &nbsp;<strong>{{rmaMetricsData?.dropCollStoreCost}}</strong> </span> </p>    
-                    <!-- <span *ngIf="rmaMetricsData&&rmaMetricsData.dropCollStoreCost!='0'">%</span> -->
-                </mat-card>
-
-                <div class="status-cards">
-                    <mat-card class="card approved" >
-                        <p style="margin: 0">APPROVED</p>
-                        <h2>{{rmaMetricsData?.rmaPassCnt}}</h2>
-                    </mat-card>
-
-                    <mat-card class="card DROPPED">
-                        <p style="margin: 0">DROPPED</p>
-                        <h2>{{rmaMetricsData?.rmaFailCnt}}</h2>
-                    </mat-card>
-
-                    <mat-card class="card ns">
-                        <p style="margin: 0">N/S</p>
-                        <h2>{{rmaMetricsData?.rmaNaCnt}}</h2>
-                    </mat-card>
-                </div>
-              
-            </mat-card>           
-        </div>
-        <div class="tab-container">
-            <mat-tab-group (selectedTabChange)="OnTabSelection($event)">
-                <mat-tab label="RMA"></mat-tab>
-                <mat-tab label="Territory"></mat-tab>
-                <mat-tab label="Chain"></mat-tab>              
-            </mat-tab-group>
-            <div class="territory-selection-container" >
-                <div>
-
-                    <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Example icon-button with a menu"> 
-                        <mat-icon>more_vert</mat-icon>
-                    </button>
-                    <mat-menu #menu="matMenu">
-                         <button mat-menu-item *ngIf="this.modeCtrl.value == 'RMA'" (click)="exportRMAView()"> 
-                            <mat-icon style="vertical-align: sub;"> description</mat-icon> 
-                            <span>Export RMA View</span>
-                        </button>
-                           <button mat-menu-item *ngIf="this.modeCtrl.value == 'RMA'"  (click)="exportFieldRMA()"> 
-                            <mat-icon style="vertical-align: sub;"> description</mat-icon> 
-                            <span>Export RMA Completion Tracker</span>
-                        </button>
-                         <button mat-menu-item *ngIf="this.modeCtrl.value == 'TERRITORY'" matTooltip="Export Territory View" style="float: inline-end;" (click)="exportTerritoryView()"> 
-                            <mat-icon style="vertical-align: sub;"> description</mat-icon>
-                            <span>Export Territory View</span>
-                         </button>
-                         <button mat-menu-item *ngIf="this.modeCtrl.value == 'CHAIN'"  matTooltip="Refresh" (click)="getRmaMetricsData()"> 
-                            <mat-icon style="vertical-align: sub;"> refresh</mat-icon>
-                                <span>Refresh</span>
-                         </button>
-                    </mat-menu>
-                    <!-- <button *ngIf="this.modeCtrl.value == 'RMA'" mat-button color="primary"  matTooltip="Export RMA View" (click)="exportRMAView()"> <mat-icon style="vertical-align: sub;"> description</mat-icon> </button>
-                    <button *ngIf="this.modeCtrl.value == 'TERRITORY'" mat-button color="primary"  matTooltip="Export Territory View" style="float: inline-end;" (click)="exportTerritoryView()"> <mat-icon style="vertical-align: bottom;"> description</mat-icon> </button>
-                    <button *ngIf="this.modeCtrl.value == 'CHAIN'" mat-button color="primary"  matTooltip="Refresh" (click)="getRmaMetricsData()"> <mat-icon style="vertical-align: sub;"> refresh</mat-icon> </button> -->
-                </div>
-             
-              
-                <div *ngIf="this.modeCtrl.value == 'RMA'">
-                    <mat-form-field *ngIf="this.modeCtrl.value == 'RMA'">
-                        <mat-label>Select Territory</mat-label>
-                        <mat-select [formControl]="territoryCtrl" (selectionChange)="getRmaMetricsData()">
-                            <mat-option [value]="'-1'">-- All Territories --</mat-option>
-                            <mat-option *ngFor="let territory of territoryList" [value]="territory.Key">{{territory.Value}}</mat-option>
-                        </mat-select>
-                        <hr style="margin: 0;color: #ccc;">
-                    </mat-form-field>
-                </div>
-
-                <div class="mat-radio-group-container" *ngIf="this.modeCtrl.value != 'TERRITORY'">
-                    <mat-radio-group [formControl]="rowCtrl" (change)="this.getRmaMetricsData()" >
-                        <mat-radio-button [value]="'15'" style="margin-right: 15px;">Top 15</mat-radio-button>
-                        <mat-radio-button [value]="'-1'">ALL <span *ngIf="rowCtrl.value=='-1'&&this.tableData.length!=0">({{tableData.length}})</span></mat-radio-button>
-                    </mat-radio-group>
-                </div>
-            
-            </div>
-            <div class="table-container">
-                <table mat-table [dataSource]="tableData" class="mat-elevation-z8" *ngIf="tableData.length>0">
-                    <ng-container matColumnDef="Name">
-                        <th mat-header-cell *matHeaderCellDef style="width: 50%;"> Name</th>
-                        <td mat-cell *matCellDef="let element" style="width: 50%;" >
-                            <a href="#" (click)="openAq(element,$event)"  *ngIf="this.modeCtrl.value!='CHAIN'">{{element.Name}}</a> 
-                            <span *ngIf="this.modeCtrl.value=='CHAIN'">{{element.Name}}</span>
-                        </td>
-                        
-                    </ng-container>
-                    <ng-container matColumnDef="Coll">
-                        <th mat-header-cell *matHeaderCellDef> Coll</th>
-                        <td mat-cell *matCellDef="let element" matTooltip="{{element.CollNum}}/{{element.CollDenom}}">{{element.CollPerc}}</td>
-                    </ng-container>
-                    <ng-container matColumnDef="CollApprPerc">
-                        <th mat-header-cell *matHeaderCellDef> A&C</th>
-                        <td mat-cell *matCellDef="let element" matTooltip="{{element.CollApprNum}}/{{element.CollDenom}}">{{element.CollApprPerc}}</td>
-                    </ng-container>
-                    <ng-container matColumnDef="DelvPerc">
-                        <th mat-header-cell *matHeaderCellDef> Delv</th>
-                        <td mat-cell *matCellDef="let element" matTooltip="{{element.DelvNum}}/{{element.DelvDenom}}">{{element.DelvPerc}}</td>
-                    </ng-container>
-                    <ng-container matColumnDef="CommonPerc">
-                        <th mat-header-cell *matHeaderCellDef> Cmn</th>
-                        <td mat-cell *matCellDef="let element" matTooltip="{{element.CommonNum}}/{{element.CommonDenom}}">{{element.CommonPerc}}</td>
-                    </ng-container>
-
-                    <tr mat-header-row *matHeaderRowDef="['Name','Coll','CollApprPerc','DelvPerc','CommonPerc'];sticky: true"></tr>
-                    <tr mat-row *matRowDef="let row; columns:['Name','Coll','CollApprPerc','DelvPerc','CommonPerc']"></tr>
-                </table>
-                <table mat-table [dataSource]="tableData" class="mat-elevation-z8" *ngIf="tableData.length==0">
-                    <ng-container matColumnDef="Name">
-                        <th mat-header-cell *matHeaderCellDef > Name</th>
-                        <td mat-cell *matCellDef="let element" >{{element.Name}}</td>
-                    </ng-container>
-                    <ng-container matColumnDef="Coll">
-                        <th mat-header-cell *matHeaderCellDef> Coll</th>
-                        <td mat-cell *matCellDef="let element">{{element.CollPerc}}</td>
-                    </ng-container>
-                    <ng-container matColumnDef="CollApprPerc">
-                        <th mat-header-cell *matHeaderCellDef> A&C</th>
-                        <td mat-cell *matCellDef="let element">{{element.CollApprPerc}}</td>
-                    </ng-container>
-                    <ng-container matColumnDef="DelvPerc">
-                        <th mat-header-cell *matHeaderCellDef> Delv</th>
-                        <td mat-cell *matCellDef="let element">{{element.DelvPerc}}</td>
-                    </ng-container>
-                    <ng-container matColumnDef="CommonPerc">
-                        <th mat-header-cell *matHeaderCellDef> Cmn</th>
-                        <td mat-cell *matCellDef="let element">{{element.CommonPerc}}</td>
-                    </ng-container>
-
-                    <tr mat-header-row *matHeaderRowDef="['Name','Coll','CollApprPerc','DelvPerc','CommonPerc'];"></tr>
-                    <tr mat-row *matRowDef="let row; columns:['Name','Coll','CollApprPerc','DelvPerc','CommonPerc']"></tr>
-                </table>
-                <div *ngIf="tableData.length==0" style="text-align: center;">No Data Found</div>
-            </div>
-        </div>
-        
-      
-
-    </div>
-    <div class="metrics-chart">
-      <mat-card style="box-shadow: 0px 2px 3px 2px rgba(0, 0, 0, 0.12), 0px 2px 1px -1px rgba(0, 0, 0, 0.2), 0px 1px 1px 0px rgba(0, 0, 0, 0.14), 0px 1px 3px 0px rgba(0, 0, 0, 0.12);">
-        <button mat-raised-button color="primary" style="margin-right: 15px;" (click)="ApplyStoreApprovals()" [disabled]="disableApplyStoreApprovals">Copy Store Approvals</button>
-        <button mat-raised-button color="primary" [disabled]="disableImputeStore" (click)="ImputeStores()">Run Imputation</button>
-      </mat-card>
-
-
-      <legend style="padding:0.5em;"><b>Collection</b></legend>
-      <div class="chart-container">
-        <div class="chart">
-          <canvas id="MyChart"></canvas>
-        </div>
-        <div class="chart">
-          <canvas id="MyChart1"></canvas>
-        </div>
-      </div>
-
-      <legend style="padding:0.5em;margin-top:5px"><b>Status</b></legend>
-      <div class="chart-container">
-        <div class="chart">
-          <canvas id="MyChart2"></canvas>
-        </div>
-        <div class="chart">
-          <canvas id="MyChart3"></canvas>
-        </div>
-      </div>
-
-    </div>
-</div>
-
-<footer>
-    <div class="mat-spinner-container">
-      <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
-      <div *ngIf="showSpinner" style="position: relative; left: 10px">
-        Loading...
-      </div>
-    </div>
-  </footer>
-import { DeliverableComponent } from './../deliverable/deliverable.component';
-import { Component, Inject, OnInit } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
-import { DashbordComponent } from '../dashbord/dashbord.component';
-import { CommonService } from '../shared/common.service';
-import { SnackbarService } from '../shared/snackbar.service';
-import { distinctUntilChanged, firstValueFrom, Subject, Subscription, takeUntil } from 'rxjs';
-import { HttpClient } from '@angular/common/http';
-import { AQModel, DeliveryStatus, MetricsData } from '../shared/common.model';
-import { FormControl } from '@angular/forms';
-import { MatTabChangeEvent } from '@angular/material/tabs';
-import * as XLSX from 'xlsx';
-import { Chart, registerables, BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js';
-Chart.register(...registerables, BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
-import ChartDataLabels from 'chartjs-plugin-datalabels';
-
-
-@Component({
-  selector: 'app-audit-quality',
-  templateUrl: './audit-quality.component.html',
-  styleUrls: ['./audit-quality.component.css'],
+from
+'../models/common.model'
+;
+@Injectable
+({
+providedIn
+:
+'root'
 })
-export class AuditQualityComponent implements OnInit {
-  showSpinner: boolean = false;
-  private unsubscribe$ = new Subject<void>();
-  private subscriptions = new Subscription();
-  selectedDeliveryDetails: any[];
-  rmaMetricsData:MetricsData;
-  modeCtrl= new FormControl('RMA')
-  rowCtrl= new FormControl('15')
-  territoryCtrl=new FormControl('-1')
-  territoryList:any[]=[];
-  tableData:any[]=[];
-  userId:string
-  disableApplyStoreApprovals: boolean = false;
-  disableImputeStore: boolean = false;
-
-  config: any;
-  chart: any = [];
-  charts: any
-  charts1: any;
-  config1: any;
-  chart1: any = [];
-  charts2: any;
-  config2: any;
-  chart2: any = [];
-  charts3: any;
-  config3: any;
-  chart3: any = [];
-  auditData: any;
-  storeMetrics: any;
-  approvedColl: any;
-  collectedTot = 0;
-  notCollTot = 0;
-  imputedTot = 0;
-  approvedTot = 0;
-  droppedTot = 0;
-  noStatusTot = 0;
-
-  collected: any;
-  imputed: any;
-  notColl: any;
-  approved: any;
-  dropped: any;
-  noStatus: any;
-  columnHeader: any;
- 
-  constructor(
-    private http: HttpClient,
-    @Inject('BASE_URL') private baseUrl: string,
-    public service: CommonService,
-    private _snackBar: SnackbarService,
-    private dashbordcomponent: DashbordComponent,
-    private dialog: MatDialog,
-    private DeliverableComponent:DeliverableComponent
-  ) {  this.userId= localStorage.getItem("loggedUserId")}
-
-  ngOnInit() {
-    this.showSpinner = true;
-      this.subscriptions.add( this.service.deliverableDetails$.pipe(distinctUntilChanged(),takeUntil(this.unsubscribe$)).    
-        subscribe((selectedDeliveryDetails) => { 
-          this.selectedDeliveryDetails = selectedDeliveryDetails;          
-        }))
-       this.disableImputeStore=this.DeliverableComponent.processingPathCtrl.value
-        this.subscriptions.add( this.DeliverableComponent.processingPathCtrl.valueChanges.subscribe((x)=>{
-            this.disableImputeStore=x;
-          }))
-        
-      this.getTerritory()
-      this.getAuditQualityDetails()
-      this.getRmaMetricsData()
-      this.GetStoreMetrics()
-      
-      setTimeout(()=>{
-        this.showSpinner = true;
-      },1000)
-
-      setTimeout(()=>{
-        if(this.showSpinner){
-          this.showSpinner = false;
-        }        
-      },3000)
-      
-  }
-
-  getTerritory() {
-    this.showSpinner = true;
-    this.http
-      .get<any[]>(this.baseUrl + 'api/AuditQuality/GetTerritory').pipe(takeUntil(this.unsubscribe$)).subscribe({
-        next: (response) => {
-          this.territoryList=response;
-          this.showSpinner = false;
-        },
-        error: (error) => {
-          console.error(error);
-          this.showSpinner = false;
-        },
-      });
-  }
-
-  getAuditQualityDetails(){
-    this.showSpinner = true;
-    this.http.post<any[]>(this.baseUrl + 'api/AuditQuality/GetAuditQualityDetails', { DeliveryId: this.selectedDeliveryDetails['DeliveryID'] }).pipe(takeUntil(this.unsubscribe$)).subscribe({
-      next:
-        (response) => {
-          this.showSpinner = false;
-        },
-      error: (error) => { console.error(error); this.showSpinner = false; },
-    });
-  }
-
-  getRmaMetricsData(){
-    this.showSpinner = true;
-    this.tableData=[];
-    this.http.post<MetricsData>(this.baseUrl + 'api/AuditQuality/GetRmaMetricsData', { DeliveryId: this.selectedDeliveryDetails['DeliveryID'],Type:this.modeCtrl.value,Count:this.rowCtrl.value,Territory:this.territoryCtrl.value }).pipe(takeUntil(this.unsubscribe$)).subscribe({
-      next:
-        (response) => {
-          this.rmaMetricsData=response;
-          this.tableData=this.rmaMetricsData.apprCollList;
-          this.showSpinner = false;
-        },
-      error: (error) => { console.error(error); this.showSpinner = false; },
-    });
-  }
-
-  GetStoreMetrics(){
-    this.showSpinner = true;
-    this.http.post<any[]>(this.baseUrl + 'api/AuditQuality/GetStoreMetrics', { DeliveryId: this.selectedDeliveryDetails['DeliveryID'] }).pipe(takeUntil(this.unsubscribe$)).subscribe({
-      next:
-        (response) => {
-          this.storeMetrics = response;
-          // console.log(this.storeMetrics);
-          this.createStoreChart();
-          this.showSpinner = false;
-        },
-      error: (error) => { console.error(error); this.showSpinner = false; },
-    });
-  }
-
-  createStoreChart() {
-    this.columnHeader = this.storeMetrics.columnHeader.split(",");
-    // console.log(this.collected);
-
-    this.collected = this.storeMetrics.collected.split(",");
-    // console.log(this.collected);
-    this.imputed = this.storeMetrics.imputed.split(",");
-    // console.log(this.imputed);
-    this.notColl = this.storeMetrics.notCollected.split(",");
-    // console.log(this.notColl);
-
-    this.collectedTot = this.collected.reduce((sum, val) => sum + parseInt(val), 0);
-    // console.log(this.collectedTot);
-    this.imputedTot = this.imputed.reduce((sum, val) => sum + parseInt(val), 0);
-    // console.log(this.imputedTot);
-    this.notCollTot = this.notColl.reduce((sum, val) => sum + parseInt(val), 0);
-    // console.log(this.notCollTot);
-
-    this.approved = this.storeMetrics.approved.split(",");
-    // console.log(this.collected);
-    this.dropped = this.storeMetrics.dropped.split(",");
-    // console.log(this.imputed);
-    this.noStatus = this.storeMetrics.noStatus.split(",");
-    // console.log(this.notColl);
-
-    this.approvedTot = this.approved.reduce((sum, val) => sum + parseInt(val), 0);
-    // console.log(this.approvedTot);
-    this.droppedTot = this.dropped.reduce((sum, val) => sum + parseInt(val), 0);
-    // console.log(this.droppedTot);
-    this.noStatusTot = this.noStatus.reduce((sum, val) => sum + parseInt(val), 0);
-    // console.log(this.noStatusTot);
-
-    this.approvedColl = this.storeMetrics.approvedCollected.split(",");
-    // console.log(this.approvedColl)
-
-
-    this.config = {
-      type: 'pie',
-
-      data: {
-        labels: ['Collected', 'Not Collected', 'Imputed'],
-        datasets: [
-          {
-            //label: 'My First Dataset',
-            data: [this.collectedTot, this.notCollTot, this.imputedTot],
-            backgroundColor: [
-              'skyblue',
-              'orange',
-              'lightgray'
-            ]
-          }
-        ]
-      },
-
-      options: {
-        legend: {
-          display: false
-        },
-        aspectRatio: 1,
-        indexAxis: 'y',
-        maintainAspectRatio: true,
-        responsive: true,
-        plugins: {
-          datalabels: {
-            display: (context: any) => context.dataset.data[context.dataIndex] >= 1,
-            color: 'black',
-            align: 'center',
-            anchor: 'center',
-            formatter: (value) => value,
-            //legend: {
-            //  display: false
-            //},
-          },
-        }
-      },
-      tooltip: {
-        callbacks: {
-          afterBody: function (tooltipItems) {
-            const item = tooltipItems[0];
-            const label = item.dataset.label;
-            const value = item.raw;
-            return `Label: ${label} ,Value:${value}`;
-          }
-        }
-      },
-     
-      plugins: [ChartDataLabels]
-    };
-
-    this.charts = new Chart('MyChart', this.config);
-
-
-
-
-
-
-
-    this.config1 = {
-      type: 'bar',
-
-      data: {
-        labels: this.columnHeader,
-        datasets: [
-          { label: "Not Collected", data: this.notColl, backgroundColor: "orange", stack: 'Stack 0' },
-          { label: "Collected", data: this.collected, backgroundColor: "skyblue", stack: 'Stack 0' },
-          { label: "Imputed", data: this.imputed, backgroundColor: "lightgray", stack: 'Stack 0' },
-        ]
-      },
-
-      options: {
-        aspectRatio: 1,
-        maintainAspectRatio: true,
-        responsive: true,
-        plugins: {
-          datalabels: {
-            display: (context: any) => context.dataset.data[context.dataIndex] >= 1,
-            color: 'black',
-            align: 'center',
-            anchor: 'center',
-          },
-        }
-      },
-      tooltip: {
-        callbacks: {
-          afterBody: function (tooltipItems) {
-            const item = tooltipItems[0];
-            const label = item.dataset.label;
-            const value = item.raw;
-            return `Label: ${label} ,Value:${value}`;
-          }
-        }
-      },
-      legend: {
-        position: 'bottom',
-        onClick: function (event, legendItem) { }
-      },
-      scales: {
-        x: {
-          stacked: true,
-          beginAtZero: true,
-          suggestedMax: 100
-        },
-        y: {
-          stacked: true,
-
-        }
-      },
-  
-    };
-
-    this.charts1 = new Chart('MyChart1', this.config1);
-
-
-
-
-
-
-
-    this.config2 = {
-      type: 'pie',
-
-      data: {
-        labels: ['Approved', 'Dropped', 'No Status'],
-        datasets: [
-          {
-            //label: 'My First Dataset',
-            data: [this.approvedTot, this.droppedTot, this.noStatusTot],
-            backgroundColor: [
-              'lightgreen',
-              'red',
-              'lightgray'
-            ]
-          }
-        ]
-      },
-
-      options: {
-        aspectRatio: 1,
-        indexAxis: 'y',
-        maintainAspectRatio: true,
-        responsive: true,
-        plugins: {
-          datalabels: {
-            display: (context: any) => context.dataset.data[context.dataIndex] >= 1,
-            color: 'black',
-            align: 'center',
-            anchor: 'center',
-            formatter: (value) => value,
-            legend: {
-              display: false
-            },
-          },
-        }
-      },
-      tooltip: {
-        callbacks: {
-          afterBody: function (tooltipItems) {
-            const item = tooltipItems[0];
-            const label = item.dataset.label;
-            const value = item.raw;
-            return `Label: ${label} ,Value:${value}`;
-          }
-        }
-      },
-      //legend: {
-      //  display: false
-      //},
-      plugins:[ChartDataLabels]
-    };
-
-    this.charts2 = new Chart('MyChart2', this.config2);
-
-
-
-
-
-
-    this.config3 = {
-      type: 'bar',
-
-      data: {
-        labels: this.columnHeader,
-        datasets: [
-          {
-            type: 'line',
-            label: 'Appr & Coll',
-            data: this.approvedColl,
-            fill: false,
-            borderWidth: 1,
-            borderColor: 'black'
-          },
-          {
-            type: 'bar',
-            label: 'Approved',
-            data: this.approved,
-            backgroundColor: "lightgreen",
-            stack: 'Stack 0'
-          },
-          {
-            type: 'bar',
-            label: 'Dropped',
-            data: this.dropped,
-            backgroundColor: "red",
-            stack: 'Stack 0'
-          },
-          {
-            type: 'bar',
-            label: 'No Status',
-            data: this.noStatus,
-            backgroundColor: "lightgray",
-            stack: 'Stack 0'
-          }
-        ]
-
-      },
-
-      options: {
-        aspectRatio: 1,
-        maintainAspectRatio: true,
-        responsive: true,
-        plugins: {
-          datalabels: {
-            display: (context: any) => context.dataset.data[context.dataIndex] >= 1,
-            color: 'black',
-            align: 'center',
-            anchor: 'center',
-          },
-        }
-      },
-      tooltip: {
-        callbacks: {
-          afterBody: function (tooltipItems) {
-            const item = tooltipItems[0];
-            const label = item.dataset.label;
-            const value = item.raw;
-            return `Label: ${label} ,Value:${value}`;
-          }
-        }
-      },
-      legend: {
-        position: 'bottom'
-      },
-      scales: {
-        x: {
-          stacked: true,
-          beginAtZero: true,
-          suggestedMax: 100
-        },
-        y: {
-          stacked: true,
-
-        }
-      },
- 
-    };
-
-    this.charts3 = new Chart('MyChart3', this.config3);
-  }
-
-  OnTabSelection(event:MatTabChangeEvent){
-    if(event.index==0){
-      this.modeCtrl.setValue("RMA")
-    }else if(event.index==1){
-      this.modeCtrl.setValue("TERRITORY")
-    }else if(event.index==2){
-      this.modeCtrl.setValue("CHAIN")
-    }
-    this.getRmaMetricsData()
-  }
-
-  openAq(row,event){
-    event.preventDefault()
-    event.stopPropagation()
-    if(this.modeCtrl.value=="RMA"){
-      window.open(`http://isgiiswt02.iricommercial.com/trending/home/${this.selectedDeliveryDetails['DeliveryID']}/rma/${row.Number}|${row.Name}`,'_blank')
-    }else if(this.modeCtrl.value=="TERRITORY"){
-      window.open(`http://isgiiswt02.iricommercial.com/trending/home/${this.selectedDeliveryDetails['DeliveryID']}/store/${row.Number}`,'_blank')
-    }else if(this.modeCtrl.value=="CHAIN"){
-    }
-  }
-  exportRMAView(){
-    this.http.post<any>(this.baseUrl + 'api/AuditQuality/ExportStoreRmaMetrics',{DeliveryId:this.selectedDeliveryDetails['DeliveryID'],Type:this.modeCtrl.value}).pipe(takeUntil(this.unsubscribe$)).subscribe( { 
-      next: 
-      (response) => {  
-       if(!response){
-        this._snackBar.openSnackBar("No Data Found","warning")
-       }
-       const workbook:XLSX.WorkBook = XLSX.utils.book_new();
-       const sheetNames = ['RMA Report']
-       const dataSets=[response.ds1]
-       dataSets.forEach((dataSets,index)=>{
-        if(dataSets){
-          const worksheet:XLSX.WorkSheet=XLSX.utils.json_to_sheet(dataSets);
-          XLSX.utils.book_append_sheet(workbook,worksheet,sheetNames[index])
-        }
-       })
-       XLSX.writeFile(workbook,`RMA_EXPORT_${this.selectedDeliveryDetails['DeliveryID']}.xlsx`)
-        this.showSpinner = false;
-       },
-       error: 
-       (error) => { console.error(error); this.showSpinner= false },
-      });      
-  }
-
-  exportTerritoryView(){
-    this.http.post<any>(this.baseUrl + 'api/AuditQuality/ExportStoreTerrMetrics',{DeliveryId:this.selectedDeliveryDetails['DeliveryID'],Type:this.modeCtrl.value}).pipe(takeUntil(this.unsubscribe$)).subscribe( { 
-      next: 
-      (response) => {  
-       if(!response){
-        this._snackBar.openSnackBar("No Data Found","warning")
-       }
-       const workbook:XLSX.WorkBook = XLSX.utils.book_new();
-       const sheetNames = ['Summary','Store']
-       const dataSets=[response.ds1,response.ds2]
-       dataSets.forEach((dataSets,index)=>{
-        if(dataSets){
-          const worksheet:XLSX.WorkSheet=XLSX.utils.json_to_sheet(dataSets);
-          XLSX.utils.book_append_sheet(workbook,worksheet,sheetNames[index])
-        }
-       })
-       XLSX.writeFile(workbook,`TERRITORY_Export_${this.selectedDeliveryDetails['DeliveryID']}.xlsx`)
-        this.showSpinner = false;
-       },
-       error: 
-       (error) => { console.error(error); this.showSpinner= false },
-      }); 
-  }
-
-  private async GetDeliveryStatus(): Promise<any> {
-    return await firstValueFrom(this.http.post<AQModel[]>(this.baseUrl + 'api/Deliverable/GetDeliverableStatus', {deliveryId:this.selectedDeliveryDetails['DeliveryID']}));
-  }
-
-  async ApplyStoreApprovals() {       
-    if(this.disableApplyStoreApprovals){return}; 
-    this.showSpinner =true   
-    this.service.MenuAccessGroup().subscribe(async res => {
-      this.disableApplyStoreApprovals = !res;
-      this.disableImputeStore = !res;
-      if(res){
-        this.showSpinner= true
-        let deliveryStatus = new DeliveryStatus;
-        const data = await this.GetDeliveryStatus();
-        data.forEach(function (item) {
-          if (item.viewValue == "TRENDING_SIGNOFF") {
-            deliveryStatus.trendingSignoff = item.value == "1" ? true : false;
-          } else if (item.viewValue == "TRENDING_COMPLETE") {
-            deliveryStatus.trendingComplete = item.value == "1" ? true : false;
-          } else if (item.viewValue == "AQ_REFRESH_RUNNING") {
-            deliveryStatus.aqRefreshRunning = item.value == "1" ? true : false;
-          }else if (item.viewValue == "IMPUTATION_RUNNING") {
-            deliveryStatus.imputationRunning = item.value == "1" ? true : false;
-          }else if (item.viewValue == "AUDIT_IMPUTATION_REQUIRED") {
-            deliveryStatus.auditImputationRequired = item.value == "1" ? true : false;
-          }else if (item.viewValue == "STORE_APPR_COPY_AUTOAPPLY") {
-            deliveryStatus.storeApprCopyAutoapply = item.value == "1" ? true : false;
-          } else if (item.viewValue == "COPY_STORE_APPROVAL") {
-            deliveryStatus.copyStoreApprovals = item.value == "1" ? true : false;
-          } else if (item.viewValue == "IMPUTATION_COMPLETE") {
-            deliveryStatus.imputationComplete = item.value == "1" ? true : false;
-          }else if (item.viewValue == "FILE_DELIVERED") {
-            deliveryStatus.fileDelivered = item.value == "1" ? true : false;
-          }else if (item.viewValue == "COLLECTION_MODE") {
-            deliveryStatus.collectionMode = item.value;
-          }  else if (item.viewValue == "DELIVERY_STATUS") {
-            deliveryStatus.deliveryStatus = item.value;
-          } else if (item.viewValue == "DELIVERY_TYPE") {
-            deliveryStatus.deliveryType = item.value;
-          }
-        });
-      
-        if(deliveryStatus.trendingSignoff  ||  
-          !deliveryStatus.trendingComplete || 
-          deliveryStatus.aqRefreshRunning  ||  
-          deliveryStatus.imputationRunning || 
-          !deliveryStatus.auditImputationRequired || 
-          !deliveryStatus.copyStoreApprovals || 
-          deliveryStatus.imputationComplete  || 
-          deliveryStatus.fileDelivered ||   
-          deliveryStatus.collectionMode  != "3" ||  
-          deliveryStatus.deliveryStatus != "8"  || 
-          deliveryStatus.deliveryType != "DET-Shelf"){  
-          this._snackBar.openSnackBar("This action is currenly not allowed. It is likely that the store approval process is currently running. Please check back in about 30 mins!", "error");            
-          this.showSpinner =false
-        }else{
-          if (confirm("Store Approvals will be applied. Would you like to continue?" )){
-            this.disableApplyStoreApprovals = true;
-            this.showSpinner = true;
-            this.http.post<string>(this.baseUrl + 'api/AuditQuality/RefreshQualityReport', {deliveryId:this.selectedDeliveryDetails['DeliveryID'],ProcessId:"APPR",UserId:this.userId}).pipe(takeUntil(this.unsubscribe$)).subscribe({
-              next:
-              (response) => {
-                if (response == "SUCCESS") {                  
-                  this._snackBar.openSnackBar('Stores have been submitted for approval.','success')
-                }else {
-                this._snackBar.openSnackBar(`Store Approvals update was unsuccessful due to below reason:-\n + ${response}`,'error');
-                }              
-              this.disableApplyStoreApprovals = false;                
-              this.showSpinner = false;
-              },
-            error: (error) => { console.error(error); this.showSpinner = false; },
-            });          
-          }
-        }
-      }else{
-        this._snackBar.openSnackBar("You do not have access!", "error")
-        this.showSpinner =false
-      }
-    }) 
-  }
-
-  async ImputeStores() {
-    if(this.disableImputeStore){return};     
-    this.showSpinner =true 
-    this.service.MenuAccessGroup().subscribe(async res => {
-      this.disableApplyStoreApprovals = !res;
-      this.disableImputeStore = !res;
-      if(res){
-        this.showSpinner= true
-        let deliveryStatus = new DeliveryStatus;
-        const data = await this.GetDeliveryStatus();
-        data.forEach(function (item) {
-          if (item.viewValue == "AQ_REFRESH_RUNNING") {
-            deliveryStatus.aqRefreshRunning = item.value == "1" ? true : false;
-          }
-          else if (item.viewValue == "AUDIT_IMPUTATION_REQUIRED") {
-            deliveryStatus.auditImputationRequired = item.value == "1" ? true : false;
-          }
-          else if (item.viewValue == "IMPUTATION_RUNNING") {
-            deliveryStatus.imputationRunning = item.value == "1" ? true : false;
-          }
-          else if (item.viewValue == "TRENDING_COMPLETE") {
-            deliveryStatus.trendingComplete = item.value == "1" ? true : false;
-          }
-          else if (item.viewValue == "TRENDING_SIGNOFF") {
-            deliveryStatus.trendingSignoff = item.value == "1" ? true : false;
-          }
-          else if (item.viewValue == "DELIVERY_STATUS") {
-            deliveryStatus.deliveryStatus = item.value;
-          }
-          else if (item.viewValue == "COLLECTION_MODE") {
-            deliveryStatus.collectionMode = item.value;
-          }else if (item.viewValue== "IMPUTATION_COMPLETE"){
-            deliveryStatus.imputationComplete = item.value == "1" ? true : false;
-          }
-        });
-      
-        if (deliveryStatus.trendingSignoff || 
-            !deliveryStatus.trendingComplete || 
-            deliveryStatus.aqRefreshRunning || 
-            deliveryStatus.imputationRunning || 
-            !deliveryStatus.auditImputationRequired || 
-            deliveryStatus.collectionMode != "3" || 
-            deliveryStatus.deliveryStatus != "8" || 
-            deliveryStatus.imputationComplete) {
-          this._snackBar.openSnackBar("This action is currently not allowed, Please check the deliverable status!", "error");            
-          this.showSpinner =false
-        }else{
-          if (confirm("Any stores previously imputed will be deleted, and imputations run based on the current list of User or System approved stores. Would you like to continue?" )){
-            this.disableImputeStore = true;
-            this.showSpinner = true;
-            this.http.post<string>(this.baseUrl + 'api/AuditQuality/RefreshQualityReport', {deliveryId:this.selectedDeliveryDetails['DeliveryID'],ProcessId:"AIR",UserId:this.userId}).pipe(takeUntil(this.unsubscribe$)).subscribe({
-              next:
-              (response) => {
-                if (response == "SUCCESS") {                  
-                  this._snackBar.openSnackBar('Stores have been submitted for approval.','success')
-                }else {
-                this._snackBar.openSnackBar(`Store Approvals update was unsuccessful due to below reason:-\n + ${response}`,'error');
-                }              
-              this.disableImputeStore = false;                
-              this.showSpinner = false;
-              },
-            error: (error) => { console.error(error); this.showSpinner = false; },
-            });          
-          }
-        }
-      }else{
-        this._snackBar.openSnackBar("You do not have access!", "error")
-        this.showSpinner =false;
-      }
-    }) 
-  }
-
-  exportFieldRMA(){
- 
-     this.http.post<any>(this.baseUrl + 'api/AuditQuality/GetFieldRam',{DeliveryId:this.selectedDeliveryDetails['DeliveryID']}).pipe(takeUntil(this.unsubscribe$)).subscribe( { 
-      next: 
-      (response) => {  
-        const dt1 = response.dt1;
-         const dt2 = response.dt2;
-        if(dt1.length==0&&dt2.length==0){
-          this._snackBar.openSnackBar("No Data Found","warning");
-          return;
-        }
-
-
-        
-       if(dt1){
-        let  headerrow:string[] =  Object.keys(dt1[0])
-        headerrow = headerrow.filter(key=>key!=='rma_name' &&key!=='grand_total')
-        headerrow = ['rma_name',...headerrow,'grand_total']
-        const today = new Date()
-        const converter = this.service.praseToJSON(dt1,headerrow,",");
-         this.service.exportFile2(converter, "text/csv", `${this.selectedDeliveryDetails['DeliveryID']}_${this.selectedDeliveryDetails['DeliveryName']}_${today.getFullYear()}_${today.getMonth()+1}_${today.getDate()}_Rma_Territory_map`); 
-       }else{
-        this._snackBar.openSnackBar("No Data Found","warning")
-        return
-       }
-
-           
-       if(dt2){
-        let  headerrow:string[] =  Object.keys(dt2[0])
-        // headerrow = headerrow.filter(key=>key!=='rma_name' &&key!=='grand_total')
-        // headerrow = ['rma_name',...headerrow,'grand_total']
-        const today = new Date()
-        const converter = this.service.praseToJSON(dt2,headerrow,",");
-         this.service.exportFile2(converter, "text/csv", `${this.selectedDeliveryDetails['DeliveryID']}_${this.selectedDeliveryDetails['DeliveryName']}_Rma_Territory_store`); 
-       }else{
-        this._snackBar.openSnackBar("No Data Found","warning")
-        return
-       }
-
-       },
-       error: 
-       (error) => { console.error(error); this.showSpinner= false },
-      });      
-  }
-  
-
-  ngOnDestroy() {  
-    if(this.subscriptions){
-      this.subscriptions.unsubscribe();
-    }
-  }
-
+export
+class
+CommonService
+{
+private
+sampleStores
+:
+Store
+[] = [ {
+id
+:
+1
+,
+Step 3: Common Models (src/app/models/common.model.ts)
+Step 4: Common Service (src/app/services/common.service.ts)
+name
+:
+"John Doe"
+,
+territory
+:
+"Actimn"
+,
+location
+:
+"North Region"
+,
+status
+:
+"Active"
+,
+storeType
+:
+"Retail"
+,
+assignment
+:
+"Primary"
+,
+fsr
+:
+"FSR001"
+,
+dateCreated
+:
+new
+Date
+(
+"2024-01-15"
+) }, {
+id
+:
+2
+,
+name
+:
+"John Foe"
+,
+territory
+:
+"Fannicy"
+,
+location
+:
+"South Region"
+,
+status
+:
+"Pending"
+,
+storeType
+:
+"Wholesale"
+,
+assignment
+:
+"Secondary"
+,
+fsr
+:
+"FSR002"
+,
+dateCreated
+:
+new
+Date
+(
+"2024-02-10"
+) }, {
+id
+:
+3
+,
+name
+:
+"John Smith"
+,
+territory
+:
+"Summer"
+,
+location
+:
+"East Region"
+,
+status
+:
+"Pending"
+,
+storeType
+:
+"Online"
+,
+assignment
+:
+"Primary"
+,
+fsr
+:
+"FSR003"
+,
+dateCreated
+:
+new
+Date
+(
+"2024-03-05"
+) }, {
+id
+:
+4
+,
+name
+:
+"John Smitte"
+,
+territory
+:
+"Aircert"
+,
+location
+:
+"West Region"
+,
+status
+:
+"Active"
+,
+storeType
+:
+"Retail"
+,
+assignment
+:
+"Primary"
+,
+fsr
+:
+"FSR004"
+,
+dateCreated
+:
+new
+Date
+(
+"2024-03-20"
+) }, {
+id
+:
+5
+,
+name
+:
+"John Smith"
+,
+territory
+:
+"Sanslor"
+,
+location
+:
+"Central Region"
+,
+status
+:
+"Canceled"
+,
+storeType
+:
+"Wholesale"
+,
+assignment
+:
+"Secondary"
+,
+fsr
+:
+"FSR005"
+,
+dateCreated
+:
+new
+Date
+(
+"2024-04-12"
+) }, {
+id
+:
+6
+,
+name
+:
+"Main Lisa"
+,
+territory
+:
+"Summer"
+,
+location
+:
+"North Region"
+,
+status
+:
+"Pending"
+,
+storeType
+:
+"Online"
+,
+assignment
+:
+"Primary"
+,
+fsr
+:
+"FSR006"
+,
+dateCreated
+:
+new
+Date
+(
+"2024-05-08"
+) }, {
+id
+:
+7
+,
+name
+:
+"Main Zahn"
+,
+territory
+:
+"Muller"
+,
+location
+:
+"South Region"
+,
+status
+:
+"Pending"
+,
+storeType
+:
+"Retail"
+,
+assignment
+:
+"Secondary"
+,
+fsr
+:
+"FSR007"
+,
+dateCreated
+:
+new
+Date
+(
+"2024-06-14"
+) }, {
+id
+:
+8
+,
+name
+:
+"Sarah Johnson"
+,
+territory
+:
+"Actimn"
+,
+location
+:
+"East Region"
+,
+status
+:
+"Active"
+,
+storeType
+:
+"Wholesale"
+,
+assignment
+:
+"Primary"
+,
+fsr
+:
+"FSR008"
+,
+dateCreated
+:
+new
+Date
+(
+"2024-07-03"
+) }, {
+id
+:
+9
+,
+name
+:
+"Mike Wilson"
+,
+territory
+:
+"Fannicy"
+,
+location
+:
+"West Region"
+,
+status
+:
+"Active"
+,
+storeType
+:
+"Online"
+,
+assignment
+:
+"Primary"
+,
+fsr
+:
+"FSR009"
+,
+dateCreated
+:
+new
+Date
+(
+"2024-07-18"
+) }, {
+id
+:
+10
+,
+name
+:
+"Emma Davis"
+,
+territory
+:
+"Summer"
+,
+location
+:
+"Central Region"
+,
+status
+:
+"Canceled"
+,
+storeType
+:
+"Retail"
+,
+assignment
+:
+"Secondary"
+,
+fsr
+:
+"FSR010"
+,
+dateCreated
+:
+new
+Date
+(
+"2024-08-05"
+) } ];
+private
+filterOptionsData
+:
+FilterOptions
+= {
+territories
+: [
+"Actimn"
+,
+"Fannicy"
+,
+"Summer"
+,
+"Aircert"
+,
+"Sanslor"
+,
+"Muller"
+],
+locations
+: [
+"North Region"
+,
+"South Region"
+,
+"East Region"
+,
+"West Region"
+,
+"Central Re
+statuses
+: [
+"Active"
+,
+"Pending"
+,
+"Canceled"
+],
+storeTypes
+: [
+"Retail"
+,
+"Wholesale"
+,
+"Online"
+],
+assignments
+: [
+"Primary"
+,
+"Secondary"
+] };
+private
+storesSubject =
+new
+BehaviorSubject
+<
+Store
+[]>(
+this
+.
+sampleStores
+);
+public
+stores$ =
+this
+.
+storesSubject
+.
+asObservable
+();
+private
+filteredStoresSubject =
+new
+BehaviorSubject
+<
+Store
+[]>(
+this
+.
+sampleStores
+);
+public
+filteredStores$ =
+this
+.
+filteredStoresSubject
+.
+asObservable
+();
+constructor
+(
+) { }
+getStores
+():
+Observable
+<
+Store
+[]> {
+return
+this
+.
+stores$
+; }
+getFilteredStores
+():
+Observable
+<
+Store
+[]> {
+return
+this
+.
+filteredStores$
+; }
+getFilterOptions
+():
+FilterOptions
+{
+return
+this
+.
+filterOptionsData
+; }
+applyFilters
+(
+filters
+:
+StoreFilter
+):
+void
+{
+let
+filteredData = [...
+this
+.
+sampleStores
+];
+// Quick Search Filter
+if
+(filters.
+quickSearch
+) {
+const
+searchTerm = filters.
+quickSearch
+.
+toLowerCase
+(); filteredData = filteredData.
+filter
+(
+store
+=>
+store.
+name
+.
+toLowerCase
+().
+includes
+(searchTerm) || store.
+territory
+.
+toLowerCase
+().
+includes
+(searchTerm) || store.
+location
+.
+toLowerCase
+().
+includes
+(searchTerm) || store.
+status
+.
+toLowerCase
+().
+includes
+(searchTerm) ); }
+// Territory Filter
+if
+(filters.
+territory
+) { filteredData = filteredData.
+filter
+(
+store
+=>
+store.
+territory
+=== filters.
+territory
+); }
+// Location Filter
+if
+(filters.
+location
+) { filteredData = filteredData.
+filter
+(
+store
+=>
+store.
+location
+=== filters.
+location
+); }
+// Status Filter
+if
+(filters.
+status
+) { filteredData = filteredData.
+filter
+(
+store
+=>
+store.
+status
+=== filters.
+status
+); }
+// Store Type Filter
+if
+(filters.
+storeType
+) { filteredData = filteredData.
+filter
+(
+store
+=>
+store.
+storeType
+=== filters.
+storeType
+); }
+// Assignment Filter
+if
+(filters.
+assignment
+) { filteredData = filteredData.
+filter
+(
+store
+=>
+store.
+assignment
+=== filters.
+assignment
 }
-
-
-I just noticed that our one-on-one meeting, which I had requested to be rescheduled for today (Aug 6) due to yesterday's production issue, is currently set for tomorrow (Aug 7) on my calendar.
-
-If possible, could we please reschedule it for today instead? I’m available and would appreciate the chance to connect as originally intended.
-
-Please let me know if that works for you.
+// Date Range Filter
+if
+(filters.
+dateFrom
+) { filteredData = filteredData.
+filter
+(
+store
+=>
+store.
+dateCreated
+>= filters.
+dateFrom
+!) }
+if
+(filters.
+dateTo
+) { filteredData = filteredData.
+filter
+(
+store
+=>
+store.
+dateCreated
+<= filters.
+dateTo
+!); }
+this
+.
+filteredStoresSubject
+.
+next
+(filteredData); }
+clearFilters
+():
+void
+{
+this
+.
+filteredStoresSubject
+.
+next
+([...
+this
+.
+sampleStores
+]); }}
+import
+{
+Injectable
+}
+from
+'@angular/core'
+;
+import
+{
+BehaviorSubject
+}
+from
+'rxjs'
+;
+@Injectable
+({
+providedIn
+:
+'root'
+})
+export
+class
+StoreService
+{
+private
+sidebarStateSubject =
+new
+BehaviorSubject
+<
+boolean
+>(
+true
+);
+public
+sidebarState$ =
+this
+.
+sidebarStateSubject
+.
+asObservable
+();
+constructor
+(
+) { }
+toggleSidebar
+():
+void
+{
+this
+.
+sidebarStateSubject
+.
+next
+(!
+this
+.
+sidebarStateSubject
+.
+value
+); }
+setSidebarState
+(
+isOpen
+:
+boolean
+):
+void
+{
+this
+.
+sidebarStateSubject
+.
+next
+(isOpen); }
+getSidebarState
+():
+boolean
+{
+return
+this
+.
+sidebarStateSubject
+.
+value
+; }}
+Step 5: Store Service (src/app/services/store.service.ts)
+import
+{
+Component
+,
+OnInit
+,
+OnDestroy
+,
+ViewChild
+}
+from
+'@angular/core'
+;
+import
+{
+MatSidenav
+}
+from
+'@angular/material/sidenav'
+;
+import
+{
+StoreService
+}
+from
+'../../services/store.service'
+;
+import
+{
+CommonService
+}
+from
+'../../services/common.service'
+;
+import
+{
+StoreFilter
+}
+from
+'../../models/common.model'
+;
+import
+{
+Subject
+}
+from
+'rxjs'
+;
+import
+{ takeUntil }
+from
+'rxjs/operators'
+;
+@Component
+({
+selector
+:
+'app-dashboard-layout'
+,
+templateUrl
+:
+'./dashboard-layout.component.html'
+,
+styleUrls
+: [
+'./dashboard-layout.component.scss'
+]})
+export
+class
+DashboardLayoutComponent
+implements
+OnInit
+,
+OnDestroy
+{
+@ViewChild
+(
+'sidenav'
+) sidenav!:
+MatSidenav
+;
+private
+destroy$ =
+new
+Subject
+<
+void
+>(); isSidebarOpen =
+true
+;
+constructor
+(
+private
+storeService
+:
+StoreService
+,
+private
+commonService
+:
+CommonService
+) { }
+ngOnInit
+():
+void
+{
+this
+.
+storeService
+.
+sidebarState$
+.
+pipe
+(
+takeUntil
+(
+this
+.
+destroy$
+)) .
+subscribe
+(
+isOpen
+=>
+{
+this
+.
+isSidebarOpen
+= isOpen; }); }
+ngOnDestroy
+():
+void
+{
+this
+.
+destroy$
+.
+next
+();
+this
+.
+destroy$
+.
+complete
+(); }
+toggleSidebar
+():
+void
+{
+this
+.
+storeService
+.
+toggleSidebar
+();
+this
+.
+sidenav
+.
+toggle
+(); }
+onFiltersChanged
+(
+filters
+:
+StoreFilter
+):
+void
+{
+this
+.
+commonService
+.
+applyFilters
+(filters); }
+onClearFilters
+():
+void
+{
+this
+.
+commonService
+.
+clearFilters
+();
+Step 6: Dashboard Layout Component
+dashboard-layout.component.ts
+}}
+<
+div
+class
+=
+"dashboard-layout"
+>
+<!-- Toolbar -->
+<
+mat-toolbar
+class
+=
+"mat-elevation-1"
+>
+<
+button
+mat-icon-button
+(
+click
+)=
+"toggleSidebar()"
+aria-label
+=
+"Toggle sidenav"
+>
+<
+mat-icon
+>
+menu
+</
+mat-icon
+>
+</
+button
+>
+<
+h1
+class
+=
+"toolbar-title"
+>
+Store Dashboard
+</
+h1
+>
+<
+span
+class
+=
+"toolbar-spacer"
+>
+</
+span
+>
+<
+button
+mat-icon-button
+aria-label
+=
+"Notifications"
+>
+<
+mat-icon
+>
+notifications
+</
+mat-icon
+>
+</
+button
+>
+<
+button
+mat-icon-button
+aria-label
+=
+"Profile"
+>
+<
+mat-icon
+>
+account_circle
+</
+mat-icon
+>
+</
+button
+>
+</
+mat-toolbar
+>
+<!-- Sidenav Container -->
+<
+mat-sidenav-container
+class
+=
+"sidenav-container"
+>
+<!-- Sidebar -->
+<
+mat-sidenav
+#
+sidenav
+mode
+=
+"side"
+opened
+=
+"true"
+class
+=
+"sidenav"
+[
+class.sidenav-hidden
+]=
+"!isSidebarOpen"
+>
+<
+app-filter-sidebar
+(
+filtersChanged
+)=
+"onFiltersChanged($event)"
+(
+clearFilters
+)=
+"onClearFilters()"
+>
+</
+app-filter-sidebar
+>
+</
+mat-sidenav
+>
+<!-- Main Content -->
+<
+mat-sidenav-content
+class
+=
+"main-content"
+[
+class.sidebar-closed
+]=
+"!isSidebarOpen"
+>
+<
+div
+class
+=
+"content-wrapper"
+>
+<
+app-store-table
+>
+</
+app-store-table
+>
+</
+div
+>
+</
+mat-sidenav-content
+>
+</
+mat-sidenav-container
+>
+</
+div
+>
+.dashboard-layout
+{
+height
+:
+100vh
+;
+display
+: flex;
+flex-direction
+: column;}
+dashboard-layout.component.html
+dashboard-layout.component.scss
+.mat-toolbar
+{
+background
+:
+#1976d2
+;
+color
+: white;
+z-index
+:
+1000
+;
+position
+: relative;}
+.toolbar-title
+{
+margin-left
+:
+16px
+;
+font-size
+:
+18px
+;
+font-weight
+:
+500
+;}
+.toolbar-spacer
+{
+flex
+:
+1
+1
+auto;}
+.sidenav-container
+{
+flex
+:
+1
+;
+overflow
+: hidden;}
+.sidenav
+{
+width
+:
+280px
+;
+background
+:
+#fafafa
+;
+border-right
+:
+1px
+solid
+#e0e0e0
+;
+transition
+: all
+0.3s
+ease-in-out; &
+.sidenav-hidden
+{
+width
+:
+0
+;
+border
+: none; }}
+.main-content
+{
+transition
+: all
+0.3s
+ease-in-out; &
+.sidebar-closed
+{
+margin-left
+:
+0
+; }}
+.content-wrapper
+{
+padding
+:
+20px
+;
+height
+:
+100%
+;
+overflow
+: auto;}
+// Responsive Design
+@media
+(
+max-width
+:
+768px
+) {
+.sidenav
+{
+position
+: fixed;
+z-index
+:
+1001
+; }}
+import
+{
+Component
+,
+OnInit
+,
+Output
+,
+EventEmitter
+}
+from
+'@angular/core'
+;
+import
+{
+FormBuilder
+,
+FormGroup
+}
+from
+'@angular/forms'
+;
+import
+{
+CommonService
+}
+from
+'../../services/common.service'
+;
+import
+{
+FilterOptions
+,
+StoreFilter
+}
+from
+'../../models/common.model'
+;
+import
+{ debounceTime, distinctUntilChanged }
+from
+'rxjs/operators'
+;
+@Component
+({
+selector
+:
+'app-filter-sidebar'
+,
+templateUrl
+:
+'./filter-sidebar.component.html'
+,
+styleUrls
+: [
+'./filter-sidebar.component.scss'
+]})
+export
+class
+FilterSidebarComponent
+implements
+OnInit
+{
+@Output
+() filtersChanged =
+new
+EventEmitter
+<
+StoreFilter
+>();
+@Output
+() clearFilters =
+new
+EventEmitter
+<
+void
+>(); filterForm!:
+FormGroup
+; filterOptions!:
+FilterOptions
+;
+constructor
+(
+private
+fb
+:
+FormBuilder
+,
+private
+commonService
+:
+CommonService
+) {
+this
+.
+initializeForm
+(); }
+ngOnInit
+():
+void
+{
+this
+.
+filterOptions
+=
+this
+.
+commonService
+.
+getFilterOptions
+();
+// Subscribe to form changes with debounce
+this
+.
+filterForm
+.
+valueChanges
+.
+pipe
+(
+debounceTime
+(
+300
+),
+distinctUntilChanged
+() ) .
+subscribe
+(
+value
+=>
+{
+this
+.
+onFiltersChange
+(); }); }
+private
+initializeForm
+():
+void
+{
+this
+.
+filterForm
+=
+this
+.
+fb
+.
+group
+({
+quickSearch
+: [
+''
+],
+territory
+: [
+''
+],
+location
+: [
+''
+],
+status
+: [
+''
+],
+storeType
+: [
+''
+],
+assignment
+: [
+''
+],
+dateFrom
+: [
+null
+],
+dateTo
+: [
+null
+],
+multiFsr
+: [
+false
+]
+Step 7: Filter Sidebar Component
+filter-sidebar.component.ts
+}); }
+onFiltersChange
+():
+void
+{
+const
+formValue =
+this
+.
+filterForm
+.
+value
+;
+const
+filters
+:
+StoreFilter
+= {
+quickSearch
+: formValue.
+quickSearch
+||
+''
+,
+territory
+: formValue.
+territory
+||
+''
+,
+location
+: formValue.
+location
+||
+''
+,
+status
+: formValue.
+status
+||
+''
+,
+storeType
+: formValue.
+storeType
+||
+''
+,
+assignment
+: formValue.
+assignment
+||
+''
+,
+dateFrom
+: formValue.
+dateFrom
+,
+dateTo
+: formValue.
+dateTo
+,
+multiFsr
+: formValue.
+multiFsr
+||
+false
+};
+this
+.
+filtersChanged
+.
+emit
+(filters); }
+onClearFilters
+():
+void
+{
+this
+.
+filterForm
+.
+reset
+();
+this
+.
+clearFilters
+.
+emit
+(); }
+onApplyFilters
+():
+void
+{
+this
+.
+onFiltersChange
+(); }}
+<
+div
+class
+=
+"filter-sidebar"
+>
+<
+div
+class
+=
+"sidebar-header"
+>
+<
+h3
+>
+Filters
+</
+h3
+>
+</
+div
+>
+<
+div
+class
+=
+"sidebar-content"
+>
+<
+form
+[
+formGroup
+]=
+"filterForm"
+class
+=
+"filter-form"
+>
+<!-- Quick Search -->
+<
+div
+class
+=
+"filter-section"
+>
+<
+mat-form-field
+appearance
+=
+"outline"
+class
+=
+"full-width"
+>
+<
+mat-label
+>
+Quick Search
+</
+mat-label
+>
+<
+input
+matInput
+formControlName
+=
+"quickSearch"
+placeholder
+=
+"Search stores..."
+>
+<
+mat-icon
+matSuffix
+>
+search
+</
+mat-icon
+>
+</
+mat-form-field
+>
+</
+div
+>
+<!-- Territory Filter -->
+<
+div
+class
+=
+"filter-section"
+>
+<
+mat-form-field
+appearance
+=
+"outline"
+class
+=
+"full-width"
+>
+<
+mat-label
+>
+Territory
+</
+mat-label
+>
+<
+mat-select
+formControlName
+=
+"territory"
+>
+<
+mat-option
+value
+=
+""
+>
+All Territories
+</
+mat-option
+>
+filter-sidebar.component.html
+<
+mat-option
+*
+ngFor
+=
+"let territory of filterOptions.territories"
+[
+value
+]=
+"terr
+{{territory}}
+</
+mat-option
+>
+</
+mat-select
+>
+</
+mat-form-field
+>
+</
+div
+>
+<!-- Location Filter -->
+<
+div
+class
+=
+"filter-section"
+>
+<
+mat-form-field
+appearance
+=
+"outline"
+class
+=
+"full-width"
+>
+<
+mat-label
+>
+Location
+</
+mat-label
+>
+<
+mat-select
+formControlName
+=
+"location"
+>
+<
+mat-option
+value
+=
+""
+>
+All Locations
+</
+mat-option
+>
+<
+mat-option
+*
+ngFor
+=
+"let location of filterOptions.locations"
+[
+value
+]=
+"locatio
+{{location}}
+</
+mat-option
+>
+</
+mat-select
+>
+</
+mat-form-field
+>
+</
+div
+>
+<!-- Status Filter -->
+<
+div
+class
+=
+"filter-section"
+>
+<
+mat-form-field
+appearance
+=
+"outline"
+class
+=
+"full-width"
+>
+<
+mat-label
+>
+Status
+</
+mat-label
+>
+<
+mat-select
+formControlName
+=
+"status"
+>
+<
+mat-option
+value
+=
+""
+>
+All Statuses
+</
+mat-option
+>
+<
+mat-option
+*
+ngFor
+=
+"let status of filterOptions.statuses"
+[
+value
+]=
+"status"
+>
+{{status}}
+</
+mat-option
+>
+</
+mat-select
+>
+</
+mat-form-field
+>
+</
+div
+>
+<!-- Store Type Filter -->
+<
+div
+class
+=
+"filter-section"
+>
+<
+mat-form-field
+appearance
+=
+"outline"
+class
+=
+"full-width"
+>
+<
+mat-label
+>
+Store Type
+</
+mat-label
+>
+<
+mat-select
+formControlName
+=
+"storeType"
+>
+<
+mat-option
+value
+=
+""
+>
+All Types
+</
+mat-option
+>
+<
+mat-option
+*
+ngFor
+=
+"let type of filterOptions.storeTypes"
+[
+value
+]=
+"type"
+>
+{{type}}
+</
+mat-option
+>
+</
+mat-select
+>
+</
+mat-form-field
+>
+</
+div
+>
+<!-- Assignment Filter -->
+<
+div
+class
+=
+"filter-section"
+>
+<
+mat-form-field
+appearance
+=
+"outline"
+class
+=
+"full-width"
+>
+<
+mat-label
+>
+Assignment
+</
+mat-label
+>
+<
+mat-select
+formControlName
+=
+"assignment"
+>
+<
+mat-option
+value
+=
+""
+>
+All Assignments
+</
+mat-option
+>
+<
+mat-option
+*
+ngFor
+=
+"let assignment of filterOptions.assignments"
+[
+value
+]=
+"ass
+{{assignment}}
+</
+mat-option
+>
+</
+mat-select
+>
+</
+mat-form-field
+>
+</
+div
+>
+<!-- Date Range -->
+<
+div
+class
+=
+"filter-section"
+>
+<
+div
+class
+=
+"date-range"
+>
+<
+mat-form-field
+appearance
+=
+"outline"
+class
+=
+"date-field"
+>
+<
+mat-label
+>
+From Date
+</
+mat-label
+>
+<
+input
+matInput
+[
+matDatepicker
+]=
+"fromPicker"
+formControlName
+=
+"dateFrom"
+>
+<
+mat-datepicker-toggle
+matSuffix
+[
+for
+]=
+"fromPicker"
+>
+</
+mat-datepicker-toggle
+>
+<
+mat-datepicker
+#
+fromPicker
+>
+</
+mat-datepicker
+>
+</
+mat-form-field
+>
+<
+mat-form-field
+appearance
+=
+"outline"
+class
+=
+"date-field"
+>
+<
+mat-label
+>
+To Date
+</
+mat-label
+>
+<
+input
+matInput
+[
+matDatepicker
+]=
+"toPicker"
+formControlName
+=
+"dateTo"
+>
+<
+mat-datepicker-toggle
+matSuffix
+[
+for
+]=
+"toPicker"
+>
+</
+mat-datepicker-toggle
+>
+<
+mat-datepicker
+#
+toPicker
+>
+</
+mat-datepicker
+>
+</
+mat-form-field
+>
+</
+div
+>
+</
+div
+>
+<!-- Multi FSR Toggle -->
+<
+div
+class
+=
+"filter-section"
+>
+<
+mat-slide-toggle
+formControlName
+=
+"multiFsr"
+class
+=
+"multi-fsr-toggle"
+>
+Multi-FSR
+</
+mat-slide-toggle
+>
+</
+div
+>
+<!-- Action Buttons -->
+<
+div
+class
+=
+"filter-actions"
+>
+<
+button
+mat-raised-button
+color
+=
+"primary"
+type
+=
+"button"
+(
+click
+)=
+"onApplyFilters()
+Apply Filters
+</
+button
+>
+<
+button
+mat-stroked-button
+type
+=
+"button"
+(
+click
+)=
+"onClearFilters()"
+class
+=
+"action
+Clear All
+</
+button
+>
+</
+div
+>
+</
+form
+>
+</
+div
+>
+</
+div
+>
+.filter-sidebar
+{
+height
+:
+100%
+;
+display
+: flex;
+flex-direction
+: column;
+background
+:
+#fafafa
+;}
+.sidebar-header
+{
+padding
+:
+16px
+;
+border-bottom
+:
+1px
+solid
+#e0e0e0
+;
+background
+: white;
+filter-sidebar.component.scss
+h3
+{
+margin
+:
+0
+;
+font-size
+:
+18px
+;
+font-weight
+:
+500
+;
+color
+:
+#333
+; }}
+.sidebar-content
+{
+flex
+:
+1
+;
+overflow-y
+: auto;
+padding
+:
+16px
+;}
+.filter-form
+{
+display
+: flex;
+flex-direction
+: column;
+gap
+:
+16px
+;}
+.filter-section
+{
+.full-width
+{
+width
+:
+100%
+; }}
+.date-range
+{
+display
+: flex;
+flex-direction
+: column;
+gap
+:
+12px
+;
+.date-field
+{
+width
+:
+100%
+; }}
+.multi-fsr-toggle
+{
+width
+:
+100%
+;
+display
+: flex;
+justify-content
+: space-between;}
+.filter-actions
+{
+display
+: flex;
+flex-direction
+: column;
+gap
+:
+12px
+;
+margin-top
+:
+20px
+;
+.action-button
+{
+width
+:
+100%
+; }}
+// Responsive adjustments
+@media
+(
+max-width
+:
+768px
+) {
+.sidebar-content
+{
+padding
+:
+12px
+; }
+.filter-form
+{
+gap
+:
+12px
+; }}
+import
+{
+Component
+,
+OnInit
+,
+OnDestroy
+,
+ViewChild
+}
+from
+'@angular/core'
+;
+import
+{
+MatTableDataSource
+}
+from
+'@angular/material/table'
+;
+import
+{
+MatPaginator
+}
+from
+'@angular/material/paginator'
+;
+import
+{
+MatSort
+}
+from
+'@angular/material/sort'
+;
+import
+{
+CommonService
+}
+from
+'../../services/common.service'
+;
+import
+{
+Store
+}
+from
+'../../models/common.model'
+;
+import
+{
+Subject
+}
+from
+'rxjs'
+;
+import
+{ takeUntil }
+from
+'rxjs/operators'
+;
+@Component
+({
+selector
+:
+'app-store-table'
+,
+templateUrl
+:
+'./store-table.component.html'
+,
+styleUrls
+: [
+'./store-table.component.scss'
+]})
+export
+class
+StoreTableComponent
+implements
+OnInit
+,
+OnDestroy
+{
+@ViewChild
+(
+MatPaginator
+) paginator!:
+MatPaginator
+;
+@ViewChild
+(
+MatSort
+) sort!:
+MatSort
+;
+displayedColumns
+:
+string
+[] = [
+'name'
+,
+'territory'
+,
+'location'
+,
+'status'
+]; dataSource =
+new
+MatTableDataSource
+<
+Store
+>([]);
+private
+destroy$ =
+new
+Subject
+<
+void
+>();
+constructor
+(
+private
+commonService
+:
+CommonService
+) { }
+ngOnInit
+():
+void
+{
+this
+.
+commonService
+.
+getFilteredStores
+() .
+pipe
+(
+takeUntil
+(
+this
+.
+destroy$
+)) .
+subscribe
+(
+stores
+=>
+{
+this
+.
+dataSource
+.
+data
+= stores; }); }
+ngAfterViewInit
+():
+void
+{
+this
+.
+dataSource
+.
+paginator
+=
+this
+.
+paginator
+;
+this
+.
+dataSource
+.
+sort
+=
+this
+.
+sort
+; }
+ngOnDestroy
+():
+void
+{
+this
+.
+destroy$
+.
+next
+();
+Step 8: Store Table Component
+store-table.component.ts
+this
+.
+destroy$
+.
+complete
+(); }
+getStatusClass
+(
+status
+:
+string
+):
+string
+{
+switch
+(status) {
+case
+'Active'
+:
+return
+'status-active'
+;
+case
+'Pending'
+:
+return
+'status-pending'
+;
+case
+'Canceled'
+:
+return
+'status-canceled'
+;
+default
+:
+return
+''
+; } }}
+<
+div
+class
+=
+"table-container"
+>
+<
+mat-card
+class
+=
+"table-card"
+>
+<
+mat-card-header
+>
+<
+mat-card-title
+>
+Store Data
+</
+mat-card-title
+>
+</
+mat-card-header
+>
+<
+mat-card-content
+>
+<
+div
+class
+=
+"table-wrapper"
+>
+<
+table
+mat-table
+[
+dataSource
+]=
+"dataSource"
+matSort
+class
+=
+"mat-elevation-2"
+>
+<!-- Name Column -->
+<
+ng-container
+matColumnDef
+=
+"name"
+>
+<
+th
+mat-header-cell
+*
+matHeaderCellDef
+mat-sort-header
+>
+Name
+</
+th
+>
+<
+td
+mat-cell
+*
+matCellDef
+=
+"let store"
+>
+{{store.name}}
+</
+td
+>
+</
+ng-container
+>
+<!-- Territory Column -->
+<
+ng-container
+matColumnDef
+=
+"territory"
+>
+<
+th
+mat-header-cell
+*
+matHeaderCellDef
+mat-sort-header
+>
+Territory
+</
+th
+>
+<
+td
+mat-cell
+*
+matCellDef
+=
+"let store"
+>
+{{store.territory}}
+</
+td
+>
+</
+ng-container
+>
+<!-- Location Column -->
+<
+ng-container
+matColumnDef
+=
+"location"
+>
+<
+th
+mat-header-cell
+*
+matHeaderCellDef
+mat-sort-header
+>
+Location
+</
+th
+>
+<
+td
+mat-cell
+*
+matCellDef
+=
+"let store"
+>
+{{store.location}}
+</
+td
+>
+</
+ng-container
+>
+<!-- Status Column -->
+<
+ng-container
+matColumnDef
+=
+"status"
+>
+<
+th
+mat-header-cell
+*
+matHeaderCellDef
+mat-sort-header
+>
+Status
+</
+th
+>
+<
+td
+mat-cell
+*
+matCellDef
+=
+"let store"
+>
+<
+span
+class
+=
+"status-badge"
+[
+ngClass
+]=
+"getStatusClass(store.status)"
+>
+{{store.status}}
+</
+span
+>
+</
+td
+>
+store-table.component.html
+</
+ng-container
+>
+<
+tr
+mat-header-row
+*
+matHeaderRowDef
+=
+"displayedColumns"
+>
+</
+tr
+>
+<
+tr
+mat-row
+*
+matRowDef
+=
+"let row; columns: displayedColumns;"
+class
+=
+"table-row"
+>
+</
+tr
+>
+</
+table
+>
+</
+div
+>
+<
+mat-paginator
+[
+pageSizeOptions
+]=
+"[5, 10, 20]"
+showFirstLastButtons
+class
+=
+"table-paginator"
+>
+</
+mat-paginator
+>
+</
+mat-card-content
+>
+</
+mat-card
+>
+</
+div
+>
+.table-container
+{
+width
+:
+100%
+;
+height
+:
+100%
+;}
+.table-card
+{
+height
+:
+100%
+;
+display
+: flex;
+flex-direction
+: column;}
+.table-wrapper
+{
+flex
+:
+1
+;
+overflow
+: auto;
+min-height
+:
+400px
+;}
+.mat-table
+{
+width
+:
+100%
+;
+background
+: white;}
+.table-row
+:hover
+{
+background-color
+:
+#f5f5f5
+;
+cursor
+: pointer;}
+.status-badge
+{
+padding
+:
+4px
+12px
+;
+border-radius
+:
+16px
+;
+font-size
+:
+12px
+;
+font-weight
+:
+500
+;
+text
+-
+transform
+: uppercase; &
+.status-active
+{
+background-color
+:
+#4caf50
+;
+store-table.component.scss
+color
+: white; } &
+.status-pending
+{
+background-color
+:
+#ff9800
+;
+color
+: white; } &
+.status-canceled
+{
+background-color
+:
+#f44336
+;
+color
+: white; }}
+.table-paginator
+{
+border-top
+:
+1px
+solid
+#e0e0e0
+;
+background
+:
+#fafafa
+;}
+// Responsive Design
+@media
+(
+max-width
+:
+768px
+) {
+.table-wrapper
+{
+min-height
+:
+300px
+; }
+.mat-table
+{
+font-size
+:
+14px
+; }
+.mat-cell
+,
+.mat-header-cell
+{
+padding
+:
+8px
+; }}
+<
+app-dashboard-layout
+>
+</
+app-dashboard-layout
+>
+:host
+{
+display
+: block;
+height
+:
+100vh
+;
+width
+:
+100%
+;}
+Step 9: App Component
+app.component.html
+app.component.scss
+/* You can add global styles to this file, and also import other style files */
+@import
+'~@angular/material/theming'
+;
+html
+,
+body
+{
+height
+:
+100%
+;
+margin
+:
+0
+;
+padding
+:
+0
+;}
+body
+{
+font-family
+: Roboto,
+"Helvetica Neue"
+, sans-serif;
+background-color
+:
+#f5f5f5
+;}* {
+box-sizing
+: border-box;}
+// Custom Material Theme (Optional)
+$custom-primary
+:
+mat-palette
+(
+$mat-blue
+);
+$custom-accent
+:
+mat-palette
+(
+$mat-amber
+);
+$custom-warn
+:
+mat-palette
+(
+$mat-red
+);
+$custom-theme
+:
+mat-light-theme
+(( color: ( primary:
+$custom-primary
+, accent:
+$custom-accent
+, warn:
+$custom-warn
+, )));
+@include
+mat-core();
+@include
+mat-all-component-themes(
+$custom-theme
+);
+ng serve
+Your Angular dashboard should now be running at
+http://localhost:4200
+with:
+Step 10: Global Styles (src/styles.scss)
+Step 11: Run the Application
+✅ Responsive sidebar with filters
+✅ Working data table with sorting and pagination
+✅ Real-time filtering functionality
+✅ Material Design styling
+✅ Proper component architecture
+This implementation provides a complete, working dashboard that matches the design andfunctionality from the web version.
+Additional Notes1.
+Make sure to import ReactiveFormsModule
+for the filter forms2.
+All Material modules must be imported
+in app.module.ts3.
+Services use BehaviorSubject
+for reactive state management4.
+Components communicate via services
+following Angular best practices5.
+Responsive design
+is built-in with CSS media queries
