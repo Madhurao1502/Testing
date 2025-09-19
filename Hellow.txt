@@ -1,25 +1,61 @@
-Subject: Update on Redirection and AQ Dashboard Deliveries
+.dashboard-layout {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
 
-Hi [Manager/Team],
+.mat-toolbar {
+  background: #1976d2;
+  color: white;
+  z-index: 1000;
+  position: relative;
+}
 
-The recent redirection issue was caused by an unexpected modification to the URL during the production deployment. This has now been corrected, and the redirection is working as intended, pointing to the correct web application.
+.toolbar-title {
+  margin-left: 16px;
+  font-size: 18px;
+  font-weight: 500;
+}
 
-On the AQ dashboard, deliveries are displayed where:
+.toolbar-spacer {
+  flex: 1 1 auto;
+}
 
-Delivery type = DET-Shelf
+.sidenav-container {
+  flex: 1;
+  overflow: hidden;
+}
 
-Signoff ∈ (2, 3) → In Collection or Collection Complete
+.sidenav {
+  width: 280px;
+  background: #fafafa;
+  border-right: 1px solid #e0e0e0;
+  transition: all 0.3s ease-in-out;
+}
 
-Status ID = 8 (In Progress)
+.sidenav.sidenav-hidden {
+  width: 0;
+  border: none;
+}
 
-Under lan_id = foezm (Eric Harzman):
+.main-content {
+  transition: all 0.3s ease-in-out;
+}
 
-7 deliveries were found with status_id = 8 (In Progress), delivery_type = DET-Shelf, and signoff ∈ (2,3).
+.main-content.sidebar-closed {
+  margin-left: 0;
+}
 
-257 deliveries were found with status_id = 9 (Succeeded), delivery_type = DET-Shelf, and signoff ∈ (2,3), which are currently not being displayed.
+.content-wrapper {
+  padding: 20px;
+  height: 100%;
+  overflow: auto;
+}
 
-Below is the query that was used to bring up this data:
-[You can insert the query here]
-
-Best regards,
-[Your Name]
+/* Responsive Design */
+@media (max-width: 768px) {
+  .sidenav {
+    position: fixed;
+    z-index: 1001;
+  }
+}
