@@ -59,3 +59,200 @@
     z-index: 1001;
   }
 }
+
+
+<div class="filter-sidebar">
+  <div class="sidebar-header">
+    <h3>Filters</h3>
+  </div>
+  
+  <div class="sidebar-content">
+    <form [formGroup]="filterForm" class="filter-form">
+      
+      <!-- Quick Search -->
+      <div class="filter-section">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Quick Search</mat-label>
+          <input matInput formControlName="quickSearch" placeholder="Search stores...">
+          <mat-icon matSuffix>search</mat-icon>
+        </mat-form-field>
+      </div>
+
+      <!-- Territory Filter -->
+      <div class="filter-section">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Territory</mat-label>
+          <mat-select formControlName="territory">
+            <mat-option value="">All Territories</mat-option>
+            <mat-option *ngFor="let territory of filterOptions.territories" [value]="territory">
+              {{territory}}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <!-- Location Filter -->
+      <div class="filter-section">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Location</mat-label>
+          <mat-select formControlName="location">
+            <mat-option value="">All Locations</mat-option>
+            <mat-option *ngFor="let location of filterOptions.locations" [value]="location">
+              {{location}}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <!-- Status Filter -->
+      <div class="filter-section">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Status</mat-label>
+          <mat-select formControlName="status">
+            <mat-option value="">All Statuses</mat-option>
+            <mat-option *ngFor="let status of filterOptions.statuses" [value]="status">
+              {{status}}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <!-- Store Type Filter -->
+      <div class="filter-section">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Store Type</mat-label>
+          <mat-select formControlName="storeType">
+            <mat-option value="">All Types</mat-option>
+            <mat-option *ngFor="let type of filterOptions.storeTypes" [value]="type">
+              {{type}}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <!-- Assignment Filter -->
+      <div class="filter-section">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Assignment</mat-label>
+          <mat-select formControlName="assignment">
+            <mat-option value="">All Assignments</mat-option>
+            <mat-option *ngFor="let assignment of filterOptions.assignments" [value]="assignment">
+              {{assignment}}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <!-- Date Range -->
+      <div class="filter-section">
+        <div class="date-range">
+          <mat-form-field appearance="outline" class="date-field">
+            <mat-label>From Date</mat-label>
+            <input matInput [matDatepicker]="fromPicker" formControlName="dateFrom">
+            <mat-datepicker-toggle matSuffix [for]="fromPicker"></mat-datepicker-toggle>
+            <mat-datepicker #fromPicker></mat-datepicker>
+          </mat-form-field>
+          
+          <mat-form-field appearance="outline" class="date-field">
+            <mat-label>To Date</mat-label>
+            <input matInput [matDatepicker]="toPicker" formControlName="dateTo">
+            <mat-datepicker-toggle matSuffix [for]="toPicker"></mat-datepicker-toggle>
+            <mat-datepicker #toPicker></mat-datepicker>
+          </mat-form-field>
+        </div>
+      </div>
+
+      <!-- Multi FSR Toggle -->
+      <div class="filter-section">
+        <mat-slide-toggle formControlName="multiFsr" class="multi-fsr-toggle">
+          Multi-FSR
+        </mat-slide-toggle>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="filter-actions">
+        <button mat-raised-button color="primary" type="button" (click)="onApplyFilters()" class="action-button">
+          Apply Filters
+        </button>
+        <button mat-stroked-button type="button" (click)="onClearFilters()" class="action-button">
+          Clear All
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+.filter-sidebar {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #fafafa;
+}
+
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid #e0e0e0;
+  background: white;
+}
+
+.sidebar-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+  color: #333;
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.filter-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.filter-section .full-width {
+  width: 100%;
+}
+
+.date-range {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.date-range .date-field {
+  width: 100%;
+}
+
+.multi-fsr-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+}
+
+.filter-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.filter-actions .action-button {
+  width: 100%;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .sidebar-content {
+    padding: 12px;
+  }
+
+  .filter-form {
+    gap: 12px;
+  }
+}
+
