@@ -329,3 +329,12 @@
 }
 
 
+private filterOptionsData: FilterOptions = {
+    cities: ["Middle Village", "New York", "Brooklyn", "Queens", "Staten Island", "Manhattan", "Bronx", "Yonkers", "White Plains", "New Rochelle"],
+    states: ["NY", "NJ", "CT", "PA"],
+    assignedTo: ["NOT ASSIGNED", "John Smith", "Sarah Johnson", "Mike Davis", "Emma Wilson", "David Brown", "Lisa Anderson"],
+    clusters: ["NY11010(1837)", "NY10001(2156)", "NY11201(3445)", "NY11375(4567)", "NY10301(5678)", "NY10016(6789)", "NY10451(7890)", "NY10701(8901)", "NY10601(9012)", "NY10801(0123)"],
+    taskNames: ["ALL", "INVENTORY", "AUDIT", "MAINTENANCE", "SURVEY"],
+    waves: ["Wave 1", "Wave 2", "Wave 3"]
+  };
+
