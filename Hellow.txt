@@ -338,3 +338,112 @@ private filterOptionsData: FilterOptions = {
     waves: ["Wave 1", "Wave 2", "Wave 3"]
   };
 
+
+import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
+import { MatTableDataSource } from '@angular/material/table';
+import { MatPaginator } from '@angular/material/paginator';
+import { MatSort } from '@angular/material/sort';
+import { SelectionModel } from '@angular/cdk/collections';
+import { CommonService } from '../../services/common.service';
+import { Store } from '../../models/common.model';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+
+@Component({
+  selector: 'app-store-table',
+  templateUrl: './store-table.component.html',
+  styleUrls: ['./store-table.component.scss']
+})
+export class StoreTableComponent implements OnInit, OnDestroy {
+  
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
+  
+  displayedColumns: string[] = ['select', 'store_name', 'addr_line1', 'city', 'state', 'zip', 'assigned_to', 'expected_collection_time', 'position_name'];
+  dataSource = new MatTableDataSource<Store>([]);
+  selection = new SelectionModel<Store>(true, []);
+  
+  private destroy$ = new Subject<void>();
+
+  constructor(private commonService: CommonService) { }
+
+  ngOnInit(): void {
+    this.commonService.getFilteredStores()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(stores => {
+        this.dataSource.data = stores;
+        // Update selection model based on store.selected property
+        this.selection.clear();
+        stores.filter(store => store.selected).forEach(store => {
+          this.selection.select(store);
+        });
+      });
+  }
+
+  ngAfterViewInit(): void {
+    this.dataSource.paginator = this.paginator;
+    this.dataSource.sort = this.sort;
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  /** Whether the number of selected elements matches the total number of rows. */
+  isAllSelected() {
+    const numSelected = this.selection.selected.length;
+    const numRows = this.dataSource.data.length;
+    return numSelected === numRows;
+  }
+
+  /** Selects all rows if they are not all selected; otherwise clear selection. */
+  toggleAllRows() {
+    if (this.isAllSelected()) {
+      this.selection.clear();
+      this.commonService.toggleAllStores(false);
+      return;
+    }
+
+    this.selection.select(...this.dataSource.data);
+    this.commonService.toggleAllStores(true);
+  }
+
+  /** The label for the checkbox on the passed row */
+  checkboxLabel(row?: Store): string {
+    if (!row) {
+      return `${this.isAllSelected() ? 'deselect' : 'select'} all`;
+    }
+    return `${this.selection.isSelected(row) ? 'deselect' : 'select'} row ${row.id}`;
+  }
+
+  /** Handle individual row selection */
+  toggleRow(row: Store) {
+    this.selection.toggle(row);
+    if (row.id) {
+      this.commonService.toggleStoreSelection(row.id);
+    }
+  }
+
+  /** Get full address string */
+  getFullAddress(store: Store): string {
+    return `${store.addr_line1}, ${store.city}, ${store.state} ${store.zip}`;
+  }
+
+  /** Format expected collection time */
+  formatCollectionTime(time: string): string {
+    return time || 'Not specified';
+  }
+
+  /** Get cluster display name */
+  getClusterDisplay(positionName: string): string {
+    return positionName || 'N/A';
+  }
+
+  /** Get assignment status styling */
+  getAssignmentClass(assignedTo: string): string {
+    return assignedTo === 'NOT ASSIGNED' ? 'not-assigned' : 'assigned';
+  }
+}
+
+
