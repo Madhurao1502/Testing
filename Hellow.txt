@@ -1,3 +1,41 @@
+ private filtersSubject = new BehaviorSubject<GetGridDataFilter>(new GetGridDataFilter());
+  public filters$ = this.filtersSubject.asObservable();
+
+  private gridDataSubject = new BehaviorSubject<any[]>([]);
+  public gridData$ = this.gridDataSubject.asObservable();
+
+  constructor(private http: HttpClient) {}
+
+  // MISSING FUNCTION 1: Apply Filters
+  applyFilters(filters: GetGridDataFilter): void {
+    this.filtersSubject.next(filters);
+    // Call GetGridData API with filters
+    this.getGridData(filters).subscribe({
+      next: (data) => {
+        this.gridDataSubject.next(data);
+      },
+      error: (error) => {
+        console.error('Error applying filters:', error);
+        this.gridDataSubject.next([]);
+      }
+    });
+  }
+
+  // MISSING FUNCTION 2: Clear Filters  
+  clearFilters(): void {
+    const defaultFilters = new GetGridDataFilter();
+    this.filtersSubject.next(defaultFilters);
+    this.gridDataSubject.next([]);
+  }
+
+  // MISSING FUNCTION 3: Get Grid Data API
+  getGridData(filters: GetGridDataFilter): Observable<any[]> {
+    return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetGridData`, filters);
+  }
+
+==============
+
+
 common.model.ts
 export class GetGridDataFilter {
   countryId: string;
