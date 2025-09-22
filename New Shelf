@@ -1,598 +1,1206 @@
+<div class="dashboard-layout">
+  <!-- Toolbar -->
+  <mat-toolbar class="mat-toolbar-primary">
+    <button mat-icon-button (click)="toggleFilters()" aria-label="Toggle filters">
+      <mat-icon>filter_list</mat-icon>
+    </button>
+    <h1 class="toolbar-title">Assignments Dashboard</h1>
+    <span class="toolbar-spacer"></span>
+    
+    <!-- Country Selector -->
+    <div class="country-field">
+      <mat-form-field appearance="outline">
+        <mat-select [formControl]="countryctrl" placeholder="Select country">
+          <mat-option *ngFor="let country of countrylist" 
+                      [value]="country.countryID" 
+                      (onSelectionChange)="selectedcountry($event)">
+            {{country.countryName}}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>        
+    </div>
+    
+    <button mat-icon-button aria-label="Edit">
+      <mat-icon>edit_square</mat-icon>
+    </button>
+    <button mat-icon-button aria-label="Send">
+      <mat-icon>send</mat-icon>
+    </button>
+    <button mat-icon-button aria-label="Download">
+      <mat-icon>download</mat-icon>
+    </button>
+  </mat-toolbar>
 
-onCategoryGridChange(event: { category: ReviewCategory, field: string, value: any }) {
-  const { category, field, value } = event;
-  const isKeycat = category.KeycatNumber > 0;
-  const idx = this.selectedCategories.findIndex(s =>
-    s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
-    s.KeycatNumber        === category.KeycatNumber
-  );
+  <!-- TOP HORIZONTAL FILTER BAR -->
+  <section class="filter-top-bar" [class.expanded]="isFiltersExpanded">
+    <app-filter-topbar 
+      (filtersChanged)="onFiltersChanged($event)"
+      (clearFilters)="onClearFilters()">
+    </app-filter-topbar>
+  </section>
 
-  // 1. Remove on uncheck (Selected → null)
-  if (field === 'Selected' && value == null) {
-    // Filter out this category or keycat
-    this.selectedCategories = this.selectedCategories.filter(s =>
-      !(
-        s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
-        s.KeycatNumber        === category.KeycatNumber
-      )
-    );
-    return;
-  }
-
-  // 2. Add on check
-  if (field === 'Selected' && value === 1 && idx < 0) {
-    this.selectedCategories = [
-      ...this.selectedCategories,
-      { ...category, Selected: 1 }
-    ];
-    return;
-  }
-
-  // 3. Update other fields (QCUnderReq, QCUnderPercent, NumberOfWeeks)
-  if (idx >= 0 && field !== 'Selected') {
-    const updated = { ...this.selectedCategories[idx], [field]: value };
-    // If QCUnderReq toggled off, also clear percent & weeks
-    if (field === 'QCUnderReq' && value == null) {
-      updated.QCUnderPercent = null;
-      updated.NumberOfWeeks  = null;
-    }
-    // If QCUnderReq toggled on, default weeks = 5
-    if (field === 'QCUnderReq' && value === 1) {
-      updated.NumberOfWeeks = 5;
-    }
-    this.selectedCategories = [
-      ...this.selectedCategories.slice(0, idx),
-      updated,
-      ...this.selectedCategories.slice(idx + 1),
-    ];
-    return;
-  }
-}
-
-
-onCategoryGridChange(event: { category: ReviewCategory, field: string, value: any }) {
-  const { category, field, value } = event;
-  const idx = this.selectedCategories.findIndex(s =>
-    s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
-    s.KeycatNumber        === category.KeycatNumber
-  );
-
-  if (field === 'Selected' && category.KeycatNumber > 0 && value == null && idx >= 0) {
-    this.selectedCategories = this.selectedCategories.filter(s =>
-      !(
-        s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
-        s.KeycatNumber        === category.KeycatNumber
-      )
-    );
-    return;
-  }
-
-if (field === 'Selected' && category.KeycatNumber === 0 && value == null) {
-    this.selectedCategories = this.selectedCategories.filter(s =>
-      s.ReviewCategoryNumber !== category.ReviewCategoryNumber
-    );
-    return;
-  }
-  if (field === 'Selected') {
-    if (value === 1 && idx < 0) {
-      this.selectedCategories.push({ ...category, Selected: 1 });
-    } else if (!value && idx >= 0) {
-      this.selectedCategories.splice(idx, 1);
-    }
-  } else if (idx >= 0) {
-    (this.selectedCategories[idx] as any)[field] = value;
-  }
-
-this.selectedCategories = [...this.selectedCategories]
-}
-
-
-  <div *ngIf="reviewCategories.length>0">
-      <app-category-grid
-      [categories]="reviewCategories"
-      [selectedCategories]="selectedCategories"
-      [disabled]="isLocked"
-      (categoryChange)="onCategoryGridChange($event)"
-      ></app-category-grid>
+  <!-- Main Content -->
+  <div class="main-content">
+    <div class="content-wrapper">
+      <app-store-table></app-store-table>
+    </div>
   </div>
-
-
-<div class="category-grid-container">
-  <mat-card>
-    <mat-card-title>Categories</mat-card-title>
-    <table mat-table
-           [dataSource]="dataSource"
-           multiTemplateDataRows
-           class="mat-elevation-z8">
-
-      <!-- Category Name Column -->
-      <ng-container matColumnDef="ReviewCategoryName">
-        <th mat-header-cell *matHeaderCellDef>Category</th>
-        <td mat-cell *matCellDef="let row"><strong>{{ row.ReviewCategoryName }}</strong></td>
-      </ng-container>
-
-      <!-- Key Cat Number Column -->
-      <ng-container matColumnDef="Keycat">
-        <th mat-header-cell *matHeaderCellDef>Key Cat</th>
-        <td mat-cell *matCellDef="let row">{{ row.KeycatNumber || '' }}</td>
-      </ng-container>
-
-      <!-- Key Cat Name Column -->
-      <ng-container matColumnDef="KeycatName">
-        <th mat-header-cell *matHeaderCellDef>Key Cat Name</th>
-        <td mat-cell *matCellDef="let row">{{ row.KeycatName }}</td>
-      </ng-container>
-
-      <!-- Selected Checkbox -->
-      <ng-container matColumnDef="Selected">
-        <th mat-header-cell *matHeaderCellDef>Select</th>
-        <td mat-cell *matCellDef="let row">
-          <mat-checkbox
-            [checked]="isSelected(row)"
-            [disabled]="(row.KeycatNumber && isParentSelected(row)) || disabled"
-            (change)="onCategorySelected(row, $event)">
-          </mat-checkbox>
-        </td>
-      </ng-container>
-
-      <!-- QC Under Checkbox -->
-      <ng-container matColumnDef="QCUnderReq">
-        <th mat-header-cell *matHeaderCellDef>QC Under</th>
-        <td mat-cell *matCellDef="let row">
-          <mat-checkbox
-            [checked]="isQCUnder(row)"
-            [disabled]="(row.KeycatNumber && isParentSelected(row)) || disabled"
-            (change)="onQCUnderChanged(row, $event.checked)">
-          </mat-checkbox>
-        </td>
-      </ng-container>
-
-      <!-- Pass/Fail % Input -->
-      <ng-container matColumnDef="QCUnderPercent">
-        <th mat-header-cell *matHeaderCellDef>Pass/Fail %</th>
-        <td mat-cell *matCellDef="let row">
-          <input matInput
-                 type="number"
-                 maxlength="2"
-                 [value]="getQCPercent(row)"
-                 [disabled]="!isQCUnder(row) || disabled"
-                 (change)="onPercentChanged(row, $event)"
-                 (keypress)="onNumberOnlyInput($event)" />
-        </td>
-      </ng-container>
-
-      <!-- Weeks Input -->
-      <ng-container matColumnDef="NumberOfWeeks">
-        <th mat-header-cell *matHeaderCellDef>Weeks</th>
-        <td mat-cell *matCellDef="let row">
-          <input matInput
-                 type="number"
-                 maxlength="2"
-                 [value]="getWeeks(row)"
-                 [disabled]="!isQCUnder(row) || disabled"
-                 (change)="onWeeksChanged(row, $event)"
-                 (keypress)="onNumberOnlyInput($event)" />
-        </td>
-      </ng-container>
-
-      <!-- Expand Toggle -->
-      <ng-container matColumnDef="expand">
-        <th mat-header-cell *matHeaderCellDef></th>
-        <td mat-cell *matCellDef="let row">
-          <button mat-icon-button
-                  *ngIf="hasKeycats(row)"
-                  (click)="onToggleExpand(row)">
-            <mat-icon>
-              {{ expandedCategory === row ? 'expand_less' : 'expand_more' }}
-            </mat-icon>
-          </button>
-        </td>
-      </ng-container>
-
-      <!-- Expanded Detail Column -->
-      <ng-container matColumnDef="expandedDetail">
-        <td mat-cell *matCellDef="let row" [attr.colspan]="displayedColumns.length">
-          <ng-container *ngIf="expandedCategory === row">
-            <table mat-table
-                   [dataSource]="keycatsMap[row.ReviewCategoryNumber]"
-                   class="sub-table">
-
-              <ng-container matColumnDef="KeycatName">
-                <th mat-header-cell *matHeaderCellDef>Keycat</th>
-                <td mat-cell *matCellDef="let k">{{ k.KeycatName }}</td>
-              </ng-container>
-
-              <ng-container matColumnDef="Selected">
-                <th mat-header-cell *matHeaderCellDef>Select</th>
-                <td mat-cell *matCellDef="let k">
-                  <mat-checkbox
-                    [checked]="isSelected(k)"
-                    [disabled]="isParentSelected(row) || disabled"
-                    (change)="onKeycatSelected(k, $event)">
-                  </mat-checkbox>
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="QCUnderReq">
-                <th mat-header-cell *matHeaderCellDef>QC Under</th>
-                <td mat-cell *matCellDef="let k">
-                  <mat-checkbox
-                    [checked]="isQCUnder(k)"
-                    [disabled]="isParentSelected(row) || disabled"
-                    (change)="onKeycatQCUnderChanged(k, $event)">
-                  </mat-checkbox>
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="QCUnderPercent">
-                <th mat-header-cell *matHeaderCellDef>Pass/Fail %</th>
-                <td mat-cell *matCellDef="let k">
-                  <input matInput
-                         type="number"
-                         maxlength="2"
-                         [value]="getQCPercent(k)"
-                         [disabled]="!isQCUnder(k) || disabled"
-                         (change)="onPercentChanged(k, $event)"
-                         (keypress)="onNumberOnlyInput($event)" />
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="NumberOfWeeks">
-                <th mat-header-cell *matHeaderCellDef>Weeks</th>
-                <td mat-cell *matCellDef="let k">
-                  <input matInput
-                         type="number"
-                         maxlength="2"
-                         [value]="getWeeks(k)"
-                         [disabled]="!isQCUnder(k) || disabled"
-                         (change)="onWeeksChanged(k, $event)"
-                         (keypress)="onNumberOnlyInput($event)" />
-                </td>
-              </ng-container>
-
-              <tr mat-header-row *matHeaderRowDef="['KeycatName','Selected','QCUnderReq','QCUnderPercent','NumberOfWeeks']"></tr>
-              <tr mat-row *matRowDef="let row; columns: ['KeycatName','Selected','QCUnderReq','QCUnderPercent','NumberOfWeeks']"></tr>
-            </table>
-          </ng-container>
-        </td>
-      </ng-container>
-
-      <!-- Header & Row Definitions -->
-      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="main-row"></tr>
-      <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="detail-row"></tr>
-    </table>
-  </mat-card>
-
-  <mat-card *ngIf="selectedCategories.length > 0" class="selected-categories">
-    <mat-card-title>Selected Categories</mat-card-title>
-    <table mat-table [dataSource]="selectedDataSource">
-
-      <ng-container matColumnDef="CategoryName">
-        <th mat-header-cell *matHeaderCellDef>Category</th>
-        <td mat-cell *matCellDef="let cat">{{ cat.CategoryName || cat.KeycatName }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="CatgDetail">
-        <th mat-header-cell *matHeaderCellDef>Type</th>
-        <td mat-cell *matCellDef="let cat">
-          {{ cat.KeycatNumber && cat.KeycatNumber > 0 ? 'Keycat' : 'Category' }}
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="CategoryID">
-        <th mat-header-cell *matHeaderCellDef>ID</th>
-        <td mat-cell *matCellDef="let cat">
-          {{ cat.KeycatNumber ? cat.KeycatNumber : cat.ReviewCategoryNumber }}
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="QCUnderReq">
-        <th mat-header-cell *matHeaderCellDef>QC Under</th>
-        <td mat-cell *matCellDef="let cat">
-          <mat-icon *ngIf="cat.QCUnderReq === 1">check</mat-icon>
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="QCUnderPercent">
-        <th mat-header-cell *matHeaderCellDef>Pass/Fail %</th>
-        <td mat-cell *matCellDef="let cat">{{ cat.QCUnderPercent }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="NumberOfWeeks">
-        <th mat-header-cell *matHeaderCellDef>Weeks</th>
-        <td mat-cell *matCellDef="let cat">{{ cat.NumberOfWeeks }}</td>
-      </ng-container>
-
-      <tr mat-header-row *matHeaderRowDef="selectedDisplayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: selectedDisplayedColumns"></tr>
-    </table>
-  </mat-card>
 </div>
 
-import { Component, EventEmitter, Input, OnChanges, OnInit, Output } from '@angular/core';
-import { ReviewCategory } from '../shared/common.model';
-import { MatTableDataSource } from '@angular/material/table';
-import { MatCheckboxChange } from '@angular/material/checkbox';
-interface CategoryRow {
-  ReviewCategoryNumber: number;
-  ReviewCategoryName: string;
-  Selected: boolean;
-  QCUnderReq: boolean;
-  QCUnderPercent: number | null;
-  NumberOfWeeks: number | null;
-}
+============
+import { HttpClient } from '@angular/common/http';
+import { Component, OnInit, OnDestroy, Inject } from '@angular/core';
+import { FormControl } from '@angular/forms';
+import { firstValueFrom, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+import { countryModel, StoreFilter } from 'src/app/shared/common.model';
+import { CommonService } from 'src/app/shared/common.service';
 
 @Component({
-  selector: 'app-category-grid',
-  templateUrl: './category-grid.component.html',
-  styleUrls: ['./category-grid.component.css']
+  selector: 'app-dashbord-layout',
+  templateUrl: './dashbord-layout.component.html',
+  styleUrls: ['./dashbord-layout.component.css']
 })
+export class DashbordLayoutComponent implements OnInit, OnDestroy {
 
-export class CategoryGridComponent implements OnInit, OnChanges {
- @Input() categories: any[] = [];
-  @Input() selectedCategories: any[] = [];
-  @Input() disabled = false;
-  @Output() categoryChange = new EventEmitter<{ category: any, field: string, value: any }>();
+  private destroy$ = new Subject<void>();
+  countrylist: countryModel[] = [];
+  employeedata: any[] = [];
+  countryctrl = new FormControl();
+  isFiltersExpanded = false; // Changed from sidebar to top filters
+  currentIRIWeek: any;
+  loggeduser: string;
 
-  // displayedColumns: string[] = [
-  //   'expand',
-  //   'ReviewCategoryName',
-  //   'Keycat',
-  //   'KeycatName',
-  //   'Selected',
-  //   'QCUnderReq',
-  //   'QCUnderPercent',
-  //   'NumberOfWeeks'
-  // ];
-  // selectedDisplayedColumns: string[] = [
-  //   'CategoryName',
-  //   'CatgDetail',
-  //   'CategoryID',
-  //   'QCUnderReq',
-  //   'QCUnderPercent',
-  //   'NumberOfWeeks'
-  // ];
-
-  displayedColumns = ['ReviewCategoryName', 'Keycat', 'KeycatName', 'Selected', 'QCUnderReq', 'QCUnderPercent', 'NumberOfWeeks', 'expand'];
-selectedDisplayedColumns = ['CategoryName','CatgDetail','CategoryID','QCUnderReq','QCUnderPercent','NumberOfWeeks'];
-multiTemplateDataRows = true;
-
-  reviewCategories: any[] = [];
-  keycatsMap: { [catId: number]: any[] } = {};
-  dataSource = new MatTableDataSource<any>();
-  selectedDataSource = new MatTableDataSource<any>();
-  expandedCategory: any | null = null;
-
-  ngOnInit() { this.refreshData(); }
-  ngOnChanges() { this.refreshData(); }
-
-  private refreshData() {
-    this.reviewCategories = this.categories.filter(c => !c.KeycatNumber || c.KeycatNumber === 0);
-    this.keycatsMap = {};
-    for (const cat of this.categories) {
-      if (cat.KeycatNumber && cat.KeycatNumber > 0) {
-        this.keycatsMap[cat.ReviewCategoryNumber] = this.keycatsMap[cat.ReviewCategoryNumber] || [];
-        this.keycatsMap[cat.ReviewCategoryNumber].push(cat);
-      }
-    }
-    this.dataSource.data = this.reviewCategories;
-    this.selectedDataSource.data = this.selectedCategories;
+  constructor(
+    private commonService: CommonService,
+    public http: HttpClient,
+    @Inject('BASE_URL') public baseUrl: string,
+  ) { 
+    this.loggeduser = localStorage.getItem("loggedUserId");
   }
 
-  // --- Functionality Replication ---
+  async ngOnInit(): Promise<void> {
+    // Remove sidebar state subscription since we're using top filters
+    this.commonService.groupsStatus$.subscribe(userGroups => {    
+      if(userGroups['isgTechnologyGroup']) { 
+        this.countryctrl.enable();
+      } else { 
+        this.countryctrl.disable();
+      }   
+    });
 
-  isSelected(cat: any): boolean {
-    return this.selectedCategories.some(s =>
-      s.ReviewCategoryNumber === cat.ReviewCategoryNumber &&
-      s.KeycatNumber === cat.KeycatNumber &&
-      s.Selected === 1
-    );
-  }
-  isQCUnder(cat: any): boolean {
-    return this.selectedCategories.some(s =>
-      s.ReviewCategoryNumber === cat.ReviewCategoryNumber &&
-      s.KeycatNumber === cat.KeycatNumber &&
-      s.QCUnderReq === 1
-    );
-  }
-  getQCPercent(cat: any): number | null {
-    const found = this.selectedCategories.find(s =>
-      s.ReviewCategoryNumber === cat.ReviewCategoryNumber &&
-      s.KeycatNumber === cat.KeycatNumber
-    );
-    return found ? found.QCUnderPercent : null;
-  }
-  getWeeks(cat: any): number | null {
-    const found = this.selectedCategories.find(s =>
-      s.ReviewCategoryNumber === cat.ReviewCategoryNumber &&
-      s.KeycatNumber === cat.KeycatNumber
-    );
-    return found ? found.NumberOfWeeks : null;
-  }
-
-  // Expand/collapse keycat rows
-  onToggleExpand(cat: any) {
-    this.expandedCategory = this.expandedCategory?.ReviewCategoryNumber === cat.ReviewCategoryNumber ? null : cat;
-  }
-  hasKeycats(category: any): boolean {
-    return !!this.keycatsMap[category.ReviewCategoryNumber]?.length;
-  }
-
-  // Validation: only allow selecting parent or children, not both
-  hasSelectedKeycats(catNumber: number): boolean {
-    return this.selectedCategories.some(s =>
-      s.ReviewCategoryNumber === catNumber && s.KeycatNumber && s.Selected === 1
-    );
-  }
-  hasSelectedParentCategory(catNumber: number): boolean {
-    return this.selectedCategories.some(s =>
-      s.ReviewCategoryNumber === catNumber && (!s.KeycatNumber || s.KeycatNumber >0) && s.Selected === 1
-    );
-  }
-  isParentCheckDisabled(cat: any): boolean {
-    return this.hasSelectedKeycats(cat.ReviewCategoryNumber);
-  }
-  isChildCheckDisabled(child: any): boolean {
-    return this.hasSelectedParentCategory(child.ReviewCategoryNumber);
-  }
-
-  // Editable fields enablement
-  isPercentDisabled(cat: any): boolean {
-    return this.disabled || !this.isQCUnder(cat);
-  }
-  isWeeksDisabled(cat: any): boolean {
-    return this.disabled || !this.isQCUnder(cat);
-  }
-
-  // --- Event Handlers ---
-
-  onCategorySelected(cat: any, checked: MatCheckboxChange) {
-    if (this.disabled) return;
+    this.currentIRIWeek = await firstValueFrom(
+      this.http.get<any>(this.baseUrl + 'api/TaskAssinment/GetCurrentIRIWeek')
+    );   
     
-    if (checked.checked && this.hasSelectedKeycats(cat.ReviewCategoryNumber)) {
-      alert("Can't select a Category when Keycats under it are selected");
-      checked.source.checked=false;
-      return;
+    try {
+      this.employeedata = await firstValueFrom(this.commonService.getEmployee(this.loggeduser));
+    } catch(error) {
+      console.error('Error fetching employee data:', error);
     }
-    this.categoryChange.emit({ category: cat, field: 'Selected', value: checked ? 1 : null });
+
+    try {
+      this.countrylist = await this.commonService.getcountry();
+    } catch {
+      console.error('Error fetching country data');
+    }      
+    
+    this.employeedata.filter((x) => {
+      this.countryctrl.setValue(x.countryId);
+    });
   }
 
-  onQCUnderChanged(cat: any, checked: boolean) {
-    if (this.disabled) return;
-    if (checked && this.hasSelectedKeycats(cat.ReviewCategoryNumber)) {
-      alert("Can't select a Category when Keycats under it are selected");
-      return;
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  // Changed from toggleSidebar to toggleFilters
+  toggleFilters(): void {
+    this.isFiltersExpanded = !this.isFiltersExpanded;
+  }
+
+  onFiltersChanged(filters: StoreFilter): void {
+    this.commonService.applyFilters(filters);
+  }
+
+  onClearFilters(): void {
+    this.commonService.clearFilters();
+  }
+
+  selectedcountry(event: any) {
+    if (event.isUserInput) {
+      // Handle country selection
     }
-    if (checked) {
-      this.categoryChange.emit({ category: cat, field: 'Selected', value: 1 });
-      this.categoryChange.emit({ category: cat, field: 'NumberOfWeeks', value: 5 });
-    } else {
-      this.categoryChange.emit({ category: cat, field: 'NumberOfWeeks', value: null });
-      this.categoryChange.emit({ category: cat, field: 'QCUnderPercent', value: null });
-    }
-    this.categoryChange.emit({ category: cat, field: 'QCUnderReq', value: checked ? 1 : null });
   }
+}========================
 
-  onPercentChanged(cat: any, e: Event) {
-    if (this.disabled) return;
-    const val = (e.target as HTMLInputElement).value;
-    this.categoryChange.emit({ category: cat, field: 'QCUnderPercent', value: val ? Number(val) : null });
-  }
-
-  onWeeksChanged(cat: any, e: Event) {
-    if (this.disabled) return;
-    const val = (e.target as HTMLInputElement).value;
-    this.categoryChange.emit({ category: cat, field: 'NumberOfWeeks', value: val ? Number(val) : null });
-  }
-
-  onKeycatSelected(cat: any, checked: MatCheckboxChange) {
-    if (this.disabled) return;
-    if (checked.checked && this.hasSelectedParentCategory(cat.ReviewCategoryNumber)) {
-      alert("Can't select Keycat when its Category is selected");
-      checked.source.checked=false;
-      return;
-    }
-    this.categoryChange.emit({ category: cat, field: 'Selected', value: checked ? 1 : null });
-  }
-
-  onKeycatQCUnderChanged(cat: any, checked: MatCheckboxChange) {
-    if (this.disabled) return;
-    if (checked.checked && this.hasSelectedParentCategory(cat.ReviewCategoryNumber)) {
-      alert("Can't select Keycat when Category is selected");
-      checked.source.checked=false;
-      return;
-    }
-    if (checked.checked) {
-      this.categoryChange.emit({ category: cat, field: 'Selected', value: 1 });
-      this.categoryChange.emit({ category: cat, field: 'NumberOfWeeks', value: 5 });
-    } else {
-      this.categoryChange.emit({ category: cat, field: 'NumberOfWeeks', value: null });
-      this.categoryChange.emit({ category: cat, field: 'QCUnderPercent', value: null });
-    }
-    this.categoryChange.emit({ category: cat, field: 'QCUnderReq', value: checked ? 1 : null });
-  }
-
-  onNumberOnlyInput(e: KeyboardEvent): boolean {
-    const charCode = e.which || e.keyCode;
-    if (charCode < 32) { return true; }
-    if (charCode >= 48 && charCode <= 57) { return true; }
-    e.preventDefault();
-    return false;
-  }
-
-   isParentSelected(cat: ReviewCategory): boolean {
-  if (!cat.KeycatNumber || cat.KeycatNumber === 0) {
-    return false;
-  }
-
-  return this.selectedCategories.some(selected =>
-    selected.ReviewCategoryNumber === cat.ReviewCategoryNumber &&
-    (!selected.KeycatNumber || selected.KeycatNumber === 0) &&
-    selected.Selected === 1
-  );
-}
+.dashboard-layout {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #fafafa;
 }
 
+.mat-toolbar-primary {
+  background: #1976d2;
+  color: white;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
 
-onQCUnderChanged(cat: any, checked: boolean) {
-  if (this.disabled) {
-    return;
+.toolbar-title {
+  margin-left: 16px;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.country-field {
+  margin-right: 16px;
+}
+
+.country-field .mat-form-field {
+  width: 200px;
+}
+
+.country-field .mat-form-field .mat-form-field-wrapper {
+  padding-bottom: 0;
+}
+
+/* Top Filter Bar */
+.filter-top-bar {
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-in-out;
+  max-height: 0;
+}
+
+.filter-top-bar.expanded {
+  max-height: 300px;
+}
+
+/* Main Content */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.content-wrapper {
+  padding: 24px;
+  flex: 1;
+  overflow: auto;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .content-wrapper {
+    padding: 16px;
   }
-
-  // Prevent QCUnder if a child/parent is selected
-  const isKeycat   = cat.KeycatNumber > 0;
-  const hasLocked  = isKeycat
-    ? this.hasSelectedParentCategory(cat.ReviewCategoryNumber)
-    : this.hasSelectedKeycats(cat.ReviewCategoryNumber);
-
-  if (checked && hasLocked) {
-    alert(`Can't select QC Under when ${isKeycat ? 'Category' : 'Keycats'} is selected`);
-    return;
+  
+  .country-field .mat-form-field {
+    width: 150px;
   }
-
-  // Delegate to the parent component to update selectedCategories
-  // First: if unchecking QCUnder, clear QCUnderReq, QCUnderPercent, NumberOfWeeks
-  if (!checked) {
-    this.categoryChange.emit({ category: cat, field: 'QCUnderReq',    value: null });
-    this.categoryChange.emit({ category: cat, field: 'QCUnderPercent', value: null });
-    this.categoryChange.emit({ category: cat, field: 'NumberOfWeeks',  value: null });
-    return;
-  }
-
-  // If checking QCUnder:
-  // 1) ensure Selected is true
-  this.categoryChange.emit({ category: cat, field: 'Selected',       value: 1 });
-  // 2) set QCUnderReq
-  this.categoryChange.emit({ category: cat, field: 'QCUnderReq',    value: 1 });
-  // 3) default weeks to 5
-  this.categoryChange.emit({ category: cat, field: 'NumberOfWeeks',  value: 5 });
 }
 
 
-onKeycatQCUnderChanged(cat: any, checked: MatCheckboxChange) {
-  if (this.disabled) {
-    return;
+========================
+<div class="filter-topbar">
+  <div class="filter-container">
+    <form [formGroup]="filterForm" class="filter-form">
+      
+      <!-- Row 1: Main Filters -->
+      <div class="filter-row main-filters">
+        <!-- IRI Week -->
+        <div class="filter-field">
+          <label class="form-label">IRI Week</label>
+          <mat-form-field appearance="outline">
+            <mat-select formControlName="iriWeek">
+              <mat-option *ngFor="let week of iriWeeks" [value]="week.iri_week">
+                {{week.iri_week_viewOnly}}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <!-- Territory -->
+        <div class="filter-field">
+          <label class="form-label">Territory</label>
+          <mat-form-field appearance="outline">
+            <mat-select formControlName="territory">
+              <mat-option [value]="-1">ALL</mat-option>
+              <mat-option *ngFor="let territory of territories" [value]="territory.territory_id">
+                {{territory.territory_name}}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <!-- Store -->
+        <div class="filter-field">
+          <label class="form-label">Store</label>
+          <mat-form-field appearance="outline">
+            <input matInput [matAutocomplete]="storeAuto" formControlName="store" placeholder="Search stores...">
+            <button mat-button *ngIf="filterForm.get('store')?.value" matSuffix mat-icon-button (click)="clearStrCtrl()">
+              <mat-icon>cancel</mat-icon>
+            </button>
+            <mat-autocomplete #storeAuto="matAutocomplete" (optionSelected)="onStoreSelected($event)">
+              <mat-option *ngFor="let store of filteredStores" [value]="store.store_number" [matTooltip]="store.store_name">
+                {{store.store_name}}
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+          <button mat-raised-button color="primary" (click)="onApplyFilters()">
+            Apply
+          </button>
+          <button mat-stroked-button (click)="onClearFilters()">
+            Clear
+          </button>
+        </div>
+      </div>
+
+      <!-- Row 2: Advanced Filters (Collapsible) -->
+      <div class="filter-row advanced-filters" [style.display]="showAdvancedFilters ? 'flex' : 'none'">
+        <!-- State -->
+        <div class="filter-field">
+          <label class="form-label">State</label>
+          <mat-form-field appearance="outline">
+            <input matInput [matAutocomplete]="stateAuto" formControlName="state">
+            <button mat-button *ngIf="filterForm.get('state')?.value" matSuffix mat-icon-button (click)="clearStaCtrl()">
+              <mat-icon>cancel</mat-icon>
+            </button>
+            <mat-autocomplete #stateAuto="matAutocomplete" (optionSelected)="onStateSelected($event)">
+              <mat-option *ngFor="let state of filteredState" [value]="state.state">
+                {{state.state}}
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+        </div>
+
+        <!-- City -->
+        <div class="filter-field">
+          <label class="form-label">City</label>
+          <mat-form-field appearance="outline">
+            <input matInput [matAutocomplete]="cityAuto" formControlName="city">
+            <button mat-button *ngIf="filterForm.get('city')?.value" matSuffix mat-icon-button (click)="clearcityCtrl()">
+              <mat-icon>cancel</mat-icon>
+            </button>
+            <mat-autocomplete #cityAuto="matAutocomplete" (optionSelected)="onCitySelected($event)">
+              <mat-option *ngFor="let city of filteredCity" [value]="city.city">
+                {{city.city}}
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+        </div>
+
+        <!-- Cluster -->
+        <div class="filter-field">
+          <label class="form-label">Cluster</label>
+          <mat-form-field appearance="outline">
+            <input matInput [matAutocomplete]="clusterAuto" formControlName="cluster">
+            <mat-autocomplete #clusterAuto="matAutocomplete" (optionSelected)="onClusterSelected($event)">
+              <mat-option *ngFor="let cluster of filteredCluster" [value]="cluster.city_name">
+                {{cluster.position_name}}
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+        </div>
+
+        <!-- Task -->
+        <div class="filter-field">
+          <label class="form-label">Task</label>
+          <mat-form-field appearance="outline">
+            <input matInput [matAutocomplete]="taskAuto" formControlName="task">
+            <button mat-button *ngIf="filterForm.get('task')?.value" matSuffix mat-icon-button (click)="clearTaskCtrl()">
+              <mat-icon>cancel</mat-icon>
+            </button>
+            <mat-autocomplete #taskAuto="matAutocomplete" (optionSelected)="onTaskSelected($event)">
+              <mat-option *ngFor="let task of filteredTask" [value]="task.task_number">
+                {{task.task_name}}
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+        </div>
+      </div>
+
+      <!-- Advanced Filters Toggle -->
+      <div class="advanced-toggle">
+        <button mat-button type="button" (click)="toggleAdvancedFilters()" class="toggle-button">
+          <mat-icon>{{showAdvancedFilters ? 'expand_less' : 'expand_more'}}</mat-icon>
+          {{showAdvancedFilters ? 'Hide' : 'Show'}} Advanced Filters
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+==========================
+import { HttpClient } from '@angular/common/http';
+import { Component, EventEmitter, Inject, OnInit, Output } from '@angular/core';
+import { FormBuilder, FormGroup } from '@angular/forms';
+import { catchError, debounceTime, firstValueFrom, of, Subject, switchMap, takeUntil, tap } from 'rxjs';
+import { StoreFilter } from 'src/app/shared/common.model';
+import { CommonService } from 'src/app/shared/common.service';
+
+@Component({
+  selector: 'app-filter-topbar',
+  templateUrl: './filter-topbar.component.html',
+  styleUrls: ['./filter-topbar.component.css']
+})
+export class FilterTopbarComponent implements OnInit {
+  @Output() filtersChanged = new EventEmitter<StoreFilter>();
+  @Output() clearFilters = new EventEmitter<void>();
+
+  filterForm!: FormGroup;
+  showAdvancedFilters = false;
+  showSpinner = false;
+  
+  // Data arrays
+  employeedata: any[] = [];
+  iriWeeks: any[] = [];
+  territories: any[] = [];
+  filteredStores: any[] = [];
+  filteredState: any[] = [];
+  filteredCity: any[] = [];
+  filteredCluster: any[] = [];
+  filteredTask: any[] = [];
+  filteredFSR: any[] = [];
+
+  // Selected values
+  selectedStoreNumber = '';
+  selectedState = '';
+  selectedCity = '';
+  selectedCluster = '';
+  selectedTask = '';
+
+  private unsubscribe$ = new Subject<void>();
+  private loggeduser: string;
+
+  constructor(
+    private fb: FormBuilder,
+    private commonService: CommonService,
+    public http: HttpClient,
+    @Inject('BASE_URL') public baseUrl: string,
+  ) {
+    this.initializeForm();
+    this.loggeduser = localStorage.getItem("loggedUserId") || '';
   }
 
-  // Block if parent is selected
-  if (checked.checked && this.hasSelectedParentCategory(cat.ReviewCategoryNumber)) {
-    alert("Can't select QC Under when its Category is selected");
-    checked.source.checked = false;
-    return;
+  async ngOnInit(): Promise<void> {
+    try {
+      this.employeedata = await firstValueFrom(this.commonService.getEmployee(this.loggeduser));
+      await this.getIriWeek();
+      await this.getTerritory();
+      this.setupFormSubscriptions();
+    } catch (error) {
+      console.error('Error initializing filter component:', error);
+    }
   }
 
-  // On uncheck: clear QCUnderReq, QCUnderPercent, NumberOfWeeks
-  if (!checked.checked) {
-    this.categoryChange.emit({ category: cat, field: 'QCUnderReq',    value: null });
-    this.categoryChange.emit({ category: cat, field: 'QCUnderPercent', value: null });
-    this.categoryChange.emit({ category: cat, field: 'NumberOfWeeks',  value: null });
-    return;
+  private initializeForm(): void {
+    this.filterForm = this.fb.group({
+      iriWeek: [''],
+      territory: [''],
+      store: [''],
+      state: [''],
+      city: [''],
+      cluster: [''],
+      task: [''],
+      fsrId: [''],
+    });
   }
 
-  // On check: ensure Selected=1, QCUnderReq=1, default Weeks=5
-  this.categoryChange.emit({ category: cat, field: 'Selected',       value: 1 });
-  this.categoryChange.emit({ category: cat, field: 'QCUnderReq',    value: 1 });
-  this.categoryChange.emit({ category: cat, field: 'NumberOfWeeks',  value: 5 });
+  private setupFormSubscriptions(): void {
+    // Store autocomplete
+    this.filterForm.get('store')?.valueChanges.pipe(
+      debounceTime(300),
+      tap(() => (this.showSpinner = true)),
+      switchMap(searchText => this.getStore(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(stores => {
+      this.filteredStores = stores || [];
+      this.showSpinner = false;
+    });
+
+    // State autocomplete
+    this.filterForm.get('state')?.valueChanges.pipe(
+      debounceTime(300),
+      tap(() => (this.showSpinner = true)),
+      switchMap(searchText => this.getState(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(states => {
+      this.filteredState = states || [];
+      this.showSpinner = false;
+    });
+
+    // City autocomplete
+    this.filterForm.get('city')?.valueChanges.pipe(
+      debounceTime(300),
+      tap(() => (this.showSpinner = true)),
+      switchMap(searchText => this.getCity(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(cities => {
+      this.filteredCity = cities || [];
+      this.showSpinner = false;
+    });
+
+    // Cluster autocomplete
+    this.filterForm.get('cluster')?.valueChanges.pipe(
+      debounceTime(300),
+      tap(() => (this.showSpinner = true)),
+      switchMap(searchText => this.getCluster(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(clusters => {
+      this.filteredCluster = clusters || [];
+      this.showSpinner = false;
+    });
+
+    // Task autocomplete
+    this.filterForm.get('task')?.valueChanges.pipe(
+      debounceTime(300),
+      switchMap(searchText => this.getTask(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(tasks => {
+      this.filteredTask = tasks || [];
+    });
+  }
+
+  private async getIriWeek(): Promise<void> {
+    try {
+      this.iriWeeks = await firstValueFrom(
+        this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetIriWeek')
+      );
+      if (this.iriWeeks.length > 1) {
+        this.filterForm.get('iriWeek')?.setValue(this.iriWeeks.iri_week, { emitEvent: false });
+      }
+    } catch (error) {
+      console.error('Error fetching IRI weeks:', error);
+    }
+  }
+
+  private async getTerritory(): Promise<void> {
+    try {
+      this.territories = await firstValueFrom(
+        this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetTerritory')
+      );
+      
+      const defaultTerritory = this.employeedata?.fieldTerritoryNumber == 0 || 
+                              !this.employeedata?.fieldTerritoryNumber
+                              ? this.territories?.territory_id
+                              : this.employeedata?.fieldTerritoryNumber;
+      
+      this.filterForm.get('territory')?.setValue(defaultTerritory, { emitEvent: false });
+    } catch (error) {
+      console.error('Error fetching territories:', error);
+    }
+  }
+
+  // API Methods (keep your existing implementations)
+  getStore(searchText: string) {
+    if (!searchText || searchText.length < 3) {
+      return of([]);
+    }
+
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetStore', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  getState(searchText: string) {
+    if (!searchText || searchText.length <= 0) { return of([]); }
+    
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetState', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  getCity(searchText: string) {
+    if (!searchText || searchText.length <= 0) { return of([]); }
+    
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetCity', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  getCluster(searchText: string) {
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetCluster', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  getTask(searchText: string) {
+    if (!searchText || searchText.length <= 0) { return of([]); }
+    
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetTask', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  // Event handlers
+  onStoreSelected(event: any) {
+    const selectedStore = this.filteredStores.find(store => store.store_name === event.option.value);
+    this.selectedStoreNumber = selectedStore?.store_number || '';
+  }
+
+  onStateSelected(event: any) {
+    const selectedState = this.filteredState.find(state => state.state === event.option.value);
+    this.selectedState = selectedState?.state || '';
+  }
+
+  onCitySelected(event: any) {
+    const selectedCity = this.filteredCity.find(city => city.city === event.option.value);
+    this.selectedCity = selectedCity?.city || '';
+  }
+
+  onClusterSelected(event: any) {
+    const selectedCluster = this.filteredCluster.find(cluster => cluster.position_name === event.option.value);
+    this.selectedCluster = selectedCluster?.position_number || '';
+  }
+
+  onTaskSelected(event: any) {
+    const selectedTask = this.filteredTask.find(task => task.task_name === event.option.value);
+    this.selectedTask = selectedTask?.task_number || '';
+  }
+
+  // Control methods
+  toggleAdvancedFilters(): void {
+    this.showAdvancedFilters = !this.showAdvancedFilters;
+  }
+
+  onApplyFilters(): void {
+    const formValue = this.filterForm.value;
+    const filters: StoreFilter = {
+      iriWeek: formValue.iriWeek || '',
+      territory: formValue.territory || '',
+      location: '', // Map your fields accordingly
+      status: '',
+      storeType: '',
+      assignment: '',
+      multiFsr: false,
+      cluster: this.selectedCluster,
+      taskName: this.selectedTask,
+      wave: '',
+      assignedTo: '',
+      state: this.selectedState,
+      city: this.selectedCity
+    };
+    
+    this.filtersChanged.emit(filters);
+  }
+
+  onClearFilters(): void {
+    this.filterForm.reset();
+    this.selectedStoreNumber = '';
+    this.selectedState = '';
+    this.selectedCity = '';
+    this.selectedCluster = '';
+    this.selectedTask = '';
+    this.clearFilters.emit();
+  }
+
+  // Clear individual controls
+  clearStrCtrl() { this.filterForm.get('store')?.reset(); }
+  clearStaCtrl() { this.filterForm.get('state')?.reset(); }
+  clearcityCtrl() { this.filterForm.get('city')?.reset(); }
+  clearTaskCtrl() { this.filterForm.get('task')?.reset(); }
+
+  ngOnDestroy(): void {
+    this.unsubscribe$.next();
+    this.unsubscribe$.complete();
+  }
 }
 
+=======================
+
+.filter-topbar {
+  width: 100%;
+  padding: 16px;
+  background: #fafafa;
+}
+
+.filter-container {
+  max-width: 100%;
+}
+
+.filter-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 150px;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.filter-field .mat-form-field {
+  width: 100%;
+}
+
+.filter-field .mat-form-field .mat-form-field-wrapper {
+  padding-bottom: 0;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.action-buttons button {
+  min-width: 80px;
+  height: 36px;
+}
+
+.advanced-filters {
+  border-top: 1px solid #e0e0e0;
+  padding-top: 16px;
+  margin-top: 8px;
+}
+
+.advanced-toggle {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.toggle-button {
+  color: #1976d2;
+  font-size: 14px;
+}
+
+.toggle-button mat-icon {
+  margin-right: 4px;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .filter-row {
+    gap: 12px;
+  }
+  
+  .filter-field {
+    min-width: 130px;
+  }
+}
+
+@media (max-width: 768px) {
+  .filter-topbar {
+    padding: 12px;
+  }
+  
+  .filter-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .filter-field {
+    width: 100%;
+    min-width: auto;
+  }
+  
+  .action-buttons {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .action-buttons button {
+    flex: 1;
+  }
+}
+
+=====================
+
+<div class="table-container">
+  <mat-card class="table-card">
+    <mat-card-header>
+      <mat-card-title>Store Assignment Data</mat-card-title>
+      <mat-card-subtitle>{{dataSource.data.length}} stores found</mat-card-subtitle>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <div class="table-wrapper">
+        <!-- PROPER TABLE STRUCTURE FOR HORIZONTAL HEADERS -->
+        <table mat-table [dataSource]="dataSource" matSort class="store-table mat-elevation-2">
+          
+          <!-- Store Number Column with Expansion -->
+          <ng-container matColumnDef="store_number">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Store #</th>
+            <td mat-cell *matCellDef="let store" class="store-number-cell">
+              <span class="caret" [class.expanded]="isExpanded(store)">▼</span>
+              <span class="store-number">{{store.StoreNumber}}</span>
+            </td>
+          </ng-container>
+
+          <!-- Store Name Column -->
+          <ng-container matColumnDef="store_name">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Store Name</th>
+            <td mat-cell *matCellDef="let store" class="store-name-cell">
+              <div class="store-info">
+                <span class="store-name">{{store.StoreName}}</span>
+              </div>
+            </td>
+          </ng-container>
+
+          <!-- Store Address Column -->
+          <ng-container matColumnDef="addr_line1">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Store Address</th>
+            <td mat-cell *matCellDef="let store" class="address-cell">
+              {{store.AddrLine1}}
+            </td>
+          </ng-container>
+
+          <!-- City Column -->
+          <ng-container matColumnDef="city">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>City</th>
+            <td mat-cell *matCellDef="let store" class="city-cell">{{store.City}}</td>
+          </ng-container>
+
+          <!-- State Column -->
+          <ng-container matColumnDef="state">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>State</th>
+            <td mat-cell *matCellDef="let store" class="state-cell">
+              <span class="state-badge">{{store.State}}</span>
+            </td>
+          </ng-container>
+
+          <!-- Zip Column -->
+          <ng-container matColumnDef="zip">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Zip</th>
+            <td mat-cell *matCellDef="let store" class="zip-cell">{{store.Zip}}</td>
+          </ng-container>
+
+          <!-- Assigned To Column -->
+          <ng-container matColumnDef="assigned_to">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Assigned To</th>
+            <td mat-cell *matCellDef="let store" class="assigned-cell">
+              <span class="assignment-badge" [ngClass]="getAssignmentClass(store.AssignedTo)">
+                {{store.AssignedTo}}
+              </span>
+            </td>
+          </ng-container>
+
+          <!-- Average Collection Time Column -->
+          <ng-container matColumnDef="expected_collection_time">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Avg Coll Time</th>
+            <td mat-cell *matCellDef="let store" class="collection-time-cell">
+              {{formatCollectionTime(store.ExpectedCollectionTime)}}
+            </td>
+          </ng-container>
+
+          <!-- Cluster Column -->
+          <ng-container matColumnDef="position_name">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Cluster</th>
+            <td mat-cell *matCellDef="let store" class="cluster-cell">
+              {{getClusterDisplay(store.PositionName)}}
+            </td>
+          </ng-container>
+
+          <!-- HORIZONTAL HEADER ROW -->
+          <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+          
+          <!-- DATA ROWS WITH EXPANSION -->
+          <tr mat-row *matRowDef="let row; columns: displayedColumns; let i = index"
+              [ngClass]="{'selected-row': row === selectedRow}"
+              class="table-row"
+              [cdkDetailRow]="row" 
+              [cdkDetailRowTpl]="tpl" 
+              (toggleChange)="GetUPCCollectionDetail($event, row)">
+          </tr>
+        </table>
+      </div>
+      
+      <mat-paginator 
+        [pageSizeOptions]="[5, 10, 20, 50]" 
+        showFirstLastButtons
+        class="table-paginator">
+      </mat-paginator>
+
+      <!-- EXPANSION DETAIL TEMPLATE -->
+      <ng-template #tpl let-element>
+        <div class="mat-row detail-row" [@detailExpand] style="overflow: hidden;">
+          <div class="expansion-content">
+            <table class="expanded-table">
+              <thead>
+                <tr>
+                  <th>T #</th>
+                  <th>Collector</th>
+                  <th>Store #</th>
+                  <th>Name</th>
+                  <th>Address</th>
+                  <th>Collected</th>
+                  <th>Height</th>
+                  <th>Width</th>
+                  <th>Depth</th>
+                  <th>Processed</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>{{element.Territory || 'N/A'}}</td>
+                  <td>{{element.CollectorName || 'N/A'}}</td>
+                  <td>{{element.StoreNumber}}</td>
+                  <td class="long-text">{{element.StoreName}}</td>
+                  <td class="long-text">{{element.AddrLine1}}</td>
+                  <td>{{element.Collected || 'N/A'}}</td>
+                  <td>{{element.Height || 'N/A'}}</td>
+                  <td>{{element.Width || 'N/A'}}</td>
+                  <td>{{element.Depth || 'N/A'}}</td>
+                  <td>{{element.Processed || 'N/A'}}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </ng-template>
+    </mat-card-content>
+  </mat-card>
+</div>
+===================
+.table-container {
+  width: 100%;
+  height: 100%;
+}
+
+.table-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}
+
+.table-wrapper {
+  flex: 1;
+  overflow: auto;
+  min-height: 400px;
+}
+
+/* CRITICAL: Proper table structure for horizontal headers */
+.store-table {
+  width: 100%;
+  background: white;
+  display: table; /* Ensure proper table display */
+}
+
+.store-table thead {
+  display: table-header-group; /* Fix header display */
+  background: #f5f5f5;
+}
+
+.store-table tbody {
+  display: table-row-group; /* Fix body display */
+}
+
+.store-table tr {
+  display: table-row; /* Fix row display */
+}
+
+.store-table th,
+.store-table td {
+  display: table-cell; /* Fix cell display */
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  vertical-align: middle;
+}
+
+/* Header styling */
+.store-table th {
+  font-weight: 600;
+  font-size: 12px;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: #f5f5f5;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* Row styling */
+.table-row {
+  transition: background-color 0.2s;
+  cursor: pointer;
+}
+
+.table-row:hover {
+  background-color: #f0f7ff;
+}
+
+.table-row.selected-row {
+  background-color: #e3f2fd;
+}
+
+/* Column-specific styles */
+.store-number-cell {
+  width: 100px;
+  font-weight: 500;
+}
+
+.store-number-cell .caret {
+  margin-right: 8px;
+  font-size: 12px;
+  transition: transform 0.3s;
+  display: inline-block;
+  color: #666;
+}
+
+.store-number-cell .caret.expanded {
+  transform: rotate(180deg);
+}
+
+.store-name-cell {
+  min-width: 200px;
+}
+
+.store-info .store-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.address-cell {
+  min-width: 200px;
+  color: #555;
+}
+
+.city-cell {
+  min-width: 120px;
+}
+
+.state-cell {
+  min-width: 80px;
+}
+
+.state-badge {
+  background: #e8f5e8;
+  color: #2e7d32;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.zip-cell {
+  min-width: 80px;
+  font-family: monospace;
+}
+
+.assigned-cell {
+  min-width: 140px;
+}
+
+.assignment-badge {
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  display: inline-block;
+}
+
+.assignment-badge.assigned {
+  background: #4caf50;
+  color: white;
+}
+
+.assignment-badge.not-assigned {
+  background: #ff9800;
+  color: white;
+}
+
+.collection-time-cell {
+  min-width: 120px;
+  color: #666;
+  font-size: 13px;
+}
+
+.cluster-cell {
+  min-width: 150px;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 12px;
+  background: #f5f5f5;
+  color: #333;
+  border-radius: 4px;
+}
+
+/* Expansion row styling */
+.detail-row {
+  background: #fafafa;
+  border-top: 1px solid #e0e0e0;
+}
+
+.expansion-content {
+  padding: 16px;
+}
+
+.expanded-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.expanded-table th,
+.expanded-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #e0e0e0;
+  text-align: left;
+}
+
+.expanded-table th {
+  background: #f0f0f0;
+  font-weight: 600;
+  font-size: 12px;
+  color: #333;
+}
+
+.expanded-table td.long-text {
+  max-width: 200px;
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+/* Paginator */
+.table-paginator {
+  border-top: 1px solid #e0e0e0;
+  background: #fafafa;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .table-wrapper {
+    overflow-x: auto;
+  }
+  
+  .store-table {
+    min-width: 800px;
+  }
+  
+  .store-table th,
+  .store-table td {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  
+  .expansion-content {
+    padding: 12px;
+  }
+}======
+
+isExpanded(store: any): boolean {
+  return this.selectedRow === store;
+}
+
+================
+
+// Add these methods to centralize API calls
+
+private baseApiUrl: string;
+
+constructor(private http: HttpClient, @Inject('BASE_URL') baseUrl: string) {
+  this.baseApiUrl = baseUrl;
+}
+
+// Centralized API methods
+getIriWeeks(): Observable<any[]> {
+  return this.http.get<any[]>(`${this.baseApiUrl}api/TaskAssinment/GetIriWeek`)
+    .pipe(catchError(this.handleError<any[]>('getIriWeeks', [])));
+}
+
+getTerritories(): Observable<any[]> {
+  return this.http.get<any[]>(`${this.baseApiUrl}api/TaskAssinment/GetTerritory`)
+    .pipe(catchError(this.handleError<any[]>('getTerritories', [])));
+}
+
+searchStores(payload: any): Observable<any[]> {
+  return this.http.post<any[]>(`${this.baseApiUrl}api/TaskAssinment/GetStore`, payload)
+    .pipe(catchError(this.handleError<any[]>('searchStores', [])));
+}
+
+searchStates(payload: any): Observable<any[]> {
+  return this.http.post<any[]>(`${this.baseApiUrl}api/TaskAssinment/GetState`, payload)
+    .pipe(catchError(this.handleError<any[]>('searchStates', [])));
+}
+
+searchCities(payload: any): Observable<any[]> {
+  return this.http.post<any[]>(`${this.baseApiUrl}api/TaskAssinment/GetCity`, payload)
+    .pipe(catchError(this.handleError<any[]>('searchCities', [])));
+}
+
+searchClusters(payload: any): Observable<any[]> {
+  return this.http.post<any[]>(`${this.baseApiUrl}api/TaskAssinment/GetCluster`, payload)
+    .pipe(catchError(this.handleError<any[]>('searchClusters', [])));
+}
+
+searchTasks(payload: any): Observable<any[]> {
+  return this.http.post<any[]>(`${this.baseApiUrl}api/TaskAssinment/GetTask`, payload)
+    .pipe(catchError(this.handleError<any[]>('searchTasks', [])));
+}
+
+getGridData(payload: GetGridDataFilter): Observable<any[]> {
+  return this.http.post<any[]>(`${this.baseApiUrl}api/TaskAssinment/GetGridData`, payload)
+    .pipe(catchError(this.handleError<any[]>('getGridData', [])));
+}
+
+private handleError<T>(operation = 'operation', result?: T) {
+  return (error: any): Observable<T> => {
+    console.error(`${operation} failed:`, error);
+    return of(result as T);
+  };
+}
