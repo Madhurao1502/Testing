@@ -1,106 +1,656 @@
-Over the review period, I led the successful migration of a legacy client delivery platform from jQuery to Angular, significantly modernizing the UI/UX and aligning the codebase with current best practices. This transformation spanned critical modules such as:
+// cdk-detail-row.directive.ts - UPDATED WITH EXPAND ALL SUPPORT
 
-Dashboards
+import {Directive, EventEmitter, HostBinding, HostListener, Input, Output, TemplateRef, ViewContainerRef} from '@angular/core';
 
-Detail Shelf Screen
+@Directive({
+  selector: '[cdkDetailRow]'
+})
+export class CdkDetailRowDirective {
+  public rowData: any;
+  private templateRef: TemplateRef<any>;
+  public isExpanded: boolean = false; // FIXED: Initialize to false
 
-Non-Detail Shelf Screen
+  @HostBinding('class.expanded')
+  get isExpandedClass(): boolean {
+    return this.isExpanded;
+  }
 
-Key achievements include:
+  @Input()
+  set cdkDetailRow(data: any) {
+    if (data !== this.rowData) {
+      this.rowData = data;
+      // Clear existing view when data changes
+      if (this.isExpanded) {
+        this.viewContainerRef.clear();
+        this.isExpanded = false;
+      }
+    }
+  }
 
-1. Modern UI Implementation & Enhanced User Experience
-Re-architected complex form-based screens using Angular Material components like mat-form-field, mat-select, mat-card, and conditional sections, enabling a responsive and intuitive interface.
+  @Input('cdkDetailRowTpl')
+  set detailRowTemplate(template: TemplateRef<any>) {
+    if (template !== this.templateRef) {
+      this.templateRef = template;
+    }
+  }
 
-Developed dynamic form behavior with context-aware rendering (e.g., conditional fields for “Display Data Extract” vs. Shelf types), improving usability and reducing user errors.
+  @Output() toggleChange = new EventEmitter<CdkDetailRowDirective>(); 
 
-Integrated mat-button-toggle and mat-slide-toggle controls for mode switching and feature toggles, creating a clean and streamlined workflow.
+  constructor(public viewContainerRef: ViewContainerRef) { }
 
-Added contextual validation and input controls ensuring a robust data entry experience.
+  @HostListener('click',['$event'])
+  onClick(event: Event): void {  
+    const target = event.target as HTMLElement;  
+    if(((target && target.id.toLowerCase() === 'dropdown') || 
+        (target && target.id.toLowerCase() === 'careticon') || 
+        (target && target.classList.contains('caret')) ||
+        (target && target.closest('.store-number-cell')))){
+       this.toggleRow();
+    }   
+  }
 
-2. Attribute & Location-Based Filtering Engine
-Designed and implemented a dynamic, scalable condition view to manage both attribute-value pair selections and multi-location filters, supporting:
+  // FIXED: Enhanced toggle method
+  toggleRow(): void{
+    if (this.isExpanded) {
+      this.collapse();
+    } else {
+      this.expand();
+    }
+    this.toggleChange.emit(this);
+  }
 
-Real-time restoration of previous selections during edit sessions
+  // ADD: Programmatic expand method (for expandAll functionality)
+  expand(): void {
+    if (!this.isExpanded) {
+      this.render();
+      this.isExpanded = this.viewContainerRef.length > 0;
+    }
+  }
 
-Efficient “select all” and group reset functionalities
+  // ADD: Programmatic collapse method (for collapseAll functionality)  
+  collapse(): void {
+    if (this.isExpanded) {
+      this.viewContainerRef.clear();
+      this.isExpanded = false;
+    }
+  }
 
-Smooth handling of large datasets with thousands of attribute and location entries
+  // ADD: Check if row can be expanded (has template and data)
+  canExpand(): boolean {
+    return !!(this.templateRef && this.rowData);
+  }
 
-Architected a clean JSON payload generation mechanism that consolidates user selections into structured data ready for backend consumption, ensuring reliable data transmission and API compatibility.
+  // FIXED: Enhanced render method with error handling
+  private render(): void {
+    this.viewContainerRef.clear();
+    if (this.templateRef && this.rowData) {
+      try {
+        this.viewContainerRef.createEmbeddedView(this.templateRef, { $implicit: this.rowData });
+      } catch (error) {
+        console.error('Error rendering detail row:', error);
+        this.isExpanded = false;
+      }
+    }
+  }
 
-Ensured complete backward compatibility with existing workflows while enhancing forward scalability.
+  // ADD: Force update method (useful for data changes)
+  updateView(): void {
+    if (this.isExpanded && this.templateRef && this.rowData) {
+      this.viewContainerRef.clear();
+      this.render();
+    }
+  }
+}
+2. Updated Store Table Component (FIXED EXPAND ALL)
+typescript
+// store-table.component.ts - COMPLETELY UPDATED EXPAND ALL LOGIC
 
-3. Performance, Reusability, and API Integration
-Refactored and modularized UI components for reusability across similar delivery types (e.g., Shelf and Extract views), reducing code duplication and improving maintainability.
+import { Component, OnInit, OnDestroy, ViewChild, QueryList, ViewChildren, AfterViewInit } from '@angular/core';
+import { MatTable } from '@angular/material/table';
+import { MatTableDataSource } from '@angular/material/table';
+import { MatPaginator } from '@angular/material/paginator';
+import { MatSort } from '@angular/material/sort';
+import { HttpClient } from '@angular/common/http';
+import { Subject, forkJoin } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+import { CommonService } from 'src/app/shared/common.service';
+import { CdkDetailRowDirective } from '../directives/cdk-detail-row.directive';
 
-Ensured seamless integration with APIs, enabling real-time data fetch, update, and persistence with robust error handling and user feedback mechanisms.
+@Component({
+  selector: 'app-store-table',
+  templateUrl: './store-table.component.html',
+  styleUrls: ['./store-table.component.css']
+})
+export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
+  
+  @ViewChild(MatTable, { static: false }) table: MatTable<any>;
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
+  
+  // FIXED: Get all detail row directives
+  @ViewChildren(CdkDetailRowDirective) detailRows!: QueryList<CdkDetailRowDirective>;
 
-Optimized state handling to preserve user interactions across navigation or session states.
+  displayedColumns: string[] = [
+    'store_number', 'store_name', 'addr_line1', 'city', 
+    'state', 'zip', 'assigned_to', 'expected_collection_time', 'position_name'
+  ];
+  
+  dataSource = new MatTableDataSource<any>([]);
+  
+  // Expansion state management
+  expandedRow: CdkDetailRowDirective | undefined;
+  selectedRow: any = null;
+  
+  // Expand all functionality
+  isExpandingAll = false;
+  allExpanded = false;
+  expandedRowsData = new Map<string, any[]>(); // Cache for expanded data
+  
+  // Subgrid data
+  SubgridData: any[] = [];
+  showSpinner = false;
+  
+  private unsubscribe$ = new Subject<void>();
+  private loggeduser: string;
 
-4. Business Impact
-This Angular migration and interface redesign significantly improved performance, reliability, and user satisfaction.
+  constructor(
+    private commonService: CommonService,
+    private http: HttpClient,
+    @Inject('BASE_URL') public baseUrl: string
+  ) {
+    this.loggeduser = localStorage.getItem("loggedUserId") || '';
+  }
 
-The enhanced maintainability and modularity reduce future development effort and onboarding time for new developers.
+  ngOnInit(): void {
+    // Subscribe to grid data changes from service
+    this.commonService.gridData$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(data => {
+        this.dataSource.data = data;
+        console.log('Table data updated:', data.length, 'records');
+        
+        // Reset expansion state when data changes
+        this.resetExpansionState();
+      });
+  }
 
-Enabled smoother data collection and validation workflows, directly improving the quality of deliverables and client turnaround time.
+  ngAfterViewInit(): void {
+    this.dataSource.paginator = this.paginator;
+    this.dataSource.sort = this.sort;
+  }
 
-Closing Note
-I take pride in delivering robust, user-friendly, and scalable Angular solutions while maintaining close alignment with business goals and user needs. This project exemplifies my ability to own end-to-end delivery – from architecture to deployment – and continuously enhance systems that drive real-world value.
-==========================================================
+  ngOnDestroy(): void {
+    this.unsubscribe$.next();
+    this.unsubscribe$.complete();
+  }
 
-, I’ve attached screenshots of the existing jQuery-based interface for managing shelf variables. Currently, the layout uses separate tabs for Location, Section, Shelf, and UPC, each displaying their respective tree structures in isolation.
+  // FIXED: Expand all rows method
+  async expandAllRows(): Promise<void> {
+    if (this.isExpandingAll) {
+      return; // Prevent multiple simultaneous calls
+    }
+    
+    this.isExpandingAll = true;
+    
+    try {
+      if (this.allExpanded) {
+        // Collapse all rows
+        this.collapseAllRows();
+      } else {
+        // Expand all rows
+        await this.expandAllRowsSequentially();
+      }
+      
+      this.allExpanded = !this.allExpanded;
+      
+    } catch (error) {
+      console.error('Error in expandAllRows:', error);
+    } finally {
+      this.isExpandingAll = false;
+    }
+  }
 
-To align with the client’s latest request, we propose transforming this into a family tree-style layout, where the hierarchy is displayed as a single connected structure — visually flowing from In-Store Location down to UPC.
+  // FIXED: Expand rows one by one
+  private async expandAllRowsSequentially(): Promise<void> {
+    console.log('Starting to expand all rows...');
+    
+    // Get current page data
+    const currentPageData = this.getCurrentPageData();
+    console.log('Current page data count:', currentPageData.length);
+    
+    // Wait for view to be ready
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    const detailRowsArray = this.detailRows?.toArray() || [];
+    console.log('Detail rows found:', detailRowsArray.length);
+    
+    if (detailRowsArray.length === 0) {
+      console.warn('No detail row directives found');
+      return;
+    }
 
-🔄 Proposed Change:
-Instead of navigating across tabs, the entire variable structure will be shown together, like this (example flow):
+    // Process each row
+    for (let i = 0; i < Math.min(currentPageData.length, detailRowsArray.length); i++) {
+      const rowData = currentPageData[i];
+      const detailRowDirective = detailRowsArray[i];
+      
+      if (detailRowDirective && detailRowDirective.canExpand()) {
+        try {
+          // Load data first if not cached
+          if (!this.expandedRowsData.has(rowData.StoreNumber)) {
+            await this.loadSubgridDataForRow(rowData);
+          }
+          
+          // Expand the row programmatically
+          if (!detailRowDirective.isExpanded) {
+            detailRowDirective.expand();
+            console.log(`Expanded row ${i + 1}:`, rowData.StoreNumber);
+          }
+          
+          // Small delay between expansions for UI smoothness
+          await this.delay(50);
+          
+        } catch (error) {
+          console.error(`Error expanding row ${i}:`, error);
+        }
+      }
+    }
+    
+    console.log('Finished expanding all rows');
+  }
 
+  // FIXED: Collapse all rows
+  private collapseAllRows(): void {
+    console.log('Collapsing all rows...');
+    
+    const detailRowsArray = this.detailRows?.toArray() || [];
+    
+    detailRowsArray.forEach((detailRow, index) => {
+      if (detailRow.isExpanded) {
+        detailRow.collapse();
+        console.log(`Collapsed row ${index + 1}`);
+      }
+    });
+    
+    // Clear current subgrid data
+    this.SubgridData = [];
+    this.selectedRow = null;
+    this.expandedRow = undefined;
+    
+    console.log('All rows collapsed');
+  }
+
+  // FIXED: Load subgrid data with promise
+  private loadSubgridDataForRow(row: any): Promise<any[]> {
+    return new Promise((resolve, reject) => {
+      const payload = {
+        IriWeek: row.IriWeek || row.iri_week,
+        StoreNumber: row.StoreNumber || row.store_number
+      };
+
+      this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetSubgridData', payload)
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe({
+          next: (response) => {
+            this.expandedRowsData.set(row.StoreNumber, response);
+            resolve(response);
+          },
+          error: (error) => {
+            console.error(`Error loading data for store ${row.StoreNumber}:`, error);
+            reject(error);
+          }
+        });
+    });
+  }
+
+  // UPDATED: Individual row expansion (existing method)
+  GetSubgridData(cdkDetailRow: CdkDetailRowDirective, row: any): void {
+    console.log('Individual row toggle:', row.StoreNumber, 'Expanded:', cdkDetailRow.isExpanded);
+    
+    // Close previously expanded row if different
+    if (this.expandedRow && this.expandedRow !== cdkDetailRow && this.expandedRow.isExpanded) {
+      this.expandedRow.collapse();
+    }
+    
+    this.expandedRow = cdkDetailRow.isExpanded ? cdkDetailRow : undefined;
+    
+    if (cdkDetailRow.isExpanded) {
+      this.selectedRow = row;
+      
+      // Check if we already have cached data
+      if (this.expandedRowsData.has(row.StoreNumber)) {
+        this.SubgridData = this.expandedRowsData.get(row.StoreNumber) || [];
+        console.log('Using cached data for:', row.StoreNumber);
+      } else {
+        // Load data from API
+        this.SubgridData = [];
+        this.showSpinner = true;
+        
+        this.loadSubgridDataForRow(row)
+          .then(data => {
+            this.SubgridData = data;
+            this.showSpinner = false;
+          })
+          .catch(error => {
+            console.error('Error loading subgrid data:', error);
+            this.showSpinner = false;
+          });
+      }
+    } else {
+      this.selectedRow = null;
+      this.SubgridData = [];
+    }
+
+    this.updateCaratIcon(cdkDetailRow, cdkDetailRow.isExpanded);
+  }
+
+  // ADD: Update caret icon
+  updateCaratIcon(cdkDetailRow: CdkDetailRowDirective, isExpanded: boolean): void {
+    // Find the caret icon in the row and update its class
+    const rowElement = cdkDetailRow.viewContainerRef.element.nativeElement.parentElement;
+    const caretIcon = rowElement?.querySelector('.caret');
+    
+    if (caretIcon) {
+      if (isExpanded) {
+        caretIcon.classList.add('clicked');
+      } else {
+        caretIcon.classList.remove('clicked');
+      }
+    }
+  }
+
+  // UTILITY: Get current page data
+  private getCurrentPageData(): any[] {
+    if (!this.paginator) {
+      return this.dataSource.data;
+    }
+    
+    const startIndex = this.paginator.pageIndex * this.paginator.pageSize;
+    const endIndex = startIndex + this.paginator.pageSize;
+    return this.dataSource.data.slice(startIndex, endIndex);
+  }
+
+  // UTILITY: Reset expansion state
+  private resetExpansionState(): void {
+    this.allExpanded = false;
+    this.expandedRowsData.clear();
+    this.SubgridData = [];
+    this.selectedRow = null;
+    this.expandedRow = undefined;
+  }
+
+  // UTILITY: Delay function
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // TEMPLATE HELPER: Check if row is expanded
+  isRowExpanded(row: any): boolean {
+    return this.selectedRow === row;
+  }
+
+  // TEMPLATE HELPER: Get assignment class
+  getAssignmentClass(assignedTo: string): string {
+    return assignedTo === 'NOT ASSIGNED' ? 'not-assigned' : 'assigned';
+  }
+
+  // TEMPLATE HELPER: Format collection time
+  formatCollectionTime(time: string): string {
+    return time || 'Not specified';
+  }
+
+  // TEMPLATE HELPER: Get cluster display
+  getClusterDisplay(positionName: string): string {
+    return positionName || 'N/A';
+  }
+}
+3. Updated Store Table HTML (FIXED TEMPLATE)
+xml
+<!-- store-table.component.html - UPDATED WITH PROPER EXPAND ALL -->
+
+<div class="table-container">
+  <mat-card class="table-card">
+    <mat-card-header>
+      <mat-card-title>Store Assignment Data</mat-card-title>
+      <mat-card-subtitle>{{dataSource.data.length}} stores found</mat-card-subtitle>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <!-- FIXED: Table controls -->
+      <div class="table-controls">
+        <button 
+          mat-icon-button 
+          [disabled]="isExpandingAll || dataSource.data.length === 0"
+          (click)="expandAllRows()" 
+          [title]="allExpanded ? 'Collapse All Rows' : 'Expand All Rows'"
+          class="expand-all-btn">
+          <mat-icon>{{allExpanded ? 'unfold_less' : 'unfold_more'}}</mat-icon>
+        </button>
+        
+        <span class="expand-status" *ngIf="isExpandingAll">
+          <mat-spinner diameter="16"></mat-spinner>
+          <span>{{allExpanded ? 'Collapsing' : 'Expanding'}} rows...</span>
+        </span>
+        
+        <span class="expand-info" *ngIf="!isExpandingAll">
+          {{allExpanded ? 'All rows expanded' : 'Click to expand all rows'}}
+        </span>
+      </div>
+
+      <div class="table-wrapper">
+        <mat-table #table [dataSource]="dataSource" matSort class="store-table mat-elevation-2">
+          
+          <!-- Store Number Column with Expansion -->
+          <ng-container matColumnDef="store_number">
+            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">
+              Store #
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="store-number-cell" id="dropdown">
+              <span class="caret" 
+                    id="caretIcon" 
+                    [class.clicked]="isRowExpanded(element)">▼</span>
+              <span class="store-number">{{element.StoreNumber}}</span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Store Name Column -->
+          <ng-container matColumnDef="store_name">
+            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Store Name</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="store-name-cell">
+              <div class="store-info">
+                <span class="store-name">{{element.StoreName}}</span>
+              </div>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Store Address Column -->
+          <ng-container matColumnDef="addr_line1">
+            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Store Address</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="address-cell">
+              {{element.AddrLine1}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- City Column -->
+          <ng-container matColumnDef="city">
+            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">City</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="city-cell">{{element.City}}</mat-cell>
+          </ng-container>
+
+          <!-- State Column -->
+          <ng-container matColumnDef="state">
+            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">State</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="state-cell">
+              <span class="state-badge">{{element.State}}</span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Zip Column -->
+          <ng-container matColumnDef="zip">
+            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Zip</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="zip-cell">{{element.Zip}}</mat-cell>
+          </ng-container>
+
+          <!-- Assigned To Column -->
+          <ng-container matColumnDef="assigned_to">
+            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Assigned To</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="assigned-cell">
+              <span class="assignment-badge" [ngClass]="getAssignmentClass(element.AssignedTo)">
+                {{element.AssignedTo}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Average Collection Time Column -->
+          <ng-container matColumnDef="expected_collection_time">
+            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Avg Coll Time</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="collection-time-cell">
+              {{formatCollectionTime(element.ExpectedCollectionTime)}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- Cluster Column -->
+          <ng-container matColumnDef="position_name">
+            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Cluster</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="cluster-cell">
+              {{getClusterDisplay(element.PositionName)}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- Header and Data Rows -->
+          <mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></mat-header-row>
+          <mat-row 
+            *matRowDef="let row; columns: displayedColumns; let i = index"
+            [ngClass]="{'selected-row': row === selectedRow}"
+            class="table-row"
+            [cdkDetailRow]="row" 
+            [cdkDetailRowTpl]="tpl"
+            (toggleChange)="GetSubgridData($event, row)"
+            matRipple>
+          </mat-row>
+        </mat-table>
+
+        <!-- Loading spinner for individual row data -->
+        <div class="mat-spinner-container" *ngIf="showSpinner">
+          <mat-spinner mode="indeterminate"></mat-spinner>
+          <div style="position: relative; left: 25px">Loading subgrid data...</div>
+        </div>
+      </div>
+      
+      <mat-paginator 
+        [pageSizeOptions]="[5, 10, 20, 50]" 
+        showFirstLastButtons
+        class="table-paginator">
+      </mat-paginator>
+
+      <!-- FIXED: Inner Table Template -->
+      <ng-template #tpl let-element>
+        <div class="mat-row detail-row" style="overflow: hidden;">
+          <table class="expanded-table"> 
+            <tr> 
+              <th>T #</th>
+              <th>Collector</th>              
+              <th>Store #</th>
+              <th>Name</th>
+              <th>Address</th>
+              <th>Collected</th>
+              <th>Height</th>
+              <th>Width</th>
+              <th>Depth</th>            
+              <th>Processed</th>
+            </tr>
+            <tr *ngFor="let item of SubgridData">
+              <td>{{item.territory || element.Territory || 'N/A'}}</td>
+              <td>{{item.collectorName || element.CollectorName || 'N/A'}}</td>              
+              <td>{{item.storeNumber || element.StoreNumber}}</td>
+              <td style="max-width: 283px; white-space: normal;">
+                {{item.storeName || element.StoreName}}                
+              </td>
+              <td style="max-width: 283px; white-space: normal;">
+                {{item.storeAddress || element.AddrLine1}}
+              </td>
+              <td>{{item.collected || element.Collected || 'N/A'}}</td>
+              <td>{{item.height || element.Height || 'N/A'}}</td>
+              <td>{{item.width || element.Width || 'N/A'}}</td>
+              <td>{{item.depth || element.Depth || 'N/A'}}</td>
+              <td>{{item.processed || element.Processed || 'N/A'}}</td>
+            </tr>
+            <tr *ngIf="SubgridData.length === 0">
+              <td colspan="10" style="text-align: center; padding: 20px; color: #666;">
+                No detail data available
+              </td>
+            </tr>
+          </table>
+        </div>
+      </ng-template>
+    </mat-card-content>
+  </mat-card>
+</div>
+4. Updated Store Table CSS (ADD EXPAND ALL STYLES)
 css
-Copy
-Edit
-In-Store Location
- └── Numbered Aisle
-      └── Side
-           ├── Left   → [Inline Tabs: Section | Shelf | UPC]
-           └── Right  → [Inline Tabs: Section | Shelf | UPC]
-This structure would:
+/* store-table.component.css - ADD THESE STYLES */
 
-Make the hierarchical relationships more intuitive and visually traceable.
+/* Table controls */
+.table-controls {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  gap: 12px;
+}
 
-Eliminate tab-switching friction, especially when viewing related levels (e.g., Left → Section → Shelf).
+.expand-all-btn {
+  color: #1976d2;
+  border: 1px solid #1976d2;
+  border-radius: 4px;
+}
 
-Allow contextual editing of Section/Shelf/UPC under each aisle side in a compact, scrollable view.
+.expand-all-btn:hover:not(:disabled) {
+  background-color: rgba(25, 118, 210, 0.1);
+}
 
-This approach better reflects how shelf arrangements are structured in real retail environments and should improve usability.
+.expand-all-btn:disabled {
+  color: #ccc;
+  border-color: #ccc;
+  cursor: not-allowed;
+}
 
+.expand-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #1976d2;
+  font-weight: 500;
+}
 
-Subject: Requesting UX Design Input for Shelf Variable Layout Restructure
+.expand-info {
+  font-size: 14px;
+  color: #666;
+  font-style: italic;
+}
 
-Hi [UX Designer's Name],
+/* Enhanced caret styling */
+.caret {
+  display: inline-block;
+  margin-right: 8px;
+  margin-top: -1px;
+  transition: transform 0.3s ease;
+  font-size: 16px;
+  font-weight: 800;  
+  transform: rotate(90deg);
+  cursor: pointer;
+  color: #1976d2;
+}
 
-Hope you're doing well.
+.caret:hover {
+  color: #1565c0;
+}
 
-I’m reaching out regarding a UI change requested by the client for the shelf variable management screen. Currently, we’re using a tabbed layout with four separate sections: Location, Section, Shelf, and UPC — each with its own tree structure (attached screenshots for reference).
+.caret.clicked {
+  transform: rotate(180deg);
+  margin-top: -5px;
+}
 
-Client’s Request:
-They want to restructure this into a "family tree-style layout" — where everything is displayed as a single, connected visual hierarchy rather than using tabs.
-
-From what we understood, the new layout should look something like this:
-
-In-Store Location
- └── Numbered Aisle
-      └── Side
-           ├── Left   → Inline: Section | Shelf | UPC
-           └── Right  → Inline: Section | Shelf | UPC
-We’d really appreciate your guidance on:
-
-How this family-tree flow could be designed from a UX perspective
-
-If you'd recommend any best practices or examples for such visual structures
-
-How we can present nested levels (like Section/Shelf/UPC) inline without overwhelming the user
-
-Let me know if you'd like a walkthrough or sample prototype. I can also assist in refining the UI structure if needed.
-
-Best regards,
-[Your Name]
+/* Rest of existing styles... */
