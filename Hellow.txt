@@ -1,960 +1,745 @@
-<div class="filter-topbar">
-  <div class="filter-container">
-    <form [formGroup]="filterForm" class="filter-form">
-      
-      <!-- Row 1: Main Filters -->
-      <div class="filter-row main-filters">
-        <!-- IRI Week -->
-        <div class="filter-field">
-          <label class="form-label">IRI Week</label>
-          <mat-form-field appearance="outline">
-            <mat-select formControlName="iriWeek" (selectionChange)="onIriWeekChange()">
-              <mat-option *ngFor="let week of iriWeeks" [value]="week.iri_week">
-                {{week.iri_week_viewOnly}}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
-        </div>
 
-        <!-- Territory -->
-        <div class="filter-field">
-          <label class="form-label">Territory</label>
-          <mat-form-field appearance="outline">
-            <mat-select formControlName="territory" (selectionChange)="onTerritoryChange()">
-              <mat-option [value]="-1">ALL</mat-option>
-              <mat-option *ngFor="let territory of territories" [value]="territory.territory_id">
-                {{territory.territory_name}}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
-        </div>
+      <div class="table-container mat-elevation-z8" style="margin-top: 2px;" >        
+        <mat-table #table id="table"   matSort [dataSource]="gridDataSource">
+               <!--UPC Number Column-->
+          <ng-container matColumnDef="upcNumber" sticky>
+        
+            <mat-header-cell  class="mat-header-style" *matHeaderCellDef >UPC Number</mat-header-cell>
+            <mat-cell  *matCellDef="let element" #dropdown id="dropdown" >  
+              <span class="caret" #caretIcon id="caretIcon" *ngIf="(element.observationReceived>1)||(element.observationRequested>1)" >&#94;</span>
+              <span  *ngIf="(element.observationReceived<=0)&&(element.observationRequested<=0)" >&nbsp;&nbsp;&nbsp;&nbsp;</span>
+               {{element.upcNumber | UPC_Format}}    
+               <mat-icon class="editicon" title="Edit" style="font-size: medium;margin-left: 5px;" *ngIf="isUserPartOfGroup && (element.requested=='Y' &&(element.status=='Not collected'||element.status=='Partial Collection') )" (click)="editDimensions(element)"> edit</mat-icon>           
+               <!-- <mat-icon *ngIf="element.upcSibilingFlag == 1"  title="This UPC has sibilings">horizontal_split</mat-icon> -->
+              </mat-cell>
+          </ng-container>
+          <!--Description Column-->
+          <ng-container matColumnDef="upcDesc" sticky >
+            <mat-header-cell  class="mat-header-style" *matHeaderCellDef>Description</mat-header-cell>
+            <mat-cell  *matCellDef="let element">{{element.upcDesc}}</mat-cell>
+          </ng-container>
+           <!--Override Column-->
+           <ng-container matColumnDef="override" sticky>
+            <mat-header-cell  class="mat-header-style" *matHeaderCellDef style="color: slateblue;">Override</mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              <mat-slide-toggle [checked] = "element.override == 'Y' ? true : false"
+                                [color] = "toggleColor"
+                                (change)="Override($event, element)"
+                                [disabled]="!(dialogData.requestStatus === 'User Review' && isUserPartOfGroup)">              
+              </mat-slide-toggle>
+            </mat-cell>
+          </ng-container>
+          <!--Category Column-->
+          <ng-container matColumnDef="category" sticky>
+            <mat-header-cell  class="mat-header-style" *matHeaderCellDef>Category</mat-header-cell>
+            <mat-cell  *matCellDef="let element">{{element.category}}</mat-cell>
+          </ng-container>
+          <!--Eligibility Column-->
+          <ng-container matColumnDef="eligibility" sticky >
+            <mat-header-cell class="mat-header-style" *matHeaderCellDef>Eligibility</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.eligibility}}</mat-cell>
+          </ng-container>
+          <!--Items Received Column-->
+          <ng-container matColumnDef="eligibilityReason" sticky>
+            <mat-header-cell class="mat-header-style" *matHeaderCellDef>ELG Reason</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.eligibilityReason}}</mat-cell>
+          </ng-container>
+           <!--Brand Column-->
+          <ng-container matColumnDef="brand">
+            <mat-header-cell class="mat-header-style" *matHeaderCellDef>Brand</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.brand}}</mat-cell>
+          </ng-container>
 
-        <!-- Store -->
-        <div class="filter-field">
-          <label class="form-label">Store</label>
-          <mat-form-field appearance="outline">
-            <input matInput [matAutocomplete]="storeAuto" formControlName="store" placeholder="Search stores...">
-            <button mat-button *ngIf="filterForm.get('store')?.value" matSuffix mat-icon-button (click)="clearStrCtrl()">
-              <mat-icon>cancel</mat-icon>
-            </button>
-            <mat-autocomplete #storeAuto="matAutocomplete" (optionSelected)="onStoreSelected($event)">
-              <mat-option *ngFor="let store of filteredStores" [value]="store.store_name" [matTooltip]="store.store_name">
-                {{store.store_name}} ({{store.store_number}})
-              </mat-option>
-            </mat-autocomplete>
-          </mat-form-field>
-        </div>
+          <!-- Observation Column -->
+          <ng-container matColumnDef="Observation">
+            <mat-header-cell class="mat-header-style" *matHeaderCellDef>Obs (R / S)</mat-header-cell>
+            <mat-cell *matCellDef="let element" title="Observations (Received : {{element.observationReceived}} / Sent : {{element.observationRequested}} )">{{element.observationReceived}} <span *ngIf="element.observationReceived ||element.observationRequested "> / </span> {{element.observationRequested}}</mat-cell>
+          </ng-container>
 
-        <!-- FSR (Field Service Representative) -->
-        <div class="filter-field">
-          <label class="form-label">FSR</label>
-          <mat-form-field appearance="outline">
-            <input matInput [matAutocomplete]="fsrAuto" formControlName="fsr" placeholder="Search FSR...">
-            <button mat-button *ngIf="filterForm.get('fsr')?.value" matSuffix mat-icon-button (click)="clearFsrCtrl()">
-              <mat-icon>cancel</mat-icon>
-            </button>
-            <mat-autocomplete #fsrAuto="matAutocomplete" (optionSelected)="onFsrSelected($event)">
-              <mat-option *ngFor="let fsr of filteredFSR" [value]="fsr.emp_name" [matTooltip]="fsr.emp_name">
-                {{fsr.emp_name}} ({{fsr.emp_id}})
-              </mat-option>
-            </mat-autocomplete>
-          </mat-form-field>
+          <!--Package Column-->
+          <ng-container matColumnDef="package">
+            <mat-header-cell class="mat-header-style" *matHeaderCellDef>Package</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.package}}</mat-cell>
+          </ng-container>
+          <!--Attribute Name1 Column-->
+          <ng-container matColumnDef="attributeName1">
+            <mat-header-cell class="mat-header-style" *matHeaderCellDef style="color:cornflowerblue;">Attr1</mat-header-cell>
+            <mat-cell  *matCellDef="let element">{{element.attributeName1}}</mat-cell>
+          </ng-container>
+          <!--Attribute Value1 Column-->
+          <ng-container matColumnDef="attributeValue1">
+            <mat-header-cell class="mat-header-style" *matHeaderCellDef style="color:cornflowerblue;">Val1</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.attributeValue1}}</mat-cell>
+          </ng-container>
+          <!--Unit Type Column-->
+          <ng-container matColumnDef="unitType1">
+            <mat-header-cell class="mat-header-style" *matHeaderCellDef style="color:cornflowerblue;">Unit1</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.unitType1}}</mat-cell>
+          </ng-container>
+          <!--Attribute Name2 Column-->
+          <ng-container matColumnDef="attributeName2">
+            <mat-header-cell class="mat-header-style" *matHeaderCellDef style="color:dodgerblue;">Attr2</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.attributeName2}}</mat-cell>
+          </ng-container>
+          <!--Attribute Value2 Column-->
+          <ng-container matColumnDef="attributeValue2">
+            <mat-header-cell class="mat-header-style" *matHeaderCellDef style="color:dodgerblue;">Val2</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.attributeValue2}}</mat-cell>
+          </ng-container>
+          <!--Unit Type Column-->
+          <ng-container matColumnDef="unitType2">
+            <mat-header-cell  class="mat-header-style" *matHeaderCellDef style="color:dodgerblue;">Unit2</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.unitType2}}</mat-cell>
+          </ng-container>
+  
+          <!--Keycat Column-->
+          <ng-container matColumnDef="keycatName">
+            <mat-header-cell class="mat-header-style" *matHeaderCellDef>Keycat</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.keycatName}}</mat-cell>
+          </ng-container>
+  
+          <!--Stores Moving Column-->
+          <ng-container matColumnDef="storesMoving">
+            <mat-header-cell class="mat-header-style" *matHeaderCellDef>Stores Moving</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.storesMoving}}</mat-cell>
+          </ng-container>
+          <!--Avg UPC Movement Column-->
+          <ng-container matColumnDef="avgUpcMovement">
+            <mat-header-cell class="mat-header-style" *matHeaderCellDef>Avg UPC Mov</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.avgUpcMovement}}</mat-cell>
+          </ng-container>
+    
+          <mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></mat-header-row>
+          <mat-row id="mattablerow" (click)="selectedRow = selectedRow === row ? null : row" [ngClass]="{'selectedRow': row === selectedRow}" *matRowDef="let row; columns: displayedColumns;let i = index"
+          matRipple class="element-row" [cdkDetailRow]="row" [cdkDetailRowTpl]="tpl" 
+          (toggleChange)="GetUPCCollectionDetail($event,row)"
+          ></mat-row>
+        </mat-table>
+       
+        <div class="mat-spinner-container">
+          <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
+          <div *ngIf="showSpinner" style="position: relative; left: 25px">
+            Loading...
+          </div>
         </div>
-
-        <!-- Action Buttons -->
-        <div class="action-buttons">
-          <button mat-raised-button color="primary" (click)="onApplyFilters()">
-            Apply Filters
-          </button>
-          <button mat-stroked-button (click)="onClearFilters()">
-            Clear Filters
-          </button>
-        </div>
+        <div *ngIf="(gridDataSource == null || gridDataSource.data.length == 0 )&& showSpinner==false" style="text-align:center;">No records found</div>
       </div>
 
-      <!-- Row 2: Advanced Filters -->
-      <div class="filter-row advanced-filters" [style.display]="showAdvancedFilters ? 'flex' : 'none'">
-        <!-- State -->
-        <div class="filter-field">
-          <label class="form-label">State</label>
-          <mat-form-field appearance="outline">
-            <input matInput [matAutocomplete]="stateAuto" formControlName="state">
-            <button mat-button *ngIf="filterForm.get('state')?.value" matSuffix mat-icon-button (click)="clearStaCtrl()">
-              <mat-icon>cancel</mat-icon>
-            </button>
-            <mat-autocomplete #stateAuto="matAutocomplete" (optionSelected)="onStateSelected($event)">
-              <mat-option *ngFor="let state of filteredState" [value]="state.state">
-                {{state.state}}
-              </mat-option>
-            </mat-autocomplete>
-          </mat-form-field>
-        </div>
 
-        <!-- City -->
-        <div class="filter-field">
-          <label class="form-label">City</label>
-          <mat-form-field appearance="outline">
-            <input matInput [matAutocomplete]="cityAuto" formControlName="city">
-            <button mat-button *ngIf="filterForm.get('city')?.value" matSuffix mat-icon-button (click)="clearcityCtrl()">
-              <mat-icon>cancel</mat-icon>
-            </button>
-            <mat-autocomplete #cityAuto="matAutocomplete" (optionSelected)="onCitySelected($event)">
-              <mat-option *ngFor="let city of filteredCity" [value]="city.city">
-                {{city.city}}
-              </mat-option>
-            </mat-autocomplete>
-          </mat-form-field>
-        </div>
 
-        <!-- Cluster -->
-        <div class="filter-field">
-          <label class="form-label">Cluster</label>
-          <mat-form-field appearance="outline">
-            <input matInput [matAutocomplete]="clusterAuto" formControlName="cluster">
-            <mat-autocomplete #clusterAuto="matAutocomplete" (optionSelected)="onClusterSelected($event)">
-              <mat-option *ngFor="let cluster of filteredCluster" [value]="cluster.position_name">
-                {{cluster.position_name}}
-              </mat-option>
-            </mat-autocomplete>
-          </mat-form-field>
-        </div>
 
-        <!-- Task -->
-        <div class="filter-field">
-          <label class="form-label">Task</label>
-          <mat-form-field appearance="outline">
-            <input matInput [matAutocomplete]="taskAuto" formControlName="task">
-            <button mat-button *ngIf="filterForm.get('task')?.value" matSuffix mat-icon-button (click)="clearTaskCtrl()">
-              <mat-icon>cancel</mat-icon>
-            </button>
-            <mat-autocomplete #taskAuto="matAutocomplete" (optionSelected)="onTaskSelected($event)">
-              <mat-option *ngFor="let task of filteredTask" [value]="task.task_name">
-                {{task.task_name}} ({{task.task_number}})
-              </mat-option>
-            </mat-autocomplete>
-          </mat-form-field>
+     <!-- ************************INNER TABLE********************************** -->
+      <ng-template #tpl let-element >
+        <div class="mat-row detail-row" [@detailExpand] style="overflow: hidden;"   >
+          <!-- The symbol for {{element.name}} is {{element.symbol}} -->
+    
+          <table class="expanded-table"> 
+            <tr > 
+              <th>T #</th>
+              <th>Collector</th>              
+              <th>Store #</th>
+              <th>Name</th>
+              <th>Address</th>
+              <th>Collected</th>
+              <th>Height</th>
+              <th>Width</th>
+              <th>Depth</th>            
+              <th>Processed </th>
+            </tr>
+            <tr *ngFor="let item of this.UPCCollectionDetailList" >
+              <td>{{item.territory}}</td>
+              <td>
+                {{item.collectorName}}
+                
+              </td>              
+              <td>
+                {{item.storeNumber}}                
+              </td>
+              <td style="max-width: 283px;white-space: normal;">
+                {{item.storeName}}                
+              </td>
+              <td style="max-width: 283px;white-space: normal;">{{item.storeAddress}}</td>
+              <td>{{item.collected}}</td>
+              <td>{{item.height}}</td>
+              <td>{{item.width}}</td>
+              <td>{{item.depth}}</td>
+              
+              <td>{{item.processed}}</td>
+            </tr>       
+          </table>
+         
+          <!-- <button (click)="collapseAll()">close</button> -->
         </div>
-      </div>
+      </ng-template>
 
-      <!-- Row 3: FSR Hours & Toggle Options -->
-      <div class="filter-row options-filters" [style.display]="showAdvancedFilters ? 'flex' : 'none'">
-        <!-- FSR Hours -->
-        <div class="filter-field">
-          <label class="form-label">FSR Hours</label>
-          <mat-form-field appearance="outline">
-            <input matInput formControlName="fsrHour" type="number" placeholder="Enter hours...">
-          </mat-form-field>
-        </div>
+<!-- *********************************************************** -->
 
-        <!-- Assigned/Unassigned Stores Toggle -->
-        <div class="toggle-field">
-          <label class="form-label">Store Assignment</label>
-          <mat-radio-group formControlName="storeAssignment" class="radio-group">
-            <mat-radio-button value="assigned">Assigned Stores</mat-radio-button>
-            <mat-radio-button value="unassigned">Unassigned Stores</mat-radio-button>
-            <mat-radio-button value="all">All Stores</mat-radio-button>
-          </mat-radio-group>
-        </div>
+    </div>
+  
 
-        <!-- Sample/Non-Sample Toggle -->
-        <div class="toggle-field">
-          <label class="form-label">Sample Type</label>
-          <mat-radio-group formControlName="sampleType" class="radio-group">
-            <mat-radio-button value="sample">Sample</mat-radio-button>
-            <mat-radio-button value="nonSample">Non-Sample</mat-radio-button>
-            <mat-radio-button value="all">All Types</mat-radio-button>
-          </mat-radio-group>
-        </div>
+    <div>
+      <mat-paginator class="mat-paginator-sticky" [pageSizeOptions]="[25, 50, 100]" showFirstLastButtons></mat-paginator>
+    </div>
+  
 
-        <!-- Multi FSR Store Checkbox -->
-        <div class="checkbox-field">
-          <label class="form-label">Options</label>
-          <mat-checkbox formControlName="multiFsrStore">Multi FSR Store</mat-checkbox>
-        </div>
-      </div>
+   
+  </mat-dialog-content>
+  
 
-      <!-- Advanced Filters Toggle -->
-      <div class="advanced-toggle">
-        <button mat-button type="button" (click)="toggleAdvancedFilters()" class="toggle-button">
-          <mat-icon>{{showAdvancedFilters ? 'expand_less' : 'expand_more'}}</mat-icon>
-          {{showAdvancedFilters ? 'Hide' : 'Show'}} Advanced Filters
-        </button>
-      </div>
-    </form>
-  </div>
 </div>
-============
-import { HttpClient } from '@angular/common/http';
-import { Component, EventEmitter, Inject, OnInit, Output, OnDestroy } from '@angular/core';
-import { FormBuilder, FormGroup } from '@angular/forms';
-import { catchError, debounceTime, firstValueFrom, of, Subject, switchMap, takeUntil, tap } from 'rxjs';
-import { GetGridDataFilter } from 'src/app/shared/common.model';
-import { CommonService } from 'src/app/shared/common.service';
 
-@Component({
-  selector: 'app-filter-topbar',
-  templateUrl: './filter-topbar.component.html',
-  styleUrls: ['./filter-topbar.component.css']
-})
-export class FilterTopbarComponent implements OnInit, OnDestroy {
-  @Output() filtersChanged = new EventEmitter<GetGridDataFilter>();
-  @Output() clearFilters = new EventEmitter<void>();
+.mat-dialog-title {
+  margin: 0px;
+  margin-bottom: 10px;
+  font-size: medium;
+  background-color: lightgray;
+  padding-left: 1em;
+  padding-right: 1em;
+  cursor: grab;
+}
+.mat-spinner {
+  z-index:111 ;
+}
+.mat-dialog-body {
+  /* max-height:80%;  */
+  background-color: white;
+  /* overflow: hidden;   */
+}
 
-  filterForm!: FormGroup;
-  showAdvancedFilters = false;
-  showSpinner = false;
+#review_filter{
+  margin-top: 10px;
+}
+
+.bar-chart{
+  width: 60%;
+  height: 20px;
+  background-color: #f0f0f0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 5px;
+  border-radius: 5px;
+}
+
+.bar{
+  height: 100%;
+  background-color: #5CB85C;
+  border-radius: 5px;
+  transition: width0.5s ease-in-out;
+}
+
+.bar1{
+  height: 100%;
+  background-color: #FFC436;
+  /* background-color: #dfdf12; */
+  border-radius: 5px;
+  transition: width0.5s ease-in-out;
+}
+
+.bar2{
+  height: 100%;
+  /* background-color: #feb728; */
+  background-color: #FF4A4A;
+  border-radius: 5px;
+  transition: width0.5s ease-in-out;
+}
+
+.percentage-text{
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%,-50%);
+  color: #000;
+  z-index: 101;
+  font-weight: 600;
+}
+
+.content-header {
+  width: 100%;
+  align-items: center;
+  margin-bottom: 1%;
+  /* max-height: 150px; */
+    /* width: 100%;
+  height:55px; */
+}
+
+.tool-header {
+  width: 100%;
+  min-height: 50px !important;
+  height: 55px !important;
+}
+
+.filter-header {
+    width:100%;
+    float:left;
+    padding-left: 1em;
+    padding-top: 0.5em;
+    min-height: 50px !important;
+    height: 55px !important;
+}
+
+.mat-paginator-sticky {
+  bottom: 0px;
+  right:0px;
+  position: sticky;
+  z-index: 10;
+  height:52px;
+  white-space: nowrap;
+
+}
+
+.mat-header-style {
+  font-weight: bold;
+  font-size: 15px;
+  background-color: lightgray;
+}
+
+.table-container {	
+  position: relative;	
+  min-height: 66vh;	
+  max-height: 66vh;	
+  min-width: 100%;	
+  overflow-x: scroll;	
+  margin-top: 5%;	
+  height: calc(50vh - 5px);	
+}
+
+.mat-header-row {
+  height: 40px;
+}
+
+.mat-row{
+  max-width: 120%;
+}
+
+.mat-row:hover {
+  background-color: mintcream;
+}
+
+.selectedRow {
+  background-color: lightyellow;
+}
+
+ /* table{width: 100%;} */
+
+.mat-column-upcNumber {
+  left: 0px;
+  width: 10%;
+  padding: 0px 10px;
+  min-width: 140px;
+  max-width: 200px;  
+}
+
+.mat-column-upcDesc {
   
-  // Data arrays
-  employeedata: any[] = [];
-  iriWeeks: any[] = [];
-  territories: any[] = [];
-  filteredStores: any[] = [];
-  filteredState: any[] = [];
-  filteredCity: any[] = [];
-  filteredCluster: any[] = [];
-  filteredTask: any[] = [];
-  filteredFSR: any[] = [];
-
-  // Selected values
-  selectedStoreNumber = '';
-  selectedState = '';
-  selectedCity = '';
-  selectedCluster = '';
-  selectedTask = '';
-  selectedFsrId = '';
-
-  private unsubscribe$ = new Subject<void>();
-  private loggeduser: string;
-
-  constructor(
-    private fb: FormBuilder,
-    private commonService: CommonService,
-    public http: HttpClient,
-    @Inject('BASE_URL') public baseUrl: string,
-  ) {
-    this.initializeForm();
-    this.loggeduser = localStorage.getItem("loggedUserId") || '';
-  }
-
-  async ngOnInit(): Promise<void> {
-    try {
-      this.employeedata = await firstValueFrom(this.commonService.getEmployee(this.loggeduser));
-      await this.getIriWeek();
-      await this.getTerritory();
-      this.setupFormSubscriptions();
-      // Apply default filters after initialization
-      this.applyDefaultFilters();
-    } catch (error) {
-      console.error('Error initializing filter component:', error);
-    }
-  }
-
-  private initializeForm(): void {
-    this.filterForm = this.fb.group({
-      iriWeek: [''],
-      territory: [''],
-      store: [''],
-      state: [''],
-      city: [''],
-      cluster: [''],
-      task: [''],
-      fsr: [''],
-      fsrHour: [''],
-      storeAssignment: ['all'], // assigned, unassigned, all
-      sampleType: ['all'], // sample, nonSample, all
-      multiFsrStore: [false]
-    });
-  }
-
-  // FIXED: Get IRI Week with proper subscription pattern
-  private getIriWeek(): void {
-    this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetIriWeek')
-      .pipe(takeUntil(this.unsubscribe$))
-      .subscribe({
-        next: (response) => {
-          this.iriWeeks = response;
-          // Set default to second item (index 1) as in your original code
-          if (this.iriWeeks.length > 1) {
-            this.filterForm.get('iriWeek')?.setValue(this.iriWeeks.iri_week, { emitEvent: false });
-          }
-        },
-        error: (error) => { 
-          console.error('Error fetching IRI weeks:', error); 
-        }
-      });
-  }
-
-  // FIXED: Get Territory with proper subscription pattern
-  private getTerritory(): void {
-    this.showSpinner = true;
-    this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetTerritory')
-      .pipe(takeUntil(this.unsubscribe$))
-      .subscribe({
-        next: (response) => {
-          this.territories = response;
-          // Set default territory based on employee data
-          const defaultTerritory = this.employeedata?.fieldTerritoryNumber == 0 || 
-                                  !this.employeedata?.fieldTerritoryNumber
-                                  ? this.territories?.territory_id
-                                  : this.employeedata?.fieldTerritoryNumber;
-          
-          this.filterForm.get('territory')?.setValue(defaultTerritory, { emitEvent: false });
-          this.showSpinner = false;
-        },
-        error: (error) => { 
-          console.error('Error fetching territories:', error);
-          this.showSpinner = false; 
-        }
-      });
-  }
-
-  private setupFormSubscriptions(): void {
-    // Store autocomplete
-    this.filterForm.get('store')?.valueChanges.pipe(
-      debounceTime(300),
-      tap(() => (this.showSpinner = true)),
-      switchMap(searchText => this.getStore(searchText)),
-      takeUntil(this.unsubscribe$)
-    ).subscribe(stores => {
-      this.filteredStores = stores || [];
-      this.showSpinner = false;
-    });
-
-    // State autocomplete
-    this.filterForm.get('state')?.valueChanges.pipe(
-      debounceTime(300),
-      tap(() => (this.showSpinner = true)),
-      switchMap(searchText => this.getState(searchText)),
-      takeUntil(this.unsubscribe$)
-    ).subscribe(states => {
-      this.filteredState = states || [];
-      this.showSpinner = false;
-    });
-
-    // City autocomplete
-    this.filterForm.get('city')?.valueChanges.pipe(
-      debounceTime(300),
-      tap(() => (this.showSpinner = true)),
-      switchMap(searchText => this.getCity(searchText)),
-      takeUntil(this.unsubscribe$)
-    ).subscribe(cities => {
-      this.filteredCity = cities || [];
-      this.showSpinner = false;
-    });
-
-    // Cluster autocomplete
-    this.filterForm.get('cluster')?.valueChanges.pipe(
-      debounceTime(300),
-      tap(() => (this.showSpinner = true)),
-      switchMap(searchText => this.getCluster(searchText)),
-      takeUntil(this.unsubscribe$)
-    ).subscribe(clusters => {
-      this.filteredCluster = clusters || [];
-      this.showSpinner = false;
-    });
-
-    // Task autocomplete
-    this.filterForm.get('task')?.valueChanges.pipe(
-      debounceTime(300),
-      switchMap(searchText => this.getTask(searchText)),
-      takeUntil(this.unsubscribe$)
-    ).subscribe(tasks => {
-      this.filteredTask = tasks || [];
-    });
-
-    // FSR autocomplete
-    this.filterForm.get('fsr')?.valueChanges.pipe(
-      debounceTime(300),
-      switchMap(searchText => this.getFsr(searchText)),
-      takeUntil(this.unsubscribe$)
-    ).subscribe(fsrs => {
-      this.filteredFSR = fsrs || [];
-    });
-  }
-
-  // API Methods using IRI Week and Territory as parameters
-  getStore(searchText: string) {
-    if (!searchText || searchText.length < 3) {
-      return of([]);
-    }
-
-    const payload = {
-      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
-      TerritoryId: Number(this.filterForm.get('territory')?.value),
-      SearchText: searchText
-    };
-    
-    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetStore', payload)
-      .pipe(catchError(() => of([])));
-  }
-
-  getState(searchText: string) {
-    if (!searchText || searchText.length <= 0) { return of([]); }
-    
-    const payload = {
-      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
-      TerritoryId: Number(this.filterForm.get('territory')?.value),
-      SearchText: searchText
-    };
-    
-    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetState', payload)
-      .pipe(catchError(() => of([])));
-  }
-
-  getCity(searchText: string) {
-    if (!searchText || searchText.length <= 0) { return of([]); }
-    
-    const payload = {
-      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
-      TerritoryId: Number(this.filterForm.get('territory')?.value),
-      SearchText: searchText
-    };
-    
-    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetCity', payload)
-      .pipe(catchError(() => of([])));
-  }
-
-  getCluster(searchText: string) {
-    const payload = {
-      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
-      TerritoryId: Number(this.filterForm.get('territory')?.value),
-      SearchText: searchText
-    };
-    
-    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetCluster', payload)
-      .pipe(catchError(() => of([])));
-  }
-
-  getTask(searchText: string) {
-    if (!searchText || searchText.length <= 0) { return of([]); }
-    
-    const payload = {
-      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
-      TerritoryId: Number(this.filterForm.get('territory')?.value),
-      SearchText: searchText
-    };
-    
-    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetTask', payload)
-      .pipe(catchError(() => of([])));
-  }
-
-  getFsr(searchText: string) {
-    if (!searchText || searchText.length <= 0) { return of([]); }
-    
-    const payload = {
-      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
-      TerritoryId: Number(this.filterForm.get('territory')?.value),
-      SearchText: searchText
-    };
-    
-    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetFsr', payload)
-      .pipe(catchError(() => of([])));
-  }
-
-  // Event handlers for IRI Week and Territory changes
-  onIriWeekChange(): void {
-    // Clear dependent fields when IRI week changes
-    this.filterForm.patchValue({
-      store: '',
-      state: '',
-      city: '',
-      cluster: '',
-      task: '',
-      fsr: ''
-    });
-    this.clearSelectedValues();
-  }
-
-  onTerritoryChange(): void {
-    // Clear dependent fields when territory changes
-    this.filterForm.patchValue({
-      store: '',
-      state: '',
-      city: '',
-      cluster: '',
-      task: '',
-      fsr: ''
-    });
-    this.clearSelectedValues();
-  }
-
-  // Selection event handlers
-  onStoreSelected(event: any) {
-    const selectedStore = this.filteredStores.find(store => store.store_name === event.option.value);
-    this.selectedStoreNumber = selectedStore?.store_number || '';
-  }
-
-  onStateSelected(event: any) {
-    const selectedState = this.filteredState.find(state => state.state === event.option.value);
-    this.selectedState = selectedState?.state || '';
-  }
-
-  onCitySelected(event: any) {
-    const selectedCity = this.filteredCity.find(city => city.city === event.option.value);
-    this.selectedCity = selectedCity?.city || '';
-  }
-
-  onClusterSelected(event: any) {
-    const selectedCluster = this.filteredCluster.find(cluster => cluster.position_name === event.option.value);
-    this.selectedCluster = selectedCluster?.position_number || '';
-  }
-
-  onTaskSelected(event: any) {
-    const selectedTask = this.filteredTask.find(task => task.task_name === event.option.value);
-    this.selectedTask = selectedTask?.task_number || '';
-  }
-
-  onFsrSelected(event: any) {
-    const selectedFsr = this.filteredFSR.find(fsr => fsr.emp_name === event.option.value);
-    this.selectedFsrId = selectedFsr?.emp_id || '';
-  }
-
-  // Control methods
-  toggleAdvancedFilters(): void {
-    this.showAdvancedFilters = !this.showAdvancedFilters;
-  }
-
-  // MISSING FUNCTION: Apply Filters
-  onApplyFilters(): void {
-    const formValue = this.filterForm.value;
-    
-    const filters = new GetGridDataFilter();
-    filters.iriWeek = formValue.iriWeek || '';
-    filters.territoryId = formValue.territory || '';
-    filters.storeNumber = this.selectedStoreNumber;
-    filters.storeName = formValue.store || '';
-    filters.state = this.selectedState;
-    filters.city = this.selectedCity;
-    filters.positionNumber = this.selectedCluster;
-    filters.taskNumber = this.selectedTask;
-    filters.empId = this.selectedFsrId;
-    filters.fsrHour = formValue.fsrHour || '';
-    
-    // Handle radio button selections
-    if (formValue.storeAssignment === 'assigned') {
-      filters.assignedStores = '1';
-      filters.unassignedStores = '0';
-    } else if (formValue.storeAssignment === 'unassigned') {
-      filters.assignedStores = '0';
-      filters.unassignedStores = '1';
-    } else {
-      filters.assignedStores = '';
-      filters.unassignedStores = '';
-    }
-
-    if (formValue.sampleType === 'sample') {
-      filters.sample = '1';
-      filters.nonSample = '0';
-    } else if (formValue.sampleType === 'nonSample') {
-      filters.sample = '0';
-      filters.nonSample = '1';
-    } else {
-      filters.sample = '';
-      filters.nonSample = '';
-    }
-
-    filters.multiFsrStore = formValue.multiFsrStore ? '1' : '0';
-    
-    this.filtersChanged.emit(filters);
-  }
-
-  // MISSING FUNCTION: Clear Filters
-  onClearFilters(): void {
-    this.filterForm.reset({
-      iriWeek: this.iriWeeks.length > 1 ? this.iriWeeks.iri_week : '',
-      territory: this.employeedata?.fieldTerritoryNumber == 0 || !this.employeedata?.fieldTerritoryNumber 
-        ? (this.territories?.territory_id || '') 
-        : this.employeedata?.fieldTerritoryNumber,
-      storeAssignment: 'all',
-      sampleType: 'all',
-      multiFsrStore: false
-    });
-    this.clearSelectedValues();
-    this.clearFilters.emit();
-  }
-
-  // MISSING FUNCTION: Apply Default Filters on Load
-  private applyDefaultFilters(): void {
-    // Wait a moment for form to be properly initialized
-    setTimeout(() => {
-      this.onApplyFilters();
-    }, 500);
-  }
-
-  private clearSelectedValues(): void {
-    this.selectedStoreNumber = '';
-    this.selectedState = '';
-    this.selectedCity = '';
-    this.selectedCluster = '';
-    this.selectedTask = '';
-    this.selectedFsrId = '';
-  }
-
-  // Clear individual controls
-  clearStrCtrl() { 
-    this.filterForm.get('store')?.reset(); 
-    this.selectedStoreNumber = '';
-  }
-  clearStaCtrl() { 
-    this.filterForm.get('state')?.reset(); 
-    this.selectedState = '';
-  }
-  clearcityCtrl() { 
-    this.filterForm.get('city')?.reset(); 
-    this.selectedCity = '';
-  }
-  clearTaskCtrl() { 
-    this.filterForm.get('task')?.reset(); 
-    this.selectedTask = '';
-  }
-  clearFsrCtrl() { 
-    this.filterForm.get('fsr')?.reset(); 
-    this.selectedFsrId = '';
-  }
-
-  ngOnDestroy(): void {
-    this.unsubscribe$.next();
-    this.unsubscribe$.complete();
-  }
-}================
-.filter-topbar {
-  width: 100%;
-  padding: 16px;
-  background: #fafafa;
-}
-
-.filter-container {
-  max-width: 100%;
-}
-
-.filter-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  align-items: flex-end;
-}
-
-.filter-field {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 150px;
-}
-
-.form-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: #666;
-  margin-bottom: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.filter-field .mat-form-field {
-  width: 100%;
-}
-
-.filter-field .mat-form-field .mat-form-field-wrapper {
-  padding-bottom: 0;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-  flex-shrink: 0;
-}
-
-.action-buttons button {
-  min-width: 100px;
-  height: 36px;
-}
-
-.advanced-filters {
-  border-top: 1px solid #e0e0e0;
-  padding-top: 16px;
-  margin-top: 8px;
-}
-
-.options-filters {
-  border-top: 1px solid #e0e0e0;
-  padding-top: 16px;
-  margin-top: 8px;
-}
-
-/* NEW: Toggle and Checkbox Styles */
-.toggle-field {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
+  left: 50px;
+  width: 20% ;
+  padding: 0px 10px;
   min-width: 200px;
-}
+  max-width: 500px;
+ } 
 
-.radio-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+ .mat-column-override {
+  left: 100px;
+  width: 10% ;
+  padding: 0px 10px;
+  min-width: 80px;
+  max-width: 100px;
+} 
 
-.radio-group mat-radio-button {
-  font-size: 14px;
-}
-
-.checkbox-field {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
+.mat-column-category {
+  left: 200px;
+  width: 15% ;
+  padding: 0px 10px;
   min-width: 150px;
+  max-width: 500px;
+} 
+
+.mat-column-eligibility {
+  left: 220px;
+  width: 5% ;
+  padding: 0px 10px;
+  min-width: 80px;
+  max-width: 100px;  
 }
 
-.checkbox-field mat-checkbox {
-  margin-top: 8px;
+.mat-column-eligibilityReason {
+  left: 240px;
+  width: 20% ;
+  padding: 0px 10px;
+  min-width: 150px;
+  max-width: 500px;
 }
 
-.advanced-toggle {
-  display: flex;
-  justify-content: center;
-  margin-top: 12px;
+.mat-column-brand {
+  width: 15% ;
+  padding: 0px 10px;
+  min-width: 200px;
+  max-width: 500px;
 }
 
-.toggle-button {
-  color: #1976d2;
+.mat-column-Observation
+{  
+  width: 15% ;
+  padding: 0px 10px;
+  min-width: 150px;
+  max-width: 500px;
+}
+
+.mat-column-package { 
+  width: 15% ;
+  padding: 0px 10px;
+  min-width: 200px;
+  max-width: 500px;
+}
+ 
+.mat-column-attributeName1
+{
+  
+  width: 5% ;
+  padding: 0px 10px;
+  min-width: 60px;
+  max-width: 100px;
+}
+
+
+.mat-column-attributeValue1
+{  
+  width: 5% ;
+  padding: 0px 10px;
+  min-width: 60px;
+  max-width: 100px;
+}
+
+.mat-column-unitType1
+{  
+  width: 5% ;
+  padding: 0px 10px;
+  min-width: 60px;
+  max-width: 100px;
+}
+
+.mat-column-attributeName2
+{
+  width: 5% ;
+  padding: 0px 10px;
+  min-width: 60px;
+  max-width: 100px;
+}
+
+
+.mat-column-attributeValue2
+{
+  width: 5% ;
+  padding: 0px 10px;
+  min-width: 60px;
+  max-width: 100px;
+}
+
+.mat-column-unitType2
+{
+  width: 5% ;
+  padding: 0px 10px;
+  min-width: 60px;
+  max-width: 100px;
+}
+
+.mat-column-keycatName { 
+  left: 50px;
+  width: 20% ;
+  padding: 0px 10px;
+  min-width: 200px;
+  max-width: 500px;
+ }  
+
+ .mat-column-storesMoving
+{  
+  width: 5% ;
+  padding: 0px 10px;
+  min-width: 70px;
+  max-width: 100px;
+} 
+
+
+
+.caret{
+  display: inline-block;
+  margin-right: 5px;
+  margin-top: -1px;
+  transition: transform 0.3s;
+  font-size: 18px;
+  font-weight: 800;  
+  transform: rotate(90deg); 
+}
+
+.clickable-cell{
+  cursor: pointer;
+}
+
+.caret.clicked {
+  transform: rotate(180deg);
+  margin-top: -5px;
+}
+
+.mat-column-avgUpcMovement
+{  
+  width: 5% ;
+  padding: 0px 10px;
+  min-width: 100px;
+  max-width: 300px;
+}
+
+.mat-column-modifiedBy
+{  
+  left: 50px;
+  width: 20% ;
+  padding: 0px 10px;
+  min-width: 200px;
+  max-width: 500px;
+ } 
+
+ .mat-column-modifiedDate
+ {   
+   left: 50px;
+   width: 20% ;
+   padding: 0px 10px;
+   min-width: 200px;
+   max-width: 500px;
+  } 
+ 
+  .icon1{
+    padding-left: 24%;
+      float: right;
+      padding-right: 9%;
+  }
+  
+.icon {
+  font-size: 160%;
+  color: deepskyblue;
+  z-index: 15;
+}
+
+.icon:hover {
+  font-size: 168%;
+  color: rgb(0, 129, 173);
+  cursor: pointer;
+}
+  
+.float-child {
+  margin-top: 1%;
+  width: 20%;
+  float: right;
+}  
+
+
+.expanded-table {
+  margin-top: 5px;
+  margin-bottom: 15px;
+  margin-left: 70px;
+  border-collapse: collapse;
+  /* width: 1350px; */
+  /* width: 95%; */
+  border: 1px solid #ddd;
   font-size: 14px;
 }
 
-.toggle-button mat-icon {
-  margin-right: 4px;
+.expanded-table th,
+.expanded-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+  white-space: nowrap;
 }
 
-/* Responsive Design */
-@media (max-width: 1200px) {
-  .filter-row {
-    gap: 12px;
-  }
-  
-  .filter-field,
-  .toggle-field {
-    min-width: 130px;
-  }
+.expanded-table th {
+  background-color: #f2f2f2;
 }
 
-@media (max-width: 768px) {
-  .filter-topbar {
-    padding: 12px;
+::ng-deep .cdk-overlay-pane {
+  min-width: 0;
+}
+.table-responsive {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+ }
+ 
+ .mat-table {
+  width: 100%;
+  max-width: 100%;
+  margin-bottom: 1rem;
+  display: table;
+  border-collapse: collapse;
+  margin: 0px;
+ }
+ 
+.editicon{ 
+  cursor: pointer;
+  color: #3498db;
+  /* font-size: 24px; */
+  transition: color 0.3s;
+}
+
+.editicon:hover{
+color: #1a4c66;    
+
+}
+
+
+
+ 
+ /* .mat-cell,
+ .mat-header-cell {
+  word-wrap: initial;
+  display: table-cell;
+  padding: 0px 5px;
+  line-break: unset;
+  width: auto;
+  white-space: nowrap;
+  overflow: hidden;
+  vertical-align: middle;
+ } */
+
+
+
+.content ::ng-deep .mat-form-field-flex > .mat-form-field-infix { width: 155px !important;}  
+/* @media screen and (max-device-width: 767px)
+  and (orientation: portrait) {
+
+    .seach_sc {
+      margin-left: 15%;
+    }
+   
+  } */
+
+  @media screen and (min-device-width: 768px)
+  and (max-device-width: 1300px ) {
+   
+   ::ng-deep .mat-form-field {
+      width: 100% !important;
+    }  
+
+    
   }
   
-  .filter-row {
-    flex-direction: column;
-    gap: 12px;
+  @media screen and (max-device-width: 767px)
+  and (orientation: portrait) {
+    .content-header{
+      /* margin-bottom: 120%; */
+    }
+    /* .seach_sc { */
+      /* margin-left: 39%; */
+    /* } */
+
+    /* ::ng-deep .mat-form-field {
+      width: 100% !important;
+    } */
   }
   
-  .filter-field,
-  .toggle-field,
-  .checkbox-field {
+ @media screen and (min-device-width: 768px)
+ and (max-device-width: 1300px ) {
+  .content-header{
+    /* margin-bottom: 17%; */
+  }
+  .filter-header {
     width: 100%;
-    min-width: auto;
   }
-  
-  .action-buttons {
-    width: 100%;
-    justify-content: space-between;
+  /* .seach_sc {
+    margin-left: 15%;
+  } */
+  /* ::ng-deep .mat-form-field {
+     width: 100% !important;
+   } */
+ }
+
+
+ 
+
+
+
+/* @media only screen and (min-device-width: 0px)  and (max-device-width: 991px) {
+
+  ::ng-deep #review_filter .mat-form-field {
+    min-width: 95% !important;
+    background-color: wheat;
   }
-  
-  .action-buttons button {
-    flex: 1;
+} */
+
+
+/* @media only screen and (min-device-width: 1110px) {
+
+  ::ng-deep #review_filter .mat-form-field {
+    max-width: 100% !important;
   }
-  
-  .radio-group {
-    flex-direction: row;
-    gap: 16px;
+} */
+ 
+
+@media only screen and (max-width: 768px) and (min-width: 1301px) {
+
+  ::ng-deep #review_filter .mat-form-field {
+    max-width: 100% !important;
+  }
+}
+
+@media only screen and (max-width: 991px) {
+
+  ::ng-deep #review_filter .mat-form-field {
+    max-width: 90% !important;
+    
+  }
+  .seach_sc {
+    max-width: 20% !important;
+    margin-left: 78%;
   }
 }
 
-=========
-
-import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, OnDestroy, Inject } from '@angular/core';
-import { FormControl } from '@angular/forms';
-import { firstValueFrom, Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
-import { countryModel, GetGridDataFilter } from 'src/app/shared/common.model';
-import { CommonService } from 'src/app/shared/common.service';
-
-@Component({
-  selector: 'app-dashbord-layout',
-  templateUrl: './dashbord-layout.component.html',
-  styleUrls: ['./dashbord-layout.component.css']
-})
-export class DashbordLayoutComponent implements OnInit, OnDestroy {
-
-  private destroy$ = new Subject<void>();
-  countrylist: countryModel[] = [];
-  employeedata: any[] = [];
-  countryctrl = new FormControl();
-  isFiltersExpanded = false;
-  currentIRIWeek: any;
-  loggeduser: string;
-
-  constructor(
-    private commonService: CommonService,
-    public http: HttpClient,
-    @Inject('BASE_URL') public baseUrl: string,
-  ) { 
-    this.loggeduser = localStorage.getItem("loggedUserId") || '';
-  }
-
-  async ngOnInit(): Promise<void> {
-    this.commonService.groupsStatus$.subscribe(userGroups => {    
-      if(userGroups['isgTechnologyGroup']) { 
-        this.countryctrl.enable();
-      } else { 
-        this.countryctrl.disable();
-      }   
-    });
-
-    this.currentIRIWeek = await firstValueFrom(
-      this.http.get<any>(this.baseUrl + 'api/TaskAssinment/GetCurrentIRIWeek')
-    );   
-    
-    try {
-      this.employeedata = await firstValueFrom(this.commonService.getEmployee(this.loggeduser));
-    } catch(error) {
-      console.error('Error fetching employee data:', error);
-    }
-
-    try {
-      this.countrylist = await this.commonService.getcountry();
-    } catch {
-      console.error('Error fetching country data');
-    }      
-    
-    this.employeedata.filter((x) => {
-      this.countryctrl.setValue(x.countryId);
-    });
-
-    // Initialize default filters
-    this.initializeDefaultFilters();
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
-  toggleFilters(): void {
-    this.isFiltersExpanded = !this.isFiltersExpanded;
-  }
-
-  // FIXED: onFiltersChanged function
-  onFiltersChanged(filters: GetGridDataFilter): void {
-    console.log('Applying filters:', filters);
-    this.commonService.applyFilters(filters);
-  }
-
-  // FIXED: onClearFilters function
-  onClearFilters(): void {
-    console.log('Clearing filters');
-    this.commonService.clearFilters();
-  }
-
-  selectedcountry(event: any) {
-    if (event.isUserInput) {
-      // Handle country selection
-      console.log('Country selected:', event.source.value);
-    }
-  }
-
-  // MISSING: Initialize default filters
-  private initializeDefaultFilters(): void {
-    const defaultFilters = new GetGridDataFilter();
-    // Set default values based on employee data
-    if (this.employeedata.length > 0) {
-      defaultFilters.countryId = this.employeedata.countryId || '';
-      defaultFilters.territoryId = this.employeedata.fieldTerritoryNumber?.toString() || '';
-    }
-    
-    this.commonService.initializeDefaultFilters(defaultFilters);
+@media only screen and (min-width: 991px) {
+  .mat-dialog-body {
+    max-height:80%; 
+    background-color: white;
+    overflow: hidden;  
   }
 }
-==========
 
-import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
-import { MatTableDataSource } from '@angular/material/table';
-import { MatPaginator } from '@angular/material/paginator';
-import { MatSort } from '@angular/material/sort';
-import { CommonService } from 'src/app/shared/common.service';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
-
-@Component({
-  selector: 'app-store-table',
-  templateUrl: './store-table.component.html',
-  styleUrls: ['./store-table.component.css']
-})
-export class StoreTableComponent implements OnInit, OnDestroy {
-  
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
-  @ViewChild(MatSort) sort!: MatSort;
-  
-  displayedColumns: string[] = ['store_number', 'store_name', 'addr_line1', 'city', 'state', 'zip', 'assigned_to', 'expected_collection_time', 'position_name'];
-  dataSource = new MatTableDataSource<any>([]);
-  selectedRow: any = null;
-  
-  private destroy$ = new Subject<void>();
-
-  constructor(private commonService: CommonService) { }
-
-  ngOnInit(): void {
-    // Subscribe to grid data changes from service
-    this.commonService.gridData$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(data => {
-        this.dataSource.data = data;
-        console.log('Table data updated:', data.length, 'records');
-      });
+@media (min-width: 992px){
+.col-lg-2 {
+    flex: 0 0 16.666667%;
+    max-width: 11.666667%;
+}
+}
+ 
+@media only screen and (max-width: 767px) {
+  ::ng-deep #review_filter .mat-form-field {
+    min-width: 100% !important;
   }
-
-  ngAfterViewInit(): void {
-    this.dataSource.paginator = this.paginator;
-    this.dataSource.sort = this.sort;
+  .seach_sc {
+    max-width: 29% !important;
+    margin-left: 70%;
   }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
-  isExpanded(store: any): boolean {
-    return this.selectedRow === store;
-  }
-
-  GetUPCCollectionDetail(event: any, row: any): void {
-    if (event) {
-      this.selectedRow = row;
-      console.log('Expanding row:', row);
-      // Add your expansion logic here
-    } else {
-      this.selectedRow = null;
-    }
-  }
-
-  getAssignmentClass(assignedTo: string): string {
-    return assignedTo === 'NOT ASSIGNED' ? 'not-assigned' : 'assigned';
-  }
-
-  formatCollectionTime(time: string): string {
-    return time || 'Not specified';
-  }
-
-  getClusterDisplay(positionName: string): string {
-    return positionName || 'N/A';
+  .mat-dialog-body {
+    background-color: white;
+    overflow-y :scroll;  
   }
 }
+
+@media only screen and (min-width: 0px) and (max-width: 767px) {
+  .seach_sc {
+    max-width: 62% !important;
+    margin-left: 40%;
+  }
+
+}
+
+/* #review_filter .col-md-4 .mat-form-field {
+  width: 100% !important;
+}
+
+#review_filter .col-sm-1 .mat-form-field{
+  max-width: 29% !important;
+  margin-left: 70%;
+} */
+
+
+
 
 
