@@ -654,3 +654,79 @@ css
 }
 
 /* Rest of existing styles... */
+
+
+ expand(): void {
+    if (!this.isExpanded && this.canExpand()) {
+      this.isExpanded = true;
+      
+      // Request data loading if we don't have data yet
+      if (this.subgridData.length === 0 && !this.isLoading) {
+        this.isLoading = true;
+        this.dataLoadRequest.emit({ directive: this, rowData: this.rowData });
+      }
+      
+      this.render();
+    }
+  }
+
+  // ADD: Expand with data (for expand all functionality)
+  expandWithData(data: any[]): void {
+    if (!this.isExpanded && this.canExpand()) {
+      this.subgridData = data;
+      this.isLoading = false;
+      this.isExpanded = true;
+      this.render();
+    }
+  }
+
+  // UPDATED: Collapse method
+  collapse(): void {
+    if (this.isExpanded) {
+      this.viewContainerRef.clear();
+      this.isExpanded = false;
+      this.isLoading = false;
+    }
+  }
+
+  // ADD: Set data after loading
+  setSubgridData(data: any[]): void {
+    this.subgridData = data;
+    this.isLoading = false;
+    
+    // Re-render if expanded
+    if (this.isExpanded) {
+      this.render();
+    }
+  }
+
+  // ADD: Check if row can be expanded
+  canExpand(): boolean {
+    return !!(this.templateRef && this.rowData);
+  }
+
+  // UPDATED: Enhanced render method with data context
+  private render(): void {
+    this.viewContainerRef.clear();
+    if (this.templateRef && this.rowData) {
+      try {
+        // Pass both the row data and subgrid data to the template
+        this.viewContainerRef.createEmbeddedView(this.templateRef, { 
+          $implicit: this.rowData,
+          subgridData: this.subgridData,
+          isLoading: this.isLoading
+        });
+      } catch (error) {
+        console.error('Error rendering detail row:', error);
+        this.isExpanded = false;
+        this.isLoading = false;
+      }
+    }
+  }
+
+  // ADD: Force update method
+  updateView(): void {
+    if (this.isExpanded) {
+      this.render();
+    }
+  }
