@@ -1,22 +1,23 @@
-function buildTree(nodes: any[]): any[] {
-  const map = new Map<number, any>();
-  const roots: any[] = [];
+Subject: Update on Angular Assignment Web Application Deployment
 
-  // Initialize the map
-  nodes.forEach(node => {
-    node.children = [];
-    map.set(node.id, node);
-  });
+Dear [Manager’s Name],
 
-  // Build the tree
-  nodes.forEach(node => {
-    if (node.pId && map.has(node.pId)) {
-      const parent = map.get(node.pId);
-      parent.children.push(node);
-    } else {
-      roots.push(node);
-    }
-  });
+I would like to inform you that the new Angular version of the Assignment Web Application has been deployed to the test environment.
 
-  return roots;
-}
+Currently, users are able to:
+
+Expand individual rows
+
+Use the “Expand All” and “Collapse All” features (these are functional at the current page level only)
+
+However, there are still a few bugs and pending items that need to be addressed:
+
+Fixing issues at the filter level, “Expand All / Collapse All” functionality across multiple rows, and related CSS adjustments.
+
+Completing the assigning functionality at both store level and FSR level.
+
+Implementing the export grid functionality.
+
+Enabling email work order generation.
+
+I will continue working on these items and keep you updated on the progress.
