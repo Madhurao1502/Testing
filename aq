@@ -1,90 +1,321 @@
+1. Country Selection State Management
+Updated Common Service (Add Country Management)
+typescript
+// common.service.ts - ADD THESE METHODS
+
+import { BehaviorSubject } from 'rxjs';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class CommonService {
+  
+  // ADD: Country state management
+  private countrySubject = new BehaviorSubject<string>('');
+  public country$ = this.countrySubject.asObservable();
+
+  // Existing code...
+  private filtersSubject = new BehaviorSubject<GetGridDataFilter>(new GetGridDataFilter());
+  public filters$ = this.filtersSubject.asObservable();
+
+  private gridDataSubject = new BehaviorSubject<any[]>([]);
+  public gridData$ = this.gridDataSubject.asObservable();
+
+  // ADD: Set country method
+  setCountry(countryId: string): void {
+    this.countrySubject.next(countryId);
+    console.log('Country updated:', countryId);
+  }
+
+  // ADD: Get current country
+  getCurrentCountry(): string {
+    return this.countrySubject.value;
+  }
+
+  // UPDATED: Apply filters with country validation
+  applyFilters(filters: GetGridDataFilter): void {
+    const currentCountry = this.getCurrentCountry();
+    
+    if (!currentCountry) {
+      throw new Error('Please select a country first');
+    }
+    
+    // Ensure country is set
+    filters.countryId = currentCountry;
+    
+    this.filtersSubject.next(filters);
+    // Call GetGridData API with filters
+    this.getGridData(filters).subscribe({
+      next: (data) => {
+        this.gridDataSubject.next(data);
+      },
+      error: (error) => {
+        console.error('Error applying filters:', error);
+        this.gridDataSubject.next([]);
+      }
+    });
+  }
+
+  // Existing methods...
+}
+Updated Dashboard Layout Component
+typescript
+// dashboard-layout.component.ts - UPDATED
+
+export class DashbordLayoutComponent implements OnInit, OnDestroy {
+  // Existing properties...
+  countrylist: countryModel[] = [];
+  employeedata: any[] = [];
+  countryctrl = new FormControl();
+  isFiltersExpanded = false;
+  currentIRIWeek: any;
+  loggeduser: string;
+  private destroy$ = new Subject<void>();
+
+  constructor(
+    private commonService: CommonService,
+    public http: HttpClient,
+    @Inject('BASE_URL') public baseUrl: string,
+  ) { 
+    this.loggeduser = localStorage.getItem("loggedUserId");
+  }
+
+  async ngOnInit(): Promise<void> {
+    // Existing code...
+    this.commonService.groupsStatus$.subscribe(userGroups => {    
+      if(userGroups['isgTechnologyGroup']) { 
+        this.countryctrl.enable();
+      } else { 
+        this.countryctrl.disable();
+      }   
+    });
+
+    try {
+      this.employeedata = await firstValueFrom(this.commonService.getEmployee(this.loggeduser));
+      this.countrylist = await this.commonService.getcountry();
+      
+      // Set default country based on employee data
+      if (this.employeedata.length > 0) {
+        const defaultCountryId = this.employeedata?.countryId || '1';
+        this.countryctrl.setValue(defaultCountryId);
+        // IMPORTANT: Set country in service
+        this.commonService.setCountry(defaultCountryId);
+      }
+    } catch(error) {
+      console.error('Error fetching data:', error);
+    }
+
+    // Listen to country control changes
+    this.countryctrl.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(countryId => {
+        if (countryId) {
+          this.commonService.setCountry(countryId);
+        }
+      });
+  }
+
+  selectedcountry(event: any) {
+    if (event.isUserInput && event.source.value) {
+      this.commonService.setCountry(event.source.value);
+      console.log('Country selected:', event.source.value);
+    }
+  }
+
+  // Rest of existing methods...
+}
+2. Expand All Rows Functionality
+Updated Store Table Component
+typescript
+// store-table.component.ts - ADD EXPAND ALL FUNCTIONALITY
+
+export class StoreTableComponent implements OnInit, OnDestroy {
+  // Existing properties...
+  @ViewChild(MatTable, { static: false }) table: MatTable<any>;
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
+
+  // ADD: Expand all functionality
+  isExpandingAll = false;
+  allExpanded = false;
+  expandedRows = new Set<any>();
+
+  SubgridData = [];
+  allSubgridData = new Map<string, any[]>(); // Store all expanded data
+  private unsubscribe$ = new Subject<void>();
+  
+  displayedColumns: string[] = ['store_number','store_name', 'addr_line1', 'city', 'state', 'zip', 'assigned_to', 'expected_collection_time', 'position_name'];
+  dataSource = new MatTableDataSource<Store>([]);
+  
+  // Existing constructor and ngOnInit...
+
+  // ADD: Expand all rows method
+  async expandAllRows(): Promise<void> {
+    if (this.isExpandingAll) return; // Prevent multiple calls
+    
+    this.isExpandingAll = true;
+    this.allExpanded = !this.allExpanded;
+    
+    try {
+      if (this.allExpanded) {
+        // Expand all rows
+        console.log('Expanding all rows...');
+        const currentPageData = this.getCurrentPageData();
+        
+        // Process rows in batches to avoid overwhelming the server
+        const batchSize = 5;
+        for (let i = 0; i < currentPageData.length; i += batchSize) {
+          const batch = currentPageData.slice(i, i + batchSize);
+          await this.processBatch(batch);
+          // Small delay between batches
+          await this.delay(100);
+        }
+        
+        console.log('All rows expanded successfully');
+      } else {
+        // Collapse all rows
+        this.collapseAllRows();
+      }
+    } catch (error) {
+      console.error('Error expanding all rows:', error);
+    } finally {
+      this.isExpandingAll = false;
+    }
+  }
+
+  // ADD: Process batch of rows
+  private async processBatch(rows: any[]): Promise<void> {
+    const promises = rows.map(row => this.loadSubgridDataForRow(row));
+    await Promise.all(promises);
+  }
+
+  // ADD: Load subgrid data for specific row
+  private loadSubgridDataForRow(row: any): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const payload = {
+        IriWeek: row.IriWeek,
+        StoreNumber: row.StoreNumber
+      };
+
+      this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetSubgridData', payload)
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe({
+          next: (response) => {
+            this.allSubgridData.set(row.StoreNumber, response);
+            this.expandedRows.add(row);
+            resolve();
+          },
+          error: (error) => {
+            console.error(`Error loading data for store ${row.StoreNumber}:`, error);
+            reject(error);
+          }
+        });
+    });
+  }
+
+  // ADD: Collapse all rows
+  private collapseAllRows(): void {
+    this.expandedRows.clear();
+    this.allSubgridData.clear();
+    this.SubgridData = [];
+    console.log('All rows collapsed');
+  }
+
+  // ADD: Get current page data
+  private getCurrentPageData(): any[] {
+    if (!this.paginator) return this.dataSource.data;
+    
+    const startIndex = this.paginator.pageIndex * this.paginator.pageSize;
+    const endIndex = startIndex + this.paginator.pageSize;
+    return this.dataSource.data.slice(startIndex, endIndex);
+  }
+
+  // ADD: Utility delay function
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // UPDATED: GetSubgridData method
+  GetSubgridData(cdkDetailRow: CdkDetailRowDirective, row: any): void {
+    if (this.expandedRow && this.expandedRow.isExpanded) {
+      this.expandedRow.toggleRow();
+    }
+    this.expandedRow = cdkDetailRow.isExpanded ? cdkDetailRow : undefined;
+
+    if (cdkDetailRow.isExpandedClass) {
+      // Check if we already have data for this row (from expand all)
+      if (this.allSubgridData.has(row.StoreNumber)) {
+        this.SubgridData = this.allSubgridData.get(row.StoreNumber);
+      } else {
+        // Load data individually
+        this.SubgridData = [];
+        this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetSubgridData', {
+          IriWeek: row.IriWeek,
+          StoreNumber: row.StoreNumber
+        }).subscribe({
+          next: (response) => {
+            this.SubgridData = response;
+            this.allSubgridData.set(row.StoreNumber, response);
+          },
+          error: (error) => {
+            console.error(error);
+          }
+        });
+      }
+    }
+
+    this.updateCaratIcon(cdkDetailRow, cdkDetailRow.isExpanded);
+  }
+
+  // ADD: Check if row is expanded (for template)
+  isRowExpanded(row: any): boolean {
+    return this.expandedRows.has(row) || this.selectedRow === row;
+  }
+
+  // Existing methods remain the same...
+}
+Updated Store Table HTML
+xml
+<!-- store-table.component.html - ADD EXPAND ALL BUTTON -->
+
 <div class="table-container">
   <mat-card class="table-card">
-    <mat-card-header>
-      <mat-card-title>Store Assignment Data</mat-card-title>
-      <mat-card-subtitle>{{dataSource.data.length}} stores found</mat-card-subtitle>
-    </mat-card-header>
-    
     <mat-card-content>
       <div class="table-wrapper">
-        <!-- FIXED: Using your working table structure -->
+        <!-- ADD: Table controls -->
+        <div class="table-controls">
+          <button 
+            mat-icon-button 
+            [disabled]="isExpandingAll"
+            (click)="expandAllRows()" 
+            [title]="allExpanded ? 'Collapse All' : 'Expand All'"
+            class="expand-all-btn">
+            <mat-icon>{{allExpanded ? 'unfold_less' : 'unfold_more'}}</mat-icon>
+          </button>
+          <span class="expand-status" *ngIf="isExpandingAll">
+            <mat-spinner diameter="20"></mat-spinner>
+            Expanding rows...
+          </span>
+        </div>
+
         <mat-table #table [dataSource]="dataSource" matSort class="store-table mat-elevation-2">
+          <!-- Existing column definitions... -->
           
           <!-- Store Number Column with Expansion -->
           <ng-container matColumnDef="store_number">
-            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Store #</mat-header-cell>
+            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">
+              Store #
+            </mat-header-cell>
             <mat-cell *matCellDef="let element" class="store-number-cell">
-              <span class="caret" [class.expanded]="isExpanded(element)" *ngIf="element.hasDetails">▼</span>
-              <span *ngIf="!element.hasDetails">&nbsp;&nbsp;&nbsp;&nbsp;</span>
+              <span class="caret" #caretIcon id="caretIcon" 
+                    [class.clicked]="isRowExpanded(element)">▼</span>
               <span class="store-number">{{element.StoreNumber}}</span>
             </mat-cell>
           </ng-container>
 
-          <!-- Store Name Column -->
-          <ng-container matColumnDef="store_name">
-            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Store Name</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="store-name-cell">
-              <div class="store-info">
-                <span class="store-name">{{element.StoreName}}</span>
-              </div>
-            </mat-cell>
-          </ng-container>
+          <!-- Rest of existing columns... -->
 
-          <!-- Store Address Column -->
-          <ng-container matColumnDef="addr_line1">
-            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Store Address</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="address-cell">
-              {{element.AddrLine1}}
-            </mat-cell>
-          </ng-container>
-
-          <!-- City Column -->
-          <ng-container matColumnDef="city">
-            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">City</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="city-cell">{{element.City}}</mat-cell>
-          </ng-container>
-
-          <!-- State Column -->
-          <ng-container matColumnDef="state">
-            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">State</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="state-cell">
-              <span class="state-badge">{{element.State}}</span>
-            </mat-cell>
-          </ng-container>
-
-          <!-- Zip Column -->
-          <ng-container matColumnDef="zip">
-            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Zip</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="zip-cell">{{element.Zip}}</mat-cell>
-          </ng-container>
-
-          <!-- Assigned To Column -->
-          <ng-container matColumnDef="assigned_to">
-            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Assigned To</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="assigned-cell">
-              <span class="assignment-badge" [ngClass]="getAssignmentClass(element.AssignedTo)">
-                {{element.AssignedTo}}
-              </span>
-            </mat-cell>
-          </ng-container>
-
-          <!-- Average Collection Time Column -->
-          <ng-container matColumnDef="expected_collection_time">
-            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Avg Coll Time</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="collection-time-cell">
-              {{formatCollectionTime(element.ExpectedCollectionTime)}}
-            </mat-cell>
-          </ng-container>
-
-          <!-- Cluster Column -->
-          <ng-container matColumnDef="position_name">
-            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Cluster</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="cluster-cell">
-              {{getClusterDisplay(element.PositionName)}}
-            </mat-cell>
-          </ng-container>
-
-          <!-- FIXED: Header and Data Rows (like your working example) -->
+          <!-- Header and Data Rows -->
           <mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></mat-header-row>
           <mat-row 
             *matRowDef="let row; columns: displayedColumns; let i = index"
@@ -93,456 +324,390 @@
             (click)="selectedRow = selectedRow === row ? null : row"
             [cdkDetailRow]="row" 
             [cdkDetailRowTpl]="tpl"
-            (toggleChange)="GetUPCCollectionDetail($event, row)"
+            (toggleChange)="GetSubgridData($event, row)"
             matRipple>
           </mat-row>
         </mat-table>
       </div>
       
-      <mat-paginator 
-        [pageSizeOptions]="[5, 10, 20, 50]" 
-        showFirstLastButtons
-        class="table-paginator">
-      </mat-paginator>
-
-      <!-- FIXED: Inner Table Template (exactly like your working example) -->
-      <ng-template #tpl let-element>
-        <div class="mat-row detail-row" [@detailExpand] style="overflow: hidden;">
-          <table class="expanded-table"> 
-            <tr> 
-              <th>T #</th>
-              <th>Collector</th>              
-              <th>Store #</th>
-              <th>Name</th>
-              <th>Address</th>
-              <th>Collected</th>
-              <th>Height</th>
-              <th>Width</th>
-              <th>Depth</th>            
-              <th>Processed</th>
-            </tr>
-            <tr *ngFor="let item of storeDetailsList">
-              <td>{{item.territory || element.Territory || 'N/A'}}</td>
-              <td>{{item.collectorName || element.CollectorName || 'N/A'}}</td>              
-              <td>{{item.storeNumber || element.StoreNumber}}</td>
-              <td style="max-width: 283px; white-space: normal;">
-                {{item.storeName || element.StoreName}}                
-              </td>
-              <td style="max-width: 283px; white-space: normal;">
-                {{item.storeAddress || element.AddrLine1}}
-              </td>
-              <td>{{item.collected || element.Collected || 'N/A'}}</td>
-              <td>{{item.height || element.Height || 'N/A'}}</td>
-              <td>{{item.width || element.Width || 'N/A'}}</td>
-              <td>{{item.depth || element.Depth || 'N/A'}}</td>
-              <td>{{item.processed || element.Processed || 'N/A'}}</td>
-            </tr>       
-          </table>
-        </div>
-      </ng-template>
+      <!-- Existing paginator and template... -->
     </mat-card-content>
   </mat-card>
 </div>
+Updated Store Table CSS
+css
+/* store-table.component.css - ADD STYLES */
 
-import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
-import { MatTableDataSource } from '@angular/material/table';
-import { MatPaginator } from '@angular/material/paginator';
-import { MatSort } from '@angular/material/sort';
-import { CommonService } from 'src/app/shared/common.service';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
-import { animate, state, style, transition, trigger } from '@angular/animations';
-
-@Component({
-  selector: 'app-store-table',
-  templateUrl: './store-table.component.html',
-  styleUrls: ['./store-table.component.css'],
-  animations: [
-    trigger('detailExpand', [
-      state('collapsed', style({height: '0px', minHeight: '0'})),
-      state('expanded', style({height: '*'})),
-      transition('expanded <=> collapsed', animate('225ms cubic-bezier(0.4, 0.0, 0.2, 1)')),
-    ]),
-  ],
-})
-export class StoreTableComponent implements OnInit, OnDestroy {
-  
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
-  @ViewChild(MatSort) sort!: MatSort;
-  
-  displayedColumns: string[] = [
-    'store_number', 
-    'store_name', 
-    'addr_line1', 
-    'city', 
-    'state', 
-    'zip', 
-    'assigned_to', 
-    'expected_collection_time', 
-    'position_name'
-  ];
-  
-  dataSource = new MatTableDataSource<any>([]);
-  selectedRow: any = null;
-  storeDetailsList: any[] = []; // For inner table data
-  showSpinner = false;
-  
-  private destroy$ = new Subject<void>();
-
-  constructor(private commonService: CommonService) { }
-
-  ngOnInit(): void {
-    // Subscribe to grid data changes from service
-    this.commonService.gridData$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(data => {
-        this.dataSource.data = data;
-        console.log('Table data updated:', data.length, 'records');
-      });
-  }
-
-  ngAfterViewInit(): void {
-    this.dataSource.paginator = this.paginator;
-    this.dataSource.sort = this.sort;
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
-  isExpanded(store: any): boolean {
-    return this.selectedRow === store;
-  }
-
-  // FIXED: Function based on your working example
-  GetUPCCollectionDetail(event: any, row: any): void {
-    if (event) {
-      this.selectedRow = this.selectedRow === row ? null : row;
-      console.log('Expanding row:', row);
-      
-      // Here you would call your API to get detail data
-      // For now, using sample data
-      if (this.selectedRow) {
-        this.loadStoreDetails(row);
-      }
-    } else {
-      this.selectedRow = null;
-      this.storeDetailsList = [];
-    }
-  }
-
-  // FIXED: Load store details (replace with your API call)
-  private loadStoreDetails(store: any): void {
-    this.showSpinner = true;
-    
-    // Sample data - replace with your actual API call
-    setTimeout(() => {
-      this.storeDetailsList = [
-        {
-          territory: store.Territory || '101',
-          collectorName: store.CollectorName || 'John Doe',
-          storeNumber: store.StoreNumber,
-          storeName: store.StoreName,
-          storeAddress: store.AddrLine1,
-          collected: store.Collected || 'Yes',
-          height: store.Height || '10ft',
-          width: store.Width || '20ft',
-          depth: store.Depth || '15ft',
-          processed: store.Processed || 'Complete'
-        }
-      ];
-      this.showSpinner = false;
-    }, 500);
-  }
-
-  getAssignmentClass(assignedTo: string): string {
-    return assignedTo === 'NOT ASSIGNED' ? 'not-assigned' : 'assigned';
-  }
-
-  formatCollectionTime(time: string): string {
-    return time || 'Not specified';
-  }
-
-  getClusterDisplay(positionName: string): string {
-    return positionName || 'N/A';
-  }
-}
-
-
-
-.table-container {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  min-height: 66vh;
-  max-height: 66vh;
-  overflow-x: auto;
-}
-
-.table-card {
-  height: 100%;
+/* ADD: Table controls styling */
+.table-controls {
   display: flex;
-  flex-direction: column;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
+  align-items: center;
+  padding: 8px 16px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+  gap: 12px;
 }
 
-.table-wrapper {
-  flex: 1;
-  overflow: auto;
-  min-height: 400px;
+.expand-all-btn {
+  color: #1976d2;
 }
 
-/* FIXED: Table structure based on your working example */
-.store-table {
-  width: 100%;
-  max-width: 100%;
-  background: white;
-  display: table;
-  border-collapse: collapse;
-  margin: 0px;
+.expand-all-btn:disabled {
+  color: #ccc;
 }
 
-.store-table .mat-header-row {
-  height: 40px;
+.expand-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #666;
 }
 
-.store-table .mat-row {
-  max-width: 120%;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.store-table .mat-row:hover {
-  background-color: mintcream;
-}
-
-.store-table .mat-row.selected-row {
-  background-color: lightyellow;
-}
-
-/* FIXED: Header styling like your working example */
-.mat-header-style {
-  font-weight: bold !important;
-  font-size: 15px !important;
-  background-color: lightgray !important;
-}
-
-/* FIXED: Column-specific styles with fixed widths (like your working example) */
-.mat-column-store_number {
-  width: 10%;
-  min-width: 140px;
-  max-width: 200px;
-  padding: 0px 10px;
-}
-
-.mat-column-store_name {
-  width: 20%;
-  min-width: 200px;
-  max-width: 500px;
-  padding: 0px 10px;
-}
-
-.mat-column-addr_line1 {
-  width: 20%;
-  min-width: 200px;
-  max-width: 500px;
-  padding: 0px 10px;
-}
-
-.mat-column-city {
-  width: 15%;
-  min-width: 150px;
-  max-width: 300px;
-  padding: 0px 10px;
-}
-
-.mat-column-state {
-  width: 5%;
-  min-width: 80px;
-  max-width: 100px;
-  padding: 0px 10px;
-}
-
-.mat-column-zip {
-  width: 8%;
-  min-width: 80px;
-  max-width: 120px;
-  padding: 0px 10px;
-}
-
-.mat-column-assigned_to {
-  width: 15%;
-  min-width: 150px;
-  max-width: 300px;
-  padding: 0px 10px;
-}
-
-.mat-column-expected_collection_time {
-  width: 10%;
-  min-width: 120px;
-  max-width: 200px;
-  padding: 0px 10px;
-}
-
-.mat-column-position_name {
-  width: 15%;
-  min-width: 150px;
-  max-width: 300px;
-  padding: 0px 10px;
-}
-
-/* FIXED: Caret styling (like your working example) */
-.caret {
-  display: inline-block;
-  margin-right: 5px;
-  margin-top: -1px;
-  transition: transform 0.3s;
-  font-size: 18px;
-  font-weight: 800;  
-  transform: rotate(90deg);
-  cursor: pointer;
-}
-
-.caret.expanded {
+/* Update caret to show expanded state for expand-all */
+.caret.clicked {
   transform: rotate(180deg);
   margin-top: -5px;
 }
 
-/* Cell styling */
-.store-number-cell {
-  font-weight: 500;
-}
+/* Existing styles remain... */
+3. Enhanced Filter Sidebar Component
+Updated Filter Sidebar Component
+typescript
+// filter-sidebar.component.ts - MAJOR UPDATES
 
-.store-name-cell .store-name {
-  font-weight: 500;
-  color: #333;
-}
+export class FilterSidebarComponent implements OnInit, OnDestroy {
+  @Output() filtersChanged = new EventEmitter<GetGridDataFilter>();
+  @Output() clearFilters = new EventEmitter<void>();
 
-.address-cell {
-  color: #555;
-}
-
-.state-badge {
-  background: #e8f5e8;
-  color: #2e7d32;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-  display: inline-block;
-}
-
-.assignment-badge {
-  padding: 6px 12px;
-  border-radius: 16px;
-  font-size: 12px;
-  font-weight: 500;
-  text-transform: uppercase;
-  display: inline-block;
-  white-space: nowrap;
-}
-
-.assignment-badge.assigned {
-  background: #4caf50;
-  color: white;
-}
-
-.assignment-badge.not-assigned {
-  background: #ff9800;
-  color: white;
-}
-
-.collection-time-cell {
-  color: #666;
-  font-size: 13px;
-}
-
-.cluster-cell {
-  font-family: 'Monaco', 'Menlo', monospace;
-  font-size: 12px;
-  background: #f5f5f5;
-  color: #333;
-  border-radius: 4px;
-}
-
-/* FIXED: Expanded table styling (exactly like your working example) */
-.expanded-table {
-  margin-top: 5px;
-  margin-bottom: 15px;
-  margin-left: 70px;
-  border-collapse: collapse;
-  border: 1px solid #ddd;
-  font-size: 14px;
-  width: calc(100% - 140px); /* Full width minus margins */
-}
-
-.expanded-table th,
-.expanded-table td {
-  padding: 8px 12px;
-  text-align: left;
-  border-bottom: 1px solid #ddd;
-  white-space: nowrap;
-}
-
-.expanded-table th {
-  background-color: #f2f2f2;
-  font-weight: bold;
-}
-
-.expanded-table td[style*="max-width"] {
-  white-space: normal !important;
-  word-wrap: break-word;
-}
-
-/* Detail row styling */
-.detail-row {
-  background: #fafafa;
-  overflow: hidden;
-}
-
-/* Paginator */
-.table-paginator {
-  border-top: 1px solid #e0e0e0;
-  background: #fafafa;
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
-  height: 52px;
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-  .table-wrapper {
-    overflow-x: auto;
-  }
+  filterForm!: FormGroup;
+  showAdvancedFilters = false;
+  showSpinner = false;
   
-  .store-table {
-    min-width: 800px;
-  }
-  
-  .expanded-table {
-    margin-left: 20px;
-    width: calc(100% - 40px);
-    font-size: 12px;
-  }
-  
-  .expanded-table th,
-  .expanded-table td {
-    padding: 6px 8px;
-  }
-}
+  // Data arrays
+  employeedata: any[] = [];
+  iriWeeks: any[] = [];
+  territories: any[] = [];
+  filteredStores: any[] = [];
+  filteredState: any[] = [];
+  filteredCity: any[] = [];
+  filteredCluster: any[] = [];
+  filteredTask: any[] = [];
+  filteredFSR: any[] = [];
 
-/* Spinner styling */
-.mat-spinner-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
+  // Selected values
+  selectedStoreNumber = '';
+  selectedState = '';
+  selectedCity = '';
+  selectedCluster = '';
+  selectedTask = '';
+  selectedFsrId = '';
+  areaNBRctrl = new FormControl();
+  
+  // ADD: Initialization state management
+  private initializationState = {
+    countryReady: false,
+    iriWeekReady: false,
+    territoryReady: false
+  };
 
-.mat-spinner {
-  z-index: 111;
+  private unsubscribe$ = new Subject<void>();
+  private loggeduser: string;
+
+  constructor(
+    private fb: FormBuilder,
+    private commonService: CommonService,
+    public http: HttpClient,
+    @Inject('BASE_URL') public baseUrl: string,
+    private snackBar: MatSnackBar // ADD for error messages
+  ) {
+    this.initializeForm();
+    this.loggeduser = localStorage.getItem("loggedUserId") || '';
+  }
+
+  async ngOnInit(): Promise<void> {
+    try {
+      this.employeedata = await firstValueFrom(this.commonService.getEmployee(this.loggeduser));
+      
+      // UPDATED: Wait for country selection
+      this.waitForCountrySelection();
+      
+      this.setupFormSubscriptions();
+    } catch (error) {
+      console.error('Error initializing filter component:', error);
+    }
+  }
+
+  // ADD: Wait for country selection
+  private waitForCountrySelection(): void {
+    this.commonService.country$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(countryId => {
+        if (countryId) {
+          this.initializationState.countryReady = true;
+          console.log('Country is ready:', countryId);
+          this.initializeFilters();
+        } else {
+          this.initializationState.countryReady = false;
+          this.showError('Please select a country to load filters');
+        }
+      });
+  }
+
+  // UPDATED: Initialize filters after country is selected
+  private async initializeFilters(): Promise<void> {
+    try {
+      await this.getIriWeek();
+      await this.getTerritory();
+      this.checkAndApplyDefaultFilters();
+    } catch (error) {
+      console.error('Error initializing filters:', error);
+      this.showError('Error loading filter data');
+    }
+  }
+
+  // UPDATED: Get IRI Week with state management
+  private getIriWeek(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetIriWeek')
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe({
+          next: (response) => {
+            this.iriWeeks = response;
+            if (this.iriWeeks.length > 0) {
+              this.filterForm.get('iriWeek')?.setValue(this.iriWeeks?.['iri_week'], { emitEvent: false });
+              this.initializationState.iriWeekReady = true;
+              resolve();
+            } else {
+              reject(new Error('No IRI weeks found'));
+            }
+          },
+          error: (error) => { 
+            console.error('Error fetching IRI weeks:', error);
+            reject(error);
+          }
+        });
+    });
+  }
+
+  // UPDATED: Get Territory with state management and area handling
+  private getTerritory(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.showSpinner = true;
+      this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetTerritory')
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe({
+          next: (response) => {
+            this.territories = response;
+            
+            // Set default territory and area
+            const defaultTerritory = this.employeedata?.?.['fieldTerritoryNumber'] == 0 || 
+                                    !this.employeedata?.?.['fieldTerritoryNumber']
+                                    ? this.territories?.?.['territory_id']
+                                    : this.employeedata?.?.['fieldTerritoryNumber'];
+            
+            this.filterForm.get('territory')?.setValue(defaultTerritory, { emitEvent: false });
+            
+            // FIXED: Set area based on selected territory
+            const selectedTerritory = this.territories.find(t => t.territory_id === defaultTerritory);
+            this.areaNBRctrl.setValue(selectedTerritory?.area || this.territories?.?.['area'] || '23');
+            
+            this.initializationState.territoryReady = true;
+            this.showSpinner = false;
+            resolve();
+          },
+          error: (error) => { 
+            console.error('Error fetching territories:', error);
+            this.showSpinner = false;
+            reject(error);
+          }
+        });
+    });
+  }
+
+  // UPDATED: Territory change handler with area update
+  onTerritoryChange(event?: any): void {
+    const selectedTerritoryId = event?.value || this.filterForm.get('territory')?.value;
+    
+    // Update area based on selected territory
+    const selectedTerritory = this.territories.find(t => t.territory_id == selectedTerritoryId);
+    if (selectedTerritory) {
+      this.areaNBRctrl.setValue(selectedTerritory.area);
+      console.log('Territory changed, area updated to:', selectedTerritory.area);
+    }
+
+    // Clear dependent fields when territory changes
+    this.filterForm.patchValue({
+      store: '',
+      state: '',
+      city: '',
+      cluster: '',
+      task: '',
+      fsr: ''
+    });
+    this.clearSelectedValues();
+  }
+
+  // UPDATED: IRI Week change handler
+  onIriWeekChange(): void {
+    // Clear dependent fields when IRI week changes
+    this.filterForm.patchValue({
+      store: '',
+      state: '',
+      city: '',
+      cluster: '',
+      task: '',
+      fsr: ''
+    });
+    this.clearSelectedValues();
+  }
+
+  // ADD: Check if all required data is ready before applying filters
+  private checkAndApplyDefaultFilters(): void {
+    const allReady = Object.values(this.initializationState).every(state => state);
+    
+    if (allReady) {
+      console.log('All initialization complete, applying default filters...');
+      setTimeout(() => {
+        this.onApplyFilters();
+      }, 500);
+    } else {
+      console.log('Waiting for initialization to complete...', this.initializationState);
+    }
+  }
+
+  // UPDATED: Apply filters with validation
+  onApplyFilters(): void {
+    // Validate country selection
+    const currentCountry = this.commonService.getCurrentCountry();
+    if (!currentCountry) {
+      this.showError('Please select a country first');
+      return;
+    }
+
+    // Validate required fields
+    if (!this.initializationState.iriWeekReady || !this.initializationState.territoryReady) {
+      this.showError('Please wait for filters to load completely');
+      return;
+    }
+
+    const formValue = this.filterForm.value;
+    
+    const filters = new GetGridDataFilter();
+    filters.countryId = currentCountry; // Use current country from service
+    filters.lanId = this.loggeduser;
+    filters.iriWeek = formValue.iriWeek || '';
+    filters.territoryId = formValue.territory || '';
+    filters.area = this.areaNBRctrl.value || '23'; // Use current area value
+    filters.storeNumber = this.selectedStoreNumber;
+    filters.storeName = formValue.store || '';
+    filters.state = this.selectedState;
+    filters.city = this.selectedCity;
+    filters.positionNumber = this.selectedCluster;
+    filters.taskNumber = this.selectedTask;
+    filters.empId = this.selectedFsrId;
+    filters.fsrHour = formValue.fsrHour || '';
+    
+    // Static values as per your requirements
+    filters.fsrOver25hrs = 'false';
+    filters.fsrOver6hrs = 'false';
+    filters.fsrHourOperator = 'NA';
+    filters.temporary = 'false';
+    
+    // Handle radio button selections
+    if (formValue.storeAssignment === 'assigned') {
+      filters.assignedStores = 'true';
+      filters.unassignedStores = 'false';
+    } else if (formValue.storeAssignment === 'unassigned') {
+      filters.assignedStores = 'false';
+      filters.unassignedStores = 'true';
+    } else {
+      filters.assignedStores = 'false';
+      filters.unassignedStores = 'false';
+    }
+
+    if (formValue.sampleType === 'sample') {
+      filters.sample = 'true';
+      filters.nonSample = 'false';
+    } else if (formValue.sampleType === 'nonSample') {
+      filters.sample = 'false';
+      filters.nonSample = 'true';
+    } else {
+      filters.sample = 'false';
+      filters.nonSample = 'false';
+    }
+
+    filters.multiFsrStore = formValue.multiFsrStore ? 'true' : 'false';
+    
+    console.log('Applying filters:', filters);
+    this.filtersChanged.emit(filters);
+  }
+
+  // UPDATED: Clear filters with proper area reset
+  onClearFilters(): void {
+    // Get current territory and area for reset
+    const defaultTerritory = this.employeedata?.?.['fieldTerritoryNumber'] == 0 || 
+                            !this.employeedata?.?.['fieldTerritoryNumber']
+                            ? this.territories?.?.['territory_id']
+                            : this.employeedata?.?.['fieldTerritoryNumber'];
+
+    const selectedTerritory = this.territories.find(t => t.territory_id == defaultTerritory);
+    const defaultArea = selectedTerritory?.area || this.territories?.?.['area'] || '23';
+
+    this.filterForm.reset({
+      iriWeek: this.iriWeeks.length > 0 ? this.iriWeeks?.['iri_week'] : '',
+      territory: defaultTerritory,
+      storeAssignment: 'all',
+      sampleType: 'all',
+      multiFsrStore: false
+    });
+    
+    // Reset area control
+    this.areaNBRctrl.setValue(defaultArea);
+    
+    this.clearSelectedValues();
+    this.clearFilters.emit();
+  }
+
+  // ADD: Show error message
+  private showError(message: string): void {
+    this.snackBar.open(message, 'Close', {
+      duration: 5000,
+      panelClass: ['error-snackbar']
+    });
+  }
+
+  // Rest of existing methods remain the same...
 }
+4. Code Simplification Suggestions
+Territory Selection Template Update
+xml
+<!-- filter-sidebar.component.html - UPDATE TERRITORY SELECTION -->
+
+<div class="filter-field">
+  <label class="form-label">Territory</label>
+  <mat-form-field appearance="outline">
+    <mat-select formControlName="territory" (selectionChange)="onTerritoryChange($event)">
+      <mat-option [value]="-1">ALL</mat-option>
+      <mat-option *ngFor="let territory of territories" [value]="territory.territory_id">
+        {{territory.territory_name}} (Area: {{territory.area}})
+      </mat-option>
+    </mat-select>
+  </mat-form-field>
+</div>
+Module Requirements
+typescript
+// app.module.ts - ENSURE THESE IMPORTS
+
+import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+
+@NgModule({
+  imports: [
+    // ... existing imports
+    MatSnackBarModule,
+    MatProgressSpinnerModule,
+    // ... other imports
+  ],
+  // ... rest of module
+})
