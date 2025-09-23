@@ -1,3410 +1,548 @@
-src/├── app/│ ├── components/│ │ ├── dashboard-layout/│ │ │ ├── dashboard-layout.component.ts│ │ │ ├── dashboard-layout.component.html│ │ │ └── dashboard-layout.component.scss│ │ ├── store-table/│ │ │ ├── store-table.component.ts│ │ │ ├── store-table.component.html│ │ │ └── store-table.component.scss│ │ └── filter-sidebar/│ │ ├── filter-sidebar.component.ts│ │ ├── filter-sidebar.component.html│ │ └── filter-sidebar.component.scss│ ├── services/│ │ ├── common.service.ts│ │ └── store.service.ts│ ├── models/│ │ └── common.model.ts│ ├── app.component.ts│ ├── app.component.html│ ├── app.component.scss│ └── app.module.ts
-ng add @angular/material
-Choose these options when prompted:
-import
-{
-NgModule
-}
-from
-'@angular/core'
-;
-import
-{
-BrowserModule
-}
-from
-'@angular/platform-browser'
-;
-import
-{
-BrowserAnimationsModule
-}
-from
-'@angular/platform-browser/animations'
-;
-import
-{
-ReactiveFormsModule
-,
-FormsModule
-}
-from
-'@angular/forms'
-;
-Angular 13 Dashboard Implementation Guide
-Project Structure Setup
-Step 1: Install Angular Material
-Material theme:
-Custom
-or
-Indigo/Pink
-Typography styles:
-Yes
-Animations:
-Yes
-Step 2: Update app.module.ts
-// Angular Material Imports
-import
-{
-MatToolbarModule
-}
-from
-'@angular/material/toolbar'
-;
-import
-{
-MatSidenavModule
-}
-from
-'@angular/material/sidenav'
-;
-import
-{
-MatButtonModule
-}
-from
-'@angular/material/button'
-;
-import
-{
-MatIconModule
-}
-from
-'@angular/material/icon'
-;
-import
-{
-MatCardModule
-}
-from
-'@angular/material/card'
-;
-import
-{
-MatTableModule
-}
-from
-'@angular/material/table'
-;
-import
-{
-MatPaginatorModule
-}
-from
-'@angular/material/paginator'
-;
-import
-{
-MatSortModule
-}
-from
-'@angular/material/sort'
-;
-import
-{
-MatFormFieldModule
-}
-from
-'@angular/material/form-field'
-;
-import
-{
-MatInputModule
-}
-from
-'@angular/material/input'
-;
-import
-{
-MatSelectModule
-}
-from
-'@angular/material/select'
-;
-import
-{
-MatDatepickerModule
-}
-from
-'@angular/material/datepicker'
-;
-import
-{
-MatNativeDateModule
-}
-from
-'@angular/material/core'
-;
-import
-{
-MatSlideToggleModule
-}
-from
-'@angular/material/slide-toggle'
-;
-import
-{
-MatCheckboxModule
-}
-from
-'@angular/material/checkbox'
-;
-import
-{
-MatChipsModule
-}
-from
-'@angular/material/chips'
-;
-import
-{
-AppComponent
-}
-from
-'./app.component'
-;
-import
-{
-DashboardLayoutComponent
-}
-from
-'./components/dashboard-layout/dashboard-layout.
-import
-{
-StoreTableComponent
-}
-from
-'./components/store-table/store-table.component'
-;
-import
-{
-FilterSidebarComponent
-}
-from
-'./components/filter-sidebar/filter-sidebar.compon
-@NgModule
-({
-declarations
-: [
-AppComponent
-,
-DashboardLayoutComponent
-,
-StoreTableComponent
-,
-FilterSidebarComponent
-],
-imports
-: [
-BrowserModule
-,
-BrowserAnimationsModule
-,
-ReactiveFormsModule
-,
-FormsModule
-,
-MatToolbarModule
-,
-MatSidenavModule
-,
-MatButtonModule
-,
-MatIconModule
-,
-MatCardModule
-,
-MatTableModule
-,
-MatPaginatorModule
-,
-MatSortModule
-,
-MatFormFieldModule
-,
-MatInputModule
-,
-MatSelectModule
-,
-MatDatepickerModule
-,
-MatNativeDateModule
-,
-MatSlideToggleModule
-,
-MatCheckboxModule
-,
-MatChipsModule
-],
-providers
-: [],
-bootstrap
-: [
-AppComponent
-]})
-export
-class
-AppModule
-{ }
-export
-interface
-Store
-{
-id
-?:
-number
-;
-name
-:
-string
-;
-territory
-:
-string
-;
-location
-:
-string
-;
-status
-:
-'Active'
-|
-'Pending'
-|
-'Canceled'
-;
-storeType
-:
-string
-;
-assignment
-:
-string
-;
-fsr
-:
-string
-;
-dateCreated
-:
-Date
-;}
-export
-interface
-FilterOptions
-{
-territories
-:
-string
-[];
-locations
-:
-string
-[];
-statuses
-:
-string
-[];
-storeTypes
-:
-string
-[];
-assignments
-:
-string
-[];}
-export
-interface
-StoreFilter
-{
-quickSearch
-:
-string
-;
-territory
-:
-string
-;
-location
-:
-string
-;
-status
-:
-string
-;
-storeType
-:
-string
-;
-assignment
-:
-string
-;
-dateFrom
-:
-Date
-|
-null
-;
-dateTo
-:
-Date
-|
-null
-;
-multiFsr
-:
-boolean
-;}
-export
-interface
-PaginationData
-{
-pageIndex
-:
-number
-;
-pageSize
-:
-number
-;
-length
-:
-number
-;}
-import
-{
-Injectable
-}
-from
-'@angular/core'
-;
-import
-{
-BehaviorSubject
-,
-Observable
-}
-from
-'rxjs'
-;
-import
-{
-Store
-,
-FilterOptions
-,
-StoreFilter
-}
-from
-'../models/common.model'
-;
-@Injectable
-({
-providedIn
-:
-'root'
+<div class="table-container">
+  <mat-card class="table-card">
+    <mat-card-header>
+      <mat-card-title>Store Assignment Data</mat-card-title>
+      <mat-card-subtitle>{{dataSource.data.length}} stores found</mat-card-subtitle>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <div class="table-wrapper">
+        <!-- FIXED: Using your working table structure -->
+        <mat-table #table [dataSource]="dataSource" matSort class="store-table mat-elevation-2">
+          
+          <!-- Store Number Column with Expansion -->
+          <ng-container matColumnDef="store_number">
+            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Store #</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="store-number-cell">
+              <span class="caret" [class.expanded]="isExpanded(element)" *ngIf="element.hasDetails">▼</span>
+              <span *ngIf="!element.hasDetails">&nbsp;&nbsp;&nbsp;&nbsp;</span>
+              <span class="store-number">{{element.StoreNumber}}</span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Store Name Column -->
+          <ng-container matColumnDef="store_name">
+            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Store Name</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="store-name-cell">
+              <div class="store-info">
+                <span class="store-name">{{element.StoreName}}</span>
+              </div>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Store Address Column -->
+          <ng-container matColumnDef="addr_line1">
+            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Store Address</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="address-cell">
+              {{element.AddrLine1}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- City Column -->
+          <ng-container matColumnDef="city">
+            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">City</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="city-cell">{{element.City}}</mat-cell>
+          </ng-container>
+
+          <!-- State Column -->
+          <ng-container matColumnDef="state">
+            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">State</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="state-cell">
+              <span class="state-badge">{{element.State}}</span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Zip Column -->
+          <ng-container matColumnDef="zip">
+            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Zip</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="zip-cell">{{element.Zip}}</mat-cell>
+          </ng-container>
+
+          <!-- Assigned To Column -->
+          <ng-container matColumnDef="assigned_to">
+            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Assigned To</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="assigned-cell">
+              <span class="assignment-badge" [ngClass]="getAssignmentClass(element.AssignedTo)">
+                {{element.AssignedTo}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Average Collection Time Column -->
+          <ng-container matColumnDef="expected_collection_time">
+            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Avg Coll Time</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="collection-time-cell">
+              {{formatCollectionTime(element.ExpectedCollectionTime)}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- Cluster Column -->
+          <ng-container matColumnDef="position_name">
+            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Cluster</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="cluster-cell">
+              {{getClusterDisplay(element.PositionName)}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- FIXED: Header and Data Rows (like your working example) -->
+          <mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></mat-header-row>
+          <mat-row 
+            *matRowDef="let row; columns: displayedColumns; let i = index"
+            [ngClass]="{'selected-row': row === selectedRow}"
+            class="table-row"
+            (click)="selectedRow = selectedRow === row ? null : row"
+            [cdkDetailRow]="row" 
+            [cdkDetailRowTpl]="tpl"
+            (toggleChange)="GetUPCCollectionDetail($event, row)"
+            matRipple>
+          </mat-row>
+        </mat-table>
+      </div>
+      
+      <mat-paginator 
+        [pageSizeOptions]="[5, 10, 20, 50]" 
+        showFirstLastButtons
+        class="table-paginator">
+      </mat-paginator>
+
+      <!-- FIXED: Inner Table Template (exactly like your working example) -->
+      <ng-template #tpl let-element>
+        <div class="mat-row detail-row" [@detailExpand] style="overflow: hidden;">
+          <table class="expanded-table"> 
+            <tr> 
+              <th>T #</th>
+              <th>Collector</th>              
+              <th>Store #</th>
+              <th>Name</th>
+              <th>Address</th>
+              <th>Collected</th>
+              <th>Height</th>
+              <th>Width</th>
+              <th>Depth</th>            
+              <th>Processed</th>
+            </tr>
+            <tr *ngFor="let item of storeDetailsList">
+              <td>{{item.territory || element.Territory || 'N/A'}}</td>
+              <td>{{item.collectorName || element.CollectorName || 'N/A'}}</td>              
+              <td>{{item.storeNumber || element.StoreNumber}}</td>
+              <td style="max-width: 283px; white-space: normal;">
+                {{item.storeName || element.StoreName}}                
+              </td>
+              <td style="max-width: 283px; white-space: normal;">
+                {{item.storeAddress || element.AddrLine1}}
+              </td>
+              <td>{{item.collected || element.Collected || 'N/A'}}</td>
+              <td>{{item.height || element.Height || 'N/A'}}</td>
+              <td>{{item.width || element.Width || 'N/A'}}</td>
+              <td>{{item.depth || element.Depth || 'N/A'}}</td>
+              <td>{{item.processed || element.Processed || 'N/A'}}</td>
+            </tr>       
+          </table>
+        </div>
+      </ng-template>
+    </mat-card-content>
+  </mat-card>
+</div>
+
+import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
+import { MatTableDataSource } from '@angular/material/table';
+import { MatPaginator } from '@angular/material/paginator';
+import { MatSort } from '@angular/material/sort';
+import { CommonService } from 'src/app/shared/common.service';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+import { animate, state, style, transition, trigger } from '@angular/animations';
+
+@Component({
+  selector: 'app-store-table',
+  templateUrl: './store-table.component.html',
+  styleUrls: ['./store-table.component.css'],
+  animations: [
+    trigger('detailExpand', [
+      state('collapsed', style({height: '0px', minHeight: '0'})),
+      state('expanded', style({height: '*'})),
+      transition('expanded <=> collapsed', animate('225ms cubic-bezier(0.4, 0.0, 0.2, 1)')),
+    ]),
+  ],
 })
-export
-class
-CommonService
-{
-private
-sampleStores
-:
-Store
-[] = [ {
-id
-:
-1
-,
-Step 3: Common Models (src/app/models/common.model.ts)
-Step 4: Common Service (src/app/services/common.service.ts)
-name
-:
-"John Doe"
-,
-territory
-:
-"Actimn"
-,
-location
-:
-"North Region"
-,
-status
-:
-"Active"
-,
-storeType
-:
-"Retail"
-,
-assignment
-:
-"Primary"
-,
-fsr
-:
-"FSR001"
-,
-dateCreated
-:
-new
-Date
-(
-"2024-01-15"
-) }, {
-id
-:
-2
-,
-name
-:
-"John Foe"
-,
-territory
-:
-"Fannicy"
-,
-location
-:
-"South Region"
-,
-status
-:
-"Pending"
-,
-storeType
-:
-"Wholesale"
-,
-assignment
-:
-"Secondary"
-,
-fsr
-:
-"FSR002"
-,
-dateCreated
-:
-new
-Date
-(
-"2024-02-10"
-) }, {
-id
-:
-3
-,
-name
-:
-"John Smith"
-,
-territory
-:
-"Summer"
-,
-location
-:
-"East Region"
-,
-status
-:
-"Pending"
-,
-storeType
-:
-"Online"
-,
-assignment
-:
-"Primary"
-,
-fsr
-:
-"FSR003"
-,
-dateCreated
-:
-new
-Date
-(
-"2024-03-05"
-) }, {
-id
-:
-4
-,
-name
-:
-"John Smitte"
-,
-territory
-:
-"Aircert"
-,
-location
-:
-"West Region"
-,
-status
-:
-"Active"
-,
-storeType
-:
-"Retail"
-,
-assignment
-:
-"Primary"
-,
-fsr
-:
-"FSR004"
-,
-dateCreated
-:
-new
-Date
-(
-"2024-03-20"
-) }, {
-id
-:
-5
-,
-name
-:
-"John Smith"
-,
-territory
-:
-"Sanslor"
-,
-location
-:
-"Central Region"
-,
-status
-:
-"Canceled"
-,
-storeType
-:
-"Wholesale"
-,
-assignment
-:
-"Secondary"
-,
-fsr
-:
-"FSR005"
-,
-dateCreated
-:
-new
-Date
-(
-"2024-04-12"
-) }, {
-id
-:
-6
-,
-name
-:
-"Main Lisa"
-,
-territory
-:
-"Summer"
-,
-location
-:
-"North Region"
-,
-status
-:
-"Pending"
-,
-storeType
-:
-"Online"
-,
-assignment
-:
-"Primary"
-,
-fsr
-:
-"FSR006"
-,
-dateCreated
-:
-new
-Date
-(
-"2024-05-08"
-) }, {
-id
-:
-7
-,
-name
-:
-"Main Zahn"
-,
-territory
-:
-"Muller"
-,
-location
-:
-"South Region"
-,
-status
-:
-"Pending"
-,
-storeType
-:
-"Retail"
-,
-assignment
-:
-"Secondary"
-,
-fsr
-:
-"FSR007"
-,
-dateCreated
-:
-new
-Date
-(
-"2024-06-14"
-) }, {
-id
-:
-8
-,
-name
-:
-"Sarah Johnson"
-,
-territory
-:
-"Actimn"
-,
-location
-:
-"East Region"
-,
-status
-:
-"Active"
-,
-storeType
-:
-"Wholesale"
-,
-assignment
-:
-"Primary"
-,
-fsr
-:
-"FSR008"
-,
-dateCreated
-:
-new
-Date
-(
-"2024-07-03"
-) }, {
-id
-:
-9
-,
-name
-:
-"Mike Wilson"
-,
-territory
-:
-"Fannicy"
-,
-location
-:
-"West Region"
-,
-status
-:
-"Active"
-,
-storeType
-:
-"Online"
-,
-assignment
-:
-"Primary"
-,
-fsr
-:
-"FSR009"
-,
-dateCreated
-:
-new
-Date
-(
-"2024-07-18"
-) }, {
-id
-:
-10
-,
-name
-:
-"Emma Davis"
-,
-territory
-:
-"Summer"
-,
-location
-:
-"Central Region"
-,
-status
-:
-"Canceled"
-,
-storeType
-:
-"Retail"
-,
-assignment
-:
-"Secondary"
-,
-fsr
-:
-"FSR010"
-,
-dateCreated
-:
-new
-Date
-(
-"2024-08-05"
-) } ];
-private
-filterOptionsData
-:
-FilterOptions
-= {
-territories
-: [
-"Actimn"
-,
-"Fannicy"
-,
-"Summer"
-,
-"Aircert"
-,
-"Sanslor"
-,
-"Muller"
-],
-locations
-: [
-"North Region"
-,
-"South Region"
-,
-"East Region"
-,
-"West Region"
-,
-"Central Re
-statuses
-: [
-"Active"
-,
-"Pending"
-,
-"Canceled"
-],
-storeTypes
-: [
-"Retail"
-,
-"Wholesale"
-,
-"Online"
-],
-assignments
-: [
-"Primary"
-,
-"Secondary"
-] };
-private
-storesSubject =
-new
-BehaviorSubject
-<
-Store
-[]>(
-this
-.
-sampleStores
-);
-public
-stores$ =
-this
-.
-storesSubject
-.
-asObservable
-();
-private
-filteredStoresSubject =
-new
-BehaviorSubject
-<
-Store
-[]>(
-this
-.
-sampleStores
-);
-public
-filteredStores$ =
-this
-.
-filteredStoresSubject
-.
-asObservable
-();
-constructor
-(
-) { }
-getStores
-():
-Observable
-<
-Store
-[]> {
-return
-this
-.
-stores$
-; }
-getFilteredStores
-():
-Observable
-<
-Store
-[]> {
-return
-this
-.
-filteredStores$
-; }
-getFilterOptions
-():
-FilterOptions
-{
-return
-this
-.
-filterOptionsData
-; }
-applyFilters
-(
-filters
-:
-StoreFilter
-):
-void
-{
-let
-filteredData = [...
-this
-.
-sampleStores
-];
-// Quick Search Filter
-if
-(filters.
-quickSearch
-) {
-const
-searchTerm = filters.
-quickSearch
-.
-toLowerCase
-(); filteredData = filteredData.
-filter
-(
-store
-=>
-store.
-name
-.
-toLowerCase
-().
-includes
-(searchTerm) || store.
-territory
-.
-toLowerCase
-().
-includes
-(searchTerm) || store.
-location
-.
-toLowerCase
-().
-includes
-(searchTerm) || store.
-status
-.
-toLowerCase
-().
-includes
-(searchTerm) ); }
-// Territory Filter
-if
-(filters.
-territory
-) { filteredData = filteredData.
-filter
-(
-store
-=>
-store.
-territory
-=== filters.
-territory
-); }
-// Location Filter
-if
-(filters.
-location
-) { filteredData = filteredData.
-filter
-(
-store
-=>
-store.
-location
-=== filters.
-location
-); }
-// Status Filter
-if
-(filters.
-status
-) { filteredData = filteredData.
-filter
-(
-store
-=>
-store.
-status
-=== filters.
-status
-); }
-// Store Type Filter
-if
-(filters.
-storeType
-) { filteredData = filteredData.
-filter
-(
-store
-=>
-store.
-storeType
-=== filters.
-storeType
-); }
-// Assignment Filter
-if
-(filters.
-assignment
-) { filteredData = filteredData.
-filter
-(
-store
-=>
-store.
-assignment
-=== filters.
-assignment
+export class StoreTableComponent implements OnInit, OnDestroy {
+  
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
+  
+  displayedColumns: string[] = [
+    'store_number', 
+    'store_name', 
+    'addr_line1', 
+    'city', 
+    'state', 
+    'zip', 
+    'assigned_to', 
+    'expected_collection_time', 
+    'position_name'
+  ];
+  
+  dataSource = new MatTableDataSource<any>([]);
+  selectedRow: any = null;
+  storeDetailsList: any[] = []; // For inner table data
+  showSpinner = false;
+  
+  private destroy$ = new Subject<void>();
+
+  constructor(private commonService: CommonService) { }
+
+  ngOnInit(): void {
+    // Subscribe to grid data changes from service
+    this.commonService.gridData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        this.dataSource.data = data;
+        console.log('Table data updated:', data.length, 'records');
+      });
+  }
+
+  ngAfterViewInit(): void {
+    this.dataSource.paginator = this.paginator;
+    this.dataSource.sort = this.sort;
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  isExpanded(store: any): boolean {
+    return this.selectedRow === store;
+  }
+
+  // FIXED: Function based on your working example
+  GetUPCCollectionDetail(event: any, row: any): void {
+    if (event) {
+      this.selectedRow = this.selectedRow === row ? null : row;
+      console.log('Expanding row:', row);
+      
+      // Here you would call your API to get detail data
+      // For now, using sample data
+      if (this.selectedRow) {
+        this.loadStoreDetails(row);
+      }
+    } else {
+      this.selectedRow = null;
+      this.storeDetailsList = [];
+    }
+  }
+
+  // FIXED: Load store details (replace with your API call)
+  private loadStoreDetails(store: any): void {
+    this.showSpinner = true;
+    
+    // Sample data - replace with your actual API call
+    setTimeout(() => {
+      this.storeDetailsList = [
+        {
+          territory: store.Territory || '101',
+          collectorName: store.CollectorName || 'John Doe',
+          storeNumber: store.StoreNumber,
+          storeName: store.StoreName,
+          storeAddress: store.AddrLine1,
+          collected: store.Collected || 'Yes',
+          height: store.Height || '10ft',
+          width: store.Width || '20ft',
+          depth: store.Depth || '15ft',
+          processed: store.Processed || 'Complete'
+        }
+      ];
+      this.showSpinner = false;
+    }, 500);
+  }
+
+  getAssignmentClass(assignedTo: string): string {
+    return assignedTo === 'NOT ASSIGNED' ? 'not-assigned' : 'assigned';
+  }
+
+  formatCollectionTime(time: string): string {
+    return time || 'Not specified';
+  }
+
+  getClusterDisplay(positionName: string): string {
+    return positionName || 'N/A';
+  }
 }
-// Date Range Filter
-if
-(filters.
-dateFrom
-) { filteredData = filteredData.
-filter
-(
-store
-=>
-store.
-dateCreated
->= filters.
-dateFrom
-!) }
-if
-(filters.
-dateTo
-) { filteredData = filteredData.
-filter
-(
-store
-=>
-store.
-dateCreated
-<= filters.
-dateTo
-!); }
-this
-.
-filteredStoresSubject
-.
-next
-(filteredData); }
-clearFilters
-():
-void
-{
-this
-.
-filteredStoresSubject
-.
-next
-([...
-this
-.
-sampleStores
-]); }}
-import
-{
-Injectable
+
+
+
+.table-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  min-height: 66vh;
+  max-height: 66vh;
+  overflow-x: auto;
 }
-from
-'@angular/core'
-;
-import
-{
-BehaviorSubject
+
+.table-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
 }
-from
-'rxjs'
-;
-@Injectable
-({
-providedIn
-:
-'root'
-})
-export
-class
-StoreService
-{
-private
-sidebarStateSubject =
-new
-BehaviorSubject
-<
-boolean
->(
-true
-);
-public
-sidebarState$ =
-this
-.
-sidebarStateSubject
-.
-asObservable
-();
-constructor
-(
-) { }
-toggleSidebar
-():
-void
-{
-this
-.
-sidebarStateSubject
-.
-next
-(!
-this
-.
-sidebarStateSubject
-.
-value
-); }
-setSidebarState
-(
-isOpen
-:
-boolean
-):
-void
-{
-this
-.
-sidebarStateSubject
-.
-next
-(isOpen); }
-getSidebarState
-():
-boolean
-{
-return
-this
-.
-sidebarStateSubject
-.
-value
-; }}
-Step 5: Store Service (src/app/services/store.service.ts)
-import
-{
-Component
-,
-OnInit
-,
-OnDestroy
-,
-ViewChild
+
+.table-wrapper {
+  flex: 1;
+  overflow: auto;
+  min-height: 400px;
 }
-from
-'@angular/core'
-;
-import
-{
-MatSidenav
+
+/* FIXED: Table structure based on your working example */
+.store-table {
+  width: 100%;
+  max-width: 100%;
+  background: white;
+  display: table;
+  border-collapse: collapse;
+  margin: 0px;
 }
-from
-'@angular/material/sidenav'
-;
-import
-{
-StoreService
+
+.store-table .mat-header-row {
+  height: 40px;
 }
-from
-'../../services/store.service'
-;
-import
-{
-CommonService
+
+.store-table .mat-row {
+  max-width: 120%;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
-from
-'../../services/common.service'
-;
-import
-{
-StoreFilter
+
+.store-table .mat-row:hover {
+  background-color: mintcream;
 }
-from
-'../../models/common.model'
-;
-import
-{
-Subject
+
+.store-table .mat-row.selected-row {
+  background-color: lightyellow;
 }
-from
-'rxjs'
-;
-import
-{ takeUntil }
-from
-'rxjs/operators'
-;
-@Component
-({
-selector
-:
-'app-dashboard-layout'
-,
-templateUrl
-:
-'./dashboard-layout.component.html'
-,
-styleUrls
-: [
-'./dashboard-layout.component.scss'
-]})
-export
-class
-DashboardLayoutComponent
-implements
-OnInit
-,
-OnDestroy
-{
-@ViewChild
-(
-'sidenav'
-) sidenav!:
-MatSidenav
-;
-private
-destroy$ =
-new
-Subject
-<
-void
->(); isSidebarOpen =
-true
-;
-constructor
-(
-private
-storeService
-:
-StoreService
-,
-private
-commonService
-:
-CommonService
-) { }
-ngOnInit
-():
-void
-{
-this
-.
-storeService
-.
-sidebarState$
-.
-pipe
-(
-takeUntil
-(
-this
-.
-destroy$
-)) .
-subscribe
-(
-isOpen
-=>
-{
-this
-.
-isSidebarOpen
-= isOpen; }); }
-ngOnDestroy
-():
-void
-{
-this
-.
-destroy$
-.
-next
-();
-this
-.
-destroy$
-.
-complete
-(); }
-toggleSidebar
-():
-void
-{
-this
-.
-storeService
-.
-toggleSidebar
-();
-this
-.
-sidenav
-.
-toggle
-(); }
-onFiltersChanged
-(
-filters
-:
-StoreFilter
-):
-void
-{
-this
-.
-commonService
-.
-applyFilters
-(filters); }
-onClearFilters
-():
-void
-{
-this
-.
-commonService
-.
-clearFilters
-();
-Step 6: Dashboard Layout Component
-dashboard-layout.component.ts
-}}
-<
-div
-class
-=
-"dashboard-layout"
->
-<!-- Toolbar -->
-<
-mat-toolbar
-class
-=
-"mat-elevation-1"
->
-<
-button
-mat-icon-button
-(
-click
-)=
-"toggleSidebar()"
-aria-label
-=
-"Toggle sidenav"
->
-<
-mat-icon
->
-menu
-</
-mat-icon
->
-</
-button
->
-<
-h1
-class
-=
-"toolbar-title"
->
-Store Dashboard
-</
-h1
->
-<
-span
-class
-=
-"toolbar-spacer"
->
-</
-span
->
-<
-button
-mat-icon-button
-aria-label
-=
-"Notifications"
->
-<
-mat-icon
->
-notifications
-</
-mat-icon
->
-</
-button
->
-<
-button
-mat-icon-button
-aria-label
-=
-"Profile"
->
-<
-mat-icon
->
-account_circle
-</
-mat-icon
->
-</
-button
->
-</
-mat-toolbar
->
-<!-- Sidenav Container -->
-<
-mat-sidenav-container
-class
-=
-"sidenav-container"
->
-<!-- Sidebar -->
-<
-mat-sidenav
-#
-sidenav
-mode
-=
-"side"
-opened
-=
-"true"
-class
-=
-"sidenav"
-[
-class.sidenav-hidden
-]=
-"!isSidebarOpen"
->
-<
-app-filter-sidebar
-(
-filtersChanged
-)=
-"onFiltersChanged($event)"
-(
-clearFilters
-)=
-"onClearFilters()"
->
-</
-app-filter-sidebar
->
-</
-mat-sidenav
->
-<!-- Main Content -->
-<
-mat-sidenav-content
-class
-=
-"main-content"
-[
-class.sidebar-closed
-]=
-"!isSidebarOpen"
->
-<
-div
-class
-=
-"content-wrapper"
->
-<
-app-store-table
->
-</
-app-store-table
->
-</
-div
->
-</
-mat-sidenav-content
->
-</
-mat-sidenav-container
->
-</
-div
->
-.dashboard-layout
-{
-height
-:
-100vh
-;
-display
-: flex;
-flex-direction
-: column;}
-dashboard-layout.component.html
-dashboard-layout.component.scss
-.mat-toolbar
-{
-background
-:
-#1976d2
-;
-color
-: white;
-z-index
-:
-1000
-;
-position
-: relative;}
-.toolbar-title
-{
-margin-left
-:
-16px
-;
-font-size
-:
-18px
-;
-font-weight
-:
-500
-;}
-.toolbar-spacer
-{
-flex
-:
-1
-1
-auto;}
-.sidenav-container
-{
-flex
-:
-1
-;
-overflow
-: hidden;}
-.sidenav
-{
-width
-:
-280px
-;
-background
-:
-#fafafa
-;
-border-right
-:
-1px
-solid
-#e0e0e0
-;
-transition
-: all
-0.3s
-ease-in-out; &
-.sidenav-hidden
-{
-width
-:
-0
-;
-border
-: none; }}
-.main-content
-{
-transition
-: all
-0.3s
-ease-in-out; &
-.sidebar-closed
-{
-margin-left
-:
-0
-; }}
-.content-wrapper
-{
-padding
-:
-20px
-;
-height
-:
-100%
-;
-overflow
-: auto;}
-// Responsive Design
-@media
-(
-max-width
-:
-768px
-) {
-.sidenav
-{
-position
-: fixed;
-z-index
-:
-1001
-; }}
-import
-{
-Component
-,
-OnInit
-,
-Output
-,
-EventEmitter
+
+/* FIXED: Header styling like your working example */
+.mat-header-style {
+  font-weight: bold !important;
+  font-size: 15px !important;
+  background-color: lightgray !important;
 }
-from
-'@angular/core'
-;
-import
-{
-FormBuilder
-,
-FormGroup
+
+/* FIXED: Column-specific styles with fixed widths (like your working example) */
+.mat-column-store_number {
+  width: 10%;
+  min-width: 140px;
+  max-width: 200px;
+  padding: 0px 10px;
 }
-from
-'@angular/forms'
-;
-import
-{
-CommonService
+
+.mat-column-store_name {
+  width: 20%;
+  min-width: 200px;
+  max-width: 500px;
+  padding: 0px 10px;
 }
-from
-'../../services/common.service'
-;
-import
-{
-FilterOptions
-,
-StoreFilter
+
+.mat-column-addr_line1 {
+  width: 20%;
+  min-width: 200px;
+  max-width: 500px;
+  padding: 0px 10px;
 }
-from
-'../../models/common.model'
-;
-import
-{ debounceTime, distinctUntilChanged }
-from
-'rxjs/operators'
-;
-@Component
-({
-selector
-:
-'app-filter-sidebar'
-,
-templateUrl
-:
-'./filter-sidebar.component.html'
-,
-styleUrls
-: [
-'./filter-sidebar.component.scss'
-]})
-export
-class
-FilterSidebarComponent
-implements
-OnInit
-{
-@Output
-() filtersChanged =
-new
-EventEmitter
-<
-StoreFilter
->();
-@Output
-() clearFilters =
-new
-EventEmitter
-<
-void
->(); filterForm!:
-FormGroup
-; filterOptions!:
-FilterOptions
-;
-constructor
-(
-private
-fb
-:
-FormBuilder
-,
-private
-commonService
-:
-CommonService
-) {
-this
-.
-initializeForm
-(); }
-ngOnInit
-():
-void
-{
-this
-.
-filterOptions
-=
-this
-.
-commonService
-.
-getFilterOptions
-();
-// Subscribe to form changes with debounce
-this
-.
-filterForm
-.
-valueChanges
-.
-pipe
-(
-debounceTime
-(
-300
-),
-distinctUntilChanged
-() ) .
-subscribe
-(
-value
-=>
-{
-this
-.
-onFiltersChange
-(); }); }
-private
-initializeForm
-():
-void
-{
-this
-.
-filterForm
-=
-this
-.
-fb
-.
-group
-({
-quickSearch
-: [
-''
-],
-territory
-: [
-''
-],
-location
-: [
-''
-],
-status
-: [
-''
-],
-storeType
-: [
-''
-],
-assignment
-: [
-''
-],
-dateFrom
-: [
-null
-],
-dateTo
-: [
-null
-],
-multiFsr
-: [
-false
-]
-Step 7: Filter Sidebar Component
-filter-sidebar.component.ts
-}); }
-onFiltersChange
-():
-void
-{
-const
-formValue =
-this
-.
-filterForm
-.
-value
-;
-const
-filters
-:
-StoreFilter
-= {
-quickSearch
-: formValue.
-quickSearch
-||
-''
-,
-territory
-: formValue.
-territory
-||
-''
-,
-location
-: formValue.
-location
-||
-''
-,
-status
-: formValue.
-status
-||
-''
-,
-storeType
-: formValue.
-storeType
-||
-''
-,
-assignment
-: formValue.
-assignment
-||
-''
-,
-dateFrom
-: formValue.
-dateFrom
-,
-dateTo
-: formValue.
-dateTo
-,
-multiFsr
-: formValue.
-multiFsr
-||
-false
-};
-this
-.
-filtersChanged
-.
-emit
-(filters); }
-onClearFilters
-():
-void
-{
-this
-.
-filterForm
-.
-reset
-();
-this
-.
-clearFilters
-.
-emit
-(); }
-onApplyFilters
-():
-void
-{
-this
-.
-onFiltersChange
-(); }}
-<
-div
-class
-=
-"filter-sidebar"
->
-<
-div
-class
-=
-"sidebar-header"
->
-<
-h3
->
-Filters
-</
-h3
->
-</
-div
->
-<
-div
-class
-=
-"sidebar-content"
->
-<
-form
-[
-formGroup
-]=
-"filterForm"
-class
-=
-"filter-form"
->
-<!-- Quick Search -->
-<
-div
-class
-=
-"filter-section"
->
-<
-mat-form-field
-appearance
-=
-"outline"
-class
-=
-"full-width"
->
-<
-mat-label
->
-Quick Search
-</
-mat-label
->
-<
-input
-matInput
-formControlName
-=
-"quickSearch"
-placeholder
-=
-"Search stores..."
->
-<
-mat-icon
-matSuffix
->
-search
-</
-mat-icon
->
-</
-mat-form-field
->
-</
-div
->
-<!-- Territory Filter -->
-<
-div
-class
-=
-"filter-section"
->
-<
-mat-form-field
-appearance
-=
-"outline"
-class
-=
-"full-width"
->
-<
-mat-label
->
-Territory
-</
-mat-label
->
-<
-mat-select
-formControlName
-=
-"territory"
->
-<
-mat-option
-value
-=
-""
->
-All Territories
-</
-mat-option
->
-filter-sidebar.component.html
-<
-mat-option
-*
-ngFor
-=
-"let territory of filterOptions.territories"
-[
-value
-]=
-"terr
-{{territory}}
-</
-mat-option
->
-</
-mat-select
->
-</
-mat-form-field
->
-</
-div
->
-<!-- Location Filter -->
-<
-div
-class
-=
-"filter-section"
->
-<
-mat-form-field
-appearance
-=
-"outline"
-class
-=
-"full-width"
->
-<
-mat-label
->
-Location
-</
-mat-label
->
-<
-mat-select
-formControlName
-=
-"location"
->
-<
-mat-option
-value
-=
-""
->
-All Locations
-</
-mat-option
->
-<
-mat-option
-*
-ngFor
-=
-"let location of filterOptions.locations"
-[
-value
-]=
-"locatio
-{{location}}
-</
-mat-option
->
-</
-mat-select
->
-</
-mat-form-field
->
-</
-div
->
-<!-- Status Filter -->
-<
-div
-class
-=
-"filter-section"
->
-<
-mat-form-field
-appearance
-=
-"outline"
-class
-=
-"full-width"
->
-<
-mat-label
->
-Status
-</
-mat-label
->
-<
-mat-select
-formControlName
-=
-"status"
->
-<
-mat-option
-value
-=
-""
->
-All Statuses
-</
-mat-option
->
-<
-mat-option
-*
-ngFor
-=
-"let status of filterOptions.statuses"
-[
-value
-]=
-"status"
->
-{{status}}
-</
-mat-option
->
-</
-mat-select
->
-</
-mat-form-field
->
-</
-div
->
-<!-- Store Type Filter -->
-<
-div
-class
-=
-"filter-section"
->
-<
-mat-form-field
-appearance
-=
-"outline"
-class
-=
-"full-width"
->
-<
-mat-label
->
-Store Type
-</
-mat-label
->
-<
-mat-select
-formControlName
-=
-"storeType"
->
-<
-mat-option
-value
-=
-""
->
-All Types
-</
-mat-option
->
-<
-mat-option
-*
-ngFor
-=
-"let type of filterOptions.storeTypes"
-[
-value
-]=
-"type"
->
-{{type}}
-</
-mat-option
->
-</
-mat-select
->
-</
-mat-form-field
->
-</
-div
->
-<!-- Assignment Filter -->
-<
-div
-class
-=
-"filter-section"
->
-<
-mat-form-field
-appearance
-=
-"outline"
-class
-=
-"full-width"
->
-<
-mat-label
->
-Assignment
-</
-mat-label
->
-<
-mat-select
-formControlName
-=
-"assignment"
->
-<
-mat-option
-value
-=
-""
->
-All Assignments
-</
-mat-option
->
-<
-mat-option
-*
-ngFor
-=
-"let assignment of filterOptions.assignments"
-[
-value
-]=
-"ass
-{{assignment}}
-</
-mat-option
->
-</
-mat-select
->
-</
-mat-form-field
->
-</
-div
->
-<!-- Date Range -->
-<
-div
-class
-=
-"filter-section"
->
-<
-div
-class
-=
-"date-range"
->
-<
-mat-form-field
-appearance
-=
-"outline"
-class
-=
-"date-field"
->
-<
-mat-label
->
-From Date
-</
-mat-label
->
-<
-input
-matInput
-[
-matDatepicker
-]=
-"fromPicker"
-formControlName
-=
-"dateFrom"
->
-<
-mat-datepicker-toggle
-matSuffix
-[
-for
-]=
-"fromPicker"
->
-</
-mat-datepicker-toggle
->
-<
-mat-datepicker
-#
-fromPicker
->
-</
-mat-datepicker
->
-</
-mat-form-field
->
-<
-mat-form-field
-appearance
-=
-"outline"
-class
-=
-"date-field"
->
-<
-mat-label
->
-To Date
-</
-mat-label
->
-<
-input
-matInput
-[
-matDatepicker
-]=
-"toPicker"
-formControlName
-=
-"dateTo"
->
-<
-mat-datepicker-toggle
-matSuffix
-[
-for
-]=
-"toPicker"
->
-</
-mat-datepicker-toggle
->
-<
-mat-datepicker
-#
-toPicker
->
-</
-mat-datepicker
->
-</
-mat-form-field
->
-</
-div
->
-</
-div
->
-<!-- Multi FSR Toggle -->
-<
-div
-class
-=
-"filter-section"
->
-<
-mat-slide-toggle
-formControlName
-=
-"multiFsr"
-class
-=
-"multi-fsr-toggle"
->
-Multi-FSR
-</
-mat-slide-toggle
->
-</
-div
->
-<!-- Action Buttons -->
-<
-div
-class
-=
-"filter-actions"
->
-<
-button
-mat-raised-button
-color
-=
-"primary"
-type
-=
-"button"
-(
-click
-)=
-"onApplyFilters()
-Apply Filters
-</
-button
->
-<
-button
-mat-stroked-button
-type
-=
-"button"
-(
-click
-)=
-"onClearFilters()"
-class
-=
-"action
-Clear All
-</
-button
->
-</
-div
->
-</
-form
->
-</
-div
->
-</
-div
->
-.filter-sidebar
-{
-height
-:
-100%
-;
-display
-: flex;
-flex-direction
-: column;
-background
-:
-#fafafa
-;}
-.sidebar-header
-{
-padding
-:
-16px
-;
-border-bottom
-:
-1px
-solid
-#e0e0e0
-;
-background
-: white;
-filter-sidebar.component.scss
-h3
-{
-margin
-:
-0
-;
-font-size
-:
-18px
-;
-font-weight
-:
-500
-;
-color
-:
-#333
-; }}
-.sidebar-content
-{
-flex
-:
-1
-;
-overflow-y
-: auto;
-padding
-:
-16px
-;}
-.filter-form
-{
-display
-: flex;
-flex-direction
-: column;
-gap
-:
-16px
-;}
-.filter-section
-{
-.full-width
-{
-width
-:
-100%
-; }}
-.date-range
-{
-display
-: flex;
-flex-direction
-: column;
-gap
-:
-12px
-;
-.date-field
-{
-width
-:
-100%
-; }}
-.multi-fsr-toggle
-{
-width
-:
-100%
-;
-display
-: flex;
-justify-content
-: space-between;}
-.filter-actions
-{
-display
-: flex;
-flex-direction
-: column;
-gap
-:
-12px
-;
-margin-top
-:
-20px
-;
-.action-button
-{
-width
-:
-100%
-; }}
-// Responsive adjustments
-@media
-(
-max-width
-:
-768px
-) {
-.sidebar-content
-{
-padding
-:
-12px
-; }
-.filter-form
-{
-gap
-:
-12px
-; }}
-import
-{
-Component
-,
-OnInit
-,
-OnDestroy
-,
-ViewChild
+
+.mat-column-city {
+  width: 15%;
+  min-width: 150px;
+  max-width: 300px;
+  padding: 0px 10px;
 }
-from
-'@angular/core'
-;
-import
-{
-MatTableDataSource
+
+.mat-column-state {
+  width: 5%;
+  min-width: 80px;
+  max-width: 100px;
+  padding: 0px 10px;
 }
-from
-'@angular/material/table'
-;
-import
-{
-MatPaginator
+
+.mat-column-zip {
+  width: 8%;
+  min-width: 80px;
+  max-width: 120px;
+  padding: 0px 10px;
 }
-from
-'@angular/material/paginator'
-;
-import
-{
-MatSort
+
+.mat-column-assigned_to {
+  width: 15%;
+  min-width: 150px;
+  max-width: 300px;
+  padding: 0px 10px;
 }
-from
-'@angular/material/sort'
-;
-import
-{
-CommonService
+
+.mat-column-expected_collection_time {
+  width: 10%;
+  min-width: 120px;
+  max-width: 200px;
+  padding: 0px 10px;
 }
-from
-'../../services/common.service'
-;
-import
-{
-Store
+
+.mat-column-position_name {
+  width: 15%;
+  min-width: 150px;
+  max-width: 300px;
+  padding: 0px 10px;
 }
-from
-'../../models/common.model'
-;
-import
-{
-Subject
+
+/* FIXED: Caret styling (like your working example) */
+.caret {
+  display: inline-block;
+  margin-right: 5px;
+  margin-top: -1px;
+  transition: transform 0.3s;
+  font-size: 18px;
+  font-weight: 800;  
+  transform: rotate(90deg);
+  cursor: pointer;
 }
-from
-'rxjs'
-;
-import
-{ takeUntil }
-from
-'rxjs/operators'
-;
-@Component
-({
-selector
-:
-'app-store-table'
-,
-templateUrl
-:
-'./store-table.component.html'
-,
-styleUrls
-: [
-'./store-table.component.scss'
-]})
-export
-class
-StoreTableComponent
-implements
-OnInit
-,
-OnDestroy
-{
-@ViewChild
-(
-MatPaginator
-) paginator!:
-MatPaginator
-;
-@ViewChild
-(
-MatSort
-) sort!:
-MatSort
-;
-displayedColumns
-:
-string
-[] = [
-'name'
-,
-'territory'
-,
-'location'
-,
-'status'
-]; dataSource =
-new
-MatTableDataSource
-<
-Store
->([]);
-private
-destroy$ =
-new
-Subject
-<
-void
->();
-constructor
-(
-private
-commonService
-:
-CommonService
-) { }
-ngOnInit
-():
-void
-{
-this
-.
-commonService
-.
-getFilteredStores
-() .
-pipe
-(
-takeUntil
-(
-this
-.
-destroy$
-)) .
-subscribe
-(
-stores
-=>
-{
-this
-.
-dataSource
-.
-data
-= stores; }); }
-ngAfterViewInit
-():
-void
-{
-this
-.
-dataSource
-.
-paginator
-=
-this
-.
-paginator
-;
-this
-.
-dataSource
-.
-sort
-=
-this
-.
-sort
-; }
-ngOnDestroy
-():
-void
-{
-this
-.
-destroy$
-.
-next
-();
-Step 8: Store Table Component
-store-table.component.ts
-this
-.
-destroy$
-.
-complete
-(); }
-getStatusClass
-(
-status
-:
-string
-):
-string
-{
-switch
-(status) {
-case
-'Active'
-:
-return
-'status-active'
-;
-case
-'Pending'
-:
-return
-'status-pending'
-;
-case
-'Canceled'
-:
-return
-'status-canceled'
-;
-default
-:
-return
-''
-; } }}
-<
-div
-class
-=
-"table-container"
->
-<
-mat-card
-class
-=
-"table-card"
->
-<
-mat-card-header
->
-<
-mat-card-title
->
-Store Data
-</
-mat-card-title
->
-</
-mat-card-header
->
-<
-mat-card-content
->
-<
-div
-class
-=
-"table-wrapper"
->
-<
-table
-mat-table
-[
-dataSource
-]=
-"dataSource"
-matSort
-class
-=
-"mat-elevation-2"
->
-<!-- Name Column -->
-<
-ng-container
-matColumnDef
-=
-"name"
->
-<
-th
-mat-header-cell
-*
-matHeaderCellDef
-mat-sort-header
->
-Name
-</
-th
->
-<
-td
-mat-cell
-*
-matCellDef
-=
-"let store"
->
-{{store.name}}
-</
-td
->
-</
-ng-container
->
-<!-- Territory Column -->
-<
-ng-container
-matColumnDef
-=
-"territory"
->
-<
-th
-mat-header-cell
-*
-matHeaderCellDef
-mat-sort-header
->
-Territory
-</
-th
->
-<
-td
-mat-cell
-*
-matCellDef
-=
-"let store"
->
-{{store.territory}}
-</
-td
->
-</
-ng-container
->
-<!-- Location Column -->
-<
-ng-container
-matColumnDef
-=
-"location"
->
-<
-th
-mat-header-cell
-*
-matHeaderCellDef
-mat-sort-header
->
-Location
-</
-th
->
-<
-td
-mat-cell
-*
-matCellDef
-=
-"let store"
->
-{{store.location}}
-</
-td
->
-</
-ng-container
->
-<!-- Status Column -->
-<
-ng-container
-matColumnDef
-=
-"status"
->
-<
-th
-mat-header-cell
-*
-matHeaderCellDef
-mat-sort-header
->
-Status
-</
-th
->
-<
-td
-mat-cell
-*
-matCellDef
-=
-"let store"
->
-<
-span
-class
-=
-"status-badge"
-[
-ngClass
-]=
-"getStatusClass(store.status)"
->
-{{store.status}}
-</
-span
->
-</
-td
->
-store-table.component.html
-</
-ng-container
->
-<
-tr
-mat-header-row
-*
-matHeaderRowDef
-=
-"displayedColumns"
->
-</
-tr
->
-<
-tr
-mat-row
-*
-matRowDef
-=
-"let row; columns: displayedColumns;"
-class
-=
-"table-row"
->
-</
-tr
->
-</
-table
->
-</
-div
->
-<
-mat-paginator
-[
-pageSizeOptions
-]=
-"[5, 10, 20]"
-showFirstLastButtons
-class
-=
-"table-paginator"
->
-</
-mat-paginator
->
-</
-mat-card-content
->
-</
-mat-card
->
-</
-div
->
-.table-container
-{
-width
-:
-100%
-;
-height
-:
-100%
-;}
-.table-card
-{
-height
-:
-100%
-;
-display
-: flex;
-flex-direction
-: column;}
-.table-wrapper
-{
-flex
-:
-1
-;
-overflow
-: auto;
-min-height
-:
-400px
-;}
-.mat-table
-{
-width
-:
-100%
-;
-background
-: white;}
-.table-row
-:hover
-{
-background-color
-:
-#f5f5f5
-;
-cursor
-: pointer;}
-.status-badge
-{
-padding
-:
-4px
-12px
-;
-border-radius
-:
-16px
-;
-font-size
-:
-12px
-;
-font-weight
-:
-500
-;
-text
--
-transform
-: uppercase; &
-.status-active
-{
-background-color
-:
-#4caf50
-;
-store-table.component.scss
-color
-: white; } &
-.status-pending
-{
-background-color
-:
-#ff9800
-;
-color
-: white; } &
-.status-canceled
-{
-background-color
-:
-#f44336
-;
-color
-: white; }}
-.table-paginator
-{
-border-top
-:
-1px
-solid
-#e0e0e0
-;
-background
-:
-#fafafa
-;}
-// Responsive Design
-@media
-(
-max-width
-:
-768px
-) {
-.table-wrapper
-{
-min-height
-:
-300px
-; }
-.mat-table
-{
-font-size
-:
-14px
-; }
-.mat-cell
-,
-.mat-header-cell
-{
-padding
-:
-8px
-; }}
-<
-app-dashboard-layout
->
-</
-app-dashboard-layout
->
-:host
-{
-display
-: block;
-height
-:
-100vh
-;
-width
-:
-100%
-;}
-Step 9: App Component
-app.component.html
-app.component.scss
-/* You can add global styles to this file, and also import other style files */
-@import
-'~@angular/material/theming'
-;
-html
-,
-body
-{
-height
-:
-100%
-;
-margin
-:
-0
-;
-padding
-:
-0
-;}
-body
-{
-font-family
-: Roboto,
-"Helvetica Neue"
-, sans-serif;
-background-color
-:
-#f5f5f5
-;}* {
-box-sizing
-: border-box;}
-// Custom Material Theme (Optional)
-$custom-primary
-:
-mat-palette
-(
-$mat-blue
-);
-$custom-accent
-:
-mat-palette
-(
-$mat-amber
-);
-$custom-warn
-:
-mat-palette
-(
-$mat-red
-);
-$custom-theme
-:
-mat-light-theme
-(( color: ( primary:
-$custom-primary
-, accent:
-$custom-accent
-, warn:
-$custom-warn
-, )));
-@include
-mat-core();
-@include
-mat-all-component-themes(
-$custom-theme
-);
-ng serve
-Your Angular dashboard should now be running at
-http://localhost:4200
-with:
-Step 10: Global Styles (src/styles.scss)
-Step 11: Run the Application
-✅ Responsive sidebar with filters
-✅ Working data table with sorting and pagination
-✅ Real-time filtering functionality
-✅ Material Design styling
-✅ Proper component architecture
-This implementation provides a complete, working dashboard that matches the design andfunctionality from the web version.
-Additional Notes1.
-Make sure to import ReactiveFormsModule
-for the filter forms2.
-All Material modules must be imported
-in app.module.ts3.
-Services use BehaviorSubject
-for reactive state management4.
-Components communicate via services
-following Angular best practices5.
-Responsive design
-is built-in with CSS media queries
+
+.caret.expanded {
+  transform: rotate(180deg);
+  margin-top: -5px;
+}
+
+/* Cell styling */
+.store-number-cell {
+  font-weight: 500;
+}
+
+.store-name-cell .store-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.address-cell {
+  color: #555;
+}
+
+.state-badge {
+  background: #e8f5e8;
+  color: #2e7d32;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.assignment-badge {
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.assignment-badge.assigned {
+  background: #4caf50;
+  color: white;
+}
+
+.assignment-badge.not-assigned {
+  background: #ff9800;
+  color: white;
+}
+
+.collection-time-cell {
+  color: #666;
+  font-size: 13px;
+}
+
+.cluster-cell {
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 12px;
+  background: #f5f5f5;
+  color: #333;
+  border-radius: 4px;
+}
+
+/* FIXED: Expanded table styling (exactly like your working example) */
+.expanded-table {
+  margin-top: 5px;
+  margin-bottom: 15px;
+  margin-left: 70px;
+  border-collapse: collapse;
+  border: 1px solid #ddd;
+  font-size: 14px;
+  width: calc(100% - 140px); /* Full width minus margins */
+}
+
+.expanded-table th,
+.expanded-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+  white-space: nowrap;
+}
+
+.expanded-table th {
+  background-color: #f2f2f2;
+  font-weight: bold;
+}
+
+.expanded-table td[style*="max-width"] {
+  white-space: normal !important;
+  word-wrap: break-word;
+}
+
+/* Detail row styling */
+.detail-row {
+  background: #fafafa;
+  overflow: hidden;
+}
+
+/* Paginator */
+.table-paginator {
+  border-top: 1px solid #e0e0e0;
+  background: #fafafa;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  height: 52px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .table-wrapper {
+    overflow-x: auto;
+  }
+  
+  .store-table {
+    min-width: 800px;
+  }
+  
+  .expanded-table {
+    margin-left: 20px;
+    width: calc(100% - 40px);
+    font-size: 12px;
+  }
+  
+  .expanded-table th,
+  .expanded-table td {
+    padding: 6px 8px;
+  }
+}
+
+/* Spinner styling */
+.mat-spinner-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.mat-spinner {
+  z-index: 111;
+}
