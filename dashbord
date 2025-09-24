@@ -422,16 +422,393 @@ User clicks "Email Work Order"
 
 System sends emails to FM and FSRs
 
-Email button becomes disabled until next generation
+ public string CreateWorkOrder(string param)
+ {                       
+     string strFullPdfPath = "";
+     bool result = false;
 
-Filter Integration:
-The work order uses the same filter parameters as your main grid search, so you'll need to get current filter values from your filter component.
+     try
+     {
+         pdfSessionId = Guid.NewGuid().ToString().Replace("-", "");                
 
-Error Handling:
-Proper loading states for both operations
+         com.isg.businesslayer.Filter _objFilter = new com.isg.businesslayer.Filter();
 
-User-friendly error messages via snackbar
+         _objFilter = JsonConvert.DeserializeObject<com.isg.businesslayer.Filter>(param);
 
-Validation before allowing email sending
+         result = CreateFmWorkOrder(_objFilter, true, pdfSessionId, out strFullPdfPath);
+     }            
+     catch(Exception ex)
+     {
+         throw ex;
+     }
 
-This implementation matches the original functionality while using modern Angular patterns and Material Design components!
+     //if (rslt)
+     //{
+     //    System.IO.FileStream fs1 = null;
+     //    fs1 = System.IO.File.Open(strFullPdfPath, FileMode.Open, FileAccess.Read);
+     //    byte[] b1 = new byte[fs1.Length];
+     //    fs1.Read(b1, 0, (int)fs1.Length);
+     //    fs1.Close();
+     //    return b1;
+     //}
+
+     return pdfSessionId;
+ }
+ public static bool CreateFmWorkOrder(com.isg.businesslayer.Filter _fetaFilters, bool GeneratePDFForSubs, string sessionId,  out string strFullFilePath)
+ {
+     bool retVal = false;
+     strFullFilePath = "";           
+     PdfUtil _pdfUtil;
+
+     try
+     {
+         DataTable dt = BusinessLayer.GetWorkOrderTasksList(_fetaFilters, "", true);
+
+         if (dt.Rows.Count > 0)
+         {
+             string strHtml = GenerateHtmlFromDataTable(dt, _fetaFilters.comment, true);
+                               
+             strFullFilePath = System.Configuration.ConfigurationManager.AppSettings["PDFTempPath"].ToString() + "\\Territory" + _fetaFilters.territory_id + "_Week" + _fetaFilters.iri_week + ".pdf";                                       
+
+             _pdfUtil = new PdfUtil();
+
+             if (_pdfUtil.CreatePDF(strFullFilePath, strHtml))
+             {
+                 retVal = true;
+
+                 InsertWorkOrderEmail(sessionId, strFullFilePath, "Work Orders for Week " + _fetaFilters.iri_week.ToString(), _fetaFilters.fm_email, _fetaFilters.fm_emp_id);
+             }
+         }
+
+         //Generate PDFs for Employees, Generate PDFs for all FSRs in the selected Area/Territory
+         if (GeneratePDFForSubs == true)
+         {                                 
+             CreateFsrWorkOrder(dt, sessionId, _fetaFilters);
+         }
+     }
+     catch (Exception ex)
+     {                
+         throw ex;
+     }
+
+     return retVal;
+ }
+
+ private static void CreateFsrWorkOrder(DataTable dt, string sessionID, com.isg.businesslayer.Filter _fetaFilters)
+ {
+     PdfUtil _pdfUtil;
+     DataTable dtEmployees = dt;
+     string strEmpPdfPathAndFileName = String.Empty;            
+
+     try
+     {
+         if (dtEmployees.Rows.Count > 0)
+         {
+             //Get list of distinct FSRs
+             var distinctRows = (from DataRow dRow in dtEmployees.Rows
+                                 select new
+                                 {
+                                     iri_week = dRow["iri_week"],
+                                     emp_id = dRow["emp_id"],
+                                     first_name = dRow["first_name"],
+                                     last_name = dRow["last_name"],
+                                     email = dRow["email_addr"]
+                                 }).Distinct();
+
+             foreach (var row in distinctRows)
+             {
+                 var vIRI_Week = row.iri_week.ToString().Trim();
+                 var vEmpID = row.emp_id.ToString().Trim();
+                 var vFName = row.first_name.ToString().Trim();
+                 var vLName = row.last_name.ToString().Trim();
+                 var vEmail = row.email.ToString().Trim();
+
+                 DataTable dtEmployee = BusinessLayer.GetWorkOrderTasksList(_fetaFilters, vEmpID.ToString(), false);
+
+                 string strHtml1 = GenerateHtmlFromDataTable(dtEmployee, _fetaFilters.comment, false);
+
+                 strEmpPdfPathAndFileName = System.Configuration.ConfigurationManager.AppSettings["PDFTempPath"].ToString() + "\\" + vEmpID.ToString() + "_Week" + vIRI_Week + "_Tasks.pdf";                                                
+
+                 //Generate PDF for employee
+                 _pdfUtil = new PdfUtil();
+                 if (_pdfUtil.CreatePDF(strEmpPdfPathAndFileName, strHtml1))
+                 {
+                     if (!String.IsNullOrEmpty(vEmail))
+                         InsertWorkOrderEmail(sessionID, strEmpPdfPathAndFileName, vLName + "," + vFName + "'s Work Orders, Week " +
+                             vIRI_Week.ToString(), vEmail.ToString(), _fetaFilters.fm_email);
+                 }
+             }
+         }
+     }
+     catch (Exception ex)
+     {
+         throw new Exception("Error occured in CreateFSRWorkOrder - " + ex.Message.ToString() + " " + ex.StackTrace.ToString());                
+     }
+ }
+
+ private static string GenerateHtmlFromDataTable(DataTable dt, string _additionalCom, bool IsFMPDF)
+ {
+     StringBuilder sb = new StringBuilder();
+     sb.Append("<html><body>");
+
+     var distinctRows = (from System.Data.DataRow dRow in dt.Rows
+                         select new
+                         {
+                             iri_week = dRow["iri_week"],
+                             emp_id = dRow["emp_id"],
+                             first_name = dRow["first_name"],
+                             last_name = dRow["last_name"],
+                             area_number = dRow["area_number"],
+                             terrty_number = dRow["terrty_number"],
+                             area_name = dRow["area_name"],
+                             territory_name = dRow["territory_name"]
+                         }).Distinct();
+
+     foreach (var row in distinctRows)
+     {
+         var vIRI_Week = row.iri_week.ToString().Trim();
+         var vEmpID = row.emp_id.ToString().Trim();
+         var vFName = row.first_name.ToString().Trim();
+         var vLName = row.last_name.ToString().Trim();
+         var vArea_name = row.area_name.ToString().Trim();
+         var vArea_number = row.area_number.ToString().Trim();
+         var vTerritory_name = row.territory_name.ToString().Trim();
+         var vTerrty_number = row.terrty_number.ToString().Trim();
+
+         //Main table
+         sb.Append("<br><table border=0 cellpadding=0 cellspacing=0 width=100% style='font-family:Arial,Verdana,sans-serif; font-size:7'><tr><td align=left>");
+         sb.Append("<strong>Employee: " + vLName + ", " + vFName + " (" + vEmpID + ")");
+         sb.Append("</td></tr>");
+
+         sb.Append("<tr><td align=left>");
+
+         sb.Append(vArea_name + " (" + vArea_number + ") / ");
+         sb.Append(vTerritory_name + "(" + vTerrty_number + "), ");
+
+         sb.Append("IRI Week: " + vIRI_Week);
+         sb.Append("</strong></td></tr>");
+
+         if (!IsFMPDF)
+         {
+             sb.Append("<tr><td colspan=4 align=left><strong>Additional Communication:</strong></td></tr>");
+             sb.Append("<tr><td colspan=4 rowspan=2 align=left>" + _additionalCom + "<br><br></td></tr>");
+         }
+
+         //Sub table to create the stores
+         var distinctStoreRows = (from System.Data.DataRow dRow1 in dt.Rows
+                                  where dRow1.Field<string>("emp_id") == vEmpID
+                                  select new
+                                  {
+                                      store_number = dRow1["store_number"],
+                                      store_name = dRow1["store_name"],
+                                      store_address = dRow1["store_address"],
+                                      city_name = dRow1["city_name"],
+                                      state_cd = dRow1["state_cd"],
+                                      zip_cd = dRow1["zip_cd"]
+                                  }).Distinct();
+
+         foreach (var row1 in distinctStoreRows)
+         {
+             long lngEstimateCount = 0;
+             var vStore_number = row1.store_number.ToString().Trim();
+             var vStore_name = row1.store_name.ToString().Trim();
+             var vStore_address = row1.store_address.ToString().Trim();
+             var vCity_name = row1.city_name.ToString().Trim();
+             var vState_cd = row1.state_cd.ToString().Trim();
+             var vZip_cd = row1.zip_cd.ToString().Trim();
+
+
+             sb.Append("<tr><td></td>");
+             sb.Append("<td colspan=5>");
+             sb.Append("<table border=0 cellpadding=0 cellspacing=0 width=100% style='font-family:Arial,Verdana,sans-serif; font-size:7'>");
+             sb.Append("<tr><td colspan=4 align=left>");
+             sb.Append("<strong>Store: " + vStore_number + ": ");
+
+             sb.Append("(" + vStore_name);
+             sb.Append(", " + vStore_address);
+             sb.Append(", " + vCity_name);
+             sb.Append(", " + vState_cd);
+             sb.Append(", " + vZip_cd + ")");
+             sb.Append("</strong></td></tr>");
+
+             //Sub table to create the stores
+             var distinctTaskRows = (from System.Data.DataRow dRow2 in dt.Rows
+                                     where ((dRow2.Field<string>("emp_id") == vEmpID) &&
+                                           (dRow2.Field<Int64>("store_number") == Convert.ToInt64(vStore_number)))
+                                     select new
+                                     {
+                                         task_number = dRow2["task_number"],
+                                         task_name = dRow2["task_name"],
+                                         estColTime = dRow2["estimated_collection_time"],
+                                         collection_period = dRow2["wave"]
+                                     }).Distinct();
+
+             sb.Append("<td colspan=4>");
+             sb.Append("<table border='0.2' cellpadding=0 cellspacing=0 width=100% style='font-family:Arial,Verdana,sans-serif; font-size:7'>");
+
+             sb.Append("<tr>");
+             sb.Append("<th align=center><strong>Task #</strong></th>");
+             sb.Append("<th align=center><strong>Task Name</strong></th>");
+             sb.Append("<th align=center><strong>Collection Period</strong></th>");
+             sb.Append("<th align=center><strong>Est. Time</strong></th>");
+             sb.Append("</tr>");
+
+             foreach (var row2 in distinctTaskRows)
+             {
+                 var vTask_number = row2.task_number.ToString().Trim();
+                 var vTask_name = row2.task_name.ToString().Trim();
+                 var vEstColTime = row2.estColTime.ToString().Trim();
+                 var vCollPeriod = row2.collection_period.ToString().Trim();
+                 lngEstimateCount += Convert.ToInt64(vEstColTime);
+
+                 sb.Append("<tr>");
+                 sb.Append("<td align=center>" + vTask_number + "</td>");
+                 sb.Append("<td align=left>" + vTask_name + "</td>");
+                 //sb.Append("<td align=center>Week 1 of 1</td>");
+                 sb.Append("<td align=center>" + vCollPeriod + "</td>");
+                 sb.Append("<td align=center>" + Helper.TimeFormatter(Convert.ToInt64(vEstColTime)) + "</td>");
+                 sb.Append("</tr>");
+
+             }
+
+             sb.Append("<tr><td colspan=3 align=right><strong>Store " + vStore_number + " Total :</td>");
+             sb.Append("<td align=center>" + Helper.TimeFormatter(lngEstimateCount) + "</strong></td></tr>");
+
+             sb.Append("</table><br></td></tr>");
+             sb.Append("</table></td></tr>");
+         }
+         sb.Append("</table>");
+     }
+     sb.Append("</body></html>");
+
+     return sb.ToString();
+ }        
+
+ private static bool InsertWorkOrderEmail(string _sessionId, string strPDFFileLocation, string _subject, string _to, string UserName)
+ {
+     bool retVal = false;
+
+     try
+     {
+         BusinessLayer.InsertEmailInfoIntoTemp(_sessionId, 
+                                               _subject, 
+                                               _to, 
+                                               "Hello, <br> Please find your Work Order task list", 
+                                               strPDFFileLocation);
+
+         retVal = true;
+     }
+     catch(Exception ex)
+     {
+         throw ex;
+     }           
+
+     return retVal;
+ }
+
+ public string SendWorkOrderEmail(string pdfSessionId)
+ {
+     int retVal;
+     string rst = "";
+
+     try
+     {
+         retVal = BusinessLayer.SendWorkOrderEmail(pdfSessionId,
+                                               System.Configuration.ConfigurationManager.AppSettings["EmailFrom"].ToString(),
+                                               System.Configuration.ConfigurationManager.AppSettings["EmailCC"].ToString(),
+                                               System.Configuration.ConfigurationManager.AppSettings["EmailBCC"].ToString(),
+                                               System.Configuration.ConfigurationManager.AppSettings["EmailPriority"].ToString(),
+                                               Session["userid"].ToString());
+         
+     }
+     catch (Exception ex)
+     {
+         throw ex;
+     }
+
+     return rst;
+ }
+
+
+***************
+
+[HttpPost("[action]")]
+public List<ProximityData> GetProximityData(ProximityDataFilter filter)
+{
+    return _context.GetProximityData(filter);
+
+}
+
+public List<ProximityData> GetProximityData(ProximityDataFilter filter)
+{
+    try
+    {
+        DataTable dt = new();
+        List<ProximityData> _pd = new();
+
+        using (SqlConnection conn = new())
+        {
+            conn.ConnectionString = _sqlConnString;
+            conn.Open();
+            SqlCommand cmd = new("spa_get_closest_fsrs", conn) { CommandType = CommandType.StoredProcedure };
+
+            cmd.Parameters.Add(new SqlParameter("@store_number", filter.StoreNumber));                    
+
+            using (SqlDataAdapter sda = new(cmd))
+            {
+                sda.Fill(dt);
+            }
+            conn.Close();
+
+            if (dt != null && dt.Rows.Count > 0)
+            {
+                foreach (DataRow dr in dt.Rows)
+                {
+                    ProximityData _p = new();
+
+                    if (dt.Columns.Count == 1 && dt.Columns.Contains("NON_SAMPLE_C_STORE"))
+                    {
+                        _p.NonSampleCStore = dr["NON_SAMPLE_C_STORE"].ToString();
+                        _pd.Add(_p);
+                    }
+                    else
+                    {
+                        _p.StoreNumber = string.IsNullOrEmpty(dr["store_number"].ToString()) ? null : dr["store_number"].ToString();
+                        _p.EmpId = string.IsNullOrEmpty(dr["emp_id"].ToString()) ? null : dr["emp_id"].ToString();
+                        _p.Time = string.IsNullOrEmpty(dr["time"].ToString()) ? null : dr["time"].ToString();
+                        _p.TimePayout = string.IsNullOrEmpty(dr["time_payout"].ToString()) ? null : dr["time_payout"].ToString();
+                        _p.TravelTime = string.IsNullOrEmpty(dr["travel_time"].ToString()) ? null : dr["travel_time"].ToString();
+                        _p.Distance = string.IsNullOrEmpty(dr["distance"].ToString()) ? null : dr["distance"].ToString();
+                        _p.Toll = string.IsNullOrEmpty(dr["toll"].ToString()) ? null : dr["toll"].ToString();
+                        _p.TotalCost = string.IsNullOrEmpty(dr["total_cost"].ToString()) ? null : dr["total_cost"].ToString();
+                        _p.StraightLineDistance = string.IsNullOrEmpty(dr["straight_line_distance"].ToString()) ? null : dr["straight_line_distance"].ToString();
+                        _p.CreatedDate = string.IsNullOrEmpty(dr["created_date"].ToString()) ? null : dr["created_date"].ToString();
+                        _p.CreatedUser = string.IsNullOrEmpty(dr["created_user"].ToString()) ? null : dr["created_user"].ToString();
+                        _p.StraightLineDistanceRank = string.IsNullOrEmpty(dr["straight_line_distance_rank"].ToString()) ? null : dr["straight_line_distance_rank"].ToString();
+                        _p.EmpPlaceId = string.IsNullOrEmpty(dr["emp_place_id"].ToString()) ? null : dr["emp_place_id"].ToString();
+                        _p.StorePlaceId = string.IsNullOrEmpty(dr["store_place_id"].ToString()) ? null : dr["store_place_id"].ToString();
+                        _p.CostRank = string.IsNullOrEmpty(dr["cost_rank"].ToString()) ? null : dr["cost_rank"].ToString();
+                        _p.ModifiedUser = string.IsNullOrEmpty(dr["modified_user"].ToString()) ? null : dr["modified_user"].ToString();
+                        _p.ModifiedDate = string.IsNullOrEmpty(dr["modified_date"].ToString()) ? null : dr["modified_date"].ToString();
+                        _p.ModifiedDate = string.IsNullOrEmpty(dr["modified_date"].ToString()) ? null : dr["modified_date"].ToString();
+                        _p.FirstName = string.IsNullOrEmpty(dr["first_name"].ToString()) ? null : dr["first_name"].ToString();
+                        _p.LastName = string.IsNullOrEmpty(dr["last_name"].ToString()) ? null : dr["last_name"].ToString();
+                        _p.EmpStatus = string.IsNullOrEmpty(dr["emp_status_cd"].ToString()) ? null : dr["emp_status_cd"].ToString();
+                        _p.DistancePayoutFlag = string.IsNullOrEmpty(dr["distance_payout_flag"].ToString()) ? null : dr["distance_payout_flag"].ToString();
+                        _p.TravelPayoutFlag = string.IsNullOrEmpty(dr["Travel_payout_flag"].ToString()) ? null : dr["Travel_payout_flag"].ToString();
+                        _pd.Add(_p);
+                    }                          
+
+                    
+                }
+            }
+        }
+        return _pd;
+
+    }
+    catch (Exception)
+    {
+
+        throw;
+    }
+}
