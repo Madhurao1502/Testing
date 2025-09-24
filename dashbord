@@ -1,360 +1,437 @@
- async expandAllRows(): Promise<void> {
-    if (this.isExpandingAll) {
-      return;
-    }
-    
-    this.isExpandingAll = true;
-    
-    try {
-      if (this.allExpanded) {
-        this.collapseAllRows();
-      } else {
-        await this.expandAllRowsWithData();
+Complete Analysis: Generate Work Order & Email Work Order Implementation
+Overview of Functionality
+From the code analysis, there are two main features:
+
+Generate Work Order - Creates PDF work orders for FM and FSRs
+
+Email Work Order - Sends the generated work orders via email
+
+1. Generate Work Order Functionality
+Parameters Required for CreateWorkOrder Controller Method:
+typescript
+// Parameters sent to CreateWorkOrder endpoint
+interface CreateWorkOrderParams {
+  countryId: string;         // Current selected country
+  iri_week: string;          // Selected IRI week
+  territory_id: string;      // Selected territory
+  comment: string;           // Additional comments from user
+  fm_emp_id: string;         // Field Manager Employee ID (from territory data)
+  fm_email: string;          // Field Manager Email (from territory data)
+  area: string;              // Area ID (default 23)
+  
+  // Filter parameters (used for filtering data)
+  store_number: string;      // Optional store filter
+  state: string;             // Optional state filter
+  city: string;              // Optional city filter
+  position_number: string;   // Optional cluster filter
+  task_number: string;       // Optional task filter
+  emp_id: string;            // Optional FSR filter
+  fsr_over_25hrs: string;    // Boolean filter
+  fsr_over_6hrs: string;     // Boolean filter
+  assigned_stores: string;   // Boolean filter
+  unassigned_stores: string; // Boolean filter
+  sample: string;            // Boolean filter
+  nonsample: string;         // Boolean filter
+  multi_fsr_store: string;   // Boolean filter
+  vacation: string;          // Boolean filter
+  temporary: string;         // Boolean filter
+  fsr_hour: string;          // FSR hour filter
+  fsr_hour_operator: string; // Operator for FSR hour (>, =, <, NA)
+}
+Controller API Endpoint:
+csharp
+[HttpPost]
+public string CreateWorkOrder(string param)
+{
+    // Returns pdfSessionId for the generated work order
+}
+2. Email Work Order Functionality
+Parameters Required for SendWorkOrderEmail Controller Method:
+typescript
+interface SendWorkOrderEmailParams {
+  pdfSessionId: string;  // Session ID returned from CreateWorkOrder
+}
+Controller API Endpoint:
+csharp
+[HttpPost]
+public void SendWorkOrderEmail(string pdfSessionId)
+{
+    // Sends email to FM and FSRs with work order attachments
+}
+3. Angular Implementation for Your Dashboard
+Add to Common Service
+typescript
+// common.service.ts - ADD WORK ORDER METHODS
+
+export class CommonService {
+  
+  // Existing methods...
+
+  // Generate Work Order
+  createWorkOrder(params: any): Observable<string> {
+    return this.http.post<string>(
+      this.baseUrl + 'api/TaskAssignment/CreateWorkOrder', 
+      { param: JSON.stringify(params) },
+      { 
+        headers: { 'Content-Type': 'application/json; charset=utf-8' }
       }
-      
-      this.allExpanded = !this.allExpanded;
-      
-    } catch (error) {
-      console.error('Error in expandAllRows:', error);
-    } finally {
-      this.isExpandingAll = false;
-    }
-  }
-
-  // FIXED: Expand rows with proper data assignment
-  private async expandAllRowsWithData(): Promise<void> {
-    console.log('Starting to expand all rows with data...');
-    
-    const currentPageData = this.getCurrentPageData();
-    const detailRowsArray = this.detailRows?.toArray() || [];
-    
-    if (detailRowsArray.length === 0) {
-      console.warn('No detail row directives found');
-      return;
-    }
-
-    // Load all data first
-    console.log('Loading data for all rows...');
-    const dataLoadPromises = currentPageData.map(rowData => 
-      this.loadSubgridDataForRow(rowData).catch(error => {
-        console.error(`Error loading data for ${rowData.StoreNumber}:`, error);
-        return []; // Return empty array on error
-      })
     );
-
-    const allRowData = await Promise.all(dataLoadPromises);
-    console.log('All data loaded, expanding rows...');
-
-    // Now expand each row with its specific data
-    for (let i = 0; i < Math.min(currentPageData.length, detailRowsArray.length); i++) {
-      const detailRowDirective = detailRowsArray[i];
-      const rowData = allRowData[i];
-      
-      if (detailRowDirective && detailRowDirective.canExpand()) {
-        try {
-          // Expand with specific data for this row
-          detailRowDirective.expandWithData(rowData);
-          console.log(`Expanded row ${i + 1} with ${rowData.length} detail records`);
-          
-          // Small delay for UI smoothness
-          await this.delay(25);
-          
-        } catch (error) {
-          console.error(`Error expanding row ${i}:`, error);
-        }
-      }
-    }
-    
-    console.log('Finished expanding all rows');
   }
 
-  // UPDATED: Collapse all rows
-  private collapseAllRows(): void {
-    console.log('Collapsing all rows...');
-    
-    const detailRowsArray = this.detailRows?.toArray() || [];
-    
-    detailRowsArray.forEach((detailRow, index) => {
-      if (detailRow.isExpanded) {
-        detailRow.collapse();
-        console.log(`Collapsed row ${index + 1}`);
+  // Email Work Order
+  sendWorkOrderEmail(pdfSessionId: string): Observable<any> {
+    return this.http.post(
+      this.baseUrl + 'api/TaskAssignment/SendWorkOrderEmail',
+      { pdfSessionId: pdfSessionId },
+      { 
+        headers: { 'Content-Type': 'application/json; charset=utf-8' }
       }
-    });
-    
-    this.selectedRow = null;
-    this.expandedRow = undefined;
-    
-    console.log('All rows collapsed');
+    );
+  }
+}
+Add to Dashboard Layout Component
+typescript
+// dashboard-layout.component.ts - ADD WORK ORDER FUNCTIONALITY
+
+export class DashbordLayoutComponent implements OnInit, OnDestroy {
+  
+  // Existing properties...
+  isWoEmailed = true;           // Track if work order has been emailed
+  pdfSessionId: string = '';    // Store session ID from generated work order
+  territoryList: any[] = [];    // Territory data with FM info
+  
+  // Work order generation state
+  isGeneratingWorkOrder = false;
+  isSendingWorkOrder = false;
+
+  constructor(
+    private commonService: CommonService,
+    private http: HttpClient,
+    private snackBar: MatSnackBar,
+    @Inject('BASE_URL') public baseUrl: string,
+  ) { 
+    // Existing constructor code...
   }
 
-  // UPDATED: Handle individual data load requests
-  onDataLoadRequest(event: {directive: CdkDetailRowDirective, rowData: any}): void {
-    const { directive, rowData } = event;
+  async ngOnInit(): Promise<void> {
+    // Existing ngOnInit code...
     
-    // Check if we have cached data
-    const storeKey = rowData.StoreNumber || rowData.store_number;
-    if (this.expandedRowsData.has(storeKey)) {
-      directive.setSubgridData(this.expandedRowsData.get(storeKey) || []);
-    } else {
-      // Load data from API
-      this.loadSubgridDataForRow(rowData)
-        .then(data => {
-          directive.setSubgridData(data);
-        })
-        .catch(error => {
-          console.error('Error loading subgrid data:', error);
-          directive.setSubgridData([]);
-        });
+    // Load territory list for FM information
+    await this.loadTerritoryList();
+  }
+
+  // Load territory data with Field Manager information
+  private async loadTerritoryList(): Promise<void> {
+    try {
+      this.territoryList = await firstValueFrom(
+        this.http.post<any[]>(
+          this.baseUrl + 'api/TaskAssignment/GetTerritory',
+          { countryId: this.commonService.getCurrentCountry() }
+        )
+      );
+    } catch (error) {
+      console.error('Error loading territory list:', error);
+      this.showError('Error loading territory information');
     }
   }
 
-  // UPDATED: Load subgrid data method
-  private loadSubgridDataForRow(row: any): Promise<any[]> {
-    return new Promise((resolve, reject) => {
-      const storeKey = row.StoreNumber || row.store_number;
-      
-      // Check cache first
-      if (this.expandedRowsData.has(storeKey)) {
-        resolve(this.expandedRowsData.get(storeKey) || []);
-        return;
-      }
+  // Generate Work Order
+  async onGenerateWorkOrder(): Promise<void> {
+    if (!this.isWoEmailed) {
+      this.showError('Previously created work order is not emailed to employees yet.');
+      return;
+    }
 
-      const payload = {
-        IriWeek: row.IriWeek || row.iri_week,
-        StoreNumber: storeKey
+    const comment = await this.getWorkOrderComment();
+    if (comment === null) return; // User cancelled
+
+    this.isGeneratingWorkOrder = true;
+
+    try {
+      // Get current filter values
+      const currentFilters = this.getCurrentFilters();
+      
+      // Get FM information from territory
+      const currentTerritory = this.territoryList.find(
+        t => t.territory_id === currentFilters.territory_id
+      );
+
+      const params = {
+        ...currentFilters,
+        comment: comment,
+        fm_emp_id: currentTerritory?.fm_emp_id || '',
+        fm_email: currentTerritory?.fm_email || ''
       };
 
-      this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetSubgridData', payload)
-        .pipe(takeUntil(this.unsubscribe$))
-        .subscribe({
-          next: (response) => {
-            this.expandedRowsData.set(storeKey, response);
-            resolve(response);
-          },
-          error: (error) => {
-            console.error(`Error loading data for store ${storeKey}:`, error);
-            reject(error);
-          }
-        });
+      console.log('Generating work order with params:', params);
+
+      this.showInfo('Work orders for FM and FSRs are being generated, it may take few minutes.');
+
+      this.pdfSessionId = await firstValueFrom(
+        this.commonService.createWorkOrder(params)
+      );
+
+      this.isWoEmailed = false;
+      this.showSuccess('Work order generated successfully.');
+
+    } catch (error) {
+      console.error('Error generating work order:', error);
+      this.showError('Error while generating work order.');
+    } finally {
+      this.isGeneratingWorkOrder = false;
+    }
+  }
+
+  // Email Work Order
+  async onEmailWorkOrder(): Promise<void> {
+    if (this.isWoEmailed) {
+      this.showError('There are no work orders to be emailed, please generate a new one.');
+      return;
+    }
+
+    if (!this.pdfSessionId) {
+      this.showError('No work order session found. Please generate a work order first.');
+      return;
+    }
+
+    this.isSendingWorkOrder = true;
+
+    try {
+      await firstValueFrom(
+        this.commonService.sendWorkOrderEmail(this.pdfSessionId)
+      );
+
+      this.isWoEmailed = true;
+      this.showSuccess('Work order emails have been queued.');
+
+    } catch (error) {
+      console.error('Error sending work order emails:', error);
+      this.showError('Error while sending work order emails.');
+    } finally {
+      this.isSendingWorkOrder = false;
+    }
+  }
+
+  // Get current filter values from filter component
+  private getCurrentFilters(): any {
+    // Get current filters from your filter service/component
+    const currentCountry = this.commonService.getCurrentCountry();
+    
+    return {
+      countryId: currentCountry,
+      area: '23', // Default area
+      iri_week: '', // Get from filter component
+      territory_id: '', // Get from filter component
+      store_number: '',
+      state: '',
+      city: '',
+      position_number: '',
+      task_number: '',
+      emp_id: '',
+      fsr_over_25hrs: 'false',
+      fsr_over_6hrs: 'false',
+      assigned_stores: 'false',
+      unassigned_stores: 'false',
+      sample: 'false',
+      nonsample: 'false',
+      multi_fsr_store: 'false',
+      vacation: 'false',
+      temporary: 'false',
+      fsr_hour: '',
+      fsr_hour_operator: 'NA'
+    };
+  }
+
+  // Get work order comment from user
+  private getWorkOrderComment(): Promise<string | null> {
+    return new Promise((resolve) => {
+      const dialogRef = this.dialog.open(WorkOrderCommentDialog, {
+        width: '400px',
+        disableClose: true
+      });
+
+      dialogRef.afterClosed().subscribe(result => {
+        resolve(result);
+      });
     });
   }
 
-  // SIMPLIFIED: Individual row expansion
-  GetSubgridData(cdkDetailRow: CdkDetailRowDirective, row: any): void {
-    console.log('Individual row toggle:', row.StoreNumber, 'Expanded:', cdkDetailRow.isExpanded);
-    
-    // Close previously expanded row if different
-    if (this.expandedRow && this.expandedRow !== cdkDetailRow && this.expandedRow.isExpanded) {
-      this.expandedRow.collapse();
-    }
-    
-    this.expandedRow = cdkDetailRow.isExpanded ? cdkDetailRow : undefined;
-    this.selectedRow = cdkDetailRow.isExpanded ? row : null;
-
-    this.updateCaretIcon(cdkDetailRow, cdkDetailRow.isExpanded);
+  // Utility methods for notifications
+  private showSuccess(message: string): void {
+    this.snackBar.open(message, 'Close', {
+      duration: 4000,
+      panelClass: ['success-snackbar']
+    });
   }
 
-  // UPDATED: Update caret icon
-  updateCaretIcon(cdkDetailRow: CdkDetailRowDirective, isExpanded: boolean): void {
-    setTimeout(() => {
-      const rowElement = cdkDetailRow.viewContainerRef.element.nativeElement.parentElement;
-      const caretIcon = rowElement?.querySelector('.caret');
-      
-      if (caretIcon) {
-        if (isExpanded) {
-          caretIcon.classList.add('clicked');
-        } else {
-          caretIcon.classList.remove('clicked');
-        }
-      }
-    }, 0);
+  private showError(message: string): void {
+    this.snackBar.open(message, 'Close', {
+      duration: 5000,
+      panelClass: ['error-snackbar']
+    });
   }
 
-  // UTILITY METHODS
-  private getCurrentPageData(): any[] {
-    if (!this.paginator) {
-      return this.dataSource.data;
-    }
-    
-    const startIndex = this.paginator.pageIndex * this.paginator.pageSize;
-    const endIndex = startIndex + this.paginator.pageSize;
-    return this.dataSource.data.slice(startIndex, endIndex);
-  }
-
-  private resetExpansionState(): void {
-    this.allExpanded = false;
-    this.expandedRowsData.clear();
-    this.selectedRow = null;
-    this.expandedRow = undefined;
-  }
-
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  // TEMPLATE HELPERS
-  isRowExpanded(row: any): boolean {
-    return this.selectedRow === row;
-  }
-
-  getAssignmentClass(assignedTo: string): string {
-    return assignedTo === 'NOT ASSIGNED' ? 'not-assigned' : 'assigned';
-  }
-
-  formatCollectionTime(time: string): string {
-    return time || 'Not specified';
-  }
-
-  getClusterDisplay(positionName: string): string {
-    return positionName || 'N/A';
+  private showInfo(message: string): void {
+    this.snackBar.open(message, 'Close', {
+      duration: 4000,
+      panelClass: ['info-snackbar']
+    });
   }
 }
-3. Updated Store Table HTML (FIXED TEMPLATE)
+Update Dashboard Layout HTML
 xml
-<!-- store-table.component.html - UPDATED TEMPLATE WITH INDIVIDUAL DATA -->
+<!-- dashboard-layout.component.html - ADD WORK ORDER BUTTONS -->
 
-<div class="table-container">
-  <mat-card class="table-card">
-    <mat-card-header>
-      <mat-card-title>Store Assignment Data</mat-card-title>
-      <mat-card-subtitle>{{dataSource.data.length}} stores found</mat-card-subtitle>
-    </mat-card-header>
-    
-    <mat-card-content>
-      <div class="table-controls">
-        <button 
-          mat-icon-button 
-          [disabled]="isExpandingAll || dataSource.data.length === 0"
-          (click)="expandAllRows()" 
-          [title]="allExpanded ? 'Collapse All Rows' : 'Expand All Rows'"
-          class="expand-all-btn">
-          <mat-icon>{{allExpanded ? 'unfold_less' : 'unfold_more'}}</mat-icon>
-        </button>
-        
-        <span class="expand-status" *ngIf="isExpandingAll">
-          <mat-spinner diameter="16"></mat-spinner>
-          <span>{{allExpanded ? 'Collapsing' : 'Loading data and expanding'}} rows...</span>
-        </span>
-        
-        <span class="expand-info" *ngIf="!isExpandingAll">
-          {{allExpanded ? 'All rows expanded' : 'Click to expand all rows'}}
-        </span>
-      </div>
-
-      <div class="table-wrapper">
-        <mat-table #table [dataSource]="dataSource" matSort class="store-table mat-elevation-2">
-          
-          <!-- All column definitions remain the same... -->
-          <ng-container matColumnDef="store_number">
-            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Store #</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="store-number-cell" id="dropdown">
-              <span class="caret" 
-                    id="caretIcon" 
-                    [class.clicked]="isRowExpanded(element)">▼</span>
-              <span class="store-number">{{element.StoreNumber}}</span>
-            </mat-cell>
-          </ng-container>
-
-          <!-- Other columns... (same as before) -->
-
-          <mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></mat-header-row>
-          <mat-row 
-            *matRowDef="let row; columns: displayedColumns; let i = index"
-            [ngClass]="{'selected-row': row === selectedRow}"
-            class="table-row"
-            [cdkDetailRow]="row" 
-            [cdkDetailRowTpl]="tpl"
-            (toggleChange)="GetSubgridData($event, row)"
-            (dataLoadRequest)="onDataLoadRequest($event)"
-            matRipple>
-          </mat-row>
-        </mat-table>
-      </div>
-      
-      <mat-paginator 
-        [pageSizeOptions]="[5, 10, 20, 50]" 
-        showFirstLastButtons
-        class="table-paginator">
-      </mat-paginator>
-
-      <!-- FIXED: Template with individual data access -->
-      <ng-template #tpl let-element let-subgridData="subgridData" let-isLoading="isLoading">
-        <div class="mat-row detail-row" style="overflow: hidden;">
-          
-          <!-- Loading indicator for this specific row -->
-          <div *ngIf="isLoading" class="row-loading">
-            <mat-spinner diameter="20"></mat-spinner>
-            <span>Loading data for {{element.StoreName}}...</span>
-          </div>
-          
-          <!-- Data table for this specific row -->
-          <table class="expanded-table" *ngIf="!isLoading"> 
-            <tr> 
-              <th>T #</th>
-              <th>Collector</th>              
-              <th>Store #</th>
-              <th>Name</th>
-              <th>Address</th>
-              <th>Collected</th>
-              <th>Height</th>
-              <th>Width</th>
-              <th>Depth</th>            
-              <th>Processed</th>
-            </tr>
-            <tr *ngFor="let item of subgridData; trackBy: trackByStoreNumber">
-              <td>{{item.territory || element.Territory || 'N/A'}}</td>
-              <td>{{item.collectorName || element.CollectorName || 'N/A'}}</td>              
-              <td>{{item.storeNumber || element.StoreNumber}}</td>
-              <td style="max-width: 283px; white-space: normal;">
-                {{item.storeName || element.StoreName}}                
-              </td>
-              <td style="max-width: 283px; white-space: normal;">
-                {{item.storeAddress || element.AddrLine1}}
-              </td>
-              <td>{{item.collected || element.Collected || 'N/A'}}</td>
-              <td>{{item.height || element.Height || 'N/A'}}</td>
-              <td>{{item.width || element.Width || 'N/A'}}</td>
-              <td>{{item.depth || element.Depth || 'N/A'}}</td>
-              <td>{{item.processed || element.Processed || 'N/A'}}</td>
-            </tr>
-            <tr *ngIf="!subgridData || subgridData.length === 0">
-              <td colspan="10" style="text-align: center; padding: 20px; color: #666;">
-                No detail data available for {{element.StoreName}}
-              </td>
-            </tr>
-          </table>
-        </div>
-      </ng-template>
-    </mat-card-content>
-  </mat-card>
-</div>
-4. Add TrackBy Function (PERFORMANCE OPTIMIZATION)
+<mat-toolbar class="mat-toolbar-primary">
+  <!-- Existing toolbar content... -->
+  
+  <span class="toolbar-spacer"></span>
+  
+  <!-- Country Selector -->
+  <div class="country-field">
+    <mat-form-field appearance="outline">
+      <mat-select [formControl]="countryctrl" placeholder="Select country">
+        <mat-option *ngFor="let country of countrylist" 
+                    [value]="country.countryID" 
+                    (onSelectionChange)="selectedcountry($event)">
+          {{country.countryName}}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>        
+  </div>
+  
+  <!-- Work Order Buttons -->
+  <button mat-icon-button 
+          [disabled]="isGeneratingWorkOrder"
+          (click)="onGenerateWorkOrder()" 
+          title="Generate Work Order"
+          class="work-order-btn">
+    <mat-icon>create</mat-icon>
+  </button>
+  
+  <button mat-icon-button 
+          [disabled]="isSendingWorkOrder || isWoEmailed"
+          (click)="onEmailWorkOrder()" 
+          title="Email Work Order"
+          class="work-order-btn">
+    <mat-icon>send</mat-icon>
+  </button>
+  
+  <!-- Export Button -->
+  <button mat-icon-button 
+          (click)="onExportData()" 
+          title="Export Grid Data"
+          class="work-order-btn">
+    <mat-icon>download</mat-icon>
+  </button>
+</mat-toolbar>
+Create Work Order Comment Dialog
 typescript
-// store-table.component.ts - ADD TRACKBY FUNCTION
+// work-order-comment-dialog.component.ts
 
-// ADD: TrackBy function for better performance
-trackByStoreNumber(index: number, item: any): any {
-  return item.storeNumber || item.StoreNumber || index;
+import { Component } from '@angular/core';
+import { MatDialogRef } from '@angular/material/dialog';
+
+@Component({
+  selector: 'app-work-order-comment-dialog',
+  template: `
+    <h2 mat-dialog-title>Enter Additional Communication</h2>
+    <mat-dialog-content>
+      <mat-form-field appearance="outline" style="width: 100%;">
+        <mat-label>Additional Comments</mat-label>
+        <textarea matInput 
+                  [(ngModel)]="comment"
+                  maxlength="500"
+                  placeholder="Only 500 characters"
+                  rows="6">
+        </textarea>
+        <mat-hint>{{comment.length}}/500 characters</mat-hint>
+      </mat-form-field>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button mat-button (click)="onCancel()">Cancel</button>
+      <button mat-button color="primary" (click)="onConfirm()">OK</button>
+    </mat-dialog-actions>
+  `
+})
+export class WorkOrderCommentDialog {
+  comment = '';
+
+  constructor(
+    public dialogRef: MatDialogRef<WorkOrderCommentDialog>
+  ) {}
+
+  onCancel(): void {
+    this.dialogRef.close(null);
+  }
+
+  onConfirm(): void {
+    this.dialogRef.close(this.comment);
+  }
 }
-5. Updated Store Table CSS (ADD LOADING STYLES)
+Add CSS Styles
 css
-/* store-table.component.css - ADD LOADING STYLES */
+/* dashboard-layout.component.css - ADD WORK ORDER STYLES */
 
-.row-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 20px;
-  background: #f8f9fa;
-  border: 1px dashed #dee2e6;
-  margin: 10px 20px;
-  border-radius: 4px;
-  font-size: 14px;
-  color: #666;
+.work-order-btn {
+  color: #00b0f0;
+  margin-left: 8px;
 }
 
-/* Add loading state for directive */
-.expanded.loading {
-  opacity: 0.7;
+.work-order-btn:hover:not(:disabled) {
+  background-color: rgba(0, 176, 240, 0.1);
 }
+
+.work-order-btn:disabled {
+  color: #ccc;
+}
+
+/* Snackbar styles */
+.success-snackbar {
+  background-color: #4caf50;
+  color: white;
+}
+
+.error-snackbar {
+  background-color: #f44336;
+  color: white;
+}
+
+.info-snackbar {
+  background-color: #ff9800;
+  color: white;
+}
+4. Key Implementation Notes
+State Management:
+isWoEmailed: Tracks whether the generated work order has been sent
+
+pdfSessionId: Stores the session ID returned from work order generation
+
+Work order must be generated before it can be emailed
+
+User Flow:
+User clicks "Generate Work Order"
+
+System prompts for additional comments
+
+System generates PDF work order using current filters
+
+System returns session ID and enables email button
+
+User clicks "Email Work Order"
+
+System sends emails to FM and FSRs
+
+Email button becomes disabled until next generation
+
+Filter Integration:
+The work order uses the same filter parameters as your main grid search, so you'll need to get current filter values from your filter component.
+
+Error Handling:
+Proper loading states for both operations
+
+User-friendly error messages via snackbar
+
+Validation before allowing email sending
+
+This implementation matches the original functionality while using modern Angular patterns and Material Design components!
