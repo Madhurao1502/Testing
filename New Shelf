@@ -1,3 +1,80 @@
+
+private async Task<bool> CreatePdfAsync(string filePath, string htmlContent)
+{
+    try
+    {
+        var pdfUtil = new PdfUtil();
+        return pdfUtil.CreatePDF(filePath, htmlContent);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, $"Error creating PDF: {filePath}");
+        return false;
+    }
+}
+
+private async Task<bool> InsertWorkOrderEmailAsync(string sessionId, string pdfFileLocation, string subject, string toEmail, string userName)
+    {
+        try
+        {
+            using (SqlConnection conn = new SqlConnection(_sqlConnString))
+            {
+                await conn.OpenAsync();
+                
+                using (SqlCommand cmd = new SqlCommand("spa_insert_work_order_email", conn))
+                {
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    
+                    cmd.Parameters.Add(new SqlParameter("@session_id", sessionId));
+                    cmd.Parameters.Add(new SqlParameter("@subject", subject));
+                    cmd.Parameters.Add(new SqlParameter("@to_email", toEmail));
+                    cmd.Parameters.Add(new SqlParameter("@email_body", "Hello, <br> Please find your Work Order task list"));
+                    cmd.Parameters.Add(new SqlParameter("@pdf_file_location", pdfFileLocation));
+                    cmd.Parameters.Add(new SqlParameter("@user_name", userName ?? ""));
+
+                    await cmd.ExecuteNonQueryAsync();
+                }
+            }
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inserting work order email");
+            throw;
+        }
+    }
+
+    private async Task<int> SendWorkOrderEmailAsync(string pdfSessionId)
+    {
+        try
+        {
+            using (SqlConnection conn = new SqlConnection(_sqlConnString))
+            {
+                await conn.OpenAsync();
+                
+                using (SqlCommand cmd = new SqlCommand("spa_send_work_order_email", conn))
+                {
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    
+                    cmd.Parameters.Add(new SqlParameter("@session_id", pdfSessionId));
+                    cmd.Parameters.Add(new SqlParameter("@email_from", _configuration["EmailSettings:From"] ?? ""));
+                    cmd.Parameters.Add(new SqlParameter("@email_cc", _configuration["EmailSettings:CC"] ?? ""));
+                    cmd.Parameters.Add(new SqlParameter("@email_bcc", _configuration["EmailSettings:BCC"] ?? ""));
+                    cmd.Parameters.Add(new SqlParameter("@email_priority", _configuration["EmailSettings:Priority"] ?? "Normal"));
+                    cmd.Parameters.Add(new SqlParameter("@user_id", "system")); // No session management as requested
+
+                    var result = await cmd.ExecuteNonQueryAsync();
+                    return result;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending work order email");
+            throw;
+        }
+    }
+
 Modern C# Web API Implementation for Work Order Functionality
 1. Create Work Order Models
 WorkOrderFilter.cs (Model for Parameters)
