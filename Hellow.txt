@@ -1,1963 +1,2764 @@
-dashbord-layout.component.css
-
-.dashboard-layout {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: #fafafa;
+@model com.isg.businesslayer.Filter
+@{
+    ViewBag.Title = "Task Assignment";
 }
 
-.mat-toolbar-primary {
-  background: #1976d2;
-  color: white;
-  z-index: 1000;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.toolbar-title {
-  margin-left: 16px;
-  font-size: 20px;
-  font-weight: 500;
-}
-
-.toolbar-spacer {
-  flex: 1;
-}
-
-.country-field {
-  margin-right: 16px;
-}
-
-.country-field .mat-form-field {
-  width: 200px;
-}
-
-.country-field .mat-form-field .mat-form-field-wrapper {
-  padding-bottom: 0;
-}
-
-/* Top Filter Bar */
-.filter-top-bar {
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
-  overflow: hidden;
-  transition: max-height 0.3s ease-in-out;
-  max-height: 0;
-}
-
-.filter-top-bar.expanded {
-  max-height: 500px;
-}
-
-/* Main Content */
-.main-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.content-wrapper {
-  padding: 24px;
-  flex: 1;
-  overflow: auto;
-}
-
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .content-wrapper {
-    padding: 16px;
-  }
-  
-  .country-field .mat-form-field {
-    width: 150px;
-  }
-}
-
-dashbord-layout.component.html
-
-<div class="dashboard-layout">
-  <!-- Toolbar -->
-  <mat-toolbar class="mat-toolbar-primary">
-    <button mat-icon-button (click)="toggleFilters()" aria-label="Toggle filters">
-      <mat-icon>filter_list</mat-icon>
-    </button>
-    <h1 class="toolbar-title">Assignments Dashboard</h1>
-    <span class="toolbar-spacer"></span>
-    
-    <!-- Country Selector -->
-    <div class="country-field">
-      <mat-form-field appearance="standard">
-        <mat-select [formControl]="countryctrl" placeholder="Select country">
-          <mat-option *ngFor="let country of countrylist" 
-                      [value]="country.countryID" 
-                      (onSelectionChange)="selectedcountry($event)">
-            {{country.countryName}}
-          </mat-option>
-        </mat-select>
-      </mat-form-field>        
-    </div>
-    
-    <button mat-icon-button aria-label="Edit">
-      <mat-icon>edit_square</mat-icon>
-    </button>
-    <button mat-icon-button aria-label="Send">
-      <mat-icon>send</mat-icon>
-    </button>
-    <button mat-icon-button aria-label="Download">
-      <mat-icon>download</mat-icon>
-    </button>
-  </mat-toolbar>
-
-  <!-- TOP HORIZONTAL FILTER BAR -->
-  <section class="filter-top-bar" [class.expanded]="isFiltersExpanded">
-    <app-filter-sidebar 
-      (filtersChanged)="onFiltersChanged($event)"
-      (clearFilters)="onClearFilters()">
-    </app-filter-sidebar>
-  </section>
-
-  <!-- Main Content -->
-  <div class="main-content">
-    <div class="content-wrapper">
-      <app-store-table></app-store-table>
-    </div>
-  </div>
-</div>
-
-dashbord-layout.component.ts
-
-import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, OnDestroy, Inject } from '@angular/core';
-import { FormControl } from '@angular/forms';
-import { firstValueFrom, Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
-import { countryModel, GetGridDataFilter, StoreFilter } from 'src/app/shared/common.model';
-import { CommonService } from 'src/app/shared/common.service';
-
-@Component({
-  selector: 'app-dashbord-layout',
-  templateUrl: './dashbord-layout.component.html',
-  styleUrls: ['./dashbord-layout.component.css']
-})
-export class DashbordLayoutComponent implements OnInit, OnDestroy {
-
-  private destroy$ = new Subject<void>();
-  countrylist: countryModel[] = [];
-  employeedata: any[] = [];
-  countryctrl = new FormControl();
-  isFiltersExpanded = false; // Changed from sidebar to top filters
-  currentIRIWeek: any;
-  loggeduser: string;
-
-  constructor(
-    private commonService: CommonService,
-    public http: HttpClient,
-    @Inject('BASE_URL') public baseUrl: string,
-  ) { 
-    this.loggeduser = localStorage.getItem("loggedUserId");
-  }
-
-  async ngOnInit(): Promise<void> {
-    // Remove sidebar state subscription since we're using top filters
-    this.commonService.groupsStatus$.subscribe(userGroups => {    
-      if(userGroups['isgTechnologyGroup']) { 
-        this.countryctrl.enable();
-      } else { 
-        this.countryctrl.disable();
-      }   
-    });
-
-    this.currentIRIWeek = await firstValueFrom(
-      this.http.get<any>(this.baseUrl + 'api/TaskAssinment/GetCurrentIRIWeek')
-    );   
-    
-    try {
-      this.employeedata = await firstValueFrom(this.commonService.getEmployee(this.loggeduser));
-    } catch(error) {
-      console.error('Error fetching employee data:', error);
+<style>
+    .size-12 {
+        font-size: 12px;
+    }
+    .size-14 {
+        font-size: 14px;
+    }
+    .size-16 {
+        font-size: 16px;
+    }
+    .size-18 {
+        font-size: 18px;
+    }
+    .size-21 {
+        font-size: 21px;
+    }
+    .size-24 {
+        font-size: 24px;
+    }
+    .size-30 {
+        font-size: 30px;
     }
 
-    try {
-      this.countrylist = await this.commonService.getcountry();
-    } catch {
-      console.error('Error fetching country data');
-    }      
-    
-    this.employeedata.filter((x) => {
-      this.countryctrl.setValue(x.countryId);
-    });
-
-    // Initialize default filters
-    this.initializeDefaultFilters();
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
-  // Changed from toggleSidebar to toggleFilters
-  toggleFilters(): void {
-    this.isFiltersExpanded = !this.isFiltersExpanded;
-  }
-
-  onFiltersChanged(filters: any): void {
-    this.commonService.applyFilters(filters);
-  }
-
-  onClearFilters(): void {
-     this.commonService.clearFilters();
-  }
-
-  selectedcountry(event: any) {
-    if (event.isUserInput) {
-      // Handle country selection
-    }
-  }
-
-  private initializeDefaultFilters(): void {
-    const defaultFilters = new GetGridDataFilter();
-    // Set default values based on employee data
-    if (this.employeedata.length > 0) {
-      defaultFilters.countryId = this.employeedata['countryId'] || '';
-      defaultFilters.territoryId = this.employeedata['fieldTerritoryNumber']?.toString() || '';
-    }
-    
-    // this.commonService.initializeDefaultFilters(defaultFilters);
-  }
-}
-
-filter-sidebar.component.css
-
-.filter-topbar {
-  width: 100%;
-  padding: 16px;
-  background: #fafafa;
-}
-
-.filter-container {
-  max-width: 100%;
-}
-
-.filter-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  align-items: flex-end;
-}
-
-.filter-field {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 150px;
-}
-
-.form-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: #666;
-  margin-bottom: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.filter-field .mat-form-field {
-  width: 100%;
-}
-
-.filter-field .mat-form-field .mat-form-field-wrapper {
-  padding-bottom: 0;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-  flex-shrink: 0;
-  flex-direction: column;
-}
-
-.action-buttons button {
-  min-width: 100px;
-  height: 36px;
-}
-
-.advanced-filters {
-  border-top: 1px solid #e0e0e0;
-  padding-top: 16px;
-  margin-top: 8px;
-}
-
-.options-filters {
-  border-top: 1px solid #e0e0e0;
-  padding-top: 16px;
-  margin-top: 8px;
-}
-
-/* NEW: Toggle and Checkbox Styles */
-.toggle-field {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 200px;
-}
-
-.radio-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.radio-group mat-radio-button {
-  font-size: 14px;
-}
-
-.checkbox-field {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 150px;
-}
-
-.checkbox-field mat-checkbox {
-  margin-top: 8px;
-}
-
-.advanced-toggle {
-  display: flex;
-  justify-content: center;
-  margin-top: 12px;
-}
-
-.toggle-button {
-  color: #1976d2;
-  font-size: 14px;
-}
-
-.toggle-button mat-icon {
-  margin-right: 4px;
-}
-
-/* Responsive Design */
-@media (max-width: 1200px) {
-  .filter-row {
-    gap: 12px;
-  }
-  
-  .filter-field,
-  .toggle-field {
-    min-width: 130px;
-  }
-}
-
-@media (max-width: 768px) {
-  .filter-topbar {
-    padding: 12px;
-  }
-  
-  .filter-row {
-    flex-direction: column;
-    gap: 12px;
-  }
-  
-  .filter-field,
-  .toggle-field,
-  .checkbox-field {
-    width: 100%;
-    min-width: auto;
-  }
-  
-  .action-buttons {
-    width: 100%;
-    justify-content: space-between;
-  }
-  
-  .action-buttons button {
-    flex: 1;
-  }
-  
-  .radio-group {
-    flex-direction: row;
-    gap: 16px;
-  }
-}
-
-filter-sidebar.component.html
-
-<div class="filter-topbar">
-  <div class="filter-container">
-    <form [formGroup]="filterForm" class="filter-form">
-      
-      <!-- Row 1: Main Filters -->
-      <div class="filter-row main-filters">
-        <!-- IRI Week -->
-        <div class="filter-field">
-          <label class="form-label">IRI Week</label>
-          <mat-form-field appearance="outline">
-            <mat-select formControlName="iriWeek" (selectionChange)="onIriWeekChange()">
-              <mat-option *ngFor="let week of iriWeeks" [value]="week.iri_week">
-                {{week.iri_week_viewOnly}}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
-        </div>
-
-        <!-- Territory -->
-        <div class="filter-field">
-          <label class="form-label">Territory</label>
-          <mat-form-field appearance="outline">
-            <mat-select formControlName="territory" (selectionChange)="onTerritoryChange()">
-              <mat-option [value]="-1">ALL</mat-option>
-              <mat-option *ngFor="let territory of territories" [value]="territory.territory_id">
-                {{territory.territory_name}}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
-        </div>
-
-        <!-- Store -->
-        <div class="filter-field">
-          <label class="form-label">Store</label>
-          <mat-form-field appearance="outline">
-            <input matInput [matAutocomplete]="storeAuto" formControlName="store" placeholder="Search stores...">
-            <button mat-button *ngIf="filterForm.get('store')?.value" matSuffix mat-icon-button (click)="clearStrCtrl()">
-              <mat-icon>cancel</mat-icon>
-            </button>
-            <mat-autocomplete #storeAuto="matAutocomplete" (optionSelected)="onStoreSelected($event)">
-              <mat-option *ngFor="let store of filteredStores" [value]="store.store_name" [matTooltip]="store.store_name">
-                {{store.store_name}} ({{store.store_number}})
-              </mat-option>
-            </mat-autocomplete>
-          </mat-form-field>
-        </div>
-
-        <!-- FSR (Field Service Representative) -->
-        <div class="filter-field">
-          <label class="form-label">FSR</label>
-          <mat-form-field appearance="outline">
-            <input matInput [matAutocomplete]="fsrAuto" formControlName="fsr" placeholder="Search FSR...">
-            <button mat-button *ngIf="filterForm.get('fsr')?.value" matSuffix mat-icon-button (click)="clearFsrCtrl()">
-              <mat-icon>cancel</mat-icon>
-            </button>
-            <mat-autocomplete #fsrAuto="matAutocomplete" (optionSelected)="onFsrSelected($event)">
-              <mat-option *ngFor="let fsr of filteredFSR" [value]="fsr.emp_name" [matTooltip]="fsr.emp_name">
-                {{fsr.emp_name}} ({{fsr.emp_id}})
-              </mat-option>
-            </mat-autocomplete>
-          </mat-form-field>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="action-buttons">
-          <button mat-raised-button color="primary" (click)="onApplyFilters()">
-            Apply Filters
-          </button>
-          <button mat-stroked-button (click)="onClearFilters()">
-            Clear Filters
-          </button>
-        </div>
-      </div>
-
-      <!-- Row 2: Advanced Filters -->
-      <div class="filter-row advanced-filters" [style.display]="showAdvancedFilters ? 'flex' : 'none'">
-        <!-- State -->
-        <div class="filter-field">
-          <label class="form-label">State</label>
-          <mat-form-field appearance="outline">
-            <input matInput [matAutocomplete]="stateAuto" formControlName="state">
-            <button mat-button *ngIf="filterForm.get('state')?.value" matSuffix mat-icon-button (click)="clearStaCtrl()">
-              <mat-icon>cancel</mat-icon>
-            </button>
-            <mat-autocomplete #stateAuto="matAutocomplete" (optionSelected)="onStateSelected($event)">
-              <mat-option *ngFor="let state of filteredState" [value]="state.state">
-                {{state.state}}
-              </mat-option>
-            </mat-autocomplete>
-          </mat-form-field>
-        </div>
-
-        <!-- City -->
-        <div class="filter-field">
-          <label class="form-label">City</label>
-          <mat-form-field appearance="outline">
-            <input matInput [matAutocomplete]="cityAuto" formControlName="city">
-            <button mat-button *ngIf="filterForm.get('city')?.value" matSuffix mat-icon-button (click)="clearcityCtrl()">
-              <mat-icon>cancel</mat-icon>
-            </button>
-            <mat-autocomplete #cityAuto="matAutocomplete" (optionSelected)="onCitySelected($event)">
-              <mat-option *ngFor="let city of filteredCity" [value]="city.city">
-                {{city.city}}
-              </mat-option>
-            </mat-autocomplete>
-          </mat-form-field>
-        </div>
-
-        <!-- Cluster -->
-        <div class="filter-field">
-          <label class="form-label">Cluster</label>
-          <mat-form-field appearance="outline">
-            <input matInput [matAutocomplete]="clusterAuto" formControlName="cluster">
-            <mat-autocomplete #clusterAuto="matAutocomplete" (optionSelected)="onClusterSelected($event)">
-              <mat-option *ngFor="let cluster of filteredCluster" [value]="cluster.position_name">
-                {{cluster.position_name}}
-              </mat-option>
-            </mat-autocomplete>
-          </mat-form-field>
-        </div>
-
-        <!-- Task -->
-        <div class="filter-field">
-          <label class="form-label">Task</label>
-          <mat-form-field appearance="outline">
-            <input matInput [matAutocomplete]="taskAuto" formControlName="task">
-            <button mat-button *ngIf="filterForm.get('task')?.value" matSuffix mat-icon-button (click)="clearTaskCtrl()">
-              <mat-icon>cancel</mat-icon>
-            </button>
-            <mat-autocomplete #taskAuto="matAutocomplete" (optionSelected)="onTaskSelected($event)">
-              <mat-option *ngFor="let task of filteredTask" [value]="task.task_name">
-                {{task.task_name}} ({{task.task_number}})
-              </mat-option>
-            </mat-autocomplete>
-          </mat-form-field>
-        </div>
-      </div>
-
-      <!-- Row 3: FSR Hours & Toggle Options -->
-      <div class="filter-row options-filters" [style.display]="showAdvancedFilters ? 'flex' : 'none'">
-        <!-- FSR Hours -->
-        <div class="filter-field">
-          <label class="form-label">FSR Hours</label>
-          <mat-form-field appearance="outline">
-            <input matInput formControlName="fsrHour" type="number" placeholder="Enter hours...">
-          </mat-form-field>
-        </div>
-
-        <!-- Assigned/Unassigned Stores Toggle -->
-        <div class="toggle-field">
-          <label class="form-label">Store Assignment</label>
-          <mat-radio-group formControlName="storeAssignment" class="radio-group">
-            <mat-radio-button value="assigned">Assigned Stores</mat-radio-button>
-            <mat-radio-button value="unassigned">Unassigned Stores</mat-radio-button>
-            <mat-radio-button value="all">All Stores</mat-radio-button>
-          </mat-radio-group>
-        </div>
-
-        <!-- Sample/Non-Sample Toggle -->
-        <div class="toggle-field">
-          <label class="form-label">Sample Type</label>
-          <mat-radio-group formControlName="sampleType" class="radio-group">
-            <mat-radio-button value="sample">Sample</mat-radio-button>
-            <mat-radio-button value="nonSample">Non-Sample</mat-radio-button>
-            <mat-radio-button value="all">All Types</mat-radio-button>
-          </mat-radio-group>
-        </div>
-
-        <!-- Multi FSR Store Checkbox -->
-        <div class="checkbox-field">
-          <label class="form-label">Options</label>
-          <mat-checkbox formControlName="multiFsrStore">Multi FSR Store</mat-checkbox>
-        </div>
-      </div>
-
-      <!-- Advanced Filters Toggle -->
-      <div class="advanced-toggle">
-        <button mat-button type="button" (click)="toggleAdvancedFilters()" class="toggle-button">
-          <mat-icon>{{showAdvancedFilters ? 'expand_less' : 'expand_more'}}</mat-icon>
-          {{showAdvancedFilters ? 'Hide' : 'Show'}} Advanced Filters
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
-
-filter-sidebar.component.ts
-
-import { HttpClient } from '@angular/common/http';
-import { Component, ElementRef, EventEmitter, Inject, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
-import { FormBuilder, FormControl, FormGroup } from '@angular/forms';
-import { catchError, debounceTime, distinctUntilChanged, firstValueFrom, map, Observable, of, startWith, Subject, switchMap, takeUntil, tap } from 'rxjs';
-import { StoreFilter, FilterOptions, GetGridDataFilter } from 'src/app/shared/common.model';
-import { CommonService } from 'src/app/shared/common.service';
-
-@Component({
-  selector: 'app-filter-sidebar',
-  templateUrl: './filter-sidebar.component.html',
-  styleUrls: ['./filter-sidebar.component.css']
-})
-export class FilterSidebarComponent implements OnInit, OnDestroy {
-  @Output() filtersChanged = new EventEmitter<GetGridDataFilter>();
-  @Output() clearFilters = new EventEmitter<void>();
-
-  filterForm!: FormGroup;
-  showAdvancedFilters = false;
-  showSpinner = false;
-  
-  // Data arrays
-  employeedata: any[] = [];
-  iriWeeks: any[] = [];
-  territories: any[] = [];
-  filteredStores: any[] = [];
-  filteredState: any[] = [];
-  filteredCity: any[] = [];
-  filteredCluster: any[] = [];
-  filteredTask: any[] = [];
-  filteredFSR: any[] = [];
-
-  // Selected values
-  selectedStoreNumber = '';
-  selectedState = '';
-  selectedCity = '';
-  selectedCluster = '';
-  selectedTask = '';
-  selectedFsrId = '';
-  areaNBRctrl = new FormControl();
-  private unsubscribe$ = new Subject<void>();
-  private loggeduser: string;
-
-  constructor(
-    private fb: FormBuilder,
-    private commonService: CommonService,
-    public http: HttpClient,
-    @Inject('BASE_URL') public baseUrl: string,
-  ) {
-    this.initializeForm();
-    this.loggeduser = localStorage.getItem("loggedUserId") || '';
-  }
-
-  async ngOnInit(): Promise<void> {
-    try {
-      this.employeedata = await firstValueFrom(this.commonService.getEmployee(this.loggeduser));
-      await this.getIriWeek();
-      await this.getTerritory();
-      this.setupFormSubscriptions();
-      // Apply default filters after initialization
-      this.applyDefaultFilters();
-    } catch (error) {
-      console.error('Error initializing filter component:', error);
-    }
-  }
-
-  private initializeForm(): void {
-    this.filterForm = this.fb.group({
-      iriWeek: [''],
-      territory: [''],
-      store: [''],
-      state: [''],
-      city: [''],
-      cluster: [''],
-      task: [''],
-      fsr: [''],
-      fsrHour: [''],
-      storeAssignment: ['all'], // assigned, unassigned, all
-      sampleType: ['all'], // sample, nonSample, all
-      multiFsrStore: [false]
-    });
-  }
-
-  // FIXED: Get IRI Week with proper subscription pattern
-  private getIriWeek(): void {
-    this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetIriWeek')
-      .pipe(takeUntil(this.unsubscribe$))
-      .subscribe({
-        next: (response) => {
-          this.iriWeeks = response;
-          // Set default to second item (index 1) as in your original code
-          if (this.iriWeeks.length > 1) {
-            this.filterForm.get('iriWeek')?.setValue(this.iriWeeks?.[0]?.['iri_week'], { emitEvent: false });
-          }
-        },
-        error: (error) => { 
-          console.error('Error fetching IRI weeks:', error); 
-        }
-      });
-  }
-
-  // FIXED: Get Territory with proper subscription pattern
-  private getTerritory(): void {
-    this.showSpinner = true;
-    this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetTerritory')
-      .pipe(takeUntil(this.unsubscribe$))
-      .subscribe({
-        next: (response) => {
-          this.territories = response;
-          // Set default territory based on employee data
-          const defaultTerritory = this.employeedata?.['fieldTerritoryNumber'] == 0 || 
-                              !this.employeedata?.['fieldTerritoryNumber']
-                              ? this.territories?.[0]?.['territory_id']
-                              : this.employeedata?.['territory_id'];
-          this.filterForm.get('territory')?.setValue(defaultTerritory, { emitEvent: false });
-          this.areaNBRctrl.setValue( this.territories?.[0]?.['area'])
-          this.showSpinner = false;
-        },
-        error: (error) => { 
-          console.error('Error fetching territories:', error);
-          this.showSpinner = false; 
-        }
-      });
-  }
-
-  private setupFormSubscriptions(): void {
-    // Store autocomplete
-    this.filterForm.get('store')?.valueChanges.pipe(
-      debounceTime(300),
-      tap(() => (this.showSpinner = true)),
-      switchMap(searchText => this.getStore(searchText)),
-      takeUntil(this.unsubscribe$)
-    ).subscribe(stores => {
-      this.filteredStores = stores || [];
-      this.showSpinner = false;
-    });
-
-    // State autocomplete
-    this.filterForm.get('state')?.valueChanges.pipe(
-      debounceTime(300),
-      tap(() => (this.showSpinner = true)),
-      switchMap(searchText => this.getState(searchText)),
-      takeUntil(this.unsubscribe$)
-    ).subscribe(states => {
-      this.filteredState = states || [];
-      this.showSpinner = false;
-    });
-
-    // City autocomplete
-    this.filterForm.get('city')?.valueChanges.pipe(
-      debounceTime(300),
-      tap(() => (this.showSpinner = true)),
-      switchMap(searchText => this.getCity(searchText)),
-      takeUntil(this.unsubscribe$)
-    ).subscribe(cities => {
-      this.filteredCity = cities || [];
-      this.showSpinner = false;
-    });
-
-    // Cluster autocomplete
-    this.filterForm.get('cluster')?.valueChanges.pipe(
-      debounceTime(300),
-      tap(() => (this.showSpinner = true)),
-      switchMap(searchText => this.getCluster(searchText)),
-      takeUntil(this.unsubscribe$)
-    ).subscribe(clusters => {
-      this.filteredCluster = clusters || [];
-      this.showSpinner = false;
-    });
-
-    // Task autocomplete
-    this.filterForm.get('task')?.valueChanges.pipe(
-      debounceTime(300),
-      switchMap(searchText => this.getTask(searchText)),
-      takeUntil(this.unsubscribe$)
-    ).subscribe(tasks => {
-      this.filteredTask = tasks || [];
-    });
-
-    // FSR autocomplete
-    this.filterForm.get('fsr')?.valueChanges.pipe(
-      debounceTime(300),
-      switchMap(searchText => this.getFsr(searchText)),
-      takeUntil(this.unsubscribe$)
-    ).subscribe(fsrs => {
-      this.filteredFSR = fsrs || [];
-    });
-  }
-
- 
-  getStore(searchText: string) {
-    if (!searchText || searchText.length < 3) {
-      return of([]);
+    #divProcessing {
+        position: absolute;
+        left: 42%;
+        top: 35%;
+        display: none;
+        z-index: 100000;
+        height: 50px;
+        width: 200px;
+        background: #ffffff;
     }
 
-    const payload = {
-      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
-      TerritoryId: Number(this.filterForm.get('territory')?.value),
-      SearchText: searchText
-    };
-    
-    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetStore', payload)
-      .pipe(catchError(() => of([])));
-  }
-
-  getState(searchText: string) {
-    if (!searchText || searchText.length <= 0) { return of([]); }
-    
-    const payload = {
-      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
-      TerritoryId: Number(this.filterForm.get('territory')?.value),
-      SearchText: searchText
-    };
-    
-    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetState', payload)
-      .pipe(catchError(() => of([])));
-  }
-
-  getCity(searchText: string) {
-    if (!searchText || searchText.length <= 0) { return of([]); }
-    
-    const payload = {
-      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
-      TerritoryId: Number(this.filterForm.get('territory')?.value),
-      SearchText: searchText
-    };
-    
-    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetCity', payload)
-      .pipe(catchError(() => of([])));
-  }
-
-  getCluster(searchText: string) {
-    const payload = {
-      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
-      TerritoryId: Number(this.filterForm.get('territory')?.value),
-      SearchText: searchText
-    };
-    
-    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetCluster', payload)
-      .pipe(catchError(() => of([])));
-  }
-
-  getTask(searchText: string) {
-    if (!searchText || searchText.length <= 0) { return of([]); }
-    
-    const payload = {
-      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
-      TerritoryId: Number(this.filterForm.get('territory')?.value),
-      SearchText: searchText
-    };
-    
-    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetTask', payload)
-      .pipe(catchError(() => of([])));
-  }
-
-  getFsr(searchText: string) {
-    if (!searchText || searchText.length <= 0) { return of([]); }
-    
-    const payload = {
-      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
-      TerritoryId: Number(this.filterForm.get('territory')?.value),
-      SearchText: searchText
-    };
-    
-    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetFsr', payload)
-      .pipe(catchError(() => of([])));
-  }
-
-  // Event handlers for IRI Week and Territory changes
-  onIriWeekChange(): void {
-    // Clear dependent fields when IRI week changes
-    this.filterForm.patchValue({
-      store: '',
-      state: '',
-      city: '',
-      cluster: '',
-      task: '',
-      fsr: ''
-    });
-    this.clearSelectedValues();
-  }
-
-  onTerritoryChange(): void {
-    // this.areaNBRctrl.setValue(ter.area)
-    // Clear dependent fields when territory changes
-    this.filterForm.patchValue({
-      store: '',
-      state: '',
-      city: '',
-      cluster: '',
-      task: '',
-      fsr: ''
-    });
-    this.clearSelectedValues();
-  }
-
-  // Selection event handlers
-  onStoreSelected(event: any) {
-    const selectedStore = this.filteredStores.find(store => store.store_name === event.option.value);
-    this.selectedStoreNumber = selectedStore?.store_number || '';
-  }
-
-  onStateSelected(event: any) {
-    const selectedState = this.filteredState.find(state => state.state === event.option.value);
-    this.selectedState = selectedState?.state || '';
-  }
-
-  onCitySelected(event: any) {
-    const selectedCity = this.filteredCity.find(city => city.city === event.option.value);
-    this.selectedCity = selectedCity?.city || '';
-  }
-
-  onClusterSelected(event: any) {
-    const selectedCluster = this.filteredCluster.find(cluster => cluster.position_name === event.option.value);
-    this.selectedCluster = selectedCluster?.position_number || '';
-  }
-
-  onTaskSelected(event: any) {
-    const selectedTask = this.filteredTask.find(task => task.task_name === event.option.value);
-    this.selectedTask = selectedTask?.task_number || '';
-  }
-
-  onFsrSelected(event: any) {
-    const selectedFsr = this.filteredFSR.find(fsr => fsr.emp_name === event.option.value);
-    this.selectedFsrId = selectedFsr?.emp_id || '';
-  }
-
-  // Control methods
-  toggleAdvancedFilters(): void {
-    this.showAdvancedFilters = !this.showAdvancedFilters;
-  }
-
-
-  onApplyFilters(): void {
-
-    const formValue = this.filterForm.value;
-    
-    const filters = new GetGridDataFilter();
-    filters.countryId = "1"
-    filters.lanId=this.loggeduser;
-    filters.iriWeek = formValue.iriWeek || '';
-    filters.territoryId = formValue.territory || '';
-    filters.storeNumber = this.selectedStoreNumber;
-    filters.storeName = formValue.store || '';
-    filters.state = this.selectedState;
-    filters.city = this.selectedCity;
-    filters.positionNumber = this.selectedCluster;
-    filters.taskNumber = this.selectedTask;
-    filters.empId = this.selectedFsrId;
-    filters.fsrHour = formValue.fsrHour || '';
-    filters.area = this.areaNBRctrl.value||'23';
-    filters.fsrOver25hrs='false';
-    filters.fsrOver6hrs='false';
-    filters.fsrHourOperator= 'NA';
-    filters.temporary='false'
-    // Handle radio button selections
-    if (formValue.storeAssignment === 'assigned') {
-      filters.assignedStores = 'true';
-      filters.unassignedStores = 'false';
-    } else if (formValue.storeAssignment === 'unassigned') {
-      filters.assignedStores = 'false';
-      filters.unassignedStores = 'true';
-    } else {
-      filters.assignedStores = 'false';
-      filters.unassignedStores = 'false';
+    .lst-group {
+        background-color: #ffffff;
+        color: #222222;
+        padding: 10px;
+        width: 95%;
+        display: block;
+        text-align: left;
+        border-width: 3px 3px 0px 3px;
+        border: 1px solid #cccccc;
+        -webkit-transform: rotateX(20deg);
+        -moz-transform: rotateX(20deg);
+        transform: rotateX(20deg);
+        font-size: medium;
+        font-family: Verdana, Geneva, Tahoma, sans-serif;
+        padding-top: 1em;
+        word-wrap: break-word;
+        margin-top: -7px;
+        vertical-align: middle;
     }
 
-    if (formValue.sampleType === 'sample') {
-      filters.sample = 'true';
-      filters.nonSample = 'false';
-    } else if (formValue.sampleType === 'nonSample') {
-      filters.sample = 'false';
-      filters.nonSample = 'true';
-    } else {
-      filters.sample = 'false';
-      filters.nonSample = 'false';
+    .icon-row {
+        border-bottom: 1px dotted #ccc;
+        padding: 10px 0 20px;
+        margin-bottom: 20px;
     }
 
-    filters.multiFsrStore = formValue.multiFsrStore ? 'true' : 'false';
+    .ion {
+        -webkit-touch-callout: text;
+        -webkit-user-select: text;
+        -khtml-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        user-select: text;
+    }
+
+    .step {
+        display: inline-block;
+        line-height: 1;
+        position: relative;
+        margin-left:25px;
+    }
+
+    .step i {
+        -webkit-transition: opacity .3s;
+        -moz-transition: opacity .3s;
+        -ms-transition: opacity .3s;
+        -o-transition: opacity .3s;
+        transition: opacity .3s;
+    }
+
+    .step:hover i {
+        opacity: .3;
+    }    
+
+    .panel-body {
+        display: none;
+        padding: 10px;
+    }
+
+    .panel {
+        /*cursor: pointer;*/
+        width: 50%;
+    }
+
+    .panel-title {
+        font-size: large;
+        color: inherit;
+    }
+
+    .panel-heading {
+        color: #222222;
+        background-color: #ececec;
+        padding: 10px;
+        padding-left: .8em;
+    }
+    /*Format page input*/
+    input.ui-pg-input {            
+        width:auto;
+        height:20px;
+        margin:0;
+        padding:0;    
+        vertical-align: middle;
+        text-align: center;
+    }
+
+    .ui-jqgrid .ui-jqgrid-htable th div{
+        font-size:15px;
+        padding:5px;
+        height:25px;         
+    }
+
+    /*Grid font size*/
+    .ui-jqgrid tr.jqgrow td{
+        font-size:14px;
+        padding:5px;
+    }
+
+
+    /*Align jqgrid cells to middle*/
+    .ui-jqgrid tr.jqgrow td {
+        vertical-align: middle !important;
+        white-space: nowrap !important;
+    }
+
+    /*.frozen-bdiv { pointer-events: none;}*/
+
+    /*Hide the Dialog default close button*/
+    .ui-dialog-titlebar-close {
+        /*visibility: hidden;*/
+        /*padding:0 !important;*/
     
-    this.filtersChanged.emit(filters);
-  }
-
-  // MISSING FUNCTION: Clear Filters
-  onClearFilters(): void {
-    this.filterForm.reset({
-      iriWeek: this.iriWeeks.length > 1 ? this.iriWeeks?.[0]?.['iri_week'] : '',
-      territory: this.employeedata?.['fieldTerritoryNumber'] == 0 || 
-                              !this.employeedata?.['fieldTerritoryNumber']
-                              ? this.territories?.[0]?.['territory_id']
-                              : this.employeedata?.['territory_id'],
-      storeAssignment: 'all',
-      sampleType: 'all',
-      multiFsrStore: false
-    });
-    this.clearSelectedValues();
-    this.clearFilters.emit();
-  }
-
-  // MISSING FUNCTION: Apply Default Filters on Load
-  private applyDefaultFilters(): void {
-    // Wait a moment for form to be properly initialized
-    setTimeout(() => {
-      this.onApplyFilters();
-    }, 500);
-  }
-
-  private clearSelectedValues(): void {
-    this.selectedStoreNumber = '';
-    this.selectedState = '';
-    this.selectedCity = '';
-    this.selectedCluster = '';
-    this.selectedTask = '';
-    this.selectedFsrId = '';
-  }
-
-  // Clear individual controls
-  clearStrCtrl() { 
-    this.filterForm.get('store')?.reset(); 
-    this.selectedStoreNumber = '';
-  }
-  clearStaCtrl() { 
-    this.filterForm.get('state')?.reset(); 
-    this.selectedState = '';
-  }
-  clearcityCtrl() { 
-    this.filterForm.get('city')?.reset(); 
-    this.selectedCity = '';
-  }
-  clearTaskCtrl() { 
-    this.filterForm.get('task')?.reset(); 
-    this.selectedTask = '';
-  }
-  clearFsrCtrl() { 
-    this.filterForm.get('fsr')?.reset(); 
-    this.selectedFsrId = '';
-  }
-
-  ngOnDestroy(): void {
-    this.unsubscribe$.next();
-    this.unsubscribe$.complete();
-  }
-}
-
-
-store-table.component.css
-
-.table-container {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  min-height: 66vh;
-  max-height: 66vh;
-  overflow-x: auto;
-}
-
-.table-card {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-}
-
-.table-wrapper {
-  flex: 1;
-  overflow: auto;
-  min-height: 400px;
-}
-
-/* FIXED: Table structure based on your working example */
-.store-table {
-  width: 100%;
-  max-width: 100%;
-  background: white;
-  display: table;
-  border-collapse: collapse;
-  margin: 0px;
-}
-
-.store-table .mat-header-row {
-  height: 40px;
-}
-
-.store-table .mat-row {
-  max-width: 120%;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.store-table .mat-row:hover {
-  background-color: mintcream;
-}
-
-.store-table .mat-row.selected-row {
-  background-color: lightyellow;
-}
-
-/* FIXED: Header styling like your working example */
-.mat-header-style {
-  font-weight: bold !important;
-  font-size: 15px !important;
-  background-color: lightgray !important;
-}
-
-/* FIXED: Column-specific styles with fixed widths (like your working example) */
-.mat-column-store_number {
-  width: 10%;
-  min-width: 140px;
-  max-width: 200px;
-  padding: 0px 10px;
-}
-
-.mat-column-store_name {
-  width: 20%;
-  min-width: 200px;
-  max-width: 500px;
-  padding: 0px 10px;
-}
-
-.mat-column-addr_line1 {
-  width: 20%;
-  min-width: 200px;
-  max-width: 500px;
-  padding: 0px 10px;
-}
-
-.mat-column-city {
-  width: 15%;
-  min-width: 150px;
-  max-width: 300px;
-  padding: 0px 10px;
-}
-
-.mat-column-state {
-  width: 5%;
-  min-width: 80px;
-  max-width: 100px;
-  padding: 0px 10px;
-}
-
-.mat-column-zip {
-  width: 8%;
-  min-width: 80px;
-  max-width: 120px;
-  padding: 0px 10px;
-}
-
-.mat-column-assigned_to {
-  width: 15%;
-  min-width: 150px;
-  max-width: 300px;
-  padding: 0px 10px;
-}
-
-.mat-column-expected_collection_time {
-  width: 10%;
-  min-width: 120px;
-  max-width: 200px;
-  padding: 0px 10px;
-}
-
-.mat-column-position_name {
-  width: 15%;
-  min-width: 150px;
-  max-width: 300px;
-  padding: 0px 10px;
-}
-
-/* FIXED: Caret styling  */
-.caret {
-  display: inline-block;
-  margin-right: 5px;
-  margin-top: -1px;
-  transition: transform 0.3s;
-  font-size: 18px;
-  font-weight: 800;  
-  /* transform: rotate(90deg); */
-  cursor: pointer;
-}
-
-.caret.clicked  {
-  transform: rotate(180deg);
-  margin-top: -5px;
-}
-
-/* Cell styling */
-.store-number-cell {
-  font-weight: 500;
-}
-
-.store-name-cell .store-name {
-  font-weight: 500;
-  color: #333;
-}
-
-.address-cell {
-  color: #555;
-}
-
-.state-badge {
-  background: #e8f5e8;
-  color: #2e7d32;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-  display: inline-block;
-}
-
-.assignment-badge {
-  padding: 6px 12px;
-  border-radius: 16px;
-  font-size: 12px;
-  font-weight: 500;
-  text-transform: uppercase;
-  display: inline-block;
-  white-space: nowrap;
-}
-
-.assignment-badge.assigned {
-  background: #4caf50;
-  color: white;
-}
-
-.assignment-badge.not-assigned {
-  background: #ff9800;
-  color: white;
-}
-
-.collection-time-cell {
-  color: #666;
-  font-size: 13px;
-}
-
-.cluster-cell {
-  font-family: 'Monaco', 'Menlo', monospace;
-  font-size: 12px;
-  background: #f5f5f5;
-  color: #333;
-  border-radius: 4px;
-}
-
-/* FIXED: Expanded table styling (exactly like your working example) */
-.expanded-table {
-  margin-top: 5px;
-  margin-bottom: 15px;
-  margin-left: 70px;
-  border-collapse: collapse;
-  border: 1px solid #ddd;
-  font-size: 14px;
-  width: calc(100% - 140px); /* Full width minus margins */
-}
-
-.expanded-table th,
-.expanded-table td {
-  padding: 8px 12px;
-  text-align: left;
-  border-bottom: 1px solid #ddd;
-  white-space: nowrap;
-}
-
-.expanded-table th {
-  background-color: #f2f2f2;
-  font-weight: bold;
-}
-
-.expanded-table td[style*="max-width"] {
-  white-space: normal !important;
-  word-wrap: break-word;
-}
-
-/* Detail row styling */
-.detail-row {
-  background: #fafafa;
-  overflow: hidden;
-}
-
-/* Paginator */
-.table-paginator {
-  border-top: 1px solid #e0e0e0;
-  background: #fafafa;
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
-  height: 52px;
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-  .table-wrapper {
-    overflow-x: auto;
-  }
-  
-  .store-table {
-    min-width: 800px;
-  }
-  
-  .expanded-table {
-    margin-left: 20px;
-    width: calc(100% - 40px);
-    font-size: 12px;
-  }
-  
-  .expanded-table th,
-  .expanded-table td {
-    padding: 6px 8px;
-  }
-}
-
-/* Spinner styling */
-.mat-spinner-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.mat-spinner {
-  z-index: 111;
-}
-
-store-table.component.html
-
-<div class="table-container">
-  <mat-card class="table-card">
-    <!-- <mat-card-header>
-      <mat-card-title>Store Assignment Data</mat-card-title>
-      <mat-card-subtitle>{{dataSource.data.length}} stores found</mat-card-subtitle>
-    </mat-card-header>
-     -->
-    <mat-card-content>
-      <div class="table-wrapper">
-        <!-- FIXED: Using your working table structure -->
-        <mat-table #table [dataSource]="dataSource" matSort class="store-table mat-elevation-2">
-          
-          <!-- Store Number Column with Expansion -->
-          <ng-container matColumnDef="store_number">
-            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Store #</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="store-number-cell">
-              <span class="caret" #caretIcon id="caretIcon">▼</span>
-              <span *ngIf="!element.hasDetails">&nbsp;&nbsp;&nbsp;&nbsp;</span>
-              <span class="store-number">{{element.StoreNumber}}</span>
-            </mat-cell>
-          </ng-container>
-
-          <!-- Store Name Column -->
-          <ng-container matColumnDef="store_name">
-            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Store Name</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="store-name-cell">
-              <div class="store-info">
-                <span class="store-name" (click)="openProximityDataDialog(element);$event.stopPropagation();">{{element.StoreName}}</span>
-              </div>
-            </mat-cell>
-          </ng-container>
-
-          <!-- Store Address Column -->
-          <ng-container matColumnDef="addr_line1">
-            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Store Address</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="address-cell">
-              {{element.AddrLine1}}
-            </mat-cell>
-          </ng-container>
-
-          <!-- City Column -->
-          <ng-container matColumnDef="city">
-            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">City</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="city-cell">{{element.City}}</mat-cell>
-          </ng-container>
-
-          <!-- State Column -->
-          <ng-container matColumnDef="state">
-            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">State</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="state-cell">
-              <span class="state-badge">{{element.State}}</span>
-            </mat-cell>
-          </ng-container>
-
-          <!-- Zip Column -->
-          <ng-container matColumnDef="zip">
-            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Zip</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="zip-cell">{{element.Zip}}</mat-cell>
-          </ng-container>
-
-          <!-- Assigned To Column -->
-          <ng-container matColumnDef="assigned_to">
-            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Assigned To</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="assigned-cell">
-              <span class="assignment-badge" [ngClass]="getAssignmentClass(element.AssignedTo)">
-                {{element.AssignedTo}}
-              </span>
-            </mat-cell>
-          </ng-container>
-
-          <!-- Average Collection Time Column -->
-          <ng-container matColumnDef="expected_collection_time">
-            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Avg Coll Time</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="collection-time-cell">
-              {{formatCollectionTime(element.ExpectedCollectionTime)}}
-            </mat-cell>
-          </ng-container>
-
-          <!-- Cluster Column -->
-          <ng-container matColumnDef="position_name">
-            <mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Cluster</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="cluster-cell">
-              {{getClusterDisplay(element.PositionName)}}
-            </mat-cell>
-          </ng-container>
-
-          <!-- FIXED: Header and Data Rows (like your working example) -->
-          <mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></mat-header-row>
-          <mat-row 
-            *matRowDef="let row; columns: displayedColumns; let i = index"
-            [ngClass]="{'selected-row': row === selectedRow}"
-            class="table-row"
-            (click)="selectedRow = selectedRow === row ? null : row"
-            [cdkDetailRow]="row" 
-            [cdkDetailRowTpl]="tpl"
-            (toggleChange)="GetSubgridData($event, row)"
-            matRipple>
-          </mat-row>
-        </mat-table>
-      </div>
-      
-      <mat-paginator 
-        [pageSizeOptions]="[5, 10, 20, 50]" 
-        showFirstLastButtons
-        class="table-paginator">
-      </mat-paginator>
-
-      <!-- FIXED: Inner Table Template  -->
-      <ng-template #tpl let-element>
-        <div class="mat-row detail-row" [@detailExpand] style="overflow: hidden;">
-          <table class="expanded-table"> 
-            <tr> 
-              <th>Task Name</th>
-              <th>Assigned To</th>              
-              <th>CSR Info</th>
-              <th>Wave</th>
-              <th>Avg Coll Time</th>
-             
-            </tr>
-            <tr *ngFor="let item of SubgridData">
-              <td> {{item.TaskName}}</td>
-              <td>{{item.AssignedTo}} </td>              
-              <td>{{item.CsrInfo}} </td>
-              <td >
-                {{item.Wave}}       
-              </td>
-              <td >
-                {{item.ExpectedCollectionTime}}</td>
-             
-            </tr>       
-          </table>
-        </div>
-      </ng-template>
-    </mat-card-content>
-  </mat-card>
-</div>
-
-store-table.component.ts
-
-import { trigger, state, style, transition, animate } from '@angular/animations';
-import { SelectionModel } from '@angular/cdk/collections';
-import { HttpClient } from '@angular/common/http';
-import { Component, Inject, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
-import { MatPaginator } from '@angular/material/paginator';
-import { MatSort } from '@angular/material/sort';
-import { MatTable, MatTableDataSource } from '@angular/material/table';
-import { catchError, of, Subject, takeUntil } from 'rxjs';
-import { ProximityDialogComponent } from 'src/app/dialog/proximity-dialog/proximity-dialog.component';
-import { CdkDetailRowDirective } from 'src/app/shared/cdk-detail-row.directive';
-import { GetGridDataFilter, Store } from 'src/app/shared/common.model';
-import { CommonService } from 'src/app/shared/common.service';
-
-@Component({
-  selector: 'app-store-table',
-  templateUrl: './store-table.component.html',
-  styleUrls: ['./store-table.component.css'],
-  animations: [
-    trigger('detailExpand', [
-      state('collapsed', style({height: '0px', minHeight: '0'})),
-      state('expanded', style({height: '*'})),
-      transition('expanded <=> collapsed', animate('225ms cubic-bezier(0.4, 0.0, 0.2, 1)')),
-    ]),
-  ],
-})
-export class StoreTableComponent implements OnInit, OnDestroy {
-   @ViewChild(MatTable, { static: false }) table:MatTable<any>;
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
-  @ViewChild(MatSort) sort!: MatSort;
-
-  SubgridData=[];
-  private unsubscribe$ = new Subject<void>();
-  displayedColumns: string[] = ['store_number','store_name', 'addr_line1', 'city', 'state', 'zip', 'assigned_to', 'expected_collection_time', 'position_name'];
-  dataSource = new MatTableDataSource<Store>([]);
-  selection = new SelectionModel<Store>(true, []);
-  GetGridDataFilter:GetGridDataFilter 
-  private destroy$ = new Subject<void>();
-  loggeduser:string
-    selectedRow;
-  isExpansionDetailRow = (index, row) => row.hasOwnProperty('detailRow');
-  private expandedRow:CdkDetailRowDirective;
-  constructor(private commonService: CommonService,
-  public http: HttpClient,
-  @Inject('BASE_URL') public baseUrl: string,
-  private dialog:MatDialog) {this.loggeduser = localStorage.getItem("loggedUserId"); }
-
-  ngOnInit(): void {
-    this.commonService.gridData$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(stores => {
-       this.dataSource=new MatTableDataSource<any>([]);
-         this.dataSource = new MatTableDataSource<any>(stores);
-        this.dataSource.paginator = this.paginator;
-        this.dataSource.sort = this.sort;
-      });
-  }
-getGridData(){
-// this.showSpinner= true
- const payLoad:GetGridDataFilter ={
-   countryId: "1",
-   countryName: '',
-   lanId: this.loggeduser,
-   iriWeek: '2404',
-   iriWeekViewOnly: '',
-   area: '23',
-   territoryId: '52',
-   territoryName: '',
-   fromDate: '',
-   toDate: '',
-   storeNumber: '',
-   storeName: '',
-   state: '',
-   city: '',
-   taskNumber: '',
-   taskName: '',
-   positionNumber: '',
-   positionName: '',
-   empId: '',
-   firstName: '',
-   lastName: '',
-   empName: '',
-   fsrOver25hrs: 'false',
-   fsrOver6hrs: 'false',
-   fsrHour: '',
-   fsrHourOperator: 'NA',
-   assignedStores: 'false',
-   unassignedStores: 'false',
-   sample: 'false',
-   nonSample: 'false',
-   multiFsrStore: 'false',
-   vacation: 'false',
-   action: '',
-   comment: '',
-   fmEmail: '',
-   fmEmpId: '',
-   assignmentMode: '',
-   temporary: 'false'
- }
-    this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetGridData',payLoad).pipe(takeUntil(this.unsubscribe$)).subscribe( { 
-      next: 
-      (response) => {                  
-        this.dataSource=new MatTableDataSource<any>([]);
-         this.dataSource = new MatTableDataSource<any>(response);
-        this.dataSource.paginator = this.paginator;
-        this.dataSource.sort = this.sort;
-       },
-       error: 
-       (error) => { console.error(error); },
-      });   
-}
-
-  ngAfterViewInit(): void {
-    this.dataSource.paginator = this.paginator;
-    this.dataSource.sort = this.sort;
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
-  /** Whether the number of selected elements matches the total number of rows. */
-  isAllSelected() {
-    const numSelected = this.selection.selected.length;
-    const numRows = this.dataSource.data.length;
-    return numSelected === numRows;
-  }
-
-  /** Selects all rows if they are not all selected; otherwise clear selection. */
- 
-
-  /** The label for the checkbox on the passed row */
-  checkboxLabel(row?: Store): string {
-    if (!row) {
-      return `${this.isAllSelected() ? 'deselect' : 'select'} all`;
     }
-    return `${this.selection.isSelected(row) ? 'deselect' : 'select'} row ${row.id}`;
-  }
-
-
-  /** Get full address string */
-  getFullAddress(store: Store): string {
-    return `${store.addr_line1}, ${store.city}, ${store.state} ${store.zip}`;
-  }
-
-  /** Format expected collection time */
-  formatCollectionTime(time: string): string {
-    return time || 'Not specified';
-  }
-
-  /** Get cluster display name */
-  getClusterDisplay(positionName: string): string {
-    return positionName || 'N/A';
-  }
-
-  /** Get assignment status styling */
-  getAssignmentClass(assignedTo: string): string {
-    return assignedTo === 'NOT ASSIGNED' ? 'not-assigned' : 'assigned';
-  }
-
- GetSubgridData(cdkDetailRow: CdkDetailRowDirective,row ) : void {   
-    if(this.expandedRow && this.expandedRow.isExpanded ){     
-      this.expandedRow.toggleRow();       
+    .ui-icon-closethick {
+        margin-top: -8px !important;
+        margin-left: -8px !important;
     }
-    this.expandedRow = cdkDetailRow.isExpanded ? cdkDetailRow : undefined;
 
+    /*Control the row select highlight color*/
+    .ui-jqgrid .ui-state-highlight {
+        background: yellow;
 
-    if (cdkDetailRow.isExpandedClass) {  
-     
-         this.SubgridData=[]
-        //  this.showSpinner=true
-          this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetSubgridData',{IriWeek:row.IriWeek,StoreNumber:row.StoreNumber}).subscribe((response) => {
-          this.SubgridData = response;   
-      // this.showSpinner=false;      
-      }, error => { console.error(error); })   
     }
-    
+
+   /*.ui-state-hover {       
+       background: darkgray;
+       color:white;
+       font-size: larger;
+       font-weight:500;
+    }*/
+
+    td.subgrid-data div.tablediv table {
+      width: auto;
+    }
+
+    /*Fix the scroll bar issue on the frozen column header*/
+    .ui-jqgrid > .ui-jqgrid-view > .ui-jqgrid-hdiv {
+        overflow: hidden;
+    }
+
+    /*Remove horizontal scroll bar from the grid*/
+    .ui-jqgrid-bdiv {
+       overflow-x: hidden !important;
+   }
+
+    /*Fix subgrid right border appearance issue*/
+    .subgrid-data > .tablediv > .ui-jqgrid {
+    -moz-box-sizing: content-box;
+    -webkit-box-sizing: content-box;
+    box-sizing: content-box;
+    }
+    .subgrid-data > .tablediv > .ui-jqgrid > .ui-jqgrid-view {
+        -moz-box-sizing: border-box;
+        -webkit-box-sizing: border-box;
+        box-sizing: border-box;
+    }
+
+    /*.ui-jqgrid tr.ui-state-highlight.ui-row-ltr td {
+		    border-right-color: #C7D3A9;
+	}
+	.ui-jqgrid tr.ui-state-highlight.ui-row-rtl td {
+		border-left-color: #C7D3A9;
+	}
+	.ui-jqgrid-btable .ui-widget-content.ui-priority-secondary {
+		background-image: none;
+		background-color: #F9F9F9;
+		opacity: 1;
+	}
+	.ui-jqgrid-btable .ui-widget-content.ui-state-hover {
+		background-image: none;
+		background-color: #EFF4F7;
+		opacity: 1;
+	}
+	.ui-jqgrid-btable .ui-widget-content.ui-state-highlight {
+		background-color: #E4EFC9;
+	}*/
+
+    .ui-jqgrid .ui-pg-input {
+        height:20px;
+    }
+
+    #filterList ul li{
+        /*align-content: center;
+        width: 100%;
+        overflow-y: auto;
+        height: 100%;
+        padding-left:0.5em;
+        padding-top:0.5em;*/
+        background-color: #ffffff;
+        color: #222222;
+        padding: 10px;
+        margin-bottom:5px;
+        width: 100%;
+        height:auto;
+        display: block;
+        text-align: left;
+        border-width: 3px 3px 0px 3px;
+        border: 1px solid #cccccc;
+        -webkit-transform: rotateX(20deg);
+        -moz-transform: rotateX(20deg);
+        transform: rotateX(20deg);
+        font-size: medium;
+        font-family: Verdana, Geneva, Tahoma, sans-serif;
+        /*padding-top: 1em;*/
+        word-wrap: break-word;
+        /*margin-top: -7px;*/
+        vertical-align: middle;
+    }
+
+    #filterList ul li:hover{
+        background-color: slategray;
+        color: white;
+        font-size: larger;
+        font-weight:500;
+    }
+
+    .filterInput{
+        width:65%;
+        float:right;
+        vertical-align:middle;
+        height:25px;
+        margin:0;
+        font-size:small;
+    }
+
+     .popupInput{
+        width:200px;
+        float:left;       
+        height:25px;
+        margin-left:10px;
+        margin-right:50px;
+    }
+    .checkbox-input{
+        margin-right:10px;
+    }
+    .checkbox-left-style{
+        width:50%;
+        float:left;
+    }
+
+    select{
+        height:1.5em;
+    }
+
+    .iconHover:hover{        
+        font-weight:800;  
+        opacity:0.5;     
+    }
    
-    this.updateCaratIcon(cdkDetailRow,cdkDetailRow.isExpanded);
-    
-
-  }
-
-
-private updateCaratIcon(cdkDetailRow:CdkDetailRowDirective,expanded:boolean){
-  if(cdkDetailRow && cdkDetailRow.viewContainerRef){   
-    const caret = cdkDetailRow.viewContainerRef.element.nativeElement.querySelector('.caret');
-  if(caret){    
-    if(expanded){     
-      caret.classList.add('clicked');
-    }else{      
-      caret.classList.remove('clicked');
+    .dialog-close-button{
+        float:right;
+        right:10px;
     }
-  }
-  }
-}
+    .ui-autocomplete{
+        max-height:400px;  
+        overflow-y:auto;
+    }
+    .toggle-style {
+        display: inline-block;
+        width: 8em;
+        text-align: center;
+        line-height: 1em;
+        padding: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: background-color .2s ease;
+    }
 
-  UpdateTableWidth(){
-  const tablewidth = document.getElementById('table'); 
-  if(this.displayedColumns.length == 20){
-    tablewidth.style.width = 150+'%' ;      
-  }
- }
+    .toggle-style-selected {
+        background: lightgray;
+        border-bottom: 2px solid blue;
+        cursor: default;
+    }
+    .toggle-style:hover {
+        border-bottom: 2px solid gray;
+    }
+</style>
 
- isExpanded(store: any): boolean {
-  return this.selectedRow === store ;
-}
-
-openProximityDataDialog(data:any){
-    const dialogRef = this.dialog.open(ProximityDialogComponent,{
-      width: '40vw',
-      maxWidth: '40vw',
-      minWidth: '600px',
-      // height: '55vh',
-      maxHeight: '55vh',
-      minHeight:'250px',
-      data:data,
-      disableClose: true,
-    })
-  }
-
-}
-
-
-proximity-dialog.component.css
-
-.mat-dialog-title {
-  margin: 0px;
-  margin-bottom: 10px;
-  font-size: medium;
-  background-color: lightgray;
-  padding-left: 1em;
-  padding-right: 1em;
-  cursor: grab;
-}
-
-.mat-dialog-body {   
-  background-color: white;  
-}
-
-
-.close-btn{
-  float:right; 
-  color: #4e6a87; 
-  margin-top: 4px;
-}
-
-.close-btn-icon{
-  color: rgb(87 135 187);
-}
-
-.close-btn-icon:hover{
-  color: black;
-}
-
-.close-btn:hover{ 
-  color: rgb(87 135 187);
-  background: #ccd6df;
-  height: 20px;
-}
-
-.table-container {	
-  position: relative;
-  /* min-height: 35vh; */
-  max-height: 60vh;
-  min-width: 100%;   
-  /* margin-top: 5%; */
-  /* height: calc(50vh - 5px);	 */
-  overflow: auto;
-  margin-bottom: 10px;
-  box-shadow: 0px 5px 5px -3px rgba(0,0,0,0.2),0px 8px 10px 1px rgba(0,0,0,0.14),0px 3px 14px 2px rgba(0,0,0,0.12);
-}
-
-.mat-elevation-z8{
-  width: 100%;
- /* min-height: 40vh; */
-  /*  max-height: 40vh; */
-  box-shadow: 0px 5px 5px -3px rgba(0,0,0,0.2),0px 8px 10px 1px rgba(0,0,0,0.14),0px 3px 14px 2px rgba(0,0,0,0.12) !important;
-
-}
-
-.table-container {	
-  position: relative;
-  /* min-height: 35vh; */
-  max-height: 30vh;
-  min-width: 100%;   
-  /* margin-top: 5%; */
-  /* height: calc(50vh - 5px);	 */
-  overflow: auto;
-  margin-bottom: 10px;
-}
-.mat-table{
-  font-weight: 500;
-  font-size: 15px;
-  box-shadow: 0px 5px 5px -3px rgba(0,0,0,0.2),0px 8px 10px 1px rgba(0,0,0,0.14),0px 3px 14px 2px rgba(0,0,0,0.12);
-}
-
-tr.mat-header-row{  
-  background-color: #673ab7;  
-  height: 35px;
-}
-
-tr.mat-row{
-  height: 35px;
-  white-space: nowrap;
-}
-
-.mat-row:hover {
-  background-color: #e7e4e4;
-}
-
-.note-message{
-  margin-top: 10px;
-  padding: 10px;
-  color: #ff0000;
-  font-size: 14px;
-  font-weight: bold;
-  border: 1px solid #ffcccc;
-  background-color: #ffe6e6;
-  border-radius: 4px;
-}
-
-.highlighted-note{
-  color: #0c07eb;
-  font-weight: bold;
-}
-
-proximity-dialog.component.html
-
-<h4 mat-dialog-title class="title-style" cdkDrag cdkDragRootElement=".cdk-overlay-pane" cdkDragHandle>
-    Collector proximity for: {{ data.StoreName }} &nbsp;({{ data.StoreNumber }})
-    <span class="close-btn" title="Close" [mat-dialog-close]="true"><mat-icon class="close-btn-icon">
-            cancel_presentation</mat-icon></span>
-    <!--<span style="float:right;color:slategray;padding-top:10px;" [mat-dialog-close]="true"><fa-icon [icon]="windowCloseIcon"></fa-icon></span>-->
-</h4>
-
-<mat-dialog-content class="mat-dialog-body">
-
-    <div class="table-container">    
-
-        <table mat-table [dataSource]="dataSource" class="mat-elevation-z8">
-                        <!-- Employee Id -->
-                        <ng-container matColumnDef="empId">
-                            <th mat-header-cell *matHeaderCellDef  style="width: 130px; color: #fff3f3;"> Employee Id </th>
-                            <td mat-cell *matCellDef="let element"> {{element.empId}} </td>
-                        </ng-container>
-                
-                                      <!-- Employee Name -->
-                        <ng-container matColumnDef="empName">
-                            <th mat-header-cell *matHeaderCellDef  style="width: 200px; color: #fff3f3;;">Employee Name </th>
-                            <td mat-cell *matCellDef="let element"> {{element.firstName}} {{element.lastName}}                            
-                
-                        </td>
-                        </ng-container>
-                
-                                        <!-- Employee distance -->
-                        <ng-container matColumnDef="distance">
-                            <th mat-header-cell *matHeaderCellDef style="width: 100px;color: #fff3f3;;">Distance </th>
-                            <td mat-cell *matCellDef="let element"> {{element.mile}} <span *ngIf="element.distancePayout == '0'">(NA)</span></td>
-                        </ng-container>
-
-                        <ng-container matColumnDef="cost">
-                            <th mat-header-cell *matHeaderCellDef style="width: 100px;color: #fff3f3;;">Cost </th>
-                            <td mat-cell *matCellDef="let element"> {{element.totalCost | currencyFormat}}</td>
-                        </ng-container>
-                
-                        <ng-container matColumnDef="time">
-                            <th mat-header-cell *matHeaderCellDef style="width: 100px;color: #fff3f3;;">Travel Time<br>(MM:SS) </th>
-                            <td mat-cell *matCellDef="let element"> {{element.time}}</td>
-                        </ng-container>
-            
-                        <ng-container matColumnDef="toll">
-                            <th mat-header-cell *matHeaderCellDef style="width: 100px;color: #fff3f3;;">Toll </th>
-                            <td mat-cell *matCellDef="let element"> {{element.toll | currencyFormat}}</td>
-                        </ng-container>
-                
-                        <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
-                        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-        </table>
+<div style="width:100%; margin-bottom:1em;">
+    <div style="float:left;width:50%;font-size:20px;">
+        Task Assignment
     </div>
+    <div style="float:right;width:50%;">
+        <a class="iconHover" href="@Url.Action("ExportFetaDetailsToCSV", "Home", new { applyFilter = true })" style="margin-right:25px;float:right;">
+            <span id="iconDownload" style="color:#00b0f0; font-weight:bold;font-size:x-large;" class="ion-android-download" title="Export Grid Data"></span>
+        </a>
+        <a class="iconHover" href="#" style="margin-right:25px;float:right;">
+            <span id="iconSendWo" style="color:#00b0f0; font-weight:bold;font-size:x-large;" class="ion-android-send" title="Email Work Order"></span>
+        </a>
+        <a class="iconHover" href="#" style="margin-right:25px;float:right;">
+            <span id="iconGenerateWo" style="color:#00b0f0; font-weight:bold;font-size:x-large;" class="ion-compose" title="Generate Work Order"></span>
+        </a>
+        <select id="ddlCountry" style="width:160px;margin-right:25px;float:right;"></select>
+    </div>
+</div>
 
-</mat-dialog-content>
+<div style="width:99%; height:95%; border:1px solid red; border:none; position:absolute; bottom:1px;background-color:#fbfbfb" back>
+    <div id="divHideFilter" style="width:2%; height:95%; position:absolute; left:0; border:1px solid #ececec;display:none">
+        <div id="leftPanelCollapse" class="panel-heading" style="padding:10px;">
+            <h2 class="panel-title">
+                <a href="#"><span id="iconShowFilter" style="color:#00b0f0; font-weight:bolder;font-size:x-large; display: inline-block; transform: rotate(45deg);" class="ion-pin iconHover" title="Show"></span></a>
+            </h2>
+        </div>
+    </div>  
+      
+    <div id="divFilter" style="width:25%; height:95%; position:absolute; left:0; border:1px solid #ececec;">       
+        <div class="panel panel-success" style="width:100%;height:100%">
+            <div id="filterHeading" class="panel-heading">
+                <h2 class="panel-title">FILTER
+                    <a class="iconHover"><span id="iconHideFilter" style="float:right; color:#00b0f0;font-weight:bold; font-size:x-large" class="ion-pin step" title="Hide"></span></a>                                        
+                    <a class="iconHover"><span id="iconSearch" style="float:right;color:#00b0f0; font-weight:bold;font-size:x-large;" class="ion-android-search step" title="Search"></span></a> 
+                    <a class="iconHover"><img id="iconClearFilter" src="~/Content/images/clear_filter.png" style="float:right;color:#00b0f0; width:24px; height:24px; font-weight:bold;font-size:x-large;" class="ion-funnel step" title="Clear filters" /></a>
+                    @*<a class="iconHover"><span id="iconClearFilter" style="float:right;color:#00b0f0; font-weight:bold;font-size:x-large;" class="ion-funnel step" title="Clear filters"></span></a>*@                   
+                </h2>
+            </div>
+            <div id="filterBody" class="iconpanel-body" style="width:100%; height:95%; background-color:#fafafa">
+                <div class="do-nicescrol" id="filterList">
+                    <ul>
+                        <li>
+                            IRI Week
+                            <select id="ddlIriWeek" class="filterInput"></select>
+                            @*<input id="iriWeek" />*@
+                        </li>
+                        <li>
+                            Territory
+                            <select id="ddlTerritory" class="filterInput"></select>
+                        </li>
+                        <li>
+                            Store
+                            <input type="text" id="txtStore" class="filterInput" />
+                            <input type="hidden" id="storeNumber" />
+                        </li>
+                        <li>
+                            State
+                            <input type="text" id="txtState" value="" class="filterInput" />
+                        </li>
+                        <li>
+                            City
+                            <input type="text" id="txtCity" class="filterInput" />
+                        </li>
+                        <li>
+                            Cluster
+                            <input type="text" id="txtCluster" class="filterInput" />
+                            <input type="hidden" id="clusterNumber" />
+                        </li>
+                        <li>
+                            Task
+                            <input type="text" id="txtTask" class="filterInput" />
+                            <input type="hidden" id="taskNumber" />
+                        </li>
+                        <li>
+                            FSR
+                            <input type="text" id="txtFsr" class="filterInput" />
+                            <input type="hidden" id="fsrId" />
+                        </li>
+                        <li>
+                            FSR Hours
+                            <div class="filterInput">
+                                <select type="text" id="ddlFsrHourOperator" style="width:48%; height:25px; float:left;">
+                                    <option value="NA" selected> NA </option>
+                                    <option value=">"> > </option>
+                                    <option value="="> = </option>
+                                    <option value="<"> < </option>
+                                </select>
+                                <input type="text" id="txtFsrHour" value="" maxlength="3" style="width:48%; float:right;" disabled />
+                            </div>
 
+                            @*<div class="checkbox-left-style">
+                <input type="checkbox" id="chkFsrOver25" class="checkbox-input" />FSR Over 25 Hrs
+            </div>
+            <div style="">
+                <input type="checkbox" id="chkFsrOver6" class="checkbox-input"/>FSR Under 6 Hrs
+            </div>*@
+                        </li>
+                        <li>
+                            <div class="checkbox-left-style">
+                                @*<input type="checkbox" id="chkAssignedStores" class="checkbox-input"/>Assigned Stores*@
+                                <input type="radio" id="chkAssignedStores" name="radioAssignFilter" class="" /> Assigned Stores
+                            </div>
+                            <div style="">
+                                @*<input type="checkbox" id="chkUnassignedStores" class="checkbox-input"/>Unassigned Stores*@
+                                <input type="radio" id="chkUnassignedStores" name="radioAssignFilter" class="" /> Unassigned Stores
+                            </div>
+                        </li>
 
+                        <li>
+                            <div class="checkbox-left-style">
+                                @*<input type="checkbox" id="chkSample" class="checkbox-input"/>Sample*@
+                                <input type="radio" id="chkSample" name="radioSampleFilter" class="" /> Sample
+                            </div>
+                            <div style="">
+                                @*<input type="checkbox" id="chkNonsample" class="checkbox-input"/>Non-Sample*@
+                                <input type="radio" id="chkNonsample" name="radioSampleFilter" class="" /> Non-Sample
+                            </div>
+                        </li>
+                        <li>
+                            <input type="checkbox" id="chkMultiFsrStores" class="checkbox-input" />Multi FSR Stores
+                        </li>
+                        @*<li>
+                        <input type="checkbox" id="chkTemporary" class="checkbox-input" />Temporary
+                        </li>*@
+                        @*<li><input type="checkbox" id="chkVacation" class="checkbox-input" />Vacation</li>*@
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>   
 
-<footer>
-    <div class="mat-spinner-container">
-        <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
-        <div *ngIf="showSpinner" style="position: relative; left: 10px">
-            Loading...
+    <div id="divMain" style="width:74%; height:100%; top:0;  overflow-y:auto; position:absolute; left:26%; background-color:#fbfbfb">
+        <ul id="" style="display:inline-block; border-bottom:lightgray; width:auto; margin-bottom:0.5em;">
+            <li id="collectionSwitch" style="" class="toggle-style toggle-style-selected">Collection</li>
+            @*<li id="costSwitch" style="" class="toggle-style">Cost</li>*@
+        </ul>
+        
+        <div style="border:1px dashed; border-color:transparent">
+            <table id="gridAssignment"></table>
+            <div id="pager"></div>
         </div>
     </div>
-</footer>
 
-proximity-dialog.component.ts
+</div>
 
-import { HttpClient } from '@angular/common/http';
-import { Component, Inject, OnInit } from '@angular/core';
-import { MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { MatTableDataSource } from '@angular/material/table';
-import { Subject, takeUntil } from 'rxjs';
-import { CommonService } from 'src/app/shared/common.service';
-import { SnackbarService } from 'src/app/shared/snackbar.service';
+<div id="divProcessing" style="display:none;width:69px;height:89px;border:0px solid black;position:absolute;top:50%;left:50%;padding:2px;"><img src='~/Content/images/busy.gif' width="64" height="64" /><br>Loading..</div>
 
-@Component({
-  selector: 'app-proximity-dialog',
-  templateUrl: './proximity-dialog.component.html',
-  styleUrls: ['./proximity-dialog.component.css']
-})
-export class ProximityDialogComponent implements OnInit {
-  private unsubscribe$ = new Subject<void>();
-  public showSpinner: boolean = false;
-  displayedColumns:string[]=['empId','empName','time','distance','cost','toll'];
-  dataSource:MatTableDataSource<any>
-  isCollectorIDFound:boolean=false
-  isNonSampleCStore:boolean=false
-  constructor(
-    @Inject(MAT_DIALOG_DATA) public data: any,
-    private http: HttpClient, 
-    @Inject('BASE_URL') private baseUrl: string,
-    public service: CommonService,
-    private _snackBar: SnackbarService,
-  ) { }
+<div id="dialog-pickfsr" style="display:none;">    
+    <div class="ui-widget collapse">
+        <div id="expander-control" class="ui-widget-header">
+            <span class="ui-icon ui-expander" style="float: left; margin: 5px;">+</span>
+            <span class="step size-24 iconHover" style="color:#00b0f0; font-weight:bolder;font-size:x-large; display: inline-block;" title="Filter"><a id="iconFilter" style="text-decoration:none;" class="ion-android-mixer"></a></span>
+            <div class="ui-helper-clearfix"></div>
+        </div>
+        <div id="expander" class="ui-widget-content" style="">
+            <table border="0" cellspacing="5" cellpadding="5">
+                <tr style="vertical-align:bottom">
+                    <td>
+                        <table border="0" cellspacing="5" cellpadding="5">
+                            <tr>
+                                <td>IRI Week</td>
+                                <td><label id="lblIriWeek" class="popupInput"></label></td>
+                                <td>First Name</td>
+                                <td>
+                                    @*<input type="text" id="txtFsrP" class="popupInput" />*@
+                                    <input type="hidden" id="fsrIdP" />
+                                    <input type="text" id="txtFirstName" class="popupInput" />
+                                    <input type="hidden" id="storeNumberP" />
+                                    <input type="hidden" id="taskNumberP"/>
+                                    <input type="hidden" id="positionNumberP" />
+                                </td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>Territory</td>
+                                <td><select id="ddlTerritoryP" class="popupInput"></select></td>
+                                <td>Last Name</td>
+                                <td>
+                                    <input type="text" id="txtLastName" class="popupInput"/>
 
-  ngOnInit(): void {
-    this.getProximityData()
-  }
+                                    <input type="text" id="txtClusterP" class="popupInput" hidden />
+                                    <input type="hidden" id="clusterNumberP" />
+                                </td>
+                                <td><input type="button" class="button" id="btnSearch" value="Search" /></td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div> 
 
-  getProximityData(){
-    this.showSpinner = true;
-    this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetClosestFsr',{StoreNumber:this.data.StoreNumber,CountryId:"1"}).pipe(takeUntil(this.unsubscribe$)).subscribe( { 
-      next: 
-      (response) => {  
-        this.dataSource = new MatTableDataSource(response)   
-        this.showSpinner= false           
-        
-       },
-       error: 
-       (error) => { console.error(error); this.showSpinner= false },
-      });   
-  }
+    <div style="width:100%;">
+        <table id="gridPickFsr"></table>
+    </div>               
 
-}
+    @*<div style="bottom:0; position:absolute;margin-bottom:20px;">
+            <input type="button" id="btnClosePopup" class="button" value="Close" />
+    </div>*@
 
-private gridDataSubject = new BehaviorSubject<any[]>([]);
-  public gridData$ = this.gridDataSubject.asObservable();
+        <div id="divPopupProcessing" style="display:none;width:69px;height:89px;border:0px solid black;position:absolute;top:50%;left:50%;padding:2px;"><img src='~/Content/images/busy.gif' width="64" height="64" /><br>Loading..</div>
+    </div>
 
-// Centralized API methods
-getIriWeeks(): Observable<any[]> {
-  return this.http.get<any[]>(`${this.baseUrl}api/TaskAssinment/GetIriWeek`)
-    .pipe(catchError(this.handleError<any[]>('getIriWeeks', [])));
-}
+<div id="dialog-addComment" title="Enter Additional Communication" style="display:none;">
+    <div style="width:99%;">
+        <textarea id="txtAddComment" maxlength="500" placeholder="Only 500 characters" style="width:100%; height:200px;" ></textarea>
+        <p style="margin:20px;"></p>
+        <input type="button" class="button" id="btnCloseAddComment" value="Close"/>
+        <input type="button" class="button" id="btnGenerateWo" value="Ok" />        
+    </div>    
+</div>
 
-getTerritories(): Observable<any[]> {
-  return this.http.get<any[]>(`${this.baseUrl}api/TaskAssinment/GetTerritory`)
-    .pipe(catchError(this.handleError<any[]>('getTerritories', [])));
-}
+<div id="dialog-alert" title="Alert!" style="display:none;">
+    <p id="alertText"></p>
 
-searchStores(payload: any): Observable<any[]> {
-  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetStore`, payload)
-    .pipe(catchError(this.handleError<any[]>('searchStores', [])));
-}
+    <div style="bottom:10px; width:95%;margin:auto; position:absolute;">
+        <div style="width:10%; margin: auto; text-align:center; height:25px;">
+            <input type="button" class="button" id="btnCloseAlert" width="100" value="Ok" />
+        </div>
+    </div>        
+</div>
 
-searchStates(payload: any): Observable<any[]> {
-  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetState`, payload)
-    .pipe(catchError(this.handleError<any[]>('searchStates', [])));
-}
+<div id="dialog-costwisefsr" style="display:none;">
+    @*<div class="ui-widget collapse">
+        <div id="expander-control" class="ui-widget-header">
+            <span class="ui-icon ui-expander" style="float: left; margin: 5px;">+</span>
+            <span class="step size-24 iconHover" style="color:#00b0f0; font-weight:bolder;font-size:x-large; display: inline-block;" title="Filter"><a id="iconFilter" style="text-decoration:none;" class="ion-android-mixer"></a></span>
+            <div class="ui-helper-clearfix"></div>
+        </div>
+        <div id="expander" class="ui-widget-content" style="">
+            <table border="0" cellspacing="5" cellpadding="5">
+                <tr style="vertical-align:bottom">
+                    <td>
+                        <table border="0" cellspacing="5" cellpadding="5">
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>*@
 
-searchCities(payload: any): Observable<any[]> {
-  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetCity`, payload)
-    .pipe(catchError(this.handleError<any[]>('searchCities', [])));
-}
+    <div style="width:100%;">
+        <table id="gridCostwiseFsr"></table>
+    </div>
+    <div style="padding:0.5em;">
+        <ol>
+            <li>1. Travel time is from home to store and back.</li>
+            <li>2. Distance is from home to store and back.</li>
+            <li>3. Standard time deductions are applied for final Cost calculation.</li>
+        </ol>
+    </div>
 
-searchClusters(payload: any): Observable<any[]> {
-  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetCluster`, payload)
-    .pipe(catchError(this.handleError<any[]>('searchClusters', [])));
-}
+    @*<div style="bottom:0; position:absolute;margin-bottom:20px;">
+                <input type="button" id="btnClosePopup" class="button" value="Close" />
+        </div>*@
 
-searchTasks(payload: any): Observable<any[]> {
-  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetTask`, payload)
-    .pipe(catchError(this.handleError<any[]>('searchTasks', [])));
-}
+    <div id="divPopupProcessing" style="display:none;width:69px;height:89px;border:0px solid black;position:absolute;top:50%;left:50%;padding:2px;"><img src='~/Content/images/busy.gif' width="64" height="64" /><br>Loading..</div>
+</div>
 
-getGridData(payload: GetGridDataFilter): Observable<any[]> {
-  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetGridData`, payload)
-    .pipe(catchError(this.handleError<any[]>('getGridData', [])));
-}
+<script>
+    var param = {
+        'countryId': '',
+        'area':'',
+        'iri_week': '',
+        'territory_id': '',
+        'store_number': '',
+        'state': '',
+        'city': '',
+        'position_number': '',
+        'task_number': '',
+        'emp_id': '',
+        'fsr_over_25hrs': 'false',
+        'fsr_over_6hrs': 'false',
+        'assigned_stores': 'false',
+        'unassigned_stores': 'false',
+        'sample': 'false',
+        'nonsample': 'false',
+        'multi_fsr_store': 'false',
+        'vacation': 'false',
+        'temporary': 'false',
+        'comment': '',
+        'fm_emp_id': '',
+        'fm_email': '',
+        'fsr_hour': '',
+        'fsr_hour_operator': ''
+    };
+    var paramP = {
+        'countryId': '',
+        'area': '',
+        'iri_week': '',
+        'territory_id': '',
+        'store_number': '',
+        'task_number': '',
+        'emp_id': '',
+        'first_name': '',
+        'last_name': '',
+        'position_number': '',
+        'action': '',
+        'assignment_mode': '',
+        'temporary': ''
+    }
+    var isAssign = false;
+    var paramArr;
+    var positionData = null;
+    var grdPixelCount = 200;
+    var trainingData = new Object();
+    var statusData = null;
+    var rowHireDate;
+    var centerX;
+    var centerY;
+    var userTerritory = "";
+    var popupLoading;
+    var gridData = null;
+    var subgridData = null
+    var $subgrid;
+    var IsWoEmailed = true;
+    var pdfSessionId;
+    var territoryList = null;
+    var PickFsrPopupMode = '';
+    var userAction = '';
+    var selectedRow = 1;
+    var selectedPage = 1;
+    var fresh_assignment = false;
+    var area_id = 23;
 
-private handleError<T>(operation = 'operation', result?: T) {
-  return (error: any): Observable<T> => {
-    console.error(`${operation} failed:`, error);
-    return of(result as T);
-  };
-}
+    //Format the calendar
+    var calFormat = {
+        showOn: "button",
+        buttonImage: "./Content/images/icons8-calendar-30x30.png",
+        buttonImageOnly: true,
+        buttonText: "Select date",
+        changeMonth: true,
+        changeYear: true,
+        showAnim: 'slideDown',
+        duration: 'fast',
+        closeText: 'X',
+        onSelect: function (selected, evnt) {
+            if (new Date(selected) < new Date(rowHireDate)) {
+                new jBox('Notice', {
+                    content: 'Please Select a Date On or After Hire Date.',
+                    color: 'red',
+                    autoClose: 4000,
+                    position: {
+                        x: 40,
+                        y: 70
+                    },
+                });
 
- // MISSING FUNCTION 1: Apply Filters
-  applyFilters(filters: GetGridDataFilter): void {
-    this.filtersSubject.next(filters);
-    // Call GetGridData API with filters
-    this.getGridData(filters).subscribe({
-      next: (data) => {
-        this.gridDataSubject.next(data);
-      },
-      error: (error) => {
-        console.error('Error applying filters:', error);
-        this.gridDataSubject.next([]);
-      }
+                $(this).val("");
+            }
+        }
+    };
+    var calFormat1 = {
+        showOn: "button",
+        buttonImage: "./Content/images/icons8-calendar-30x30.png",
+        buttonImageOnly: true,
+        buttonText: "Select date",
+        changeMonth: true,
+        changeYear: true,
+        showAnim: 'slideDown',
+        duration: 'fast',
+        closeText: 'X',
+        //beforeShowDay: DisableSpecificDates,
+        firstDay: 0,
+        calculateWeek: calculateIriWeek,
+        showWeek: true,
+        weekHeader: "IRI Wk",
+        onSelect: function (selected, evnt) {
+            //if (new Date(selected) < new Date(rowHireDate)) {
+            //    new jBox('Notice', {
+            //        content: 'Please Select a Date On or After Hire Date.',
+            //        color: 'red',
+            //        autoClose: 4000,
+            //        position: {
+            //            x: 40,
+            //            y: 70
+            //        },
+            //    });
+
+            //    $(this).val("");
+            //}
+            //else if (new Date(selected) > new Date()) {
+            //    new jBox('Notice', {
+            //        content: 'FSR cannot be released into future pay date.',
+            //        color: 'red',
+            //        autoClose: 4000,
+            //        position: {
+            //            x: 40,
+            //            y: 70
+            //        },
+            //    });
+
+            //    $(this).val("");
+            //}
+        }
+    };
+
+    $(document).ready(function () {
+        userTerritory = '@ViewBag.userTerritory';
+        userCountryId = '@ViewBag.userCountryId';
+        isCountryChangeAllowed = '@ViewBag.isCountryChangeAllowed';
+        //Get window center position
+        centerX = window.innerWidth / 2;
+        centerY = window.innerHeight / 2;
+
+        //create collapsable filter div
+        $('.collapse').collapsiblePanel();
+        var loading = $('#divProcessing');
+        popupLoading = $('#divPopupProcessing');
+
+        //Show 'loading' animation on ajax start and end
+        $(document).ajaxStart(function () {
+            loading.show();
+            popupLoading.show();
+        });
+        $(document).ajaxComplete(function () {
+            loading.hide();
+            popupLoading.hide();
+        });
+
+        $("#txtStore").bind('keypress', alphaNumericOnly);
+        $("#txtState").bind('keypress', alphaNumericOnly);
+        $("#txtCity").bind('keypress', alphaNumericOnly);
+        $("#txtCluster").bind('keypress', alphaNumericOnly);
+        $("#txtTask").bind('keypress', alphaNumericOnly);
+        $("#txtFsr").bind('keypress', alphaNumericOnly);
+        $("#txtFsrHour").bind('keypress', numbersonly);
+
+        //$("#fromDate").datepicker().datepicker("setDate", "-8w");
+        $("#iriWeek").datepicker().datepicker("setDate", new Date());
+
+        //Datepicker
+        $("#iriWeek").datepicker(calFormat1).keydown(function (e) {
+            e.preventDefault();
+            return false;
+        });
+        $(".ui-datepicker-trigger").css("margin-bottom", "-10px");
+
+        $("#gridPickFsr").empty().jqGrid({
+            datatype: 'jsonstring',
+            async: false,
+            colNames: ['Action', 'Action', 'Action', 'Action','Action','Action', 'Last Name', 'First Name', 'Store Address', 'Assigned Hrs', 'Max Hours', 'Cluster', 'Phone', 'Email', 'emp_id'],
+            colModel: [
+                      { name: 'assign_all', index: 'assign_all', width: 95, align: 'center', title: false, resizable: false, formatter: assignAll },
+                      { name: 'unassign_all', index: 'unassign_all', width: 95, align: 'center', title: false, resizable: false, formatter: unassignAll },
+                      { name: 'assign', index: 'assign', width: 95, align: 'center', title: false, resizable: false, formatter: assign },
+                      { name: 'unassign', index: 'unassign', width: 95, align: 'center', title: false, resizable: false, formatter: unassign },
+                      { name: 'assign_to_cluster', index: 'assign_to_cluster', width: 100, align: 'center', title: false, resizable: false, formatter: assignToCluster },
+                      { name: 'unassign_from_cluster', index: 'unassign_from_cluster', width: 100, align: 'center', title: false, resizable: false, formatter: unassignFromCluster },
+                      { name: 'last_name', index: 'last_name', width: 100, align: 'left', title: false, resizable: false },
+                      { name: 'first_name', index: 'first_name', width: 100, align: 'left', title: true, resizable: false },
+                      { name: 'addr_line1', index: 'addr_line1', width: 170, align: 'left', title: true, resizable: false },
+                      { name: 'assigned_hrs', index: 'assigned_hrs', width: 90, align: 'center', title: false, resizable: false },
+                      { name: 'max_hrs', index: 'max_hrs', width: 90, align: 'center', title: false, resizable: false },
+                      { name: 'position_name', index: 'position_name', width: 100, align: 'center', title: false, resizable: false },
+                      { name: 'phone', index: 'phone', width: 100, align: 'center', title: false, resizable: false },
+                      { name: 'email', index: 'email', width: 150, align: 'center', title: true, resizable: false, formatter: email },
+                      /*{ name: 'temporary', index: 'temporary', width: 90, align: 'center', title: true, resizable: false, formatter: temporary },*/
+                      { name: 'emp_id', jsonmap: 'emp_id', hidden: true },
+            ],
+            rowNum: 500,
+            //rowList: [35, 70, 140, 280],
+            autowidth: true,
+            //autoheight: true,
+            scroll: false,
+            scrollOffset: 0,
+            //pager: '#pager',
+            shrinkToFit: true,
+            rowSpan: false,
+            //rowSpanCol: ['grping'],
+            loadonce: true,
+            cmTemplate: { sortable: true },
+            gridview: true,
+            //loadui: 'enable',
+            hoverrows: true,
+            autoencode: true,
+            ignoreCase: true,
+            viewrecords: true,
+            recordtext: "View {0} - {1} of {2} records",
+            emptyrecords: "No records to display",
+            loadComplete: function (data) {
+
+                //if (data != null) {
+                //    $(this).jqGrid('setGridParam', 'rowNum', data.total);
+                //}
+
+                if (typeof data === 'undefined' || data.length <= 5) {
+                    $("#gridPickFsr").jqGrid('setGridHeight', screen.height * .16);
+                } else if (typeof data != 'undefined' && data.length > 5) {
+                    $("#gridPickFsr").jqGrid('setGridHeight', screen.height * .3);
+                }
+
+                $('#gridPickFsr').jqGrid('setGridWidth', screen.width * .74);
+            }
+        });
+
+        $("#gridCostwiseFsr").empty().jqGrid({
+            datatype: 'jsonstring',
+            async: false,
+            colNames: ['Collector', 'Travel Time (mm:ss)', 'Distance', 'Toll', 'Cost', 'EmpId', 'DistancePayout'],
+            colModel: [
+ 
+                { name: 'Employee', index: 'Employee', width: 50, align: 'left', title: false, resizable: false },
+                { name: 'Time', index: 'Time', width: 30, align: 'center', title: true, resizable: false },
+                { name: 'Mile', index: 'Mile', width: 30, align: 'center', title: false, resizable: false, formatter: mileFormatter },
+                { name: 'Toll', index: 'Toll', width: 30, align: 'center', title: false, resizable: false },
+                { name: 'TotalCost', index: 'TotalCost', width: 30, align: 'center', title: true, resizable: false },
+                { name: 'EmpId', jsonmap: 'EmpId', hidden: true },
+                { name: 'DistancePayout', jsonmap: 'DistancePayout', hidden: true },
+            ],
+            rowNum: 500,
+            //rowList: [35, 70, 140, 280],
+            autowidth: true,
+            //autoheight: true,
+            scroll: false,
+            scrollOffset: 0,
+            //pager: '#pager',
+            shrinkToFit: true,
+            rowSpan: false,
+            //rowSpanCol: ['grping'],
+            loadonce: true,
+            cmTemplate: { sortable: false },
+            gridview: true,
+            //loadui: 'enable',
+            hoverrows: true,
+            autoencode: true,
+            ignoreCase: true,
+            viewrecords: true,
+            recordtext: "View {0} - {1} of {2} records",
+            emptyrecords: "No records to display",
+            loadComplete: function (data) {
+
+                if (typeof data === 'undefined' || data.length <= 5) {
+                    $("#gridCostwiseFsr").jqGrid('setGridHeight', screen.height * .20);
+                } else if (typeof data != 'undefined' && data.length > 5) {
+                    $("#gridCostwiseFsr").jqGrid('setGridHeight', screen.height * .3);
+                }
+
+                $('#gridCostwiseFsr').jqGrid('setGridWidth', screen.width * .58);
+            }
+        });
+
+        //Get country
+        $.ajax({
+            type: "POST",
+            contentType: "application/json; charset=utf-8",
+            url: '@Url.Content("~/Home/GetCountry")',
+            data: "{}",
+            dataType: "json",
+            async: false,
+            success: function (data) {
+                $.each(data, function (i) {
+                    var optionhtml = '<option value = ' + data[i].CountryId + '>' + data[i].CountryName + '</option>';
+                    $("#ddlCountry").append(optionhtml);
+                });
+            },
+            error: function (result) {
+                alert("Error while getting Country list!");
+            }
+        });
+
+        //Set the country
+        $("#ddlCountry").val(userCountryId);
+        if (isCountryChangeAllowed == "True") {
+            $("#ddlCountry").prop("disabled", false);
+        }
+        else {
+            $("#ddlCountry").prop("disabled", true);
+        }
+
+        //Get IRI week
+        $.ajax({
+            type: "POST",
+            contentType: "application/json; charset=utf-8",
+            url: '@Url.Content("~/Home/GetIriWeek")',
+            data: "{}",
+            dataType: "json",
+            async: false,
+            success: function (data) {
+                $.each(data, function (i) {
+                    var optionhtml = '<option value = ' + data[i].iri_week + '>' + data[i].iri_week_viewOnly + '</option>';
+                    $("#ddlIriWeek").append(optionhtml);
+                });
+            },
+            error: function (result) {
+                alert("Error while getting IRI weeks.");
+            }
+        });
+
+        //Get territory list
+        getTerritory();
+
+        //Create autocomplete search textbox - Store
+        $("#txtStore").autocomplete({
+            source: function (request, response) {
+                $.ajax({
+                    type: "POST",
+                    contentType: "application/json; charset=utf-8",
+                    url: '@Url.Content("~/Home/GetStore")',
+                    data: "{'iriWeek': '" + document.getElementById('ddlIriWeek').value + "', 'territory':'" + document.getElementById('ddlTerritory').value + "','searchText':'" + document.getElementById('txtStore').value + "'}",
+                    dataType: "json",
+                    async: true,
+                    success: function (data) {
+                        response($.map(data, function (item) {
+                            return {
+                                label: item.store_name,
+                                value: item.store_name,
+                                id: item.store_number
+                            };
+                        }))
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                        if (xhr.responseText.indexOf("Session Expired") > 0) {
+                            //Session has Expired,redirect to login page
+                            new jBox('Notice', {
+                                content: 'Session has expired. Logging you back...',
+                                color: 'red',
+                                autoClose: 6000,
+                                position: {
+                                    x: 'center',
+                                    y: 'center'
+                                },
+                            });
+                            window.location.href = '@Url.Content("~/Home/index")';
+                        } else {
+                            //Other Exceptions/Errors
+                            alert("Error while fetching stores.");
+                        }
+                    }
+                });
+            },
+            focus: function (event, ui) {
+                $("#txtStore").val(ui.item.label);
+                return false;
+            },
+            select: function (event, ui) {
+                $("#txtStore").val(ui.item.label);
+                $("#storeNumber").val(ui.item.id);
+                return false;
+            },
+            change: function (event, ui) {
+                if (this.value == "") {
+                    $("#storeNumber").val('');
+                }
+            }
+        });
+
+        //Create autocomplete search textbox - State
+        $("#txtState").autocomplete({
+            source: function (request, response) {
+                $.ajax({
+                    type: "POST",
+                    contentType: "application/json; charset=utf-8",
+                    url: '@Url.Content("~/Home/GetState")',
+                    data: "{'iriWeek': '" + document.getElementById('ddlIriWeek').value + "', 'territory':'" + document.getElementById('ddlTerritory').value + "','searchText':'" + document.getElementById('txtState').value + "'}",
+                    dataType: "json",
+                    async: true,
+                    success: function (data) {
+                        response($.map(data, function (item) {
+                            return {
+                                label: item.state,
+                                value: item.state
+                            };
+                        }))
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                        if (xhr.responseText.indexOf("Session Expired") > 0) {
+                            //Session has Expired,redirect to login page
+                            new jBox('Notice', {
+                                content: 'Session has expired. Logging you back...',
+                                color: 'red',
+                                autoClose: 6000,
+                                position: {
+                                    x: 'center',
+                                    y: 'center'
+                                },
+                            });
+                            window.location.href = '@Url.Content("~/Home/index")';
+                        } else {
+                            //Other Exceptions/Errors
+                            alert("Error while fetching states.");
+                        }
+                    }
+                });
+            }
+        });
+
+        //Create autocomplete search textbox - City
+        $("#txtCity").autocomplete({
+            source: function (request, response) {
+                $.ajax({
+                    type: "POST",
+                    contentType: "application/json; charset=utf-8",
+                    url: '@Url.Content("~/Home/GetCity")',
+                    data: "{'iriWeek': '" + document.getElementById('ddlIriWeek').value + "', 'territory':'" + document.getElementById('ddlTerritory').value + "','searchText':'" + document.getElementById('txtCity').value + "'}",
+                    dataType: "json",
+                    async: true,
+                    success: function (data) {
+                        response($.map(data, function (item) {
+                            return {
+                                label: item.city,
+                                value: item.city
+                            };
+                        }))
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                        if (xhr.responseText.indexOf("Session Expired") > 0) {
+                            //Session has Expired,redirect to login page
+                            new jBox('Notice', {
+                                content: 'Session has expired. Logging you back...',
+                                color: 'red',
+                                autoClose: 6000,
+                                position: {
+                                    x: 'center',
+                                    y: 'center'
+                                },
+                            });
+                            window.location.href = '@Url.Content("~/Home/index")';
+                        } else {
+                            //Other Exceptions/Errors
+                            alert("Error while fetching cities.");
+                        }
+                    }
+                });
+            }
+        });
+
+        //Create autocomplete search textbox - Cluster
+        $("#txtCluster").autocomplete({
+            source: function (request, response) {
+                $.ajax({
+                    type: "POST",
+                    contentType: "application/json; charset=utf-8",
+                    url: '@Url.Content("~/Home/GetCluster")',
+                    data: "{'iriWeek': '" + document.getElementById('ddlIriWeek').value + "', 'territory':'" + document.getElementById('ddlTerritory').value + "','searchText':'" + document.getElementById('txtCluster').value + "'}",
+                    dataType: "json",
+                    async: true,
+                    success: function (data) {
+                        response($.map(data, function (item) {
+                            return {
+                                label: item.position_name,
+                                value: item.position_name,
+                                id: item.position_number
+                            };
+                        }))
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                        if (xhr.responseText.indexOf("Session Expired") > 0) {
+                            //Session has Expired,redirect to login page
+                            new jBox('Notice', {
+                                content: 'Session has expired. Logging you back...',
+                                color: 'red',
+                                autoClose: 6000,
+                                position: {
+                                    x: 'center',
+                                    y: 'center'
+                                },
+                            });
+                            window.location.href = '@Url.Content("~/Home/index")';
+                        } else {
+                            //Other Exceptions/Errors
+                            alert("Error while fetching clusters.");
+                        }
+                    }
+                });
+            },
+            focus: function (event, ui) {
+                $("#txtCluster").val(ui.item.label);
+                return false;
+            },
+            select: function (event, ui) {
+                $("#txtCluster").val(ui.item.label);
+                $("#clusterNumber").val(ui.item.id);
+                return false;
+            },
+            change: function (event, ui) {
+                if (this.value == "") {
+                    $("#clusterNumber").val('');
+                }
+            }
+        });
+
+        //Create autocomplete search textbox - Cluster
+        $("#txtClusterP").autocomplete({
+            source: function (request, response) {
+                $.ajax({
+                    type: "POST",
+                    contentType: "application/json; charset=utf-8",
+                    url: '@Url.Content("~/Home/GetCluster")',
+                    data: "{'iriWeek': '" + document.getElementById('ddlIriWeek').value + "', 'territory':'" + document.getElementById('ddlTerritoryP').value + "','searchText':'" + document.getElementById('txtClusterP').value + "'}",
+                    dataType: "json",
+                    async: true,
+                    success: function (data) {
+                        response($.map(data, function (item) {
+                            return {
+                                label: item.position_name,
+                                value: item.position_name,
+                                id: item.position_number
+                            };
+                        }))
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                        if (xhr.responseText.indexOf("Session Expired") > 0) {
+                            //Session has Expired,redirect to login page
+                            new jBox('Notice', {
+                                content: 'Session has expired. Logging you back...',
+                                color: 'red',
+                                autoClose: 6000,
+                                position: {
+                                    x: 'center',
+                                    y: 'center'
+                                },
+                            });
+                            window.location.href = '@Url.Content("~/Home/index")';
+                        } else {
+                            //Other Exceptions/Errors
+                            alert("Error while fetching clusters.");
+                        }
+                    }
+                });
+            },
+            focus: function (event, ui) {
+                $("#txtClusterP").val(ui.item.label);
+                return false;
+            },
+            select: function (event, ui) {
+                $("#txtClusterP").val(ui.item.label);
+                $("#clusterNumberP").val(ui.item.id);
+                return false;
+            },
+            change: function (event, ui) {
+                if (this.value == "") {
+                    $("#clusterNumberP").val('');
+                }
+            }
+        });
+
+        //Create autocomplete search textbox - Task
+        $("#txtTask").autocomplete({
+            source: function (request, response) {
+                $.ajax({
+                    type: "POST",
+                    contentType: "application/json; charset=utf-8",
+                    url: '@Url.Content("~/Home/GetTask")',
+                    data: "{'iriWeek': '" + document.getElementById('ddlIriWeek').value + "', 'territory':'" + document.getElementById('ddlTerritory').value + "','searchText':'" + document.getElementById('txtTask').value + "'}",
+                    dataType: "json",
+                    async: true,
+                    success: function (data) {
+                        response($.map(data, function (item) {
+                            return {
+                                label: item.task_name,
+                                value: item.task_name,
+                                id: item.task_number
+                            };
+                        }))
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                        if (xhr.responseText.indexOf("Session Expired") > 0) {
+                            //Session has Expired,redirect to login page
+                            new jBox('Notice', {
+                                content: 'Session has expired. Logging you back...',
+                                color: 'red',
+                                autoClose: 6000,
+                                position: {
+                                    x: 'center',
+                                    y: 'center'
+                                },
+                            });
+                            window.location.href = '@Url.Content("~/Home/index")';
+                        } else {
+                            //Other Exceptions/Errors
+                            alert("Error while fetching tasks.");
+                        }
+                    }
+                });
+            },
+            focus: function (event, ui) {
+                $("#txtTask").val(ui.item.label);
+                return false;
+            },
+            select: function (event, ui) {
+                $("#txtTask").val(ui.item.label);
+                $("#taskNumber").val(ui.item.id);
+                return false;
+            },
+            change: function (event, ui) {
+                if (this.value == "") {
+                    $("#taskNumber").val('');
+                }
+            }
+        });
+
+        //Create autocomplete search textbox - FSR
+        $("#txtFsr").autocomplete({
+            source: function (request, response) {
+                $.ajax({
+                    type: "POST",
+                    contentType: "application/json; charset=utf-8",
+                    url: '@Url.Content("~/Home/GetFsr")',
+                    data: "{'iriWeek': '" + document.getElementById('ddlIriWeek').value + "', 'territory':'" + document.getElementById('ddlTerritory').value + "','searchText':'" + document.getElementById('txtFsr').value + "'}",
+                    dataType: "json",
+                    async: true,
+                    success: function (data) {
+                        response($.map(data, function (item) {
+                            return {
+                                label: item.emp_name,
+                                value: item.emp_name,
+                                id: item.emp_id
+                            };
+                        }))
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                        if (xhr.responseText.indexOf("Session Expired") > 0) {
+                            //Session has Expired,redirect to login page
+                            new jBox('Notice', {
+                                content: 'Session has expired. Logging you back...',
+                                color: 'red',
+                                autoClose: 6000,
+                                position: {
+                                    x: 'center',
+                                    y: 'center'
+                                },
+                            });
+                            window.location.href = '@Url.Content("~/Home/index")';
+                        } else {
+                            //Other Exceptions/Errors
+                            alert("Error while fetching FSRs.");
+                        }
+                    }
+                });
+            },
+            focus: function (event, ui) {
+                $("#txtFsr").val(ui.item.label);
+                return false;
+            },
+            select: function (event, ui) {
+                $("#txtFsr").val(ui.item.label);
+                $("#fsrId").val(ui.item.id);
+                return false;
+            },
+            change: function (event, ui) {
+                if (this.value == "") {
+                    $("#fsrId").val('');
+                }
+            }
+        });
+
+        //Create autocomplete search textbox - First Name
+        $("#txtFirstName").autocomplete({
+            source: function (request, response) {
+                $.ajax({
+                    type: "POST",
+                    contentType: "application/json; charset=utf-8",
+                    url: '@Url.Content("~/Home/GetName")',
+                    data: "{'iriWeek': '" + document.getElementById('ddlIriWeek').value + "', 'territory':'" + document.getElementById('ddlTerritoryP').value + "','searchText':'" + document.getElementById('txtFirstName').value + "','nameType': 'first_name'}",
+                    dataType: "json",
+                    async: true,
+                    success: function (data) {
+                        response($.map(data, function (item) {
+                            return {
+                                label: item.emp_name,
+                                value: item.emp_name,
+                                id: item.emp_id
+                            };
+                        }))
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                        if (xhr.responseText.indexOf("Session Expired") > 0) {
+                            //Session has Expired,redirect to login page
+                            new jBox('Notice', {
+                                content: 'Session has expired. Logging you back...',
+                                color: 'red',
+                                autoClose: 6000,
+                                position: {
+                                    x: 'center',
+                                    y: 'center'
+                                },
+                            });
+                            window.location.href = '@Url.Content("~/Home/index")';
+                        } else {
+                            //Other Exceptions/Errors
+                            alert("Error while fetching first names! Please try again.");
+                        }
+                    }
+                });
+            }
+        });
+
+        //Create autocomplete search textbox - Last Name
+        $("#txtLastName").autocomplete({
+            source: function (request, response) {
+                $.ajax({
+                    type: "POST",
+                    contentType: "application/json; charset=utf-8",
+                    url: '@Url.Content("~/Home/GetName")',
+                    data: "{'iriWeek': '" + document.getElementById('ddlIriWeek').value + "', 'territory':'" + document.getElementById('ddlTerritoryP').value + "','searchText':'" + document.getElementById('txtLastName').value + "','nameType': 'last_name'}",
+                    dataType: "json",
+                    async: true,
+                    success: function (data) {
+                        response($.map(data, function (item) {
+                            return {
+                                label: item.emp_name,
+                                value: item.emp_name,
+                                id: item.emp_id
+                            };
+                        }))
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                        if (xhr.responseText.indexOf("Session Expired") > 0) {
+                            //Session has Expired,redirect to login page
+                            new jBox('Notice', {
+                                content: 'Session has expired. Logging you back...',
+                                color: 'red',
+                                autoClose: 6000,
+                                position: {
+                                    x: 'center',
+                                    y: 'center'
+                                },
+                            });
+                            window.location.href = '@Url.Content("~/Home/index")';
+                        } else {
+                            //Other Exceptions/Errors
+                            alert("Error while fetching first names! Please try again.");
+                        }
+                    }
+                });
+            }
+        });
+
+        var winHeight = window.innerHeight;
+        var wHeight = winHeight - grdPixelCount;
+        var winWidth = window.innerWidth;
+
+        //Resizes the grid on window resize
+        jQuery(window).resize(function () {
+            resizeGrid();
+        });
+
+        function resizeGrid() {
+            gridId = "gridAssignment";
+            gridWidth = $('#gbox_' + gridId).parent().width();
+
+            $('#' + gridId).jqGrid('setGridWidth', gridWidth);
+            if (wHeight < grdPixelCount) {  //Height of five rows in grid is 110 pixels.
+                wHeight = grdPixelCount;
+                $('#' + gridId).jqGrid('setGridHeight', wHeight);
+            }
+            else {
+                $('#' + gridId).jqGrid('setGridHeight', wHeight);
+            }
+        }
+
+        function doSearch() {
+            loading.show();
+            var iriWeek = $("#ddlIriWeek").val();
+            var territory = $("#ddlTerritory").val();
+            var storeNumber = $("#storeNumber").val();
+            var state = $("#txtState").val();
+            var city = $("#txtCity").val();
+            var clusterNumber = $("#clusterNumber").val();
+            var taskNumber = $("#taskNumber").val();
+            var fsrId = $("#fsrId").val();
+            var fsrOver25 = $("#chkFsrOver25").is(':checked');
+            var fsrOver6 = $("#chkFsrOver6").is(':checked');
+            var fsrHourOperator = $("#ddlFsrHourOperator").val();
+            var fsrHour = $("#txtFsrHour").val();
+            var assignedStores = $("#chkAssignedStores").is(':checked');
+            var unassignedStores = $("#chkUnassignedStores").is(':checked');
+            var sample = $("#chkSample").is(':checked');
+            var nonsample = $("#chkNonsample").is(':checked');
+            var multiFsrStores = $("#chkMultiFsrStores").is(':checked');
+            var vacation = $("#chkVacation").is(':checked');
+            //var temporary = $("#chkTemporary").is(':checked');
+            var IsExpandAllActive = false;
+            var expandedRowId = null;
+
+            param.countryId = userCountryId;
+            param.iri_week = iriWeek;
+            param.territory_id = territory;
+            param.store_number = storeNumber;
+            param.state = state;
+            param.city = city;
+            param.position_number = clusterNumber;
+            param.task_number = taskNumber;
+            param.emp_id = fsrId;
+            param.fsr_over_25hrs = fsrOver25;
+            param.fsr_over_6hrs = fsrOver6;
+            param.assigned_stores = assignedStores;
+            param.unassigned_stores = unassignedStores;
+            param.sample = sample;
+            param.nonsample = nonsample;
+            param.multi_fsr_store = multiFsrStores;
+            param.vacation = vacation;
+            //param.temporary = temporary;
+            param.fsr_hour = fsrHour;
+            param.fsr_hour_operator = fsrHourOperator;
+            param.area = area_id;
+
+            var _objParam = JSON.stringify(param);
+
+            window.setTimeout(function () {
+                $.ajax({
+                    type: "POST",
+                    contentType: "application/json; charset=utf-8",
+                    url: '@Url.Content("~/Home/GetGridData")',
+                    data: "{'param': '" + _objParam + "'}",
+                    dataType: "json",
+                    async: false,
+                    traditional: true,
+                    success: function (data) {
+
+                        if (data.gridData.length <= 0) {
+                            new jBox('Notice', {
+                                content: 'Search did not return any results, please check the filters',
+                                color: 'red',
+                                autoClose: 4000,
+                                position: {
+                                    x: 40,
+                                    y: 80
+                                }
+                            });
+                        }
+
+                        gridData = data.gridData;
+                        //subgridData = data.subgridData;
+
+                        $("#gridAssignment").jqGrid('GridUnload');
+
+                        $("#gridAssignment").empty().jqGrid({
+                            mtype: 'GET',
+                            data: gridData,
+                            datatype: 'local',
+                            async: false,
+                            colNames: ['Store #', 'Store Name', 'Store Address', 'City', 'State', 'Zip', 'Assigned To', 'Avg Coll Time', 'Cluster', 'position_number',],
+                            colModel: [
+                                      { name: 'store_number', index: 'store_number', width: 70, align: 'left', title: false, resizable: false },
+                                      { name: 'store_name', index: 'store_name', width: 180, align: 'left', title: true, resizable: false, formatter: costwiseAssignmentFormatter },
+                                      { name: 'addr_line1', index: 'addr_line1', width: 180, align: 'left', title: true, resizable: false },
+                                      { name: 'city', index: 'city', width: 120, align: 'left', title: true, resizable: false },
+                                      { name: 'state', index: 'state', width: 80, align: 'center', title: false, resizable: false },
+                                      { name: 'zip', index: 'zip', width: 80, align: 'center', title: false, resizable: false },
+                                      //{ name: 'task_name', index: 'task_name', width: 100, align: 'left', title: true, resizable: false },
+                                      { name: 'assigned_to', index: 'assigned_to', width: 200, align: 'left', title: true, resizable: false, formatter: pickFsrForGrid },
+                                      //{ name: 'csr_information', index: 'csr_information', width: 80, align: 'center', title: false, resizable: false },
+                                      //{ name: 'wave', index: 'wave', width: 60, align: 'center', title: false, resizable: false },
+                                      { name: 'expected_collection_time', index: 'expected_collection_time', width: 100, align: 'center', title: false, resizable: false },
+                                      { name: 'position_name', jsonmap:'positionName', index: 'position_name', width: 100, align: 'left', title: false, resizable: false },
+                                      { name: 'position_number', index: 'position_number', hidden: true },
+                            ],
+                            rowNum: 25,
+                            rowList: [25, 50, 100, 200],
+                            //autowidth: true,
+                            //autoheight: true,
+                            scroll: false,
+                            scrollOffset: 0,
+                            pager: '#pager',
+                            page: selectedPage,
+                            shrinkToFit: true,
+                            rowSpan: false,
+                            //rowSpanCol: ['grping'],
+                            loadonce: true,
+                            cmTemplate: { sortable: true },
+                            gridview: true,
+                            //loadui: 'enable',
+                            hoverrows: true,
+                            autoencode: true,
+                            ignoreCase: true,
+                            viewrecords: true,
+                            recordtext: "View {0} - {1} of {2} records",
+                            emptyrecords: "No records to display",
+                            loadComplete: function (data) {
+                                //if (data != null) {
+                                //    $(this).jqGrid('setGridParam', 'rowNum', data.total);
+                                //}
+                                winHeight = window.innerHeight;
+                                wHeight = winHeight - grdPixelCount;
+
+                                $("#gridAssignment").jqGrid('setGridHeight', wHeight);
+                                $('#gridAssignment').jqGrid('setGridWidth', $('#gbox_gridAssignment').parent().width() - 20);
+
+                                //Customize option to expand/collapse all subgrids--------------------------------------------------------------------------------------------------
+                                $("#gridAssignment").jqGrid("navGrid", "#pager", { add: false, edit: false, del: false });
+                                var subGridOptions = $(this).jqGrid("getGridParam", "subGridOptions"),
+                                plusIcon = subGridOptions.plusicon,
+                                minusIcon = subGridOptions.minusicon,
+                                expandAllTitle = "Expand all subgrids",
+                                collapseAllTitle = "Collapse all subgrids";
+
+                                $("#jqgh_" + $(this)[0].id + "_subgrid").html('<a style="cursor: pointer;"><span class="ui-icon ' + plusIcon +
+                                                                              '" title="' + expandAllTitle + '"></span></a>').
+                                                                               click(function () {
+                                                                                                  var $spanIcon = $(this).find(">a>span"),
+                                                                                                      $body = $(this).closest(".ui-jqgrid-view").find(">.ui-jqgrid-bdiv>div>.ui-jqgrid-btable>tbody");
+
+                                                                                                  if ($spanIcon.hasClass(plusIcon)) {
+                                                                                                      //window.setTimeout(function () {
+                                                                                                          $spanIcon.removeClass(plusIcon).addClass(minusIcon).attr("title", collapseAllTitle);
+                                                                                                          $body.find(">tr.jqgrow>td.sgcollapsed").click();
+                                                                                                          IsExpandAllActive = true;
+                                                                                                      //}, 1000);
+                                                                                                  }
+                                                                                                  else {
+                                                                                                      $spanIcon.removeClass(minusIcon).addClass(plusIcon).attr("title", expandAllTitle);
+                                                                                                      $body.find(">tr.jqgrow>td.sgexpanded").click();
+                                                                                                      IsExpandAllActive = false;
+                                                                                                  }
+                                                                              });
+                            },
+                            subGrid: true,
+                            subGridOptions: {
+                                "plusicon": "ui-icon-plus",
+                                "minusicon": "ui-icon-minus",
+                                "openicon": "ui-icon-arrowreturn-1-e",
+                                "expandOnLoad": false,
+                                //"reloadOnExpand": false,
+                                "selectOnExpand": true,
+                                "selectOnLoad": true
+                            },
+                            subGridBeforeExpand: function (subgridDivId, rowid) {
+                                var eventId = "";
+
+                                if (typeof event === 'undefined')
+                                    eventId = "jqgh_gridAssignment_subgrid";
+                                else {
+                                    var link = $(event.currentTarget);
+                                    eventId = link[0].id;
+                                }
+
+                                //var rowIds = $("#gridAssignment").getDataIDs();
+                                //$.each(rowIds, function (index, rowId) {
+                                //    $("#gridAssignment").collapseSubGridRow(rowId);
+                                //});
+
+                                if (eventId != "jqgh_gridAssignment_subgrid") {
+                                    if (!IsExpandAllActive) {
+
+                                        var expanded = jQuery("td.sgexpanded", $(this))[0];
+                                        if (expanded) {
+                                            setTimeout(function () {
+                                                $(expanded).trigger("click");
+                                            }, 100);
+                                        }
+
+                                    }
+                                }
+                            },
+                            subGridRowExpanded: function (subgridDivId, rowId) {
+                                loading.show();
+
+                                var rowData = jQuery(this).getRowData(rowId);
+                                var storeNumber = rowData['store_number'];
+                                $subgrid = $("<table id='" + storeNumber + "_t'></table>");
+
+                                //pureRowId = $.jgrid.stripPref(mainGridPrefix, rowId),
+                                colModel = $(this).jqGrid("getGridParam", "colModel");
+
+                                $subgrid.appendTo("#" + $.jgrid.jqID(subgridDivId));
+
+                                expandedRowId = rowId;
+                                //window.setTimeout(function () {
+                                $.ajax({
+                                    type: "POST",
+                                    contentType: "application/json; charset=utf-8",
+                                    url: '@Url.Content("~/Home/GetSubgridData")',
+                                    data: "{'iriWeek': '" + iriWeek + "', 'storeNumber': '" + storeNumber + "'}",
+                                    dataType: "json",
+                                    async: false,
+                                    traditional: true,
+                                    success: function (data) {
+                                        subgridData = data.subgridData;
+                                        //if (data.gridData.length <= 0) {
+                                        //    new jBox('Notice', {
+                                        //        content: 'Search did not return any results, please check the filters',
+                                        //        color: 'red',
+                                        //        autoClose: 4000,
+                                        //        position: {
+                                        //            x: 40,
+                                        //            y: 70
+                                        //        },
+                                        //    });
+                                        //}
+                                    },
+                                    error: function (xhr, textStatus, errorThrown) {
+                                        if (xhr.responseText.indexOf("Session Expired") > 0) {
+                                            //Session has Expired,redirect to login page
+                                            new jBox('Notice', {
+                                                content: 'Session has expired. Logging you back...',
+                                                color: 'red',
+                                                autoClose: 6000,
+                                                position: {
+                                                    x: 'center',
+                                                    y: 'center'
+                                                },
+                                            });
+                                            window.location.href = '@Url.Content("~/Home/index")';
+                                        } else {
+                                            //Other Exceptions/Errors
+                                            alert("Error while getting subgrid data.");
+                                        }
+                                        loading.hide();
+                                    }
+                                });
+
+                                var subgridList = $.grep(subgridData, function (n, i) {
+                                    if (n.store_number == storeNumber) {
+                                        return n;
+                                    }
+                                });
+
+                                $subgrid.jqGrid({
+                                    datatype: 'local',
+                                    data: subgridList,
+                                    mtype: 'GET',
+                                    colNames: ['Task Name', 'Assigned To', 'CSR Info', 'Wave', 'Avg Coll Time', 'store_number', 'store_name', 'task_number'],//['Store #', 'Store Name', 'Store Address', 'Store City', 'Store State', 'Store Zip', 'Task Name', 'Assigned To', 'CSR Info', 'Wave', 'Exp Coll Time', 'store'],
+                                    colModel: [
+                                              //{ name: '', index: '', width: 50, align: 'left', title: false, resizable: false },
+                                              //{ name: 'store_name', index: 'store_name', width: 180, align: 'left', title: true, resizable: false },
+                                              //{ name: 'addr_line1', index: 'addr_line1', width: 180, align: 'left', title: true, resizable: false },
+                                              //{ name: 'city', index: 'city', width: 120, align: 'left', title: false, resizable: false },
+                                              //{ name: 'state', index: 'state', width: 80, align: 'center', title: false, resizable: false },
+                                              //{ name: 'zip', index: 'zip', width: 80, align: 'center', title: false, resizable: false },
+                                              { name: 'task_name', index: 'task_name', width: 280, align: 'left', title: true, resizable: false, sortable: false },
+                                              { name: 'assigned_to', index: 'assigned_to', width: 200, align: 'left', title: true, resizable: false, sortable: false, formatter: pickFsrForSubgrid },
+                                              { name: 'csr_info', index: 'csr_info', width: 80, align: 'center', title: false, resizable: false, sortable: false },
+                                              { name: 'wave', index: 'wave', width: 60, align: 'center', title: false, resizable: false, sortable: false },
+                                              { name: 'expected_collection_time', index: 'expected_collection_time', width: 120, align: 'center', title: false, resizable: false, sortable: false },
+                                              { name: 'store_number', jsonmap: 'store_number', hidden: true },
+                                              { name: 'store_name', jsonmap: 'store_name', hidden: true },
+                                              { name: 'task_number', jsonmap: 'task_number', hidden: true },
+                                    ],
+                                    rowNum: 100,
+                                    autowidth: false,
+                                    height: "100%",
+                                    rownumbers: false,
+                                    autoencode: true,
+                                    gridview: true,
+                                    loadonce: true,
+                                    beforeSelectRow: function (rowid, e) { return false; },
+                                    idPrefix: rowId + "_a_",
+                                    loadComplete: function (data) {
+
+                                    }
+                                });
+                                //}, 1000);
+                                //Remove the subgrid header
+                                //$subgrid.closest("div.ui-jqgrid-view").children("div.ui-jqgrid-hdiv").hide();
+                            },
+                            onSelectRow: function (rowId) {
+                                //if (expandedRowId == rowId) expandedRowId = null;
+                                //$("#gridAssignment").jqGrid('toggleSubGridRow', rowId);
+                            }
+                        });
+
+                        //Bind the grid with searched data
+                        //$("#gridAssignment").setGridParam({ datastr: data.gridData, datatype: "local" }).trigger("reloadGrid");
+
+                        //Call to freeze columns
+                        //jQuery("#gridAssignment").jqGrid('setFrozenColumns');
+
+                        loading.hide();
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                        if (xhr.responseText.indexOf("Session Expired") > 0) {
+                            //Session has Expired,redirect to login page
+                            new jBox('Notice', {
+                                content: 'Session has expired. Logging you back...',
+                                color: 'red',
+                                autoClose: 6000,
+                                position: {
+                                    x: 'center',
+                                    y: 'center'
+                                },
+                            });
+                            window.location.href = '@Url.Content("~/Home/index")';
+                        } else {
+                            //Other Exceptions/Errors
+                            alert("Error while getting grid data.");
+                        }
+                        loading.hide();
+                    }
+                });
+
+            }, 1000);
+        }
+
+        function assign(cellvalue, options, rowObject) {
+            return '<a href="#" id="' + options.rowId + '" onclick="assignTask(1);"><span style="color:blue"><u>Assign</u></span></a>'
+        }
+
+        function assignAll(cellvalue, options, rowObject) {
+            return '<a href="#" id="' + options.rowId + '" onclick="assignTask(2);"><span style="color:blue"><u>Assign All</u></span></a>'
+        }
+
+        function unassign(cellvalue, options, rowObject) {
+            return '<a href="#" id="' + options.rowId + '" onclick="assignTask(3);"><span style="color:blue"><u>Unassign</u></span></a>'
+        }
+
+        function unassignAll(cellvalue, options, rowObject) {
+            return '<a href="#" id="' + options.rowId + '" onclick="assignTask(4);"><span style="color:blue"><u>Unassign All</u></span></a>'
+        }
+
+        function assignToCluster(cellvalue, options, rowObject) {
+            return '<a href="#" id="' + options.rowId + '" onclick="assignTask(5);"><span style="color:blue"><u>Assign All</u></span></a>'
+        }
+
+        function unassignFromCluster(cellvalue, options, rowObject) {
+            return '<a href="#" id="' + options.rowId + '" onclick="assignTask(6);"><span style="color:blue"><u>Unssign All</u></span></a>'
+        }
+
+        function temporary(cellvalue, options, rowObject)
+        {
+            if(cellvalue == "True")
+                return '<input type="checkbox" id="cbx_tempo_' + options.rowId + '" onclick="temporaryClicked()" value="selected" class = "checkbox-input" checked/>'
+            else
+                return '<input type="checkbox" id="cbx_tempo_' + options.rowId + '" onclick="temporaryClicked()" class = "checkbox-input" />'
+        }
+
+        function email(cellvalue, options, rowObject) {
+            return '<a href="#" id="email_' + options.rowId + '" onclick="open_outlook(\'' + rowObject.email + '\');"><span style="color:blue"><u>' + cellvalue + '</u></span></a>'
+        }
+
+        $("#iconSearch").click(function () {
+            doSearch();
+        });
+
+        $("#iconSendWo").click(function () {
+            if (IsWoEmailed == true) {
+                $("#alertText").text("There are no work orders to be emailed, please generate a new one.");
+                $("#dialog-alert").dialog("open");
+            }
+            else {
+
+                $("#iconGenerateWo").prop('disabled', true);
+                $("#iconSendWo").prop('disabled', true);
+
+                //window.setTimeout(function () {
+                $.ajax({
+                    type: "POST",
+                    contentType: "application/json; charset=utf-8",
+                    url: '@Url.Content("~/Home/SendWorkOrderEmail")',
+                    data: "{'pdfSessionId': '" + pdfSessionId + "'}",
+                    //dataType: "json",
+                    async: true,
+                    //traditional: true,
+                    success: function (data) {
+
+                        $("#iconGenerateWo").prop('disabled', false);
+                        $("#iconSendWo").prop('disabled', false);
+                        IsWoEmailed = true;
+
+                        //if (data.length <= 0) {
+                        new jBox('Notice', {
+                            content: 'Work order emails have been queued.',
+                            color: 'green',
+                            autoClose: 4000,
+                            position: {
+                                x: 40,
+                                y: 70
+                            },
+                        });
+                        //}
+
+                        //popupLoading.hide();
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                        if (xhr.responseText.indexOf("Session Expired") > 0) {
+                            //Session has Expired,redirect to login page
+                            new jBox('Notice', {
+                                content: 'Session has expired. Logging you back...',
+                                color: 'red',
+                                autoClose: 6000,
+                                position: {
+                                    x: 'center',
+                                    y: 'center'
+                                },
+                            });
+                            window.location.href = '@Url.Content("~/Home/index")';
+                        }
+                        else {
+                            //Other Exceptions/Errors
+                            alert("Error while sending work order emails.");
+                            $("#iconGenerateWo").prop('disabled', false);
+                            $("#iconSendWo").prop('disabled', false);
+                            IsWoEmailed = false;
+                        }
+                        //popupLoading.hide();
+                    }
+                });
+
+                //}, 1000);
+            }
+        });
+
+        $("#btnSearch").click(function () {
+            searchFsr();
+        });
+
+        $("#chkMultiFsrStores").change(function () {
+            if (this.checked) {
+                $("#ddlFsrHourOperator").val('NA');
+                $("#txtFsrHour").val('');
+                $("#txtFsrHour").attr("disabled", true);
+            }
+        });
+
+        $("#txtFsrHour").on('change', function(){
+            if ($("#txtFsrHour").val() != "") {
+                $("#chkMultiFsrStores").attr("Checked", false);
+            }
+        });
+
+        $("#ddlFsrHourOperator").change(function () {
+            if ($("#ddlFsrHourOperator").val() == "NA") {
+                $("#txtFsrHour").val('');
+                $("#txtFsrHour").attr("disabled", true);
+            }
+            else {
+                $("#txtFsrHour").attr("disabled", false);
+            }
+        });
+
+        $("#ddlCountry").on("change", function () {
+            userCountryId = $("#ddlCountry").val();
+
+            $("#ddlTerritory").empty();
+            $("#ddlTerritoryP").empty();
+            getTerritory();
+
+            $('#iconClearFilter').click();
+
+            doSearch();
+        });
+
+        $(document).keydown(function (event) {
+            if (event.which === 13) {
+                if ($('#txtFirstName').is(':focus') || $('#txtLastName').is(':focus')) {
+                    searchFsr();
+                }
+            }
+        });
+
+        //Trigger the search button on page load
+        $("#iconSearch").click();
+
+        //Setup Pick FSR dialog
+        $("#dialog-pickfsr").dialog({
+            autoOpen: false,
+            show: {
+                effect: "blind",
+                duration: 800
+            },
+            hide: {
+                effect: "blind",
+                duration: 800
+            },
+            position: {
+                my: "center",
+                at: "center"
+            },
+            closeOnEscape: false,
+            open: function () {
+                $(this).closest(".ui-dialog")
+                .find(".ui-dialog-titlebar-close")
+                .html("<span class='ui-button-icon-primary ui-icon ui-icon-closethick' style='background-color:darkorange'></span>");
+
+            },
+            close: function(){
+                if (isAssign) {
+                    selectedPage = jQuery('#gridAssignment').getGridParam('page');
+                    doSearch();
+                    //Select the previously selected row
+                    setTimeout(function () {
+                        //$("#gridAssignment").setSelection(gridArr[curr_index], true);
+                        jQuery('#gridAssignment').jqGrid('setSelection', selectedRow).focus();
+
+                        jQuery('#gridAssignment').expandSubGridRow(selectedRow);
+                    }, 1000);
+                }
+            },
+            width: screen.width * 0.76,
+            height: screen.height * 0.6,
+            modal: true
+        });
+
+        $("#dialog-pickfsr").hide();
+
+        //Close the dialog
+        //$('#btnClosePopup').click(function () {
+        //    $("#dialog-pickfsr").dialog("close");
+
+        //    if (isAssign) {
+        //        selectedPage = jQuery('#gridAssignment').getGridParam('page');
+        //        doSearch();
+        //        //Select the previously selected row
+        //        setTimeout(function () {
+        //            //$("#gridAssignment").setSelection(gridArr[curr_index], true);
+        //            jQuery('#gridAssignment').jqGrid('setSelection', selectedRow).focus();
+
+        //            jQuery('#gridAssignment').expandSubGridRow(selectedRow);
+        //        }, 1000);
+        //    }
+        //});
+
+        //Setup dialog for alert
+        $("#dialog-alert").dialog({
+            autoOpen: false,
+            show: {
+                effect: "blind",
+                duration: 200
+            },
+            hide: {
+                effect: "blind",
+                duration: 200
+            },
+            closeOnEscape: false,
+            open: function (event, ui) {
+                $(this).closest('.ui-dialog').find('.ui-dialog-titlebar-close').hide();
+            },
+            position: {
+                my: "center",
+                at: "center"
+            },
+            width: screen.width * 0.3,
+            height: screen.height * 0.2,
+            modal:true
+        });
+
+        $("#dialog-alert").hide();
+
+        $('#btnCloseAlert').click(function () {
+            $("#dialog-alert").dialog("close");
+        });
+
+        //Setup dialog for additional comments
+        $("#dialog-addComment").dialog({
+            autoOpen: false,
+            show: {
+                effect: "blind",
+                duration: 800
+            },
+            hide: {
+                effect: "blind",
+                duration: 800
+            },
+            position: {
+                my: "center",
+                at: "center"
+            },
+            closeOnEscape: false,
+            open: function(event, ui) {
+                $(this).closest('.ui-dialog').find('.ui-dialog-titlebar-close').hide();
+            },
+            width: screen.width * 0.40,
+            height: screen.height * 0.36,
+            modal: true
+        });
+
+        $("#dialog-addComment").hide();
+
+        $('#btnCloseAddComment').click(function () {
+            $("#dialog-addComment").dialog("close");
+        });
+
+        //Setup Costwise FSR dialog
+        $("#dialog-costwisefsr").dialog({
+            autoOpen: false,
+            show: {
+                effect: "blind",
+                duration: 500
+            },
+            hide: {
+                effect: "blind",
+                duration: 500
+            },
+            position: {
+                my: "center",
+                at: "center"
+            },
+            closeOnEscape: false,
+            open: function () {
+                $(this).closest(".ui-dialog")
+                    .find(".ui-dialog-titlebar-close")
+                    .html("<span class='ui-button-icon-primary ui-icon ui-icon-closethick' style='background-color:darkorange'></span>");
+
+            },
+            close: function () {
+
+            },
+            width: screen.width * 0.6,
+            height: screen.height * 0.4,
+            modal: true
+        });
+
+        $("#dialog-costwisefsr").hide();
+
+        $("#iconGenerateWo").click(function () {
+            if (IsWoEmailed == false) {
+                $("#alertText").text("Previously created work order is not emailed to employees yet.");
+                $("#dialog-alert").dialog("open");
+            }
+            else {
+                $("#dialog-addComment").dialog("open");
+
+                $("#btnGenerateWo").click(function () {
+                    $("#dialog-addComment").dialog("close");
+
+                    //Disable links
+                    $("#iconGenerateWo").prop('disabled', true);
+                    $("#iconSendWo").prop('disabled', true);
+
+                    new jBox('Notice', {
+                        content: 'Work orders for FM and FSRs are being generated, it may take few minutes.',
+                        color: 'orange',
+                        autoClose: 4000,
+                        position: {
+                            x: 'center',
+                            y: 'center'
+                        },
+                    });
+
+                    loading.show();
+
+                    //Code to generate work order
+                    var addComment = $("#txtAddComment").val();
+                    var iriWeek = $("#ddlIriWeek").val();
+                    var territory = $("#ddlTerritory").val();
+                    var country = userCountryId;
+
+                    $.each(territoryList, function (i) {
+                        if (territoryList[i].territory_id == territory) {
+                            param.fm_emp_id = territoryList[i].fm_emp_id;
+                            param.fm_email = territoryList[i].fm_email;
+                            return;
+                        }
+                    });
+
+                    param.iri_week = iriWeek;
+                    param.territory_id = territory;
+                    param.comment = addComment;
+                    param.countryId = country;
+
+                    var _objParam = JSON.stringify(param);
+
+                    window.setTimeout(function () {
+                        $.ajax({
+                            type: "POST",
+                            contentType: "application/json; charset=utf-8",
+                            url: '@Url.Content("~/Home/CreateWorkOrder")',
+                            data: "{'param': '" + _objParam + "'}",
+                            //dataType: "json",
+                            async: true,
+                            //traditional: true,
+                            success: function (data) {
+
+                                pdfSessionId = data;
+
+                                $("#alertText").text("Work order generated successfully.");
+                                $("#dialog-alert").dialog("open");
+
+                                $("#iconGenerateWo").prop('disabled', false);
+                                $("#iconSendWo").prop('disabled', false);
+                                IsWoEmailed = false;
+
+                                loading.hide();
+                            },
+                            error: function (xhr, textStatus, errorThrown) {
+                                if (xhr.responseText.indexOf("Session Expired") > 0) {
+                                    //Session has Expired,redirect to login page
+                                    new jBox('Notice', {
+                                        content: 'Session has expired. Logging you back...',
+                                        color: 'red',
+                                        autoClose: 6000,
+                                        position: {
+                                            x: 'center',
+                                            y: 'center'
+                                        },
+                                    });
+                                    window.location.href = '@Url.Content("~/Home/index")';
+                                }
+                                else {
+                                    //Other Exceptions/Errors
+                                    alert("Error while generating work order.");
+                                    $("#iconGenerateWo").prop('disabled', false);
+                                    $("#iconSendWo").prop('disabled', false);
+                                    IsWoEmailed = false;
+                                }
+                                loading.hide();
+                            }
+                        });
+
+                    }, 1000);
+
+                });
+            }
+        });
+
+        $('#iconHideFilter').click(function () {
+            $('#divFilter').hide({
+                effect: "drop",
+                duration: 500
+            });
+
+            $('#divHideFilter').show({
+                effect: "drop",
+                duration: 500
+            });
+
+            $('#divMain').css({ left: '3%', position: 'absolute', width: '97%', height: '100%' });
+
+            resizeGrid();
+        });
+
+        $('#iconShowFilter').click(function () {
+            $('#divHideFilter').hide({
+                effect: "drop",
+                duration: 500
+            });
+
+            $('#divFilter').show({
+                effect: "drop",
+                duration: 500
+            });
+
+            $('#divMain').css({ left: '26%', position: 'absolute', width: '74%', height: '100%' });
+
+            resizeGrid();
+        });
+
+        $('#iconClearFilter').click(function () {
+            $("#txtStore").val('');
+            $("#storeNumber").val('');
+
+            $("#txtState").val('');
+
+            $("#txtCity").val('');
+
+            $("#txtCluster").val('');
+            $("#clusterNumber").val('');
+
+            $("#txtTask").val('');
+            $("#taskNumber").val('');
+
+            $("#txtFsr").val('');
+            $("#fsrId").val('');
+
+            $("#ddlFsrHourOperator").val('NA');
+            $("#txtFsrHour").val('');
+            $("#txtFsrHour").attr("disabled", true);
+
+            //$("#chkFsrOver25").attr("Checked", false);
+
+            //$("#chkFsrOver6").attr("Checked", false);
+
+            $("#chkAssignedStores").attr("Checked", false);
+
+            $("#chkUnassignedStores").attr("Checked", false);
+
+            $("#chkSample").attr("Checked", false);
+
+            $("#chkNonsample").attr("Checked", false);
+
+            $("#chkMultiFsrStores").attr("Checked", false);
+
+            $("#chkVacation").attr("Checked", false);
+
+            //$("#chkTemporary").attr("Checked", false);
+
+        });
+
+        //Set the tabindex : go to last name after first name
+        $('#txtFirstName').attr('tabindex', 1);
+        $('#txtLastName').attr('tabindex', 2);
+        $('#btnSearch').attr('tabindex', 3);
+        $('#ddlTerritory').attr('tabindex', 4);
+        //$('#gridPickFsr').attr('tabindex', 4);
     });
-  }
+    //Jquery Ends////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  // MISSING FUNCTION 2: Clear Filters  
-  clearFilters(): void {
-    const defaultFilters = new GetGridDataFilter();
-    this.filtersSubject.next(defaultFilters);
-    this.gridDataSubject.next([]);
-  }
+    function costwiseAssignmentFormatter(cellvalue, options, rowObject) {
+        if (userCountryId != "1")
+            return cellvalue;
+        else {
+            return '<a onclick="costwiseAssignmentPopup(' + rowObject.store_number + ',/' + encodeURIComponent(rowObject.store_name) + '/); "><span class="iconHover" style="color: blue"><u>' + cellvalue + '</u></span></a>';
+        }
+    }
+
+    function mileFormatter(cellvalue, options, rowObject) {
+        if (rowObject.DistancePayout == "0") {
+            return cellvalue + " (NA)";
+        } else {
+            return cellvalue;
+        }
+    }
+
+    function pickFsrForCluster(cellvalue, options, rowObject) {
+        if ($("#ddlIriWeek :selected").text().indexOf('VIEWONLY') > 0)
+            return cellvalue;
+        else
+            return '<a href="#" id="mainGridRow_' + options.rowId + '_cluster' + '" onclick="pickFsrPopup(0);"><span class="iconHover" style="color:blue"><u>' + cellvalue + '</u></span></a>'
+    }
+
+    function pickFsrForGrid(cellvalue, options, rowObject) {
+        if ($("#ddlIriWeek :selected").text().indexOf('VIEWONLY') > 0)
+            return cellvalue;
+        else {
+            var html = "";
+            //if (rowObject.temporary == "1")
+            //    html = " <span class='ion-ios7-people' style='color:red;font-size:large;font-weight:bold;' title='Temporarily assigned'></span> ";
+
+            return '<a href="#" id="mainGridRow_' + options.rowId + '" onclick="pickFsrPopup();">' + html + '<span class="iconHover" style="color:blue"><u>' + cellvalue + '</u></span></a>';
+        }
+    }
+
+    function pickFsrForSubgrid(cellvalue, options, rowObject) {
+        if ($("#ddlIriWeek :selected").text().indexOf('VIEWONLY') > 0)
+            return cellvalue;
+        else
+        return '<a href="#" id="subGridRow_' + options.rowId + '" onclick="pickFsrPopup(' + rowObject.store_number + ');"><span class="iconHover" style="color:blue"><u>' + cellvalue + '</u></span></a>'
+    }
+
+    function pickFsrPopup(gridName) {
+        
+        var link = $(event.currentTarget);
+        var selRowId = link.closest('tr')[0].id;
+        var myGrid;
+        var name;
+        userAction = '';
+
+        var iriWeek = $('#ddlIriWeek').val();
+        var territory = $('#ddlTerritory').val();
+
+        selectedRow = selRowId.split('_')[0];
+
+        if (typeof gridName === 'undefined') {
+            myGrid = $('#gridAssignment');
+            PickFsrPopupMode = 'StoreLevel';
+        }
+        else if (gridName == "0") {
+            myGrid = $('#gridAssignment');
+            PickFsrPopupMode = 'ClusterLevel';
+        }
+        else {
+            myGrid = $('#' + gridName + '_t');
+            PickFsrPopupMode = 'TaskLevel';
+        }
+
+        var rowData = myGrid.getRowData(selRowId);
+        
+        var storeNumber = rowData.store_number;
+        var taskNumber = rowData.task_number;
+
+        if (PickFsrPopupMode == 'ClusterLevel') {
+            name = ' Cluster: ' + link[0].innerText + ' | Store: ALL ';
+        }
+        else {
+            if (PickFsrPopupMode == 'TaskLevel')
+                name = ' Store: ' + rowData.store_name + "(" + storeNumber + ") ";
+            else
+                name = ' Store: ' + rowData.store_name.split('/')[1] + "(" + storeNumber + ") ";
+        }
+
+        if (typeof rowData.task_name === 'undefined')
+            name = name + ' | Task: ALL'
+        else if (rowData.task_name != "")
+            name = name + ' | Task: ' + rowData.task_name;
+
+        $('#lblIriWeek').text(iriWeek);
+
+        if (territory == "-1"){
+            if(userTerritory == "0")
+                $('#ddlTerritoryP').val(52);
+            else
+                $('#ddlTerritoryP').val(userTerritory);
+        }
+        else
+            $('#ddlTerritoryP').val(territory);
+        $('#storeNumberP').val(storeNumber);
+        $('#taskNumberP').val(taskNumber);
+        $("#positionNumberP").val(rowData.position_number);
+
+        //clear
+        $("#txtClusterP").val('');
+        $("#clusterNumberP").val('');
+        $("#txtFirstName").val('');
+        $("#txtLastName").val('');
+        isAssign = false;
+
+        jQuery("#gridPickFsr").clearGridData(true).trigger("reloadGrid");
+
+        $("#dialog-pickfsr").dialog('option', 'title', 'Assignment for ' + name).dialog("open");
+
+        assignmentPopup();
+    }
+
+    function assignmentPopup() {
+        popupLoading.show();
+        var iriWeek = $("#ddlIriWeek").val();
+        var storeNumber = $("#storeNumberP").val();
+        var taskNumber = $('#taskNumberP').val();
+        var positionNumber = $("#positionNumberP").val();
+
+        paramP.iri_week = iriWeek;
+        paramP.store_number = storeNumber;
+        paramP.task_number = taskNumber;
+        paramP.assignment_mode = PickFsrPopupMode;
+        paramP.position_number = positionNumber;
+        paramP.countryId = userCountryId;
+
+        var _objParam = JSON.stringify(paramP);
+
+        window.setTimeout(function () {
+            $.ajax({
+                type: "POST",
+                contentType: "application/json; charset=utf-8",
+                url: '@Url.Content("~/Home/GetCurrentAssignment")',
+                data: "{'param': '" + _objParam + "'}",
+                dataType: "json",
+                async: false,
+                traditional: true,
+                success: function (data) {
+                    var gridData = data;
+                    fresh_assignment = false;
+
+                    if (userAction == 1) {
+                            jQuery("#gridPickFsr").jqGrid('hideCol', ["assign_all", "unassign_all", "assign", "assign_to_cluster", "unassign_from_cluster"]);
+                            jQuery("#gridPickFsr").jqGrid('showCol', ["unassign"]);
+                    }
+                    else if (userAction == 3) {
+                        if (gridData.length == 0) {
+                            jQuery("#gridPickFsr").jqGrid('hideCol', ["assign_all", "unassign_all", "unassign", "assign_to_cluster", "unassign_from_cluster"]);
+                            jQuery("#gridPickFsr").jqGrid('showCol', ["assign"]);
+                        }
+                    }
+                    else if (PickFsrPopupMode == 'StoreLevel') {
+                        jQuery("#gridPickFsr").jqGrid('hideCol', ["assign", "unassign", "assign_to_cluster", "unassign_from_cluster"]);
+                        jQuery("#gridPickFsr").jqGrid('showCol', ["assign_all", "unassign_all"]);
+                    }
+                    else if (PickFsrPopupMode == 'ClusterLevel') {
+                        jQuery("#gridPickFsr").jqGrid('hideCol', ["assign_all", "unassign_all", "assign", "unassign"]);
+                        jQuery("#gridPickFsr").jqGrid('showCol', ["assign_to_cluster", "unassign_from_cluster"]);
+                    }
+                    else {
+                        jQuery("#gridPickFsr").jqGrid('hideCol', ["assign_all", "unassign_all", "assign", "assign_to_cluster", "unassign_from_cluster"]);
+                        jQuery("#gridPickFsr").jqGrid('showCol', ["unassign"]);
+                    }
+
+                    //Bind the grid with searched data
+                    $("#gridPickFsr").setGridParam({ datastr: gridData, datatype: "jsonstring" }).trigger("reloadGrid");
+
+                    popupLoading.hide();
+                },
+                error: function (xhr, textStatus, errorThrown) {
+                    if (xhr.responseText.indexOf("Session Expired") > 0) {
+                        //Session has Expired,redirect to login page
+                        new jBox('Notice', {
+                            content: 'Session has expired. Logging you back...',
+                            color: 'red',
+                            autoClose: 6000,
+                            position: {
+                                x: 'center',
+                                y: 'center'
+                            },
+                        });
+                        window.location.href = '@Url.Content("~/Home/index")';
+                    } else {
+                        //Other Exceptions/Errors
+                        alert("Error while getting grid data.");
+                    }
+                    popupLoading.hide();
+                }
+            });
+
+        }, 1000);
+    }
+
+    function costwiseAssignmentPopup(storeNumber, storeName) {
+        $("#dialog-costwisefsr").dialog('option', 'title', 'Collector proximity for: ' + decodeURIComponent(storeName.source) + ' (' + storeNumber + ')').dialog("open");
+        popupLoading.show();
+        paramP.countryId = userCountryId;
+        paramP.store_number = storeNumber;
+        var _objParam = JSON.stringify(paramP);
+
+        jQuery("#gridCostwiseFsr").clearGridData(true).trigger("reloadGrid");
+
+        window.setTimeout(function () {
+            $.ajax({
+                type: "POST",
+                contentType: "application/json; charset=utf-8",
+                url: '@Url.Content("~/Home/GetClosestFsr")',
+                data: "{'param': '" + _objParam + "'}",
+                dataType: "json",
+                async: false,
+                traditional: true,
+                success: function (data) {
+                    var gridData = data;
+
+                    //Bind the grid with searched data
+                    $("#gridCostwiseFsr").setGridParam({ datastr: gridData, datatype: "jsonstring" }).trigger("reloadGrid");
+                    popupLoading.hide();
+                },
+                error: function (xhr, textStatus, errorThrown) {
+                    if (xhr.responseText.indexOf("Session Expired") > 0) {
+                        //Session has Expired,redirect to login page
+                        new jBox('Notice', {
+                            content: 'Session has expired. Logging you back...',
+                            color: 'red',
+                            autoClose: 6000,
+                            position: {
+                                x: 'center',
+                                y: 'center'
+                            },
+                        });
+                        window.location.href = '@Url.Content("~/Home/index")';
+                    } else {
+                        //Other Exceptions/Errors
+                        alert("Error while getting costwise FSR list!");
+                    }
+                    popupLoading.hide();
+                }
+            });
+        }, 400);
+    }
+
+    function searchFsr() {
+        popupLoading.show();
+        var iriWeek = $('#lblIriWeek').text();
+        var territory = $("#ddlTerritoryP").val();
+        var clusterNumber = $("#clusterNumberP").val();
+        //var fsrId = $("#fsrIdP").val();
+        var firstName = $("#txtFirstName").val();
+        var lastName = $("#txtLastName").val();
+
+        paramP.iri_week = iriWeek;
+        paramP.territory_id = territory;
+        paramP.position_number = clusterNumber;
+        //paramP.emp_id = fsrId;
+        paramP.first_name = firstName;
+        paramP.last_name = lastName;
+        paramP.countryId = userCountryId;
+        paramP.area = area_id;
+
+        var _objParam = JSON.stringify(paramP);
+
+        window.setTimeout(function () {
+            $.ajax({
+                type: "POST",
+                contentType: "application/json; charset=utf-8",
+                url: '@Url.Content("~/Home/GetFsrForAssignment")',
+                data: "{'param': '" + _objParam + "'}",
+                dataType: "json",
+                async: false,
+                traditional: true,
+                success: function (data) {
+
+                    if (data.length <= 0) {
+                        new jBox('Notice', {
+                            content: 'Search did not return any results, please check the filters',
+                            color: 'red',
+                            autoClose: 4000,
+                            position: {
+                                x: 40,
+                                y: 70
+                            },
+                            responsivePositions: null
+                        });
+                    }
+                    var gridData = data;
+
+                    fresh_assignment = true;
+
+                    if (PickFsrPopupMode == 'StoreLevel') {
+                        jQuery("#gridPickFsr").jqGrid('hideCol', ["assign", "unassign", "assign_to_cluster", "unassign_from_cluster"]);
+                        jQuery("#gridPickFsr").jqGrid('showCol', ["assign_all", "unassign_all"]);
+                    }
+                    else if (PickFsrPopupMode == 'ClusterLevel') {
+                        jQuery("#gridPickFsr").jqGrid('hideCol', ["assign_all", "unassign_all", "assign", "unassign"]);
+                        jQuery("#gridPickFsr").jqGrid('showCol', ["assign_to_cluster", "unassign_from_cluster"]);
+                    }
+                    else {
+                        jQuery("#gridPickFsr").jqGrid('hideCol', ["assign_all", "unassign_all", "unassign"]);
+                        jQuery("#gridPickFsr").jqGrid('showCol', ["assign"]);
+                    }
+
+                    //Bind the grid with searched data
+                    $("#gridPickFsr").setGridParam({ datastr: gridData, datatype: "jsonstring" }).trigger("reloadGrid");
+
+                    popupLoading.hide();
+                },
+                error: function (xhr, textStatus, errorThrown) {
+                    if (xhr.responseText.indexOf("Session Expired") > 0) {
+                        //Session has Expired,redirect to login page
+                        new jBox('Notice', {
+                            content: 'Session has expired. Logging you back...',
+                            color: 'red',
+                            autoClose: 6000,
+                            position: {
+                                x: 'center',
+                                y: 'center'
+                            },
+                        });
+                        window.location.href = '@Url.Content("~/Home/index")';
+                    } else {
+                        //Other Exceptions/Errors
+                        alert("Error while getting Fsrs for assignments.");
+                    }
+                    popupLoading.hide();
+                }
+            });
+
+        }, 1000);
+    }
+
+    function assignTask(action) {
+        var link = $(event.currentTarget);
+        var selRowId = link.closest('tr')[0].id;
+        var myGrid = $("#gridPickFsr")
+        var rowData = myGrid.getRowData(selRowId);
+        var message;
+        userAction = action;
+
+        switch (action) {
+            case 1:
+                message = "Are you sure you want to assign current task to " + rowData.first_name + " " + rowData.last_name + "?";
+                break;
+            case 2:
+                message = "Are you sure you want to assign all tasks to " + rowData.first_name + " " + rowData.last_name + "?";
+                break;
+            case 3:
+                message = "Are you sure you want to unassign current task from " + rowData.first_name + " " + rowData.last_name + "?";
+                break;
+            case 4:
+                message = "Are you sure you want to unassign all tasks from " + rowData.first_name + " " + rowData.last_name + "?";
+                break;
+            case 5:
+                message = "Are you sure you want to assign " + rowData.first_name + " " + rowData.last_name + " to the cluster?";
+                break;
+            case 6:
+                message = "Are you sure you want to unassign " + rowData.first_name + " " + rowData.last_name + " from the cluster?";
+                break;
+        }
+
+        if (confirm(message)) {
+            popupLoading.show();
+
+            paramP.iri_week = $('#lblIriWeek').text();
+            paramP.territory_id = $('#ddlTerritoryP').val();
+            paramP.store_number = $('#storeNumberP').val();
+            paramP.emp_id = rowData.emp_id;
+            paramP.task_number = $('#taskNumberP').val();
+            paramP.position_number = $("#positionNumberP").val();
+            paramP.action = action;
+            paramP.assignment_mode = PickFsrPopupMode;
+            //paramP.temporary = $("#cbx_tempo_" + selRowId).is(":checked");
+            paramP.countryId = userCountryId;
+
+            var _objParam = JSON.stringify(paramP);
+
+            window.setTimeout(function () {
+                $.ajax({
+                    type: "POST",
+                    contentType: "application/json; charset=utf-8",
+                    url: '@Url.Content("~/Home/SaveAssignment")',
+                    data: "{'param': '" + _objParam + "'}",
+                    dataType: "json",
+                    async: false,
+                    traditional: true,
+                    success: function (data) {
+                        //alert("New Assignment saved successsully");
+                        //if (data.length <= 0) {
+                        new jBox('Notice', {
+                            content: 'New Assignment saved successsully.',
+                            color: 'green',
+                            autoClose: 5000,
+                            position: {
+                                x: 40,
+                                y: 70
+                            }
+                        });
+                        //}
+
+                        isAssign = true;
+
+                        //Clear first name and last name
+                        $('#txtFirstName').val('');
+                        $('#txtLastName').val('');
+
+                        assignmentPopup();
+
+                        popupLoading.hide();
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                        if (xhr.responseText.indexOf("Session Expired") > 0) {
+                            //Session has Expired,redirect to login page
+                            new jBox('Notice', {
+                                content: 'Session has expired. Logging you back...',
+                                color: 'red',
+                                autoClose: 6000,
+                                position: {
+                                    x: 'center',
+                                    y: 'center'
+                                },
+                            });
+                            window.location.href = '@Url.Content("~/Home/index")';
+                        } else {
+                            //Other Exceptions/Errors
+                            alert("Error while saving assignments.");
+                        }
+                        popupLoading.hide();
+                    }
+                });
+
+            }, 1000);
+        }
+        else {
+            if (fresh_assignment) {
+                $("#cbx_tempo_" + selRowId).prop("checked", false);
+            }
+        }
+    }
+
+    function open_outlook(email_address) {
+        var subject = 'Hi';
+        var emailBody = 'Bye';
+        window.location = 'mailto:' + email_address;// + '?subject=' + subject + '&body=' + emailBody;
+    }
+
+    function temporaryClicked() {
+
+        var link = $(event.currentTarget);
+        var selRowId = link.closest('tr')[0].id;
+        var myGrid = $("#gridPickFsr")
+        var rowData = myGrid.getRowData(selRowId);
+        var tempoChecked = $("#cbx_tempo_" + selRowId).is(":checked");
+        var alertMessage = "";
+
+        if (PickFsrPopupMode == 'TaskLevel' && fresh_assignment == true) {
+            assignTask(1);
+        }
+        else if (PickFsrPopupMode == 'StoreLevel' && fresh_assignment == true) {
+            assignTask(2);
+        }
+        else if (PickFsrPopupMode == 'ClusterLevel' && fresh_assignment == true) {
+            assignTask(5);
+        }
+        else {
+            if (tempoChecked)
+                alertMessage = "Current assignment(s) to " + rowData.first_name + " " + rowData.last_name + " will be marked as temporary?";
+            else
+                alertMessage = "Temporary assignment(s) will be removed from " + rowData.first_name + " " + rowData.last_name + " ?";
+
+            if (confirm(alertMessage)) {
+                paramP.iri_week = $('#lblIriWeek').text();
+                paramP.territory_id = $('#ddlTerritoryP').val();
+                paramP.store_number = $('#storeNumberP').val();
+                paramP.emp_id = rowData.emp_id;
+                paramP.task_number = $('#taskNumberP').val();
+                paramP.position_number = $("#positionNumberP").val();
+                paramP.assignment_mode = PickFsrPopupMode;
+                paramP.temporary = tempoChecked;
+                paramP.countryId = userCountryId;
+
+                var _objParam = JSON.stringify(paramP);
+
+                window.setTimeout(function () {
+                    $.ajax({
+                        type: "POST",
+                        contentType: "application/json; charset=utf-8",
+                        url: '@Url.Content("~/Home/SaveTemporary")',
+                        data: "{'param': '" + _objParam + "'}",
+                        dataType: "json",
+                        async: false,
+                        traditional: true,
+                        success: function (data) {
+                            isAssign = true;
+                            popupLoading.hide();
+                        },
+                        error: function (xhr, textStatus, errorThrown) {
+                            if (xhr.responseText.indexOf("Session Expired") > 0) {
+                                new jBox('Notice', {
+                                    content: 'Session has expired. Logging you back...',
+                                    color: 'red',
+                                    autoClose: 6000,
+                                    position: {
+                                        x: 'center',
+                                        y: 'center'
+                                    },
+                                });
+                                window.location.href = '@Url.Content("~/Home/index")';
+                            } else {
+                                alert("Error while updating temporary field!");
+                            }
+                            popupLoading.hide();
+                        }
+                    });
+
+                }, 1000);
+            }
+            else {
+                $("#cbx_tempo_" + selRowId).prop("checked", !$("#cbx_tempo_" + selRowId).prop("checked"));
+            }
+        }
+    }
+
+    function calculateIriWeek(date) {
+        var firstDate;
+        var inputDate;
+        var returnWeek;
+
+        firstDate = new Date("09/03/1979");
+        inputDate = new Date(date);
+        if (inputDate > firstDate) {
+            returnWeek = Math.floor(Math.abs(inputDate - firstDate) / (86400000 * 7)) + 2;
+        }
+        else
+            returnWeek = 0;
+        return returnWeek;
+    }
+
+    function getTerritory() {
+        $.ajax({
+            type: "POST",
+            contentType: "application/json; charset=utf-8",
+            url: '@Url.Content("~/Home/GetTerritory")',
+            data: "{ 'countryId': '" + userCountryId + "'}",
+            dataType: "json",
+            async: false,
+            success: function (data) {
+                territoryList = data;
+                $.each(data, function (i) {
+                    var optionhtml = '<option value = ' + data[i].territory_id + '>' + data[i].territory_name + '</option>';
+                    $("#ddlTerritory").append(optionhtml);
+                    $("#ddlTerritoryP").append(optionhtml);
+                    area_id = data[i].area;
+                });
+
+                if (userCountryId == "1") {
+                    $("#ddlTerritory").append('<option value = -1>----ALL----</option>');
+                }
+
+                if (userTerritory != 0) {
+                    $("#ddlTerritory").val(userTerritory);
+                }
+            },
+            error: function (result) {
+                alert("Error while getting territory list!");
+            }
+        });
+    }
+</script>
