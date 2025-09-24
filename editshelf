@@ -1,23 +1,32 @@
-Subject: Update on Angular Assignment Web Application Deployment
+private currentFiltersSubject = new BehaviorSubject<any>({});
+  public currentFilters$ = this.currentFiltersSubject.asObservable();
 
-Dear [Manager’s Name],
-
-I would like to inform you that the new Angular version of the Assignment Web Application has been deployed to the test environment.
-
-Currently, users are able to:
-
-Expand individual rows
-
-Use the “Expand All” and “Collapse All” features (these are functional at the current page level only)
-
-However, there are still a few bugs and pending items that need to be addressed:
-
-Fixing issues at the filter level, “Expand All / Collapse All” functionality across multiple rows, and related CSS adjustments.
-
-Completing the assigning functionality at both store level and FSR level.
-
-Implementing the export grid functionality.
-
-Enabling email work order generation.
-
-I will continue working on these items and keep you updated on the progress.
+applyFilters(filters: GetGridDataFilter): void {
+    // Store the applied filters
+    this.filtersSubject.next(filters);
+    
+    // Also store the current filter form values for work order generation
+    this.currentFiltersSubject.next({
+      countryId: filters.countryId,
+      iri_week: filters.iriWeek,
+      territory_id: filters.territoryId,
+      area: filters.area,
+      store_number: filters.storeNumber,
+      store_name: filters.storeName,
+      state: filters.state,
+      city: filters.city,
+      position_number: filters.positionNumber,
+      task_number: filters.taskNumber,
+      emp_id: filters.empId,
+      fsr_hour: filters.fsrHour,
+      fsr_over_25hrs: filters.fsrOver25hrs,
+      fsr_over_6hrs: filters.fsrOver6hrs,
+      assigned_stores: filters.assignedStores,
+      unassigned_stores: filters.unassignedStores,
+      sample: filters.sample,
+      nonsample: filters.nonSample,
+      multi_fsr_store: filters.multiFsrStore,
+      vacation: filters.vacation,
+      temporary: filters.temporary,
+      fsr_hour_operator: filters.fsrHourOperator
+    });
