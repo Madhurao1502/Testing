@@ -1,703 +1,260 @@
-private async Task<bool> CreatePdfAsync(string filePath, string htmlContent)
+public string GetcurrentweekGridData(GetGridDataFilter filter)
 {
+    string rst = "";
+    DataTable dt = new DataTable();
+    List<CurrentWeekDataModel> _gdmGrid = new List<CurrentWeekDataModel>();
     try
     {
-        var doc = new HtmlToPdfDocument()
-        {
-            GlobalSettings = new GlobalSettings
-            {
-                ColorMode = ColorMode.Color,
-                Orientation = Orientation.Portrait,
-                PaperSize = PaperKind.A4,
-                Out = filePath
-            },
-            Objects = {
-                new ObjectSettings()
-                {
-                    PagesCount = true,
-                    HtmlContent = htmlContent,
-                    WebSettings = { DefaultEncoding = "utf-8" }
-                }
-            }
-        };
 
-        // DinkToPdf is synchronous, but you can safely run in Task.Run for non-blocking
-        await Task.Run(() => _pdfConverter.Convert(doc));
-        _logger.LogInformation($"PDF generated at {filePath}");
-        return true;
+
+        using SqlConnection conn = new();
+        conn.ConnectionString = _sqlConnString;
+        conn.Open();
+        SqlCommand cmd = new("USP_get_assignments_current_week", conn) { CommandType = CommandType.StoredProcedure };
+        cmd.CommandTimeout = 180;
+        cmd.Parameters.Add(new SqlParameter("@iri_week", filter.IriWeek));
+        //cmd.Parameters.Add(new SqlParameter("@area_nbr", filter.Area));
+        cmd.Parameters.Add(new SqlParameter("@territory", filter.TerritoryId));
+        //cmd.Parameters.Add(new SqlParameter("@store_number", string.IsNullOrEmpty(filter.StoreNumber) ? DBNull.Value : filter.StoreNumber));
+        //cmd.Parameters.Add(new SqlParameter("@fsr_id", string.IsNullOrEmpty(filter.EmpId) ? DBNull.Value : filter.EmpId));
+        //cmd.Parameters.Add(new SqlParameter("@task_number", string.IsNullOrEmpty(filter.TaskNumber) ? DBNull.Value : filter.TaskNumber));
+        //cmd.Parameters.Add(new SqlParameter("@store_state", string.IsNullOrEmpty(filter.State) ? DBNull.Value : filter.State));
+        //cmd.Parameters.Add(new SqlParameter("@store_city", string.IsNullOrEmpty(filter.City) ? DBNull.Value : filter.City));
+        //cmd.Parameters.Add(new SqlParameter("@position_number", string.IsNullOrEmpty(filter.PositionNumber) ? DBNull.Value : filter.PositionNumber));
+        //cmd.Parameters.Add(new SqlParameter("@fsr_hour_operator", filter.FsrHourOperator));
+        //cmd.Parameters.Add(new SqlParameter("@fsr_hour", filter.FsrHour));
+        //cmd.Parameters.Add(new SqlParameter("@assigned_stores", filter.AssignedStores == "false" ? false : true));
+        //cmd.Parameters.Add(new SqlParameter("@unassigned_stores", filter.UnassignedStores == "false" ? false : true));
+        //cmd.Parameters.Add(new SqlParameter("@sample_stores", filter.Sample == "false" ? false : true));
+        //cmd.Parameters.Add(new SqlParameter("@non_sample_stores", filter.NonSample == "false" ? false : true));
+        //cmd.Parameters.Add(new SqlParameter("@multi_fsr_stores", filter.MultiFsrStore == "false" ? false : true));
+        //cmd.Parameters.Add(new SqlParameter("@vacation", filter.Vacation == "false" ? false : true));
+        cmd.Parameters.Add(new SqlParameter("@country_id", filter.CountryId));
+        // cmd.Parameters.Add(new SqlParameter("@temporary", filter.Temporary == "false" ? false : true));
+
+
+        using (SqlDataAdapter sda = new(cmd))
+        {
+            sda.Fill(dt);
+        }
+        conn.Close();
+
+
+        if (dt != null && dt.Rows.Count > 0)
+        {
+            foreach (DataRow dr in dt.Rows)
+            {
+                CurrentWeekDataModel _gdm = new CurrentWeekDataModel();
+
+
+                _gdm.IriWeek = dr["iri_week"].ToString();
+                _gdm.PositionName = dr["position_name"].ToString();
+                _gdm.Bfd = dr["bfd"].ToString();
+                _gdm.OutletType = dr["outlet_type"].ToString();
+                _gdm.StoreNumber = dr["store_number"].ToString();
+                _gdm.StoreName = dr["store_name"].ToString();
+                _gdm.AddrLine1 = dr["addr_line1"].ToString();
+                _gdm.CityName = dr["city_name"].ToString();
+                _gdm.StateCd = dr["state_cd"].ToString();
+                _gdm.ZipCd = dr["zip_cd"].ToString();
+                _gdm.EmpId = dr["emp_id"].ToString();
+                _gdm.FirstName = dr["first_name"].ToString();
+                _gdm.LastName = dr["last_name"].ToString();
+                _gdm.TaskNumber = dr["task_number"].ToString();
+                _gdm.TaskCompleted = dr["task_completed"].ToString();
+                _gdm.Quality = dr["quality"].ToString();
+                _gdm.CostOver = dr["cost_over"].ToString();
+                _gdm.GuaranteedMiles = dr["guaranteed_miles"].ToString();
+
+                _gdmGrid.Add(_gdm);
+            }
+        }
     }
     catch (Exception ex)
     {
-        _logger.LogError(ex, $"Error creating PDF: {filePath}");
-        return false;
+        throw ex;
     }
+
+    var gridList = _gdmGrid.ToList();
+    rst = JsonConvert.SerializeObject(gridList);
+    return rst;
 }
 
-private async Task<bool> CreatePdfAsync(string filePath, string htmlContent)
+
+public string GetfutureweekGridData(GetGridDataFilter filter)
 {
+    string rst = "";
+    DataTable dt = new DataTable();
+    List<FutureWeekDataModel> _gdmGrid = new List<FutureWeekDataModel>();
     try
     {
-        var pdfUtil = new PdfUtil();
-        return pdfUtil.CreatePDF(filePath, htmlContent);
+
+
+        using SqlConnection conn = new();
+        conn.ConnectionString = _sqlConnString;
+        conn.Open();
+        SqlCommand cmd = new("USP_get_assignments", conn) { CommandType = CommandType.StoredProcedure };
+        cmd.CommandTimeout = 180;
+        cmd.Parameters.Add(new SqlParameter("@iri_week", filter.IriWeek));
+        //cmd.Parameters.Add(new SqlParameter("@area_nbr", filter.Area));
+        cmd.Parameters.Add(new SqlParameter("@territory", filter.TerritoryId));
+        //cmd.Parameters.Add(new SqlParameter("@store_number", string.IsNullOrEmpty(filter.StoreNumber) ? DBNull.Value : filter.StoreNumber));
+        //cmd.Parameters.Add(new SqlParameter("@fsr_id", string.IsNullOrEmpty(filter.EmpId) ? DBNull.Value : filter.EmpId));
+        //cmd.Parameters.Add(new SqlParameter("@task_number", string.IsNullOrEmpty(filter.TaskNumber) ? DBNull.Value : filter.TaskNumber));
+        //cmd.Parameters.Add(new SqlParameter("@store_state", string.IsNullOrEmpty(filter.State) ? DBNull.Value : filter.State));
+        //cmd.Parameters.Add(new SqlParameter("@store_city", string.IsNullOrEmpty(filter.City) ? DBNull.Value : filter.City));
+        //cmd.Parameters.Add(new SqlParameter("@position_number", string.IsNullOrEmpty(filter.PositionNumber) ? DBNull.Value : filter.PositionNumber));
+        //cmd.Parameters.Add(new SqlParameter("@fsr_hour_operator", filter.FsrHourOperator));
+        //cmd.Parameters.Add(new SqlParameter("@fsr_hour", filter.FsrHour));
+        //cmd.Parameters.Add(new SqlParameter("@assigned_stores", filter.AssignedStores == "false" ? false : true));
+        //cmd.Parameters.Add(new SqlParameter("@unassigned_stores", filter.UnassignedStores == "false" ? false : true));
+        //cmd.Parameters.Add(new SqlParameter("@sample_stores", filter.Sample == "false" ? false : true));
+        //cmd.Parameters.Add(new SqlParameter("@non_sample_stores", filter.NonSample == "false" ? false : true));
+        //cmd.Parameters.Add(new SqlParameter("@multi_fsr_stores", filter.MultiFsrStore == "false" ? false : true));
+        //cmd.Parameters.Add(new SqlParameter("@vacation", filter.Vacation == "false" ? false : true));
+        cmd.Parameters.Add(new SqlParameter("@country_id", filter.CountryId));
+        // cmd.Parameters.Add(new SqlParameter("@temporary", filter.Temporary == "false" ? false : true));
+
+
+        using (SqlDataAdapter sda = new(cmd))
+        {
+            sda.Fill(dt);
+        }
+        conn.Close();
+
+
+        if (dt != null && dt.Rows.Count > 0)
+        {
+            foreach (DataRow dr in dt.Rows)
+            {
+                FutureWeekDataModel _gdm = new FutureWeekDataModel();
+
+
+
+                _gdm.IriWeek = dr["iri_week"].ToString();
+                _gdm.FldTerrtyNbr = dr["fld_terrty_nbr"].ToString();
+                _gdm.PositionName = dr["position_name"].ToString();
+                _gdm.Bfd = dr["bfd"].ToString();
+                _gdm.OutletType = dr["outlet_type"].ToString();
+                _gdm.StoreNumber = dr["store_number"].ToString();
+                _gdm.StoreName = dr["store_name"].ToString();
+                _gdm.AddrLine1 = dr["addr_line1"].ToString();
+                _gdm.CityName = dr["city_name"].ToString();
+                _gdm.StateCd = dr["state_cd"].ToString();
+                _gdm.ZipCd = dr["zip_cd"].ToString();
+                _gdm.EmpId = dr["emp_id"].ToString();
+                _gdm.FirstName = dr["first_name"].ToString();
+                _gdm.LastName = dr["last_name"].ToString();
+                _gdm.TaskNumber = dr["task_number"].ToString();
+                _gdm.AvgCost = dr["avg_cost"].ToString();
+                _gdm.GuaranteedMiles = dr["guaranteed_miles"].ToString();
+
+
+                _gdmGrid.Add(_gdm);
+            }
+        }
     }
     catch (Exception ex)
     {
-        _logger.LogError(ex, $"Error creating PDF: {filePath}");
-        return false;
+        throw ex;
     }
+
+    var gridList = _gdmGrid.ToList();
+    rst = JsonConvert.SerializeObject(gridList);
+    return rst;
 }
 
-private async Task<bool> InsertWorkOrderEmailAsync(string sessionId, string pdfFileLocation, string subject, string toEmail, string userName)
-    {
-        try
-        {
-            using (SqlConnection conn = new SqlConnection(_sqlConnString))
-            {
-                await conn.OpenAsync();
-                
-                using (SqlCommand cmd = new SqlCommand("spa_insert_work_order_email", conn))
-                {
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    
-                    cmd.Parameters.Add(new SqlParameter("@session_id", sessionId));
-                    cmd.Parameters.Add(new SqlParameter("@subject", subject));
-                    cmd.Parameters.Add(new SqlParameter("@to_email", toEmail));
-                    cmd.Parameters.Add(new SqlParameter("@email_body", "Hello, <br> Please find your Work Order task list"));
-                    cmd.Parameters.Add(new SqlParameter("@pdf_file_location", pdfFileLocation));
-                    cmd.Parameters.Add(new SqlParameter("@user_name", userName ?? ""));
 
-                    await cmd.ExecuteNonQueryAsync();
-                }
-            }
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error inserting work order email");
-            throw;
-        }
-    }
-
-    private async Task<int> SendWorkOrderEmailAsync(string pdfSessionId)
-    {
-        try
-        {
-            using (SqlConnection conn = new SqlConnection(_sqlConnString))
-            {
-                await conn.OpenAsync();
-                
-                using (SqlCommand cmd = new SqlCommand("spa_send_work_order_email", conn))
-                {
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    
-                    cmd.Parameters.Add(new SqlParameter("@session_id", pdfSessionId));
-                    cmd.Parameters.Add(new SqlParameter("@email_from", _configuration["EmailSettings:From"] ?? ""));
-                    cmd.Parameters.Add(new SqlParameter("@email_cc", _configuration["EmailSettings:CC"] ?? ""));
-                    cmd.Parameters.Add(new SqlParameter("@email_bcc", _configuration["EmailSettings:BCC"] ?? ""));
-                    cmd.Parameters.Add(new SqlParameter("@email_priority", _configuration["EmailSettings:Priority"] ?? "Normal"));
-                    cmd.Parameters.Add(new SqlParameter("@user_id", "system")); // No session management as requested
-
-                    var result = await cmd.ExecuteNonQueryAsync();
-                    return result;
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error sending work order email");
-            throw;
-        }
-    }
-
-Modern C# Web API Implementation for Work Order Functionality
-1. Create Work Order Models
-WorkOrderFilter.cs (Model for Parameters)
-csharp
-public class WorkOrderFilter
+public string GetpreviousweekGridData(GetGridDataFilter filter)
 {
-    public string CountryId { get; set; } = "";
-    public string IriWeek { get; set; } = "";
-    public string TerritoryId { get; set; } = "";
-    public string Comment { get; set; } = "";
-    public string FmEmpId { get; set; } = "";
-    public string FmEmail { get; set; } = "";
-    public string Area { get; set; } = "23";
-    
-    // Filter parameters
-    public string StoreNumber { get; set; } = "";
-    public string State { get; set; } = "";
-    public string City { get; set; } = "";
-    public string PositionNumber { get; set; } = "";
-    public string TaskNumber { get; set; } = "";
-    public string EmpId { get; set; } = "";
-    public string FsrOver25hrs { get; set; } = "false";
-    public string FsrOver6hrs { get; set; } = "false";
-    public string AssignedStores { get; set; } = "false";
-    public string UnassignedStores { get; set; } = "false";
-    public string Sample { get; set; } = "false";
-    public string Nonsample { get; set; } = "false";
-    public string MultiFsrStore { get; set; } = "false";
-    public string Vacation { get; set; } = "false";
-    public string Temporary { get; set; } = "false";
-    public string FsrHour { get; set; } = "";
-    public string FsrHourOperator { get; set; } = "NA";
-}
-
-public class WorkOrderEmailRequest
-{
-    public string PdfSessionId { get; set; } = "";
-}
-
-public class WorkOrderResponse
-{
-    public string PdfSessionId { get; set; } = "";
-    public bool Success { get; set; }
-    public string Message { get; set; } = "";
-}
-2. Updated Controller Methods
-TaskAssignmentController.cs
-csharp
-using Microsoft.AspNetCore.Mvc;
-using System.Data;
-using System.Data.SqlClient;
-using System.Text;
-using Newtonsoft.Json;
-
-[ApiController]
-[Route("api/[controller]")]
-public class TaskAssignmentController : ControllerBase
-{
-    private readonly string _sqlConnString;
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<TaskAssignmentController> _logger;
-
-    public TaskAssignmentController(IConfiguration configuration, ILogger<TaskAssignmentController> logger)
-    {
-        _configuration = configuration;
-        _logger = logger;
-        _sqlConnString = _configuration.GetConnectionString("DefaultConnection") ?? "";
-    }
-
-    [HttpPost("[action]")]
-    public async Task<ActionResult<WorkOrderResponse>> CreateWorkOrder([FromBody] WorkOrderFilter filter)
-    {
-        try
-        {
-            _logger.LogInformation($"Creating work order for Territory: {filter.TerritoryId}, Week: {filter.IriWeek}");
-
-            string pdfSessionId = Guid.NewGuid().ToString().Replace("-", "");
-            
-            bool result = await CreateFmWorkOrderAsync(filter, true, pdfSessionId);
-            
-            if (result)
-            {
-                return Ok(new WorkOrderResponse 
-                { 
-                    PdfSessionId = pdfSessionId, 
-                    Success = true, 
-                    Message = "Work order created successfully" 
-                });
-            }
-            else
-            {
-                return BadRequest(new WorkOrderResponse 
-                { 
-                    Success = false, 
-                    Message = "Failed to create work order" 
-                });
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating work order");
-            return StatusCode(500, new WorkOrderResponse 
-            { 
-                Success = false, 
-                Message = $"Internal server error: {ex.Message}" 
-            });
-        }
-    }
-
-    [HttpPost("[action]")]
-    public async Task<ActionResult<WorkOrderResponse>> SendWorkOrderEmail([FromBody] WorkOrderEmailRequest request)
-    {
-        try
-        {
-            _logger.LogInformation($"Sending work order emails for session: {request.PdfSessionId}");
-
-            if (string.IsNullOrEmpty(request.PdfSessionId))
-            {
-                return BadRequest(new WorkOrderResponse 
-                { 
-                    Success = false, 
-                    Message = "PDF Session ID is required" 
-                });
-            }
-
-            int result = await SendWorkOrderEmailAsync(request.PdfSessionId);
-            
-            if (result > 0)
-            {
-                return Ok(new WorkOrderResponse 
-                { 
-                    Success = true, 
-                    Message = "Work order emails sent successfully" 
-                });
-            }
-            else
-            {
-                return BadRequest(new WorkOrderResponse 
-                { 
-                    Success = false, 
-                    Message = "Failed to send work order emails" 
-                });
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error sending work order emails");
-            return StatusCode(500, new WorkOrderResponse 
-            { 
-                Success = false, 
-                Message = $"Internal server error: {ex.Message}" 
-            });
-        }
-    }
-
-    // Private helper methods
-    private async Task<bool> CreateFmWorkOrderAsync(WorkOrderFilter filter, bool generatePdfForSubs, string sessionId)
-    {
-        bool retVal = false;
-        string strFullFilePath = "";
-
-        try
-        {
-            DataTable dt = await GetWorkOrderTasksListAsync(filter, "", true);
-
-            if (dt.Rows.Count > 0)
-            {
-                string strHtml = GenerateHtmlFromDataTable(dt, filter.Comment, true);
-                
-                string pdfTempPath = _configuration["PDFTempPath"] ?? Path.GetTempPath();
-                strFullFilePath = Path.Combine(pdfTempPath, $"Territory{filter.TerritoryId}_Week{filter.IriWeek}.pdf");
-
-                if (await CreatePdfAsync(strFullFilePath, strHtml))
-                {
-                    retVal = true;
-                    await InsertWorkOrderEmailAsync(sessionId, strFullFilePath, 
-                        $"Work Orders for Week {filter.IriWeek}", filter.FmEmail, filter.FmEmpId);
-                }
-            }
-
-            // Generate PDFs for FSRs
-            if (generatePdfForSubs && retVal)
-            {
-                await CreateFsrWorkOrderAsync(dt, sessionId, filter);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error in CreateFmWorkOrderAsync");
-            throw;
-        }
-
-        return retVal;
-    }
-
-    private async Task CreateFsrWorkOrderAsync(DataTable dt, string sessionId, WorkOrderFilter filter)
-    {
-        try
-        {
-            if (dt.Rows.Count > 0)
-            {
-                // Get distinct FSRs
-                var distinctFsrs = dt.AsEnumerable()
-                    .Select(row => new
-                    {
-                        IriWeek = row.Field<object>("iri_week")?.ToString()?.Trim() ?? "",
-                        EmpId = row.Field<object>("emp_id")?.ToString()?.Trim() ?? "",
-                        FirstName = row.Field<object>("first_name")?.ToString()?.Trim() ?? "",
-                        LastName = row.Field<object>("last_name")?.ToString()?.Trim() ?? "",
-                        Email = row.Field<object>("email_addr")?.ToString()?.Trim() ?? ""
-                    })
-                    .Distinct()
-                    .ToList();
-
-                foreach (var fsr in distinctFsrs)
-                {
-                    if (!string.IsNullOrEmpty(fsr.EmpId))
-                    {
-                        DataTable dtEmployee = await GetWorkOrderTasksListAsync(filter, fsr.EmpId, false);
-                        string strHtml = GenerateHtmlFromDataTable(dtEmployee, filter.Comment, false);
-
-                        string pdfTempPath = _configuration["PDFTempPath"] ?? Path.GetTempPath();
-                        string strEmpPdfPath = Path.Combine(pdfTempPath, $"{fsr.EmpId}_Week{fsr.IriWeek}_Tasks.pdf");
-
-                        if (await CreatePdfAsync(strEmpPdfPath, strHtml))
-                        {
-                            if (!string.IsNullOrEmpty(fsr.Email))
-                            {
-                                await InsertWorkOrderEmailAsync(sessionId, strEmpPdfPath,
-                                    $"{fsr.LastName},{fsr.FirstName}'s Work Orders, Week {fsr.IriWeek}",
-                                    fsr.Email, filter.FmEmail);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error in CreateFsrWorkOrderAsync");
-            throw new Exception($"Error occurred in CreateFSRWorkOrder - {ex.Message}");
-        }
-    }
-
-    private async Task<DataTable> GetWorkOrderTasksListAsync(WorkOrderFilter filter, string empId = "", bool isFmReport = true)
-    {
-        DataTable dt = new DataTable();
-
-        try
-        {
-            using (SqlConnection conn = new SqlConnection(_sqlConnString))
-            {
-                await conn.OpenAsync();
-                
-                using (SqlCommand cmd = new SqlCommand("spa_get_work_order_tasks", conn))
-                {
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    
-                    // Add parameters based on your stored procedure requirements
-                    cmd.Parameters.Add(new SqlParameter("@country_id", filter.CountryId ?? ""));
-                    cmd.Parameters.Add(new SqlParameter("@iri_week", filter.IriWeek ?? ""));
-                    cmd.Parameters.Add(new SqlParameter("@territory_id", filter.TerritoryId ?? ""));
-                    cmd.Parameters.Add(new SqlParameter("@area", filter.Area ?? "23"));
-                    cmd.Parameters.Add(new SqlParameter("@emp_id", empId ?? ""));
-                    cmd.Parameters.Add(new SqlParameter("@is_fm_report", isFmReport));
-                    cmd.Parameters.Add(new SqlParameter("@store_number", filter.StoreNumber ?? ""));
-                    cmd.Parameters.Add(new SqlParameter("@state", filter.State ?? ""));
-                    cmd.Parameters.Add(new SqlParameter("@city", filter.City ?? ""));
-                    cmd.Parameters.Add(new SqlParameter("@position_number", filter.PositionNumber ?? ""));
-                    cmd.Parameters.Add(new SqlParameter("@task_number", filter.TaskNumber ?? ""));
-
-                    using (SqlDataAdapter sda = new SqlDataAdapter(cmd))
-                    {
-                        sda.Fill(dt);
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error in GetWorkOrderTasksListAsync");
-            throw;
-        }
-
-        return dt;
-    }
-
-    private string GenerateHtmlFromDataTable(DataTable dt, string additionalCom, bool isFmPdf)
-    {
-        StringBuilder sb = new StringBuilder();
-        sb.Append("<html><head><style>body{font-family:Arial,sans-serif;font-size:8pt;}table{border-collapse:collapse;}th,td{padding:4px;}</style></head><body>");
-
-        if (dt.Rows.Count == 0)
-        {
-            sb.Append("<p>No work order data available.</p>");
-            sb.Append("</body></html>");
-            return sb.ToString();
-        }
-
-        try
-        {
-            var distinctEmployees = dt.AsEnumerable()
-                .Select(row => new
-                {
-                    IriWeek = row.Field<object>("iri_week")?.ToString()?.Trim() ?? "",
-                    EmpId = row.Field<object>("emp_id")?.ToString()?.Trim() ?? "",
-                    FirstName = row.Field<object>("first_name")?.ToString()?.Trim() ?? "",
-                    LastName = row.Field<object>("last_name")?.ToString()?.Trim() ?? "",
-                    AreaName = row.Field<object>("area_name")?.ToString()?.Trim() ?? "",
-                    AreaNumber = row.Field<object>("area_number")?.ToString()?.Trim() ?? "",
-                    TerritoryName = row.Field<object>("territory_name")?.ToString()?.Trim() ?? "",
-                    TerritoryNumber = row.Field<object>("terrty_number")?.ToString()?.Trim() ?? ""
-                })
-                .Distinct()
-                .ToList();
-
-            foreach (var emp in distinctEmployees)
-            {
-                // Employee header
-                sb.Append($"<br><table border='0' width='100%'>");
-                sb.Append($"<tr><td><strong>Employee: {emp.LastName}, {emp.FirstName} ({emp.EmpId})</strong></td></tr>");
-                sb.Append($"<tr><td>{emp.AreaName} ({emp.AreaNumber}) / {emp.TerritoryName} ({emp.TerritoryNumber}), IRI Week: {emp.IriWeek}</td></tr>");
-
-                if (!isFmPdf)
-                {
-                    sb.Append("<tr><td><strong>Additional Communication:</strong></td></tr>");
-                    sb.Append($"<tr><td>{additionalCom}<br><br></td></tr>");
-                }
-
-                // Get stores for this employee
-                var distinctStores = dt.AsEnumerable()
-                    .Where(row => row.Field<object>("emp_id")?.ToString()?.Trim() == emp.EmpId)
-                    .Select(row => new
-                    {
-                        StoreNumber = row.Field<object>("store_number")?.ToString()?.Trim() ?? "",
-                        StoreName = row.Field<object>("store_name")?.ToString()?.Trim() ?? "",
-                        StoreAddress = row.Field<object>("store_address")?.ToString()?.Trim() ?? "",
-                        CityName = row.Field<object>("city_name")?.ToString()?.Trim() ?? "",
-                        StateCd = row.Field<object>("state_cd")?.ToString()?.Trim() ?? "",
-                        ZipCd = row.Field<object>("zip_cd")?.ToString()?.Trim() ?? ""
-                    })
-                    .Distinct()
-                    .ToList();
-
-                foreach (var store in distinctStores)
-                {
-                    long totalEstimatedTime = 0;
-
-                    sb.Append($"<tr><td><strong>Store: {store.StoreNumber}: ({store.StoreName}, {store.StoreAddress}, {store.CityName}, {store.StateCd}, {store.ZipCd})</strong></td></tr>");
-                    
-                    // Tasks table
-                    sb.Append("<tr><td>");
-                    sb.Append("<table border='1' width='100%'>");
-                    sb.Append("<tr><th>Task #</th><th>Task Name</th><th>Collection Period</th><th>Est. Time</th></tr>");
-
-                    var tasks = dt.AsEnumerable()
-                        .Where(row => row.Field<object>("emp_id")?.ToString()?.Trim() == emp.EmpId &&
-                                     row.Field<object>("store_number")?.ToString()?.Trim() == store.StoreNumber)
-                        .Select(row => new
-                        {
-                            TaskNumber = row.Field<object>("task_number")?.ToString()?.Trim() ?? "",
-                            TaskName = row.Field<object>("task_name")?.ToString()?.Trim() ?? "",
-                            EstimatedTime = row.Field<object>("estimated_collection_time")?.ToString()?.Trim() ?? "0",
-                            Wave = row.Field<object>("wave")?.ToString()?.Trim() ?? ""
-                        })
-                        .Distinct()
-                        .ToList();
-
-                    foreach (var task in tasks)
-                    {
-                        long estTime = long.TryParse(task.EstimatedTime, out long parsedTime) ? parsedTime : 0;
-                        totalEstimatedTime += estTime;
-
-                        sb.Append($"<tr>");
-                        sb.Append($"<td align='center'>{task.TaskNumber}</td>");
-                        sb.Append($"<td>{task.TaskName}</td>");
-                        sb.Append($"<td align='center'>{task.Wave}</td>");
-                        sb.Append($"<td align='center'>{FormatTime(estTime)}</td>");
-                        sb.Append($"</tr>");
-                    }
-
-                    sb.Append($"<tr><td colspan='3' align='right'><strong>Store {store.StoreNumber} Total:</strong></td>");
-                    sb.Append($"<td align='center'><strong>{FormatTime(totalEstimatedTime)}</strong></td></tr>");
-                    sb.Append("</table>");
-                    sb.Append("</td></tr>");
-                }
-
-                sb.Append("</table>");
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error generating HTML from DataTable");
-            sb.Append($"<p>Error generating work order: {ex.Message}</p>");
-        }
-
-        sb.Append("</body></html>");
-        return sb.ToString();
-    }
-
-    private async Task<bool> CreatePdfAsync(string filePath, string htmlContent)
-    {
-        try
-        {
-            // Create directory if it doesn't exist
-            string? directory = Path.GetDirectoryName(filePath);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            // You'll need to implement PDF generation here
-            // Options: 
-            // 1. Use IronPDF: var pdf = new ChromePdfRenderer(); pdf.RenderHtmlAsPdf(htmlContent).SaveAs(filePath);
-            // 2. Use iTextSharp/iText7
-            // 3. Use PuppeteerSharp
-            // 4. Use your existing PdfUtil class
-
-            // For now, placeholder implementation
-            await File.WriteAllTextAsync(filePath.Replace(".pdf", ".html"), htmlContent);
-            
-            _logger.LogInformation($"PDF created at: {filePath}");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, $"Error creating PDF: {filePath}");
-            return false;
-        }
-    }
-
-    private async Task<bool> InsertWorkOrderEmailAsync(string sessionId, string pdfFileLocation, string subject, string toEmail, string userName)
-    {
-        try
-        {
-            using (SqlConnection conn = new SqlConnection(_sqlConnString))
-            {
-                await conn.OpenAsync();
-                
-                using (SqlCommand cmd = new SqlCommand("spa_insert_work_order_email", conn))
-                {
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    
-                    cmd.Parameters.Add(new SqlParameter("@session_id", sessionId));
-                    cmd.Parameters.Add(new SqlParameter("@subject", subject));
-                    cmd.Parameters.Add(new SqlParameter("@to_email", toEmail));
-                    cmd.Parameters.Add(new SqlParameter("@email_body", "Hello, <br> Please find your Work Order task list"));
-                    cmd.Parameters.Add(new SqlParameter("@pdf_file_location", pdfFileLocation));
-                    cmd.Parameters.Add(new SqlParameter("@user_name", userName ?? ""));
-
-                    await cmd.ExecuteNonQueryAsync();
-                }
-            }
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error inserting work order email");
-            throw;
-        }
-    }
-
-    private async Task<int> SendWorkOrderEmailAsync(string pdfSessionId)
-    {
-        try
-        {
-            using (SqlConnection conn = new SqlConnection(_sqlConnString))
-            {
-                await conn.OpenAsync();
-                
-                using (SqlCommand cmd = new SqlCommand("spa_send_work_order_email", conn))
-                {
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    
-                    cmd.Parameters.Add(new SqlParameter("@session_id", pdfSessionId));
-                    cmd.Parameters.Add(new SqlParameter("@email_from", _configuration["EmailSettings:From"] ?? ""));
-                    cmd.Parameters.Add(new SqlParameter("@email_cc", _configuration["EmailSettings:CC"] ?? ""));
-                    cmd.Parameters.Add(new SqlParameter("@email_bcc", _configuration["EmailSettings:BCC"] ?? ""));
-                    cmd.Parameters.Add(new SqlParameter("@email_priority", _configuration["EmailSettings:Priority"] ?? "Normal"));
-                    cmd.Parameters.Add(new SqlParameter("@user_id", "system")); // No session management as requested
-
-                    var result = await cmd.ExecuteNonQueryAsync();
-                    return result;
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error sending work order email");
-            throw;
-        }
-    }
-
-    // Utility method for time formatting
-    private string FormatTime(long minutes)
-    {
-        if (minutes <= 0) return "0:00";
-        
-        int hours = (int)(minutes / 60);
-        int mins = (int)(minutes % 60);
-        return $"{hours}:{mins:00}";
-    }
-}
-3. Configuration Updates
-appsettings.json
-json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "your-connection-string-here"
-  },
-  "PDFTempPath": "C:\\Temp\\WorkOrders",
-  "EmailSettings": {
-    "From": "noreply@yourcompany.com",
-    "CC": "",
-    "BCC": "",
-    "Priority": "Normal"
-  }
-}
-4. Program.cs (Dependency Injection)
-csharp
-var builder = WebApplication.CreateBuilder(args);
-
-// Add services
-builder.Services.AddControllers();
-builder.Services.AddLogging();
-
-// Add CORS if needed
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAngularApp",
-        policy =>
-        {
-            policy.WithOrigins("http://localhost:4200")
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-        });
-});
-
-var app = builder.Build();
-
-// Configure pipeline
-if (app.Environment.IsDevelopment())
-{
-    app.UseDeveloperExceptionPage();
-}
-
-app.UseRouting();
-app.UseCors("AllowAngularApp");
-app.MapControllers();
-
-app.Run();
-5. Key Improvements Made
-Modern .NET Features:
-✅ Async/Await - All database operations are asynchronous
-✅ Proper Error Handling - Structured exception handling with logging
-✅ Dependency Injection - Uses IConfiguration and ILogger
-✅ Strong Typing - Clear models for request/response
-✅ Path Handling - Uses Path.Combine for cross-platform compatibility
-
-API Design:
-✅ RESTful Endpoints - Clear action methods with proper HTTP verbs
-✅ Response Models - Structured responses with success/error states
-✅ Validation - Input validation and error responses
-✅ Logging - Comprehensive logging for debugging
-
-Security & Best Practices:
-✅ No Session Dependencies - Removed Session usage as requested
-✅ SQL Injection Protection - Parameterized queries
-✅ Resource Management - Using statements for proper disposal
-✅ Configuration Management - Externalized settings
-
-6. PDF Generation Options
-You'll need to choose a PDF library. Here are the options:
-
-Option 1: IronPDF (Recommended)
-csharp
-// Install-Package IronPdf
-private async Task<bool> CreatePdfAsync(string filePath, string htmlContent)
-{
+    string rst = "";
+    DataTable dt = new DataTable();
+    List<PreviousWeekDataModel> _gdmGrid = new List<PreviousWeekDataModel>();
     try
     {
-        var renderer = new ChromePdfRenderer();
-        var pdf = renderer.RenderHtmlAsPdf(htmlContent);
-        pdf.SaveAs(filePath);
-        return true;
+
+
+        using SqlConnection conn = new();
+        conn.ConnectionString = _sqlConnString;
+        conn.Open();
+        SqlCommand cmd = new("USP_get_assignments_previous_weeks", conn) { CommandType = CommandType.StoredProcedure };
+        cmd.CommandTimeout = 180;
+        cmd.Parameters.Add(new SqlParameter("@iri_week", filter.IriWeek));
+        //cmd.Parameters.Add(new SqlParameter("@area_nbr", filter.Area));
+        cmd.Parameters.Add(new SqlParameter("@territory", filter.TerritoryId));
+        //cmd.Parameters.Add(new SqlParameter("@store_number", string.IsNullOrEmpty(filter.StoreNumber) ? DBNull.Value : filter.StoreNumber));
+        //cmd.Parameters.Add(new SqlParameter("@fsr_id", string.IsNullOrEmpty(filter.EmpId) ? DBNull.Value : filter.EmpId));
+        //cmd.Parameters.Add(new SqlParameter("@task_number", string.IsNullOrEmpty(filter.TaskNumber) ? DBNull.Value : filter.TaskNumber));
+        //cmd.Parameters.Add(new SqlParameter("@store_state", string.IsNullOrEmpty(filter.State) ? DBNull.Value : filter.State));
+        //cmd.Parameters.Add(new SqlParameter("@store_city", string.IsNullOrEmpty(filter.City) ? DBNull.Value : filter.City));
+        //cmd.Parameters.Add(new SqlParameter("@position_number", string.IsNullOrEmpty(filter.PositionNumber) ? DBNull.Value : filter.PositionNumber));
+        //cmd.Parameters.Add(new SqlParameter("@fsr_hour_operator", filter.FsrHourOperator));
+        //cmd.Parameters.Add(new SqlParameter("@fsr_hour", filter.FsrHour));
+        //cmd.Parameters.Add(new SqlParameter("@assigned_stores", filter.AssignedStores == "false" ? false : true));
+        //cmd.Parameters.Add(new SqlParameter("@unassigned_stores", filter.UnassignedStores == "false" ? false : true));
+        //cmd.Parameters.Add(new SqlParameter("@sample_stores", filter.Sample == "false" ? false : true));
+        //cmd.Parameters.Add(new SqlParameter("@non_sample_stores", filter.NonSample == "false" ? false : true));
+        //cmd.Parameters.Add(new SqlParameter("@multi_fsr_stores", filter.MultiFsrStore == "false" ? false : true));
+        //cmd.Parameters.Add(new SqlParameter("@vacation", filter.Vacation == "false" ? false : true));
+        cmd.Parameters.Add(new SqlParameter("@country_id", filter.CountryId));
+        // cmd.Parameters.Add(new SqlParameter("@temporary", filter.Temporary == "false" ? false : true));
+
+
+        using (SqlDataAdapter sda = new(cmd))
+        {
+            sda.Fill(dt);
+        }
+        conn.Close();
+
+
+        if (dt != null && dt.Rows.Count > 0)
+        {
+            foreach (DataRow dr in dt.Rows)
+            {
+                PreviousWeekDataModel _gdm = new PreviousWeekDataModel();
+
+
+
+
+                _gdm.IriWeek = dr["iri_week"].ToString();
+                _gdm.FldTerrtyNbr = dr["fld_terrty_nbr"].ToString();
+                _gdm.PositionName = dr["position_name"].ToString();
+                _gdm.Bfd = dr["bfd"].ToString();
+                _gdm.OutletType = dr["outlet_type"].ToString();
+                _gdm.StoreNumber = dr["store_number"].ToString();
+                _gdm.StoreName = dr["store_name"].ToString();
+                _gdm.AddrLine1 = dr["addr_line1"].ToString();
+                _gdm.CityName = dr["city_name"].ToString();
+                _gdm.StateCd = dr["state_cd"].ToString();
+                _gdm.ZipCd = dr["zip_cd"].ToString();
+                _gdm.EmpId = dr["emp_id"].ToString();
+                _gdm.FirstName = dr["first_name"].ToString();
+                _gdm.LastName = dr["last_name"].ToString();
+                _gdm.TaskNumber = dr["task_number"].ToString();
+                _gdm.TaskCompleted = dr["task_completed"].ToString();
+                _gdm.Quality = dr["quality"].ToString();
+                _gdm.CostOver = dr["cost_over"].ToString();
+                _gdm.WK1FSRProdCost = dr["WK1FSRProdCost"].ToString();
+                _gdm.WK1FSRProdCost = dr["WK1FSRProdCost"].ToString();
+                _gdm.WK1FSRProdCost = dr["WK1FSRProdCost"].ToString();
+                _gdm.WK1StoreTravelCost = dr["WK1StoreTravelCost"].ToString();
+                _gdm.WK1StoreTravelOvgCost = dr["WK1StoreTravelOvgCost"].ToString();
+                _gdm.WK2FSRProdCost = dr["WK2FSRProdCost"].ToString();
+                _gdm.WK2StoreTravelCost = dr["WK2StoreTravelCost"].ToString();
+                _gdm.WK2StoreTravelOvgCost = dr["WK2StoreTravelOvgCost"].ToString();
+
+
+
+                _gdmGrid.Add(_gdm);
+            }
+        }
     }
     catch (Exception ex)
     {
-        _logger.LogError(ex, $"Error creating PDF: {filePath}");
-        return false;
+        throw ex;
     }
+
+    var gridList = _gdmGrid.ToList();
+    rst = JsonConvert.SerializeObject(gridList);
+    return rst;
 }
