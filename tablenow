@@ -1,0 +1,592 @@
+import { Component, OnInit, OnDestroy, AfterViewInit, ViewChild, ViewChildren, QueryList, ChangeDetectorRef } from '@angular/core';
+import { MatTable, MatTableDataSource } from '@angular/material/table';
+import { MatPaginator } from '@angular/material/paginator';
+import { MatSort } from '@angular/material/sort';
+import { Subject, takeUntil, firstValueFrom } from 'rxjs';
+import { CommonService } from '../shared/common.service';
+
+@Component({
+  selector: 'app-store-table',
+  templateUrl: './store-table.component.html',
+  styleUrls: ['./store-table.component.css'],
+  animations: [
+    // Your existing animations
+  ]
+})
+export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
+  
+  @ViewChild(MatTable, { static: false }) table: MatTable<any>;
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
+  @ViewChildren(CdkDetailRowDirective) detailRows!: QueryList<CdkDetailRowDirective>;
+
+  // Week type tracking
+  currentWeekType: 'current' | 'future' | 'previous' = 'current';
+
+  // Dynamic column configuration based on week type
+  baseColumns = ['store_number', 'store_name', 'addr_line1', 'city', 'state', 'zip', 'assigned_to', 'user_comment'];
+  
+  currentWeekColumns = [
+    'store_number', 'store_name', 'addr_line1', 'city', 'state', 'assigned_to', 
+    'task_completed', 'quality', 'cost_over', 'guaranteed_miles', 'user_comment'
+  ];
+  
+  futureWeekColumns = [
+    'store_number', 'store_name', 'addr_line1', 'city', 'state', 'assigned_to',
+    'avg_cost', 'guaranteed_miles', 'user_comment'
+  ];
+  
+  previousWeekColumns = [
+    'store_number', 'store_name', 'addr_line1', 'city', 'state', 'assigned_to',
+    'task_completed', 'quality', 'cost_over', 'wk1_costs', 'wk2_costs', 'user_comment'
+  ];
+
+  // Current displayed columns
+  displayedColumns: string[] = this.baseColumns;
+  
+  // Data source and expansion state
+  dataSource = new MatTableDataSource<any>([]);
+  isExpandingAll = false;
+  allExpanded = false;
+  expandedRowsData = new Map<string, any[]>();
+  expandedRows = new Set<CdkDetailRowDirective>();
+  selectedRows = new Set<any>();
+  
+  private destroy$ = new Subject<void>();
+  private loggeduser: string;
+
+  constructor(
+    private commonService: CommonService,
+    public http: HttpClient,
+    @Inject('BASE_URL') public baseUrl: string,
+    private dialog: MatDialog,
+    private cdr: ChangeDetectorRef
+  ) {
+    this.loggeduser = localStorage.getItem("loggedUserId");
+  }
+
+  ngOnInit(): void {
+    // Subscribe to week type changes
+    this.commonService.weekType$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(weekType => {
+        this.currentWeekType = weekType;
+        this.updateDisplayedColumns();
+        this.cdr.detectChanges();
+      });
+
+    // Subscribe to current week data
+    this.commonService.currentWeekData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (this.currentWeekType === 'current') {
+          this.updateDataSource(data);
+        }
+      });
+
+    // Subscribe to future week data
+    this.commonService.futureWeekData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (this.currentWeekType === 'future') {
+          this.updateDataSource(data);
+        }
+      });
+
+    // Subscribe to previous week data
+    this.commonService.previousWeekData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (this.currentWeekType === 'previous') {
+          this.updateDataSource(data);
+        }
+      });
+  }
+
+  private updateDataSource(data: any[]): void {
+    this.dataSource = new MatTableDataSource<any>(data);
+    this.dataSource.paginator = this.paginator;
+    this.dataSource.sort = this.sort;
+    this.resetExpansionState();
+  }
+
+  private updateDisplayedColumns(): void {
+    switch (this.currentWeekType) {
+      case 'current':
+        this.displayedColumns = this.currentWeekColumns;
+        break;
+      case 'future':
+        this.displayedColumns = this.futureWeekColumns;
+        break;
+      case 'previous':
+        this.displayedColumns = this.previousWeekColumns;
+        break;
+      default:
+        this.displayedColumns = this.baseColumns;
+    }
+    console.log(`Updated columns for ${this.currentWeekType} week:`, this.displayedColumns);
+  }
+
+  // Week type specific display methods
+  getWeekTypeDisplayName(): string {
+    switch (this.currentWeekType) {
+      case 'current': return 'Current Week Tasks';
+      case 'future': return 'Future Week Planning';
+      case 'previous': return 'Previous Week History';
+      default: return 'Store Assignment Data';
+    }
+  }
+
+  getWeekTypeClass(): string {
+    return `week-${this.currentWeekType}`;
+  }
+
+  // Column visibility checks
+  isColumnVisible(columnName: string): boolean {
+    return this.displayedColumns.includes(columnName);
+  }
+
+  // Data formatting methods for different week types
+  formatTaskCompleted(value: any): string {
+    return value?.toLowerCase() === 'yes' ? 'Yes' : 'No';
+  }
+
+  formatQuality(value: any): string {
+    return value || 'N/A';
+  }
+
+  formatCostOver(value: any): string {
+    return value?.toLowerCase() === 'yes' ? 'Yes' : 'No';
+  }
+
+  formatGuaranteedMiles(value: any): string {
+    return value ? `${value} miles` : 'N/A';
+  }
+
+  formatAvgCost(value: any): string {
+    return value ? `$${parseFloat(value).toFixed(2)}` : 'TBD';
+  }
+
+  formatWk1Costs(row: any): string {
+    const prod = parseFloat(row.WK1FSRProdCost || 0);
+    const travel = parseFloat(row.WK1StoreTravelCost || 0);
+    const ovg = parseFloat(row.WK1StoreTravelOvgCost || 0);
+    const total = prod + travel + ovg;
+    return total > 0 ? `$${total.toFixed(2)}` : '$0.00';
+  }
+
+  formatWk2Costs(row: any): string {
+    const prod = parseFloat(row.WK2FSRProdCost || 0);
+    const travel = parseFloat(row.WK2StoreTravelCost || 0);
+    const ovg = parseFloat(row.WK2StoreTravelOvgCost || 0);
+    const total = prod + travel + ovg;
+    return total > 0 ? `$${total.toFixed(2)}` : '$0.00';
+  }
+
+  // Status badge classes
+  getTaskCompletedClass(value: any): string {
+    return value?.toLowerCase() === 'yes' ? 'completed' : 'incomplete';
+  }
+
+  getQualityClass(value: any): string {
+    const quality = value?.toLowerCase();
+    if (quality === 'good') return 'quality-good';
+    if (quality === 'average') return 'quality-average';
+    if (quality === 'poor') return 'quality-poor';
+    return 'quality-unknown';
+  }
+
+  getCostOverClass(value: any): string {
+    return value?.toLowerCase() === 'yes' ? 'cost-over' : 'cost-ok';
+  }
+
+  // Your existing methods (expand/collapse, assignments, etc.)
+  ngAfterViewInit(): void {
+    this.dataSource.paginator = this.paginator;
+    this.dataSource.sort = this.sort;
+    
+    if (this.paginator) {
+      this.paginator.page
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(() => {
+          console.log('Page changed - resetting expansion state');
+          this.forceCollapseAllRows();
+          this.resetExpansionState();
+        });
+    }
+  }
+
+  // All your existing methods remain the same:
+  // - expandAllRows()
+  // - forceCollapseAllRows()
+  // - GetSubgridData()
+  // - openAssignmentDialog()
+  // - openTaskAssignmentDialog()
+  // - startCommentEdit()
+  // - saveComment()
+  // - etc.
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+}
+3. Enhanced HTML Template with Dynamic Columns
+xml
+<!-- store-table.component.html - ENHANCED WITH DYNAMIC COLUMNS -->
+
+<div class="table-container">
+  <mat-card class="table-card" [ngClass]="getWeekTypeClass()">
+    <mat-card-header>
+      <mat-card-title>
+        {{getWeekTypeDisplayName()}}
+        <span class="week-indicator" [ngClass]="currentWeekType">
+          {{currentWeekType | uppercase}}
+        </span>
+      </mat-card-title>
+      <mat-card-subtitle>
+        {{dataSource.data.length}} stores found
+        <span *ngIf="getExpandedRowCount() > 0" class="expanded-info">
+          • {{getExpandedRowCount()}} rows expanded
+        </span>
+      </mat-card-subtitle>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <div class="table-wrapper">
+        <mat-table #table [dataSource]="dataSource" matSort class="store-table mat-elevation-2">
+          
+          <!-- Store Number Column (Always Present) -->
+          <ng-container matColumnDef="store_number">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">
+              <button mat-icon-button 
+                      [disabled]="isExpandingAll"
+                      (click)="expandAllRows()" 
+                      [title]="allExpanded ? 'Collapse All' : 'Expand All'"
+                      class="expand-all-btn">
+                <mat-icon>{{allExpanded ? 'unfold_less' : 'unfold_more'}}</mat-icon>
+              </button>
+              Store #
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="store-number-cell">
+              <span class="caret" [class.clicked]="isRowExpanded(element)">▼</span>
+              <span class="store-number">{{element.StoreNumber}}</span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Store Name Column (Always Present) -->
+          <ng-container matColumnDef="store_name">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">Store Name</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="store-name-cell">
+              <span class="store-name" (click)="openProximityDataDialog(element); $event.stopPropagation();">
+                {{element.StoreName}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Address Column (Always Present) -->
+          <ng-container matColumnDef="addr_line1">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">Address</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.AddrLine1}}</mat-cell>
+          </ng-container>
+
+          <!-- City Column (Always Present) -->
+          <ng-container matColumnDef="city">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">City</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.City}}</mat-cell>
+          </ng-container>
+
+          <!-- State Column (Always Present) -->
+          <ng-container matColumnDef="state">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">State</mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              <span class="state-badge">{{element.State}}</span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Zip Column (Conditional) -->
+          <ng-container matColumnDef="zip" *ngIf="isColumnVisible('zip')">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">Zip</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.Zip}}</mat-cell>
+          </ng-container>
+
+          <!-- Assigned To Column (Always Present) -->
+          <ng-container matColumnDef="assigned_to">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">Assigned To</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="assigned-cell" 
+                      (click)="openAssignmentDialog(element, 'StoreLevel'); $event.stopPropagation()">
+              <span class="assignment-badge" [ngClass]="getAssignmentClass(element.AssignedTo)">
+                {{element.AssignedTo}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Task Completed Column (Current & Previous Week) -->
+          <ng-container matColumnDef="task_completed" *ngIf="isColumnVisible('task_completed')">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">Completed</mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              <span class="status-badge" [ngClass]="getTaskCompletedClass(element.TaskCompleted)">
+                <mat-icon>{{element.TaskCompleted?.toLowerCase() === 'yes' ? 'check_circle' : 'radio_button_unchecked'}}</mat-icon>
+                {{formatTaskCompleted(element.TaskCompleted)}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Quality Column (Current & Previous Week) -->
+          <ng-container matColumnDef="quality" *ngIf="isColumnVisible('quality')">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">Quality</mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              <span class="quality-badge" [ngClass]="getQualityClass(element.Quality)">
+                {{formatQuality(element.Quality)}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Cost Over Column (Current & Previous Week) -->
+          <ng-container matColumnDef="cost_over" *ngIf="isColumnVisible('cost_over')">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">Over Cost</mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              <span class="cost-badge" [ngClass]="getCostOverClass(element.CostOver)">
+                <mat-icon>{{element.CostOver?.toLowerCase() === 'yes' ? 'warning' : 'check_circle'}}</mat-icon>
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Guaranteed Miles Column (Current & Future Week) -->
+          <ng-container matColumnDef="guaranteed_miles" *ngIf="isColumnVisible('guaranteed_miles')">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">Miles</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{formatGuaranteedMiles(element.GuaranteedMiles)}}</mat-cell>
+          </ng-container>
+
+          <!-- Average Cost Column (Future Week Only) -->
+          <ng-container matColumnDef="avg_cost" *ngIf="isColumnVisible('avg_cost')">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">Avg Cost</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{formatAvgCost(element.AvgCost)}}</mat-cell>
+          </ng-container>
+
+          <!-- WK1 Costs Column (Previous Week Only) -->
+          <ng-container matColumnDef="wk1_costs" *ngIf="isColumnVisible('wk1_costs')">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">WK1 Costs</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{formatWk1Costs(element)}}</mat-cell>
+          </ng-container>
+
+          <!-- WK2 Costs Column (Previous Week Only) -->
+          <ng-container matColumnDef="wk2_costs" *ngIf="isColumnVisible('wk2_costs')">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">WK2 Costs</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{formatWk2Costs(element)}}</mat-cell>
+          </ng-container>
+
+          <!-- Comments Column (Always Present) -->
+          <ng-container matColumnDef="user_comment">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">Comments</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="comment-cell">
+              <!-- View mode -->
+              <div *ngIf="!element.IsCommentEditing" class="comment-view">
+                <span class="comment-text" 
+                      [title]="element.UserComment"
+                      (click)="startCommentEdit(element); $event.stopPropagation();">
+                  {{element.UserComment || 'Add comment...'}}
+                </span>
+                <button mat-icon-button 
+                        (click)="startCommentEdit(element); $event.stopPropagation();"
+                        class="comment-edit-btn">
+                  <mat-icon>edit</mat-icon>
+                </button>
+              </div>
+              
+              <!-- Edit mode -->
+              <div *ngIf="element.IsCommentEditing" class="comment-edit">
+                <mat-form-field appearance="outline" class="comment-field">
+                  <textarea matInput
+                            [value]="element.UserComment"
+                            placeholder="Enter comment..."
+                            (keydown)="onCommentKeydown($event, element)"
+                            #commentInput
+                            rows="2"
+                            maxlength="500">
+                  </textarea>
+                </mat-form-field>
+                <div class="comment-actions">
+                  <button mat-icon-button 
+                          color="primary"
+                          (click)="saveComment(element, commentInput.value); $event.stopPropagation();">
+                    <mat-icon>check</mat-icon>
+                  </button>
+                  <button mat-icon-button 
+                          (click)="cancelCommentEdit(element); $event.stopPropagation();">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+              </div>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Header and Data Rows -->
+          <mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></mat-header-row>
+          <mat-row *matRowDef="let row; columns: displayedColumns; let i = index"
+                   class="table-row"
+                   [cdkDetailRow]="row" 
+                   [cdkDetailRowTpl]="tpl"
+                   (toggleChange)="GetSubgridData($event, row)"
+                   (dataLoadRequest)="onDataLoadRequest($event)"
+                   matRipple>
+          </mat-row>
+        </mat-table>
+      </div>
+      
+      <mat-paginator [pageSizeOptions]="[5, 10, 20, 50]" 
+                     showFirstLastButtons
+                     class="table-paginator">
+      </mat-paginator>
+
+      <!-- Your existing subgrid template -->
+      <ng-template #tpl let-element let-subgridData="subgridData" let-isLoading="isLoading">
+        <!-- Your existing template content -->
+      </ng-template>
+    </mat-card-content>
+  </mat-card>
+</div>
+4. Enhanced CSS for Week Types
+css
+/* store-table.component.css - ENHANCED FOR WEEK TYPES */
+
+/* Week type indicators */
+.week-indicator {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+
+.week-indicator.current {
+  background: #4caf50;
+  color: white;
+}
+
+.week-indicator.future {
+  background: #2196f3;
+  color: white;
+}
+
+.week-indicator.previous {
+  background: #ff9800;
+  color: white;
+}
+
+/* Week type specific card styling */
+.week-current {
+  border-left: 4px solid #4caf50;
+}
+
+.week-future {
+  border-left: 4px solid #2196f3;
+}
+
+.week-previous {
+  border-left: 4px solid #ff9800;
+}
+
+/* Status badges */
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.status-badge.completed {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-badge.incomplete {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.quality-badge {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.quality-good { background: #d4edda; color: #155724; }
+.quality-average { background: #fff3cd; color: #856404; }
+.quality-poor { background: #f8d7da; color: #721c24; }
+.quality-unknown { background: #e2e3e5; color: #495057; }
+
+.cost-badge mat-icon {
+  font-size: 16px;
+}
+
+.cost-over mat-icon { color: #dc3545; }
+.cost-ok mat-icon { color: #28a745; }
+
+/* Comment column styles */
+.comment-cell {
+  min-width: 200px;
+  max-width: 300px;
+}
+
+.comment-view {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comment-text {
+  flex: 1;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: #666;
+  font-style: italic;
+}
+
+.comment-text:hover {
+  background-color: #f5f5f5;
+}
+
+.comment-text:not(:empty) {
+  color: #333;
+  font-style: normal;
+}
+
+.comment-edit-btn {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.comment-view:hover .comment-edit-btn {
+  opacity: 1;
+}
+
+.comment-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comment-field {
+  width: 100%;
+}
+
+.comment-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+Summary:
+✅ Works with your existing C# code - No changes needed on backend
+✅ Single component handles all 3 week types - Dynamic columns based on week
+✅ JSON string parsing - Handles your C# controller's JSON responses
+✅ Comment column included - Editable comments on all week types
+✅ Field name normalization - Handles different field names from different APIs
+✅ Visual indicators - Different styling for current/future/previous weeks
+✅ Dynamic column visibility - Shows relevant columns for each week type
+✅ All existing functionality preserved - Expand/collapse, dialogs, etc.
+
+This solution adapts your existing store-table component to work with the 3 different week data structures while keeping all your existing functionality intact!
