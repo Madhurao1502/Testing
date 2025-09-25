@@ -1,356 +1,683 @@
-body {
-  margin: 0;
-  font-family: Verdana, sans-serif, Roboto, "Helvetica Neue";
-  font-size: 14px;
-}
+Alternative Solution: 3 Separate Tables for Different Week Types
+Strategy: Dedicated Table Components for Each Week Type
+Instead of one complex dynamic table, create 3 specialized table components that are optimized for each week type's specific data structure and user workflow.
 
-.content {
-  margin-bottom: 5px;
-}
+1. Enhanced CommonService with Week Type Management
+typescript
+// common.service.ts - SIMPLIFIED FOR 3 TABLE APPROACH
 
-h1, h2 {
-  font-size: medium;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-}
+export class CommonService {
+  
+  // Week type and data subjects
+  private weekTypeSubject = new BehaviorSubject<'current' | 'future' | 'previous'>('current');
+  public weekType$ = this.weekTypeSubject.asObservable();
 
-.accordion-container {
-  display: grid;
-  gap: 10px;
-}
+  // Separate data subjects for each week type
+  private currentWeekDataSubject = new BehaviorSubject<any[]>([]);
+  public currentWeekData$ = this.currentWeekDataSubject.asObservable();
 
-.sidenav1 {
-  flex: 0 0 30%;
-  max-width: 325px;
-  min-width: 325px;
-  background-color: white;
-  overflow-y: auto;
-}
+  private futureWeekDataSubject = new BehaviorSubject<any[]>([]);
+  public futureWeekData$ = this.futureWeekDataSubject.asObservable();
 
-.mat-toolbar-row, .mat-toolbar-single-row {
-  display: flex;
-  box-sizing: border-box;
-  padding: 0 16px;
-  width: 100%;
-  flex-direction: row;
-  align-items: center;
-  white-space: nowrap;
-  height: 30px;
-}
+  private previousWeekDataSubject = new BehaviorSubject<any[]>([]);
+  public previousWeekData$ = this.previousWeekDataSubject.asObservable();
 
-.sidenav-container {
-  display: flex;
-  height: calc(100vh - 130px);
-}
-
-.toggle-button {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  transform: translateY(-50%);
-  background-color: #1976d2;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  padding: 8px 8px;
-  cursor: pointer;
-  writing-mode: vertical-lr;
-  text-orientation: mixed;
-  transition: transform 0.2s ease, opacity 0.2s ease;
-  font-weight: 600;
-}
-
-.toggle-button:hover {
-  background-color: #1565c0;
-}
-
-.mat-drawer-inner-container {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-.sidenav {
-  flex: 0 0 30%;
-  max-width: 300px;
-  background-color: #f4f4f4;
-  overflow-y: auto;
-}
-
-.mat-sidenav-content {
-  flex: 1;
-  padding: 0px 10px;
-  overflow-y: auto;
-}
-
-.filter-section {
-  margin: 5px;
-}
-
-.filter-section .filter-field {
-  width: 100%;
-}
-
-.filter-section .search-box {
-  padding-bottom: 0;
-}
-
-.projects-or-deliverables {
-  height: 51vh;
-  overflow: auto;
-}
-
-.projects-or-deliverables h3 {
-  margin-bottom: 16px;
-  font-size: 1.2rem;
-  font-weight: bold;
-}
-
-.projects-or-deliverables .data-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 5px 10px;
-  border-radius: 10px;
-  border-bottom: 1px solid #ddd;
-  cursor: pointer;
-  transition: background-color 0.2s ease, transform 0.2s ease;
-}
-
-.projects-or-deliverables .data-item:hover {
-  background-color: lightgray;
-}
-
-.projects-or-deliverables .data-item .project-name {
-  font-size: 1rem;
-  color: #333;
-}
-
-.projects-or-deliverables .data-item .delivery-count {
-  background-color: lightgray;
-  color: black;
-  font-size: 0.8rem;
-  font-weight: 400;
-  width: 25px;
-  height: 25px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 50%;
-  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.content-area {
-  gap: 10px;
-  padding: 0px;
-}
-
-.content-area h2 {
-  margin-bottom: 16px;
-}
-
-.content-area1 {
-  gap: 10px;
-  padding: 10px;
-  margin-left: 20px;
-  height: 95%;
-  overflow: auto;
-}
-
-.content-area1 h2 {
-  margin-bottom: 16px;
-}
-
-.footer {
-  text-align: center;
-  padding: 16px;
-  background-color: #f4f4f4;
-  color: #666;
-}
-
-.search-container {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.deliverables {
-  overflow: auto;
-  height: 90%;
-}
-
-.deliverables h3 {
-  margin-bottom: 16px;
-  font-size: 1.2rem;
-  font-weight: bold;
-}
-
-.deliverables .deliverables-data {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  padding: 5px 10px;
-  height: 25px;
-  border-radius: 10px;
-  border-bottom: 1px solid #ddd;
-  cursor: pointer;
-  transition: background-color 0.2s ease, transform 0.2s ease;
-}
-
-.deliverables .deliverables-data:hover {
-  background-color: lightgray;
-  color: white;
-}
-
-.deliverables .deliverables-data .delivery-name {
-  font-size: 1rem;
-}
-
-.deliverables .deliverables-data .delivery-number {
-  font-size: 1rem;
-}
-
-.selected-item {
-  background-color: #00b0f0;
-  color: #fff;
-  border-radius: 5px;
-}
-
-.selected-item:hover {
-  color: #333;
-}
-
-.nav-header-icons-container {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  justify-content: space-between;
-  align-items: center;
-  height: 35px;
-}
-
-.nav-header-icons-container h2 {
-  margin: 0;
-}
-
-.nav-header-icons-container .nav-header {
-  height: 30px;
-  cursor: pointer;
-  padding: 5px;
-}
-
-.nav-header-icons-container .nav-header-icon button {
-  border: none;
-  height: 30px;
-  background-color: white;
-  cursor: pointer;
-  padding: 5px;
-}
-
-.nav-header-icons-container .nav-header-icon .pin-icon {
-  margin-left: 10px;
-}
-
-.status-circle {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  margin-right: 5px;
-  border-radius: 50%;
-  border: 1px solid transparent;
-}
-
-.status-failed {
-  background-color: red;
-}
-
-.status-success {
-  background-color: green;
-}
-
-.status-initial {
-  background-color: white;
-  border: 1px solid #ccc;
-}
-
-.status-inprogress {
-  background-color: #001aff;
-}
-
-.status-reprogress {
-  background-color: #ff6500;
-}
-
-.status-unknown {
-  background-color: white;
-  border: 1px solid #ccc;
-}
-
-.status-abandon {
-  background-color: #ffff00;
-}
-
-.mat-form-field-appearance-standard .mat-form-field-flex {
-  padding-top: 5px;
-}
-
-/* Media Queries */
-
-@media screen and (min-width: 1000px) and (max-width: 1280px) {
-  .projects-or-deliverables {
-    height: 41vh;
-    overflow: auto;
-  }
-}
-
-@media screen and (min-width: 1281px) and (max-width: 1366px) {
-  .projects-or-deliverables {
-    height: 42vh;
-    overflow: auto;
+  // UPDATED: Simplified getGridData with separate data streams
+  getGridData(payload: GetGridDataFilter): Observable<any[]> {
+    const currentIRIWeek = this.getCurrentIRIWeek();
+    const payloadIRIWeek = payload.iriWeek;
+    
+    let apiEndpoint = '';
+    let weekType: 'current' | 'future' | 'previous' = 'current';
+    
+    // Determine which API to call
+    if (payloadIRIWeek === currentIRIWeek) {
+      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetcurrentweekGridData`;
+      weekType = 'current';
+    } else if (payloadIRIWeek > currentIRIWeek) {
+      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetfutureweekGridData`;
+      weekType = 'future';
+    } else {
+      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetpreviousweekGridData`;
+      weekType = 'previous';
+    }
+    
+    console.log(`API Selection: ${weekType} week - ${apiEndpoint}`);
+    
+    // Update week type
+    this.weekTypeSubject.next(weekType);
+    
+    return this.http.post<any[]>(apiEndpoint, payload)
+      .pipe(catchError(this.handleError<any[]>('getGridData', [])));
   }
 
-  .content-area {
-    width: 150% !important;
+  // UPDATED: Apply filters with specific data stream updates
+  applyFilters(filters: GetGridDataFilter): void {
+    const currentCountry = this.getCurrentCountry();
+    
+    if (!currentCountry) {
+      filters.countryId = '1';
+    } else {
+      filters.countryId = currentCountry;
+    }
+
+    this.filtersSubject.next(filters);
+    this.setCurrentFilterValues(this.convertToCurrentFilters(filters));
+    
+    // Call API and update specific data stream
+    this.getGridData(filters).subscribe({
+      next: (data) => {
+        const currentIRIWeek = this.getCurrentIRIWeek();
+        const payloadIRIWeek = filters.iriWeek;
+        
+        // Add comment editing capability to data
+        const dataWithComments = data.map(row => ({
+          ...row,
+          UserComment: row.UserComment || '',
+          IsCommentEditing: false
+        }));
+        
+        // Update appropriate data stream
+        if (payloadIRIWeek === currentIRIWeek) {
+          this.currentWeekDataSubject.next(dataWithComments);
+        } else if (payloadIRIWeek > currentIRIWeek) {
+          this.futureWeekDataSubject.next(dataWithComments);
+        } else {
+          this.previousWeekDataSubject.next(dataWithComments);
+        }
+        
+        // Also update the main grid data for compatibility
+        this.gridDataSubject.next(dataWithComments);
+      },
+      error: (error) => {
+        console.error('Error applying filters:', error);
+        this.currentWeekDataSubject.next([]);
+        this.futureWeekDataSubject.next([]);
+        this.previousWeekDataSubject.next([]);
+        this.gridDataSubject.next([]);
+      }
+    });
+  }
+
+  getCurrentWeekType(): 'current' | 'future' | 'previous' {
+    return this.weekTypeSubject.value;
   }
 }
+2. Create 3 Separate Table Components
+A. Current Week Table Component
+typescript
+// current-week-table.component.ts
+import { Component, OnInit, OnDestroy, AfterViewInit, ViewChild, ViewChildren, QueryList } from '@angular/core';
+import { MatTable, MatTableDataSource } from '@angular/material/table';
+import { MatPaginator } from '@angular/material/paginator';
+import { MatSort } from '@angular/material/sort';
+import { Subject, takeUntil } from 'rxjs';
+import { CommonService } from '../services/common.service';
+import { CdkDetailRowDirective } from '../shared/cdk-detail-row.directive';
 
-@media screen and (min-width: 1366px) and (max-width: 1439px) {
-  .projects-or-deliverables {
-    height: 49vh;
-    overflow: auto;
+@Component({
+  selector: 'app-current-week-table',
+  template: `
+    <div class="current-week-container">
+      <mat-card class="table-card">
+        <mat-card-header>
+          <mat-card-title>
+            Current Week Tasks 
+            <span class="week-indicator current">CURRENT</span>
+          </mat-card-title>
+        </mat-card-header>
+        
+        <mat-card-content>
+          <div class="table-controls">
+            <button mat-icon-button 
+                    [disabled]="isExpandingAll"
+                    (click)="expandAllRows()" 
+                    [title]="allExpanded ? 'Collapse All' : 'Expand All'">
+              <mat-icon>{{allExpanded ? 'unfold_less' : 'unfold_more'}}</mat-icon>
+            </button>
+          </div>
+
+          <mat-table [dataSource]="dataSource" matSort class="current-week-table">
+            
+            <!-- Current Week Specific Columns -->
+            <ng-container matColumnDef="store_number">
+              <mat-header-cell *matHeaderCellDef mat-sort-header>Store #</mat-header-cell>
+              <mat-cell *matCellDef="let element">
+                <span class="caret" [class.clicked]="isRowExpanded(element)">▼</span>
+                {{element.StoreNumber}}
+              </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="store_name">
+              <mat-header-cell *matHeaderCellDef mat-sort-header>Store Name</mat-header-cell>
+              <mat-cell *matCellDef="let element">{{element.StoreName}}</mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="current_status">
+              <mat-header-cell *matHeaderCellDef mat-sort-header>Status</mat-header-cell>
+              <mat-cell *matCellDef="let element">
+                <span class="status-badge" [class]="'status-' + element.CurrentStatus?.toLowerCase()">
+                  {{element.CurrentStatus}}
+                </span>
+              </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="completion_percentage">
+              <mat-header-cell *matHeaderCellDef mat-sort-header>Progress</mat-header-cell>
+              <mat-cell *matCellDef="let element">
+                <div class="progress-container">
+                  <mat-progress-bar 
+                    mode="determinate" 
+                    [value]="element.CompletionPercentage || 0"
+                    [color]="getProgressColor(element.CompletionPercentage)">
+                  </mat-progress-bar>
+                  <span class="progress-text">{{element.CompletionPercentage || 0}}%</span>
+                </div>
+              </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="assigned_to">
+              <mat-header-cell *matHeaderCellDef>Assigned To</mat-header-cell>
+              <mat-cell *matCellDef="let element">
+                <span class="assignment-link" 
+                      (click)="openAssignmentDialog(element)">
+                  {{element.AssignedTo}}
+                </span>
+              </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="last_updated">
+              <mat-header-cell *matHeaderCellDef mat-sort-header>Last Updated</mat-header-cell>
+              <mat-cell *matCellDef="let element">
+                {{formatDate(element.LastUpdated)}}
+              </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="user_comment">
+              <mat-header-cell *matHeaderCellDef>Comments</mat-header-cell>
+              <mat-cell *matCellDef="let element">
+                <div class="comment-cell">
+                  <span *ngIf="!element.IsCommentEditing" 
+                        class="comment-text"
+                        (click)="startCommentEdit(element)">
+                    {{element.UserComment || 'Add comment...'}}
+                  </span>
+                  <div *ngIf="element.IsCommentEditing" class="comment-edit">
+                    <mat-form-field appearance="outline">
+                      <textarea matInput 
+                                [value]="element.UserComment"
+                                #commentInput
+                                (keydown)="onCommentKeydown($event, element)">
+                      </textarea>
+                    </mat-form-field>
+                  </div>
+                </div>
+              </mat-cell>
+            </ng-container>
+
+            <mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></mat-header-row>
+            <mat-row 
+              *matRowDef="let row; columns: displayedColumns"
+              [ngClass]="{'selected-row': isRowExpanded(row)}"
+              [cdkDetailRow]="row" 
+              [cdkDetailRowTpl]="currentWeekDetailTpl"
+              (toggleChange)="GetSubgridData($event, row)"
+              matRipple>
+            </mat-row>
+          </mat-table>
+
+          <mat-paginator [pageSizeOptions]="[5, 10, 20, 50]"></mat-paginator>
+
+          <!-- Current Week Detail Template -->
+          <ng-template #currentWeekDetailTpl let-element let-subgridData="subgridData" let-isLoading="isLoading">
+            <div class="detail-row">
+              <div *ngIf="isLoading" class="loading">
+                <mat-spinner diameter="20"></mat-spinner>
+                <span>Loading current tasks...</span>
+              </div>
+              
+              <table *ngIf="!isLoading" class="detail-table">
+                <tr>
+                  <th>Task Name</th>
+                  <th>Assigned To</th>
+                  <th>Status</th>
+                  <th>Progress</th>
+                  <th>Due Time</th>
+                  <th>Actions</th>
+                </tr>
+                <tr *ngFor="let task of subgridData">
+                  <td>{{task.TaskName}}</td>
+                  <td>
+                    <span class="assignment-link" (click)="openTaskAssignment(task)">
+                      {{task.AssignedTo}}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="status-badge" [class]="'status-' + task.Status?.toLowerCase()">
+                      {{task.Status}}
+                    </span>
+                  </td>
+                  <td>{{task.Progress}}%</td>
+                  <td>{{task.DueTime}}</td>
+                  <td>
+                    <button mat-icon-button (click)="markComplete(task)" 
+                            [disabled]="task.Status === 'Completed'">
+                      <mat-icon>check_circle</mat-icon>
+                    </button>
+                  </td>
+                </tr>
+              </table>
+            </div>
+          </ng-template>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  `,
+  styles: [`
+    .current-week-container {
+      padding: 16px;
+    }
+
+    .week-indicator.current {
+      background: #4caf50;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .progress-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .progress-container mat-progress-bar {
+      flex: 1;
+      height: 8px;
+    }
+
+    .progress-text {
+      min-width: 35px;
+      font-size: 12px;
+    }
+
+    .status-badge {
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .status-badge.status-pending { background: #fff3cd; color: #856404; }
+    .status-badge.status-in-progress { background: #d1ecf1; color: #0c5460; }
+    .status-badge.status-completed { background: #d4edda; color: #155724; }
+    .status-badge.status-overdue { background: #f8d7da; color: #721c24; }
+
+    .assignment-link {
+      color: #1976d2;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .comment-cell {
+      min-width: 150px;
+    }
+
+    .detail-table {
+      width: 100%;
+      margin: 16px;
+      border-collapse: collapse;
+    }
+
+    .detail-table th,
+    .detail-table td {
+      padding: 8px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+
+    .detail-table th {
+      background: #f5f5f5;
+      font-weight: 500;
+    }
+  `]
+})
+export class CurrentWeekTableComponent implements OnInit, OnDestroy, AfterViewInit {
+  
+  @ViewChild(MatTable) table: MatTable<any>;
+  @ViewChild(MatPaginator) paginator: MatPaginator;
+  @ViewChild(MatSort) sort: MatSort;
+  @ViewChildren(CdkDetailRowDirective) detailRows: QueryList<CdkDetailRowDirective>;
+
+  displayedColumns = [
+    'store_number', 'store_name', 'current_status', 
+    'completion_percentage', 'assigned_to', 'last_updated', 'user_comment'
+  ];
+
+  dataSource = new MatTableDataSource<any>([]);
+  expandedRows = new Set<CdkDetailRowDirective>();
+  selectedRows = new Set<any>();
+  allExpanded = false;
+  isExpandingAll = false;
+
+  private destroy$ = new Subject<void>();
+
+  constructor(
+    private commonService: CommonService
+  ) {}
+
+  ngOnInit(): void {
+    // Subscribe to current week data
+    this.commonService.currentWeekData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        this.dataSource.data = data;
+        this.resetExpansionState();
+      });
+  }
+
+  ngAfterViewInit(): void {
+    this.dataSource.paginator = this.paginator;
+    this.dataSource.sort = this.sort;
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  // Current week specific methods
+  getProgressColor(percentage: number): string {
+    if (percentage >= 80) return 'primary';
+    if (percentage >= 50) return 'accent';
+    return 'warn';
+  }
+
+  formatDate(date: any): string {
+    if (!date) return '';
+    return new Date(date).toLocaleDateString();
+  }
+
+  markComplete(task: any): void {
+    // Implementation for marking task complete
+    console.log('Marking task complete:', task);
+  }
+
+  // Standard methods (same as original store-table)
+  GetSubgridData(cdkDetailRow: CdkDetailRowDirective, row: any): void {
+    // Implementation same as before
+  }
+
+  expandAllRows(): void {
+    // Implementation same as before
+  }
+
+  resetExpansionState(): void {
+    // Implementation same as before
+  }
+
+  isRowExpanded(row: any): boolean {
+    return this.selectedRows.has(row);
+  }
+
+  openAssignmentDialog(element: any): void {
+    // Implementation same as before
+  }
+
+  openTaskAssignment(task: any): void {
+    // Implementation same as before
+  }
+
+  startCommentEdit(element: any): void {
+    element.IsCommentEditing = true;
+  }
+
+  onCommentKeydown(event: KeyboardEvent, element: any): void {
+    // Implementation same as before
   }
 }
+B. Future Week Table Component
+typescript
+// future-week-table.component.ts
+@Component({
+  selector: 'app-future-week-table',
+  template: `
+    <div class="future-week-container">
+      <mat-card class="table-card">
+        <mat-card-header>
+          <mat-card-title>
+            Future Week Planning 
+            <span class="week-indicator future">FUTURE</span>
+          </mat-card-title>
+        </mat-card-header>
+        
+        <mat-card-content>
+          <mat-table [dataSource]="dataSource" matSort class="future-week-table">
+            
+            <!-- Future Week Specific Columns -->
+            <ng-container matColumnDef="store_number">
+              <mat-header-cell *matHeaderCellDef mat-sort-header>Store #</mat-header-cell>
+              <mat-cell *matCellDef="let element">{{element.StoreNumber}}</mat-cell>
+            </ng-container>
 
-@media screen and (min-width: 1440px) and (max-width: 1600px) {
-  .projects-or-deliverables {
-    height: 50vh;
-    overflow: auto;
+            <ng-container matColumnDef="store_name">
+              <mat-header-cell *matHeaderCellDef mat-sort-header>Store Name</mat-header-cell>
+              <mat-cell *matCellDef="let element">{{element.StoreName}}</mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="planned_start">
+              <mat-header-cell *matHeaderCellDef mat-sort-header>Planned Start</mat-header-cell>
+              <mat-cell *matCellDef="let element">
+                <mat-form-field appearance="outline" class="date-field">
+                  <input matInput [matDatepicker]="picker" 
+                         [value]="element.PlannedStartDate"
+                         (dateChange)="updatePlannedDate(element, $event)">
+                  <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+                  <mat-datepicker #picker></mat-datepicker>
+                </mat-form-field>
+              </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="priority">
+              <mat-header-cell *matHeaderCellDef mat-sort-header>Priority</mat-header-cell>
+              <mat-cell *matCellDef="let element">
+                <mat-select [value]="element.Priority" 
+                            (selectionChange)="updatePriority(element, $event)">
+                  <mat-option value="High">High</mat-option>
+                  <mat-option value="Medium">Medium</mat-option>
+                  <mat-option value="Low">Low</mat-option>
+                </mat-select>
+              </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="prerequisites">
+              <mat-header-cell *matHeaderCellDef>Prerequisites</mat-header-cell>
+              <mat-cell *matCellDef="let element">
+                <mat-chip-list>
+                  <mat-chip *ngFor="let req of getPrerequisites(element.Prerequisites)">
+                    {{req}}
+                  </mat-chip>
+                </mat-chip-list>
+              </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="assigned_to">
+              <mat-header-cell *matHeaderCellDef>Assigned To</mat-header-cell>
+              <mat-cell *matCellDef="let element">
+                <span class="assignment-link" (click)="openAssignmentDialog(element)">
+                  {{element.AssignedTo || 'Not Assigned'}}
+                </span>
+              </mat-cell>
+            </ng-container>
+
+            <!-- Rest of template... -->
+          </mat-table>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  `,
+  styles: [`
+    .future-week-container { padding: 16px; }
+    .week-indicator.future { 
+      background: #2196f3; 
+      color: white; 
+      padding: 4px 8px; 
+      border-radius: 4px; 
+    }
+    .date-field { width: 120px; }
+    /* More future-specific styles... */
+  `]
+})
+export class FutureWeekTableComponent implements OnInit, OnDestroy {
+  
+  displayedColumns = [
+    'store_number', 'store_name', 'planned_start', 
+    'priority', 'prerequisites', 'assigned_to', 'user_comment'
+  ];
+
+  // Future week specific methods
+  updatePlannedDate(element: any, event: any): void {
+    // Update planned start date
+  }
+
+  updatePriority(element: any, event: any): void {
+    // Update priority
+  }
+
+  getPrerequisites(prerequisites: string): string[] {
+    return prerequisites ? prerequisites.split(',') : [];
+  }
+
+  // Rest of implementation...
+}
+C. Previous Week Table Component
+typescript
+// previous-week-table.component.ts
+@Component({
+  selector: 'app-previous-week-table',
+  template: `
+    <div class="previous-week-container">
+      <mat-card class="table-card">
+        <mat-card-header>
+          <mat-card-title>
+            Previous Week History 
+            <span class="week-indicator previous">COMPLETED</span>
+          </mat-card-title>
+        </mat-card-header>
+        
+        <mat-card-content>
+          <mat-table [dataSource]="dataSource" matSort class="previous-week-table">
+            
+            <!-- Previous Week Specific Columns -->
+            <ng-container matColumnDef="store_number">
+              <mat-header-cell *matHeaderCellDef mat-sort-header>Store #</mat-header-cell>
+              <mat-cell *matCellDef="let element">{{element.StoreNumber}}</mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="completion_status">
+              <mat-header-cell *matHeaderCellDef mat-sort-header>Completion</mat-header-cell>
+              <mat-cell *matCellDef="let element">
+                <mat-icon [class]="element.ActualCompletion === '100%' ? 'completed' : 'incomplete'">
+                  {{element.ActualCompletion === '100%' ? 'check_circle' : 'cancel'}}
+                </mat-icon>
+                {{element.ActualCompletion}}
+              </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="completed_date">
+              <mat-header-cell *matHeaderCellDef mat-sort-header>Completed Date</mat-header-cell>
+              <mat-cell *matCellDef="let element">{{formatDate(element.CompletedDate)}}</mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="issues">
+              <mat-header-cell *matHeaderCellDef>Issues</mat-header-cell>
+              <mat-cell *matCellDef="let element">
+                <mat-icon *ngIf="element.Issues" 
+                          class="issues-icon" 
+                          [title]="element.Issues">
+                  warning
+                </mat-icon>
+                <span class="issues-text">{{element.Issues || 'None'}}</span>
+              </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="notes">
+              <mat-header-cell *matHeaderCellDef>Notes</mat-header-cell>
+              <mat-cell *matCellDef="let element">
+                <div class="notes-cell" [title]="element.Notes">
+                  {{truncateText(element.Notes, 50)}}
+                </div>
+              </mat-cell>
+            </ng-container>
+
+            <!-- Rest of template... -->
+          </mat-table>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  `,
+  styles: [`
+    .previous-week-container { padding: 16px; }
+    .week-indicator.previous { 
+      background: #ff9800; 
+      color: white; 
+      padding: 4px 8px; 
+      border-radius: 4px; 
+    }
+    .completed { color: #4caf50; }
+    .incomplete { color: #f44336; }
+    .issues-icon { color: #ff9800; }
+    .notes-cell { max-width: 200px; overflow: hidden; }
+  `]
+})
+export class PreviousWeekTableComponent implements OnInit, OnDestroy {
+  
+  displayedColumns = [
+    'store_number', 'store_name', 'completion_status', 
+    'completed_date', 'issues', 'notes', 'user_comment'
+  ];
+
+  // Previous week specific methods
+  truncateText(text: string, maxLength: number): string {
+    if (!text) return '';
+    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+  }
+
+  // Rest of implementation...
+}
+3. Main Container Component
+typescript
+// store-grid-container.component.ts
+@Component({
+  selector: 'app-store-grid-container',
+  template: `
+    <div class="store-grid-container">
+      <ng-container [ngSwitch]="weekType">
+        <app-current-week-table *ngSwitchCase="'current'"></app-current-week-table>
+        <app-future-week-table *ngSwitchCase="'future'"></app-future-week-table>
+        <app-previous-week-table *ngSwitchCase="'previous'"></app-previous-week-table>
+      </ng-container>
+    </div>
+  `
+})
+export class StoreGridContainerComponent implements OnInit, OnDestroy {
+  weekType: 'current' | 'future' | 'previous' = 'current';
+
+  constructor(private commonService: CommonService) {}
+
+  ngOnInit(): void {
+    this.commonService.weekType$.subscribe(weekType => {
+      this.weekType = weekType;
+    });
   }
 }
+Benefits of 3 Separate Tables:
+✅ Specialized UI - Each table optimized for its specific use case
+✅ Cleaner Code - No complex dynamic logic, easier to maintain
+✅ Better Performance - No unnecessary rendering of unused columns
+✅ Focused Functionality - Each table has features specific to its week type
+✅ Easier Testing - Test each table component independently
+✅ Simple Styling - CSS specific to each table's purpose
 
-@media screen and (min-width: 1601px) and (max-width: 1800px) {
-  .projects-or-deliverables {
-    height: 53vh;
-    overflow: auto;
-  }
-}
-
-@media screen and (min-width: 1801px) and (max-width: 2700px) {
-  .projects-or-deliverables {
-    margin: 10px;
-    height: 60vh;
-    overflow: auto;
-  }
-}
-
-@media screen and (min-width: 400px) and (max-width: 1250px) {
-  .content-area {
-    width: 1000px !important;
-  }
-}
-
-.chart {
-  height: 100%;
-  width: 100%;
-}
+This approach is much simpler and more maintainable than the dynamic column solution!
