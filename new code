@@ -1,1586 +1,1626 @@
-export interface ShelfNode {
-id: number;
-pId: number | null;
-name: string;
-checked: boolean;
-children?: ShelfNode[];
-value?: number;
-optional?: string;
-varlabel?: string;
-var_type_id?: number;
-shelf_var_lookup?: string;
-no_display?: string;
-mainMin?: string | number;
-mainMax?: string | number;
-main_soft_check?: string | number;
-main_hard_check?: string | number;
-taskMin?: string | number;
-taskMax?: string | number;
-task_soft_check?: string | number;
-task_hard_check?: string | number;
-mainOrdinal?: number;
-taskOrdinal?: number;
-task_number?: number;
-disabled?: boolean;
-isParent?: boolean;
-open?: boolean;
+common service 
+// Centralized API methods
+getIriWeeks(): Observable<any[]> {
+  return this.http.get<any[]>(`${this.baseUrl}api/TaskAssinment/GetIriWeek`)
+    .pipe(catchError(this.handleError<any[]>('getIriWeeks', [])));
 }
 
-export interface ReviewCategory {
-ReviewCategoryNumber: number;
-TaskNumber?: number;
-Catg_Type?: string;
-ReviewCategoryName: string;
-KeycatNumber?: number;
-KeycatName?: string;
-Selected?: number | null;
-QCUnderReq?: number | null;
-QCUnderPercent?: number | null;
-NumberOfWeeks?: number | null;
-Stub_Name?: string;
-Stub_Type?: string;
-TranslationTask?: any;
+getTerritories(): Observable<any[]> {
+  return this.http.get<any[]>(`${this.baseUrl}api/TaskAssinment/GetTerritory`)
+    .pipe(catchError(this.handleError<any[]>('getTerritories', [])));
 }
 
-export interface TaskShelfVar {
-task_number: number;
-prompt_level: number;
-ShelfVarID: number;
-min?: string | number;
-max?: string | number;
-soft_check?: string | number;
-hard_check?: string | number;
-ordinal?: number;
-name: string;
+searchStores(payload: any): Observable<any[]> {
+  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetStore`, payload)
+    .pipe(catchError(this.handleError<any[]>('searchStores', [])));
 }
 
-export interface TreeOptions {
-useCheckbox: boolean;
-useTriState: boolean;
-allowDrag?: boolean;
-allowDrop?: boolean;
-displayField: string;
-childrenField: string;
-hasChildrenField?: string;
+searchStates(payload: any): Observable<any[]> {
+  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetState`, payload)
+    .pipe(catchError(this.handleError<any[]>('searchStates', [])));
 }
 
+searchCities(payload: any): Observable<any[]> {
+  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetCity`, payload)
+    .pipe(catchError(this.handleError<any[]>('searchCities', [])));
+}
 
+searchClusters(payload: any): Observable<any[]> {
+  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetCluster`, payload)
+    .pipe(catchError(this.handleError<any[]>('searchClusters', [])));
+}
 
-## 2. **Service Layer (`services/shelf-task.service.ts`)**
+searchTasks(payload: any): Observable<any[]> {
+  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetTask`, payload)
+    .pipe(catchError(this.handleError<any[]>('searchTasks', [])));
+}
 
-```typescript
-import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, of } from 'rxjs';
-import { ShelfNode, ReviewCategory, TaskShelfVar } from '../models/shelf-task.models';
+getGridData(payload: GetGridDataFilter): Observable<any[]> {
+  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetGridData`, payload)
+    .pipe(catchError(this.handleError<any[]>('getGridData', [])));
+}
 
-@Injectable({
-  providedIn: 'root'
-})
-export class ShelfTaskService {
-  private taskId: number = 0;
-  private taskVersion: string = '';
-  private lockoutId: string = '';
-  private currentUser: string = '';
+private handleError<T>(operation = 'operation', result?: T) {
+  return (error: any): Observable<T> => {
+    console.error(`${operation} failed:`, error);
+    return of(result as T);
+  };
+}
 
-  // Tree data subjects
-  private locationTreeSubject = new BehaviorSubject<ShelfNode[]>([]);
-  private sectionTreeSubject = new BehaviorSubject<ShelfNode[]>([]);
-  private shelfTreeSubject = new BehaviorSubject<ShelfNode[]>([]);
-  private upcTreeSubject = new BehaviorSubject<ShelfNode[]>([]);
+ // MISSING FUNCTION 1: Apply Filters
+  applyFilters(filters: GetGridDataFilter): void {
+     const currentCountry = this.getCurrentCountry();
+    
+    if (!currentCountry) {
+      filters.countryId = '1';
+      filters.iriWeek = '2405'
+      filters.territoryId='52'
+      // throw new Error('Please select a country first');
+    }else{
+        // Ensure country is set
+    filters.countryId = currentCountry;
+    }
+    
+  
+    
 
-  // Review category subjects
-  private reviewCategoriesSubject = new BehaviorSubject<ReviewCategory[]>([]);
-  private selectedReviewCategoriesSubject = new BehaviorSubject<ReviewCategory[]>([]);
-
-  // Observable streams
-  locationTree$ = this.locationTreeSubject.asObservable();
-  sectionTree$ = this.sectionTreeSubject.asObservable();
-  shelfTree$ = this.shelfTreeSubject.asObservable();
-  upcTree$ = this.upcTreeSubject.asObservable();
-  reviewCategories$ = this.reviewCategoriesSubject.asObservable();
-  selectedReviewCategories$ = this.selectedReviewCategoriesSubject.asObservable();
-
-  constructor(private http: HttpClient) {}
-
-  initializeTask(taskId: number, taskVersion: string, lockoutId: string, currentUser: string) {
-    this.taskId = taskId;
-    this.taskVersion = taskVersion;
-    this.lockoutId = lockoutId;
-    this.currentUser = currentUser;
-  }
-
-  loadShelfVar(grp: number): Observable<ShelfNode[]> {
-    return this.http.post<ShelfNode[]>('/Task/GetTaskShelfVar', { 
-      taskId: this.taskId, 
-      grp: grp 
-    });
-  }
-
-  loadAllTreeData() {
-    // Load Location tree (grp: 1)
-    this.loadShelfVar(1).subscribe(data => {
-      const processedData = this.processTreeData(data);
-      this.locationTreeSubject.next(processedData);
-    });
-
-    // Load Section tree (grp: 2)
-    this.loadShelfVar(2).subscribe(data => {
-      const processedData = this.processTreeData(data);
-      this.sectionTreeSubject.next(processedData);
-    });
-
-    // Load Shelf tree (grp: 3)
-    this.loadShelfVar(3).subscribe(data => {
-      const processedData = this.processTreeData(data);
-      this.shelfTreeSubject.next(processedData);
-    });
-
-    // Load UPC tree (grp: 4)
-    this.loadShelfVar(4).subscribe(data => {
-      const processedData = this.processTreeData(data);
-      this.upcTreeSubject.next(processedData);
-    });
-  }
-
-  loadReviewCategories(): Observable<{ReviewCategories: ReviewCategory[], CollectionCategories: ReviewCategory[]}> {
-    return this.http.post<{ReviewCategories: ReviewCategory[], CollectionCategories: ReviewCategory[]}>(
-      '/Task/GetReviewCategoryDetailsForShelf', 
-      { task_number: this.taskId }
-    );
-  }
-
-  saveShelfVarDetails(shelfVarData: string): Observable<any> {
-    return this.http.post('/Task/SaveShelfVarDetails', {
-      shelfVarData: shelfVarData,
-      taskId: this.taskId
-    });
-  }
-
-  saveReviewCategoryDetails(reviewCats: string): Observable<any> {
-    return this.http.post('/Task/SaveReviewCategoryDetailsForShelf', {
-      reviewCats: reviewCats,
-      task_number: this.taskId
-    });
-  }
-
-  private processTreeData(data: ShelfNode[]): ShelfNode[] {
-    const nodeMap = new Map<number, ShelfNode>();
-    const rootNodes: ShelfNode[] = [];
-
-    // First pass: create all nodes
-    data.forEach(item => {
-      const node: ShelfNode = {
-        ...item,
-        children: [],
-        isParent: false,
-        disabled: this.isTaskLocked()
-      };
-      nodeMap.set(item.id, node);
-    });
-
-    // Second pass: build tree structure
-    data.forEach(item => {
-      const node = nodeMap.get(item.id)!;
-      if (item.pId === null || item.pId === 0) {
-        rootNodes.push(node);
-      } else {
-        const parent = nodeMap.get(item.pId);
-        if (parent) {
-          parent.children!.push(node);
-          parent.isParent = true;
-        }
+    this.filtersSubject.next(filters);
+      this.currentFiltersSubject.next({
+        countryId: filters.countryId,
+      iri_week: filters.iriWeek,
+      territory_id: filters.territoryId,
+      area: filters.area,
+      store_number: filters.storeNumber,
+      store_name: filters.storeName,
+      state: filters.state,
+      city: filters.city,
+      position_number: filters.positionNumber,
+      task_number: filters.taskNumber,
+      emp_id: filters.empId,
+      fsr_hour: filters.fsrHour,
+      fsr_over_25hrs: filters.fsrOver25hrs,
+      fsr_over_6hrs: filters.fsrOver6hrs,
+      assigned_stores: filters.assignedStores,
+      unassigned_stores: filters.unassignedStores,
+      sample: filters.sample,
+      nonsample: filters.nonSample,
+      multi_fsr_store: filters.multiFsrStore,
+      vacation: filters.vacation,
+      temporary: filters.temporary,
+      fsr_hour_operator: "NA"
+      })
+    // Call GetGridData API with filters
+    this.getGridData(filters).subscribe({
+      next: (data) => {
+        this.gridDataSubject.next(data);
+      },
+      error: (error) => {
+        console.error('Error applying filters:', error);
+        this.gridDataSubject.next([]);
       }
     });
-
-    return rootNodes;
   }
 
-  isTaskLocked(): boolean {
-    return this.taskVersion === 'FNL' || this.lockoutId !== this.currentUser;
+
+  clearFilters(): void {
+    const defaultFilters = new GetGridDataFilter();
+    this.filtersSubject.next(defaultFilters);
+    this.gridDataSubject.next([]);
   }
 
-  // Tree update methods
-  updateLocationTree(data: ShelfNode[]) {
-    this.locationTreeSubject.next(data);
+setCountry(countryId: string): void {
+    this.countrySubject.next(countryId);
   }
 
-  updateSectionTree(data: ShelfNode[]) {
-    this.sectionTreeSubject.next(data);
+ 
+  getCurrentCountry(): string {
+    return this.countrySubject.value;
   }
 
-  updateShelfTree(data: ShelfNode[]) {
-    this.shelfTreeSubject.next(data);
-  }
+dashbord-layout.component.ts
 
-  updateUpcTree(data: ShelfNode[]) {
-    this.upcTreeSubject.next(data);
-  }
-
-  updateReviewCategories(data: ReviewCategory[]) {
-    this.reviewCategoriesSubject.next(data);
-  }
-
-  updateSelectedReviewCategories(data: ReviewCategory[]) {
-    this.selectedReviewCategoriesSubject.next(data);
-  }
-
-  // Current values getters
-  get currentLocationTree(): ShelfNode[] {
-    return this.locationTreeSubject.value;
-  }
-
-  get currentSectionTree(): ShelfNode[] {
-    return this.sectionTreeSubject.value;
-  }
-
-  get currentShelfTree(): ShelfNode[] {
-    return this.shelfTreeSubject.value;
-  }
-
-  get currentUpcTree(): ShelfNode[] {
-    return this.upcTreeSubject.value;
-  }
-
-  get currentReviewCategories(): ReviewCategory[] {
-    return this.reviewCategoriesSubject.value;
-  }
-
-  get currentSelectedReviewCategories(): ReviewCategory[] {
-    return this.selectedReviewCategoriesSubject.value;
-  }
-}
-
-
-Main Shelf Task Component (components/shelf-task.component.ts)
-
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { Subject, takeUntil } from 'rxjs';
-import { ShelfTaskService } from '../services/shelf-task.service';
-import { ShelfNode, ReviewCategory, TaskShelfVar } from '../models/shelf-task.models';
-
+import { SnackbarService } from './../../shared/snackbar.service';
+import { HttpClient } from '@angular/common/http';
+import { Component, OnInit, OnDestroy, Inject } from '@angular/core';
+import { FormControl } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
+import { firstValueFrom, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+import { countryModel, GetGridDataFilter, StoreFilter } from 'src/app/shared/common.model';
+import { CommonService } from 'src/app/shared/common.service';
+import * as XLSX from "xlsx";
 @Component({
-  selector: 'app-shelf-task',
-  templateUrl: './shelf-task.component.html',
-  styleUrls: ['./shelf-task.component.scss']
+  selector: 'app-dashbord-layout',
+  templateUrl: './dashbord-layout.component.html',
+  styleUrls: ['./dashbord-layout.component.css']
 })
-export class ShelfTaskComponent implements OnInit, OnDestroy {
+export class DashbordLayoutComponent implements OnInit, OnDestroy {
+
   private destroy$ = new Subject<void>();
-
-  // Tree data
-  locationTree: ShelfNode[] = [];
-  sectionTree: ShelfNode[] = [];
-  shelfTree: ShelfNode[] = [];
-  upcTree: ShelfNode[] = [];
-
-  // Review categories
-  reviewCategories: ReviewCategory[] = [];
-  selectedReviewCategories: ReviewCategory[] = [];
-
-  // UI state
-  activeTab: string = 'location';
-  activeNode: ShelfNode | null = null;
-  showLimitsPanel: boolean = false;
-  showChecksPanel: boolean = false;
-  isTaskLocked: boolean = false;
-
-  // Active section/shelf min/max tracking
-  activeSectionMinMax: number | null = null;
-  activeShelfMinMax: number | null = null;
-
-  // Current active tab for context
-  currActiveTab: string = 'trLocation';
-
-  // Form values
-  limitsForm = {
-    min: '',
-    max: '',
-    soft: '',
-    hard: ''
-  };
-
-  constructor(private shelfTaskService: ShelfTaskService) {}
-
-  ngOnInit() {
-    // Initialize with sample data (replace with actual initialization)
-    this.initializeTask(8946, 'DRAFT', '', 'currentUser');
-    
-    this.subscribeToDataStreams();
-    this.loadInitialData();
+  countrylist: countryModel[] = [];
+  employeedata: any[] = [];
+  countryctrl = new FormControl();
+  isFiltersExpanded = false; // Changed from sidebar to top filters
+  currentIRIWeek: any;
+  loggeduser: string;
+  isGeneratingWorkOrder = false;
+  isSendingWorkOrder = false;
+  isWoEmailed = true;          
+  pdfSessionId: string = '';    
+  territoryList: any[] = [];
+  constructor(
+    private commonService: CommonService,
+    private snackbar: SnackbarService,
+    public http: HttpClient,
+    @Inject('BASE_URL') public baseUrl: string,
+    private dialog:MatDialog
+  ) { 
+    this.loggeduser = localStorage.getItem("loggedUserId");
   }
 
-  ngOnDestroy() {
+  async ngOnInit(): Promise<void> {
+    // Remove sidebar state subscription since we're using top filters
+    this.commonService.groupsStatus$.subscribe(userGroups => {    
+      if(userGroups['isgTechnologyGroup']) { 
+        this.countryctrl.enable();
+      } else { 
+        this.countryctrl.disable();
+      }   
+    });
+
+    this.currentIRIWeek = await firstValueFrom(
+      this.http.get<any>(this.baseUrl + 'api/TaskAssinment/GetCurrentIRIWeek')
+    );   
+    
+    try {
+      this.employeedata = await firstValueFrom(this.commonService.getEmployee(this.loggeduser));
+       if (this.employeedata.length > 0) {
+        const defaultCountryId = '1';
+        this.countryctrl.setValue(defaultCountryId);
+        this.commonService.setCountry(defaultCountryId);
+      }
+    } catch(error) {
+      console.error('Error fetching employee data:', error);
+    }
+
+    try {
+      this.countrylist = await this.commonService.getcountry();
+    } catch {
+      console.error('Error fetching country data');
+    }      
+    
+    this.employeedata.filter((x) => {
+      this.countryctrl.setValue(x.countryId,{emitEvent:false});
+      this.commonService.setCountry(x.countryId);
+    });
+    this.countryctrl.valueChanges
+          .pipe(takeUntil(this.destroy$))
+          .subscribe(countryId => {
+            if (countryId) {
+              this.commonService.setCountry(countryId);
+            }
+          });
+
+  await this.loadTerritoryList();
+    // Initialize default filters
+    this.initializeDefaultFilters();
+  }
+
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
-  private initializeTask(taskId: number, taskVersion: string, lockoutId: string, currentUser: string) {
-    this.shelfTaskService.initializeTask(taskId, taskVersion, lockoutId, currentUser);
-    this.isTaskLocked = this.shelfTaskService.isTaskLocked();
+  // Changed from toggleSidebar to toggleFilters
+  toggleFilters(): void {
+    this.isFiltersExpanded = !this.isFiltersExpanded;
   }
 
-  private subscribeToDataStreams() {
-    // Subscribe to tree data
-    this.shelfTaskService.locationTree$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(data => this.locationTree = data);
-
-    this.shelfTaskService.sectionTree$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(data => this.sectionTree = data);
-
-    this.shelfTaskService.shelfTree$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(data => this.shelfTree = data);
-
-    this.shelfTaskService.upcTree$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(data => this.upcTree = data);
-
-    // Subscribe to review categories
-    this.shelfTaskService.reviewCategories$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(data => this.reviewCategories = data);
-
-    this.shelfTaskService.selectedReviewCategories$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(data => this.selectedReviewCategories = data);
+  onFiltersChanged(filters: any): void {
+    this.commonService.applyFilters(filters);
   }
 
-  private loadInitialData() {
-    // Load all tree data
-    this.shelfTaskService.loadAllTreeData();
-
-    // Load review categories
-    this.shelfTaskService.loadReviewCategories().subscribe(result => {
-      this.shelfTaskService.updateReviewCategories(result.ReviewCategories);
-      this.shelfTaskService.updateSelectedReviewCategories(result.CollectionCategories);
-    });
-
-    // Set initial active tab
-    this.onTabChange('location');
+  onClearFilters(): void {
+     this.commonService.clearFilters();
   }
 
-  onTabChange(tabName: string) {
-    this.activeTab = tabName;
-    this.currActiveTab = `tr${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`;
+  selectedcountry(event: any) {
+    if (event.isUserInput && event.source.value) {
+      this.commonService.setCountry(event.source.value);
+    }
+  }
+
+  private initializeDefaultFilters(): void {
+    const defaultFilters = new GetGridDataFilter();
+    // Set default values based on employee data
+    if (this.employeedata.length > 0) {
+      defaultFilters.countryId = this.employeedata['countryId'] || '1';
+      defaultFilters.territoryId = this.employeedata['fieldTerritoryNumber']?.toString() || '52';
+    }
     
-    // Reset active node and panels
-    this.activeNode = null;
-    this.hideAllPanels();
-
-    // Set default node selection based on tab
-    setTimeout(() => {
-      this.selectDefaultNode(tabName);
-    }, 100);
+    // this.commonService.initializeDefaultFilters(defaultFilters);
   }
 
-  private selectDefaultNode(tabName: string) {
-    let tree: ShelfNode[] = [];
+  ExportFetaDetailsToCSV(){
+    const payLoad:GetGridDataFilter ={
+      countryId: "1",
+      countryName: '',
+      lanId: this.loggeduser,
+      iriWeek: '2404',
+      iriWeekViewOnly: '',
+      area: '23',
+      territoryId: '52',
+      territoryName: '',
+      fromDate: '',
+      toDate: '',
+      storeNumber: '',
+      storeName: '',
+      state: '',
+      city: '',
+      taskNumber: '',
+      taskName: '',
+      positionNumber: '',
+      positionName: '',
+      empId: '',
+      firstName: '',
+      lastName: '',
+      empName: '',
+      fsrOver25hrs: 'false',
+      fsrOver6hrs: 'false',
+      fsrHour: '',
+      fsrHourOperator: 'NA',
+      assignedStores: 'false',
+      unassignedStores: 'false',
+      sample: 'false',
+      nonSample: 'false',
+      multiFsrStore: 'false',
+      vacation: 'false',
+      action: '',
+      comment: '',
+      fmEmail: '',
+      fmEmpId: '',
+      assignmentMode: '',
+      temporary: 'false'
+    }
+
     
-    switch(tabName) {
-      case 'location': tree = this.locationTree; break;
-      case 'section': tree = this.sectionTree; break;
-      case 'shelf': tree = this.shelfTree; break;
-      case 'upc': tree = this.upcTree; break;
-    }
+    this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/ExportFetaDetailsToCSV',payLoad).pipe(takeUntil(this.destroy$)).subscribe( { 
+          next: 
+          (response) => {  
+            if(!response){
+              this.snackbar.openSnackBar("No Data Found","error")
+            }
+            
 
-    if (tree.length > 0) {
-      const rootNode = tree[0];
-      this.onNodeSelect(rootNode);
-    }
-  }
+              const now = new Date();
 
-  onNodeSelect(node: ShelfNode) {
-    this.activeNode = node;
-    this.showHideVarDiv(node);
-  }
+              const year = now.getFullYear();
+              const month = String(now.getMonth() + 1).padStart(2, '0');
+              const day = String(now.getDate()).padStart(2, '0');
 
-  onNodeCheck(node: ShelfNode) {
-    node.checked = !node.checked;
-    
-    // Handle special logic for specific nodes
-    this.handleSpecialNodeLogic(node);
-    
-    // Update tree
-    this.updateTreeData();
-    
-    // Show/hide panels
-    this.showHideVarDiv(node);
-  }
+              let hours = now.getHours();
+              const minutes = String(now.getMinutes()).padStart(2, '0');
+              const seconds = String(now.getSeconds()).padStart(2, '0');
+              hours = hours % 12 || 12;
+              const formattedHours = String(hours).padStart(2, '0');
 
-  private handleSpecialNodeLogic(node: ShelfNode) {
-    // Handle Section tab special logic (nodes 11930, 11960)
-    if ((node.id === 11930 || node.id === 11960) && this.activeTab === 'section') {
-      const sectionTree = this.sectionTree;
-      const node1 = this.findNodeById(sectionTree, 11930);
-      const node2 = this.findNodeById(sectionTree, 11960);
-      
-      if (node1 && node2 && !node1.checked && !node2.checked) {
-        node.checked = true;
-      }
-    }
-  }
+              const formattedDateTime = `${year}-${month}-${day}_${formattedHours}_${minutes}_${seconds}`;
 
-  private findNodeById(nodes: ShelfNode[], id: number): ShelfNode | null {
-    for (let node of nodes) {
-      if (node.id === id) return node;
-      if (node.children) {
-        const found = this.findNodeById(node.children, id);
-        if (found) return found;
-      }
-    }
-    return null;
-  }
 
-  private showHideVarDiv(treeNode: ShelfNode) {
-    // Reset all panels first
-    this.hideAllPanels();
-    this.resetActiveSectionShelf();
+            const columnNames = response.map(item => ({
+              ['Store Number']:item.StoreNumber,
+              ['Store Name']:item.StoreName,
+              ['Store Address']:item.AddrLine1,
+              ['Store City']:item.City,
+              ['Store State']:item.State,
+              ['Store Zip']:item.Zip,
+              ['Task Name']:item.TaskName,
+              ['Assigned To']:item.AssignedTo,
+              ['Csr Info']:item.CsrInfo,
+                Wave:item.Wave,
+              ['Expected Collection Time']:item.ExpectedCollectionTime,
+          }))
 
-    // Handle specific node types
-    if (this.isShelfHeightNode(treeNode)) {
-      this.showLimitsPanel = true;
-      this.populateLimitsForm(treeNode);
-      this.activeShelfMinMax = treeNode.id;
-      return;
-    }
+          const worksheet = XLSX.utils.json_to_sheet(columnNames);
 
-    if (this.isSectionWidthNode(treeNode)) {
-      this.showLimitsPanel = true;
-      this.populateLimitsForm(treeNode);
-      this.activeSectionMinMax = treeNode.id;
-      return;
-    }
-
-    if (this.isMainVariableNode(treeNode)) {
-      this.showLimitsPanel = true;
-      this.showChecksPanel = true;
-      this.populateFullForm(treeNode);
-    }
-  }
-
-  private isShelfHeightNode(node: ShelfNode): boolean {
-    return node.id === 22700; // Other Height in Shelf
-  }
-
-  private isSectionWidthNode(node: ShelfNode): boolean {
-    const sectionWidthIds = [11160, 14825, 15995, 15490, 16910];
-    return sectionWidthIds.includes(node.id);
-  }
-
-  private isMainVariableNode(node: ShelfNode): boolean {
-    const mainVarIds = [200, 10100, 20000, 30100];
-    return mainVarIds.includes(node.id);
-  }
-
-  private populateLimitsForm(node: ShelfNode) {
-    this.limitsForm = {
-      min: (node.taskMin || node.mainMin || '').toString(),
-      max: (node.taskMax || node.mainMax || '').toString(),
-      soft: '',
-      hard: ''
-    };
-  }
-
-  private populateFullForm(node: ShelfNode) {
-    this.limitsForm = {
-      min: (node.taskMin || node.mainMin || '').toString(),
-      max: (node.taskMax || node.mainMax || '').toString(),
-      soft: (node.task_soft_check || node.main_soft_check || '').toString(),
-      hard: (node.task_hard_check || node.main_hard_check || '').toString()
-    };
-  }
-
-  private hideAllPanels() {
-    this.showLimitsPanel = false;
-    this.showChecksPanel = false;
-  }
-
-  private resetActiveSectionShelf() {
-    this.activeSectionMinMax = null;
-    this.activeShelfMinMax = null;
-  }
-
-  onLimitChange(field: string, value: string) {
-    if (!this.activeNode) return;
-
-    // Validate the change
-    if (!this.validateLimitChange(field, value)) {
-      this.resetLimitValue(field);
-      return;
-    }
-
-    // Update the active node
-    this.updateNodeValue(this.activeNode, field, value);
-    
-    // Update the form
-    (this.limitsForm as any)[field] = value;
-
-    // Update tree data
-    this.updateTreeData();
-  }
-
-  private validateLimitChange(field: string, value: string): boolean {
-    const numValue = parseInt(value, 10);
-    
-    if (isNaN(numValue)) return false;
-
-    // Validate based on current tab and field
-    if (this.currActiveTab === 'trShelf' && this.activeShelfMinMax) {
-      return this.validateShelfLimits(field, numValue);
-    }
-
-    if (this.currActiveTab === 'trSection' && this.activeSectionMinMax) {
-      return this.validateSectionLimits(field, numValue);
-    }
-
-    return this.validateGeneralLimits(field, numValue);
-  }
-
-  private validateShelfLimits(field: string, value: number): boolean {
-    if (field === 'min') {
-      const minVal = this.getMinMaxValueForShelf(1);
-      if (value > minVal) {
-        alert('The value for Min must be less than the smallest selected width variable');
-        return false;
-      }
-    }
-
-    if (field === 'max') {
-      if (value === 0) {
-        alert('A value is required for Max');
-        return false;
-      }
-      const maxVal = this.getMinMaxValueForShelf(2);
-      if (value < maxVal) {
-        alert('The value of Max must be greater than the largest selected width variable');
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  private validateSectionLimits(field: string, value: number): boolean {
-    if (field === 'min') {
-      const minVal = this.getMinMaxValueOfSection(1);
-      if (value > minVal && minVal !== -1) {
-        alert('The value for Min must be less than the smallest selected width variable');
-        return false;
-      }
-    }
-
-    if (field === 'max') {
-      if (value === 0) {
-        alert('A value is required for Max');
-        return false;
-      }
-      const maxVal = this.getMinMaxValueOfSection(2);
-      if (value < maxVal && maxVal !== -1) {
-        alert('The value of Max must be greater than the largest selected width variable');
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  private validateGeneralLimits(field: string, value: number): boolean {
-    const minVal = parseInt(this.limitsForm.min, 10) || 0;
-    const softVal = parseInt(this.limitsForm.soft, 10) || 0;
-    const hardVal = parseInt(this.limitsForm.hard, 10) || 0;
-    const maxVal = parseInt(this.limitsForm.max, 10) || 0;
-
-    if (field === 'soft' && value < minVal) {
-      alert("'Soft Check' must be greater than or equal to the Min Limit");
-      return false;
-    }
-
-    if (field === 'hard' && value < (softVal + 3)) {
-      alert("The value for 'Hard Check' must be at least 3 greater than the value of 'Soft Check'");
-      return false;
-    }
-
-    if (this.currActiveTab === 'trLocation' && field === 'hard' && value > maxVal) {
-      alert("Max Limit must be greater than the Hard Check");
-      return false;
-    }
-
-    return true;
-  }
-
-  private getMinMaxValueForShelf(type: 1 | 2): number {
-    const shelfTree = this.shelfTree;
-    const values: number[] = [];
-
-    this.collectHeightValues(shelfTree, values);
-
-    if (values.length === 0) return type === 1 ? 0 : 999;
-    
-    return type === 1 ? Math.min(...values) : Math.max(...values);
-  }
-
-  private collectHeightValues(nodes: ShelfNode[], values: number[]) {
-    nodes.forEach(node => {
-      if (node.name === 'Height' && node.children) {
-        node.children.forEach(child => {
-          if (child.checked && child.name !== 'Other Height' && child.value) {
-            values.push(child.value);
+          const headerRow = Object.keys(columnNames[0]); for (let colIndex = 0; colIndex < headerRow.length; colIndex++) {
+              const cellAddress = XLSX.utils.encode_cell({ r: 0, c: colIndex });
+              if (!worksheet[cellAddress]) continue;
+              worksheet[cellAddress].s = {
+                  font: { bold: true }
+              };
           }
-        });
-      }
-      if (node.children) {
-        this.collectHeightValues(node.children, values);
-      }
-    });
+
+          const colWidths = headerRow.map(header => {
+              const maxLength = Math.max(header.length, ...columnNames.map(row => (row[header] ? row[header].toString().length : 0)));
+              return { wch: maxLength + 2 };
+          });
+          worksheet['!cols'] = colWidths;
+
+          const workbook = XLSX.utils.book_new()
+          XLSX.utils.book_append_sheet(workbook, worksheet, `Task_Assignment_Details`)
+          XLSX.writeFile(workbook, `Task_Assignment_Details_${formattedDateTime}.xlsx`)
+            },
+            error: 
+            (error) => { console.error(error); },
+            });   
+
   }
 
-  private getMinMaxValueOfSection(type: 1 | 2): number {
-    const sectionTree = this.sectionTree;
-    let parentNode: ShelfNode | null = null;
-
-    // Find the correct parent node based on activeSectionMinMax
-    if (this.activeSectionMinMax === 11160) {
-      parentNode = this.findNodeById(sectionTree, 10210); // Section Width under Presence of Section
-    } else if (this.activeSectionMinMax === 15490) {
-      parentNode = this.findNodeById(sectionTree, 15000); // Coffin Section Width
-    } else if (this.activeSectionMinMax === 15995) {
-      parentNode = this.findNodeById(sectionTree, 15500); // Upright Section Width
-    } else if (this.activeSectionMinMax === 14825) {
-      parentNode = this.findNodeById(sectionTree, 14000); // Shelf Section Width
-    } else if (this.activeSectionMinMax === 16910) {
-      parentNode = this.findNodeById(sectionTree, 16500); // Section Depth
-    }
-
-    if (!parentNode || !parentNode.children) return -1;
-
-    const values: number[] = [];
-    parentNode.children.forEach(child => {
-      if (child.checked && 
-          child.name !== 'Other Section Width' && 
-          child.name !== 'Other Section Depth' && 
-          child.value) {
-        values.push(child.value);
-      }
-    });
-
-    if (values.length === 0) return -1;
-    
-    return type === 1 ? Math.min(...values) : Math.max(...values);
-  }
-
-  private updateNodeValue(node: ShelfNode, field: string, value: string) {
-    switch (field) {
-      case 'min':
-        node.taskMin = value;
-        break;
-      case 'max':
-        node.taskMax = value;
-        break;
-      case 'soft':
-        node.task_soft_check = value;
-        break;
-      case 'hard':
-        node.task_hard_check = value;
-        break;
+   private async loadTerritoryList(): Promise<void> {
+    try {
+      this.territoryList = await firstValueFrom(
+        this.http.get<any[]>(
+          this.baseUrl + 'api/TaskAssinment/GetTerritory'
+        )
+      );
+    } catch (error) {
+      console.error('Error loading territory list:', error);
+      this.snackbar.openSnackBar('Error loading territory information','error');
     }
   }
 
-  private resetLimitValue(field: string) {
-    if (!this.activeNode) return;
-
-    switch (field) {
-      case 'min':
-        this.limitsForm.min = (this.activeNode.taskMin || this.activeNode.mainMin || '').toString();
-        break;
-      case 'max':
-        this.limitsForm.max = (this.activeNode.taskMax || this.activeNode.mainMax || '').toString();
-        break;
-      case 'soft':
-        this.limitsForm.soft = (this.activeNode.task_soft_check || this.activeNode.main_soft_check || '').toString();
-        break;
-      case 'hard':
-        this.limitsForm.hard = (this.activeNode.task_hard_check || this.activeNode.main_hard_check || '').toString();
-        break;
-    }
-  }
-
-  private updateTreeData() {
-    // Update the appropriate tree based on current tab
-    switch (this.activeTab) {
-      case 'location':
-        this.shelfTaskService.updateLocationTree([...this.locationTree]);
-        break;
-      case 'section':
-        this.shelfTaskService.updateSectionTree([...this.sectionTree]);
-        break;
-      case 'shelf':
-        this.shelfTaskService.updateShelfTree([...this.shelfTree]);
-        break;
-      case 'upc':
-        this.shelfTaskService.updateUpcTree([...this.upcTree]);
-        break;
-    }
-  }
-
-  // Tree utility methods
-  onAllowDrag = (node: ShelfNode): boolean => {
-    // Implement drag restrictions based on parent nodes
-    if (!node.children || node.children.length === 0) return false;
-    
-    const parent = this.findParentNode(node);
-    if (!parent) return false;
-
-    const allowedParents = ['Display Location', 'Department', 'Stocking Location', 'Shelf Type'];
-    return allowedParents.includes(parent.name);
-  }
-
-  onAllowDrop = (dragNode: ShelfNode, dropNode: ShelfNode): boolean => {
-    const dragParent = this.findParentNode(dragNode);
-    const dropParent = this.findParentNode(dropNode);
-    
-    return dragParent?.name === dropParent?.name;
-  }
-
-  private findParentNode(node: ShelfNode): ShelfNode | null {
-    // Implementation to find parent node
-    // This would need to traverse the tree to find the parent
-    return null; // Simplified for brevity
-  }
-
-  selectAllChildren(node: ShelfNode) {
-    if (!node.children) return;
-
-    node.checked = true;
-    node.children.forEach(child => {
-      child.checked = true;
-    });
-
-    this.updateTreeData();
-  }
-
-  // Save functionality
-  saveShelfData() {
-    if (!this.validateShelfData()) return;
-
-    const taskShelfVarObj: TaskShelfVar[] = [];
-    
-    // Populate from all trees
-    this.populateShelfVarObject(taskShelfVarObj, this.locationTree);
-    this.populateShelfVarObject(taskShelfVarObj, this.sectionTree);
-    this.populateShelfVarObject(taskShelfVarObj, this.shelfTree);
-    this.populateShelfVarObject(taskShelfVarObj, this.upcTree);
-
-    const shelfVarData = JSON.stringify(taskShelfVarObj);
-
-    this.shelfTaskService.saveShelfVarDetails(shelfVarData).subscribe({
-      next: (result) => {
-        console.log('Shelf data saved successfully', result);
-        this.saveReviewCategoryDetails();
-      },
-      error: (error) => {
-        console.error('Error saving shelf data', error);
-        alert('Error occurred while saving shelf data.');
-      }
-    });
-  }
-
-  private validateShelfData(): boolean {
-    // Check that at least one location is selected
-    const checkedLocationCount = this.countCheckedNodes(this.locationTree);
-    
-    if (checkedLocationCount === 0) {
-      alert('Please select at least one Location!');
-      return false;
-    }
-
-    return true;
-  }
-
-  private countCheckedNodes(nodes: ShelfNode[]): number {
-    let count = 0;
-    nodes.forEach(node => {
-      if (node.checked) count++;
-      if (node.children) {
-        count += this.countCheckedNodes(node.children);
-      }
-    });
-    return count;
-  }
-
-  private populateShelfVarObject(taskShelfVarObj: TaskShelfVar[], nodes: ShelfNode[]) {
-    nodes.forEach(node => {
-      if (node.checked) {
-        const shelfVar: TaskShelfVar = {
-          task_number: 8946, // This should come from service
-          prompt_level: 0,
-          ShelfVarID: node.id,
-          min: node.taskMin,
-          max: node.taskMax,
-          soft_check: node.task_soft_check,
-          hard_check: node.task_hard_check,
-          ordinal: node.mainOrdinal,
-          name: node.name
-        };
-        taskShelfVarObj.push(shelfVar);
-      }
-
-      if (node.children) {
-        this.populateShelfVarObject(taskShelfVarObj, node.children);
-      }
-    });
-  }
-
-  private saveReviewCategoryDetails() {
-    const reviewCats = JSON.stringify(this.selectedReviewCategories);
-    
-    this.shelfTaskService.saveReviewCategoryDetails(reviewCats).subscribe({
-      next: (result) => {
-        console.log('Review categories saved successfully', result);
-        alert('Shelf data saved successfully!');
-      },
-      error: (error) => {
-        console.error('Error saving review categories', error);
-        alert('Error occurred while saving collection categories data for shelf.');
-      }
-    });
-  }
-
-  // Review category methods
-  onReviewCategoryChange(category: ReviewCategory, field: string, value: any) {
-    // Update the category
-    const index = this.selectedReviewCategories.findIndex(c => 
-      c.ReviewCategoryNumber === category.ReviewCategoryNumber);
-    
-    if (index !== -1) {
-      (this.selectedReviewCategories[index] as any)[field] = value;
-    } else if (value) {
-      // Add new category if it doesn't exist and value is set
-      this.selectedReviewCategories.push({
-        ...category,
-        [field]: value
-      });
-    }
-
-    this.shelfTaskService.updateSelectedReviewCategories([...this.selectedReviewCategories]);
-  }
-
-  // Number-only input handler
-  onNumberInput(event: KeyboardEvent): boolean {
-    const charCode = event.which ? event.which : event.keyCode;
-    if (charCode > 31 && (charCode < 48 || charCode > 57)) {
-      return false;
-    }
-    return true;
-  }
-}
-Main Template (shelf-task.component.html)
-<div class="shelf-task-container">
-  <!-- Tab Navigation -->
-  <mat-tab-group [(selectedIndex)]="activeTabIndex" (selectedTabChange)="onTabChange($event.tab.textLabel.toLowerCase())">
-    <mat-tab label="Location">
-      <app-shelf-tree 
-        [nodes]="locationTree"
-        [disabled]="isTaskLocked"
-        (nodeSelect)="onNodeSelect($event)"
-        (nodeCheck)="onNodeCheck($event)"
-        (selectAllChildren)="selectAllChildren($event)">
-      </app-shelf-tree>
-    </mat-tab>
-    
-    <mat-tab label="Section">
-      <app-shelf-tree 
-        [nodes]="sectionTree"
-        [disabled]="isTaskLocked"
-        (nodeSelect)="onNodeSelect($event)"
-        (nodeCheck)="onNodeCheck($event)"
-        (selectAllChildren)="selectAllChildren($event)">
-      </app-shelf-tree>
-    </mat-tab>
-    
-    <mat-tab label="Shelf">
-      <app-shelf-tree 
-        [nodes]="shelfTree"
-        [disabled]="isTaskLocked"
-        (nodeSelect)="onNodeSelect($event)"
-        (nodeCheck)="onNodeCheck($event)"
-        (selectAllChildren)="selectAllChildren($event)">
-      </app-shelf-tree>
-    </mat-tab>
-    
-    <mat-tab label="UPC">
-      <app-shelf-tree 
-        [nodes]="upcTree"
-        [disabled]="isTaskLocked"
-        (nodeSelect)="onNodeSelect($event)"
-        (nodeCheck)="onNodeCheck($event)"
-        (selectAllChildren)="selectAllChildren($event)">
-      </app-shelf-tree>
-    </mat-tab>
-  </mat-tab-group>
-
-  <!-- Limits and Checks Panel -->
-  <div class="panels-container" *ngIf="showLimitsPanel || showChecksPanel">
-    <mat-card class="limits-checks-card">
-      <mat-card-header>
-        <mat-card-title>Checks / Limits</mat-card-title>
-      </mat-card-header>
-      
-      <mat-card-content>
-        <!-- Limits Section -->
-        <div class="limits-section" *ngIf="showLimitsPanel">
-          <h3>Limits</h3>
-          <mat-form-field appearance="fill">
-            <mat-label>Min</mat-label>
-            <input matInput 
-                   type="number" 
-                   [(ngModel)]="limitsForm.min"
-                   (change)="onLimitChange('min', $event.target.value)"
-                   (keypress)="onNumberInput($event)"
-                   [disabled]="isTaskLocked"
-                   maxlength="3">
-          </mat-form-field>
-
-          <mat-form-field appearance="fill">
-            <mat-label>Max</mat-label>
-            <input matInput 
-                   type="number" 
-                   [(ngModel)]="limitsForm.max"
-                   (change)="onLimitChange('max', $event.target.value)"
-                   (keypress)="onNumberInput($event)"
-                   [disabled]="isTaskLocked"
-                   maxlength="3">
-          </mat-form-field>
-        </div>
-
-        <!-- Checks Section -->
-        <div class="checks-section" *ngIf="showChecksPanel">
-          <h3>Checks</h3>
-          <mat-form-field appearance="fill">
-            <mat-label>Soft</mat-label>
-            <input matInput 
-                   type="number" 
-                   [(ngModel)]="limitsForm.soft"
-                   (change)="onLimitChange('soft', $event.target.value)"
-                   (keypress)="onNumberInput($event)"
-                   [disabled]="isTaskLocked"
-                   maxlength="3">
-          </mat-form-field>
-
-          <mat-form-field appearance="fill">
-            <mat-label>Hard</mat-label>
-            <input matInput 
-                   type="number" 
-                   [(ngModel)]="limitsForm.hard"
-                   (change)="onLimitChange('hard', $event.target.value)"
-                   (keypress)="onNumberInput($event)"
-                   [disabled]="isTaskLocked"
-                   maxlength="3">
-          </mat-form-field>
-        </div>
-      </mat-card-content>
-    </mat-card>
-  </div>
-
-  <!-- Review Categories Section -->
-  <div class="review-categories-section">
-    <app-review-category-grid
-      [categories]="reviewCategories"
-      [selectedCategories]="selectedReviewCategories"
-      [disabled]="isTaskLocked"
-      (categoryChange)="onReviewCategoryChange($event.category, $event.field, $event.value)">
-    </app-review-category-grid>
-  </div>
-
-  <!-- Save Button -->
-  <div class="actions-section">
-    <button mat-raised-button 
-            color="primary" 
-            (click)="saveShelfData()"
-            [disabled]="isTaskLocked">
-      Save Shelf
+dashbord-layout.component.html
+<div class="dashboard-layout">
+  <!-- Toolbar -->
+  <mat-toolbar class="mat-toolbar-primary">
+    <button mat-icon-button (click)="toggleFilters()" aria-label="Toggle filters">
+      <mat-icon>filter_list</mat-icon>
     </button>
+    <h1 class="toolbar-title">Assignments Dashboard</h1>
+    <span class="toolbar-spacer"></span>
+    
+    <!-- Country Selector -->
+    <div class="country-field">
+      <mat-form-field appearance="standard">
+        <mat-select [formControl]="countryctrl" placeholder="Select country">
+          <mat-option *ngFor="let country of countrylist" 
+                      [value]="country.countryID" 
+                      (onSelectionChange)="selectedcountry($event)">
+            {{country.countryName}}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>        
+    </div>
+    
+    <button mat-icon-button aria-label="Edit" matTooltip="Generate Work Order" 
+          > 
+      <mat-icon>edit_square</mat-icon>
+    </button>
+    <button mat-icon-button aria-label="Send" matTooltip="Email Work Order" 
+        >
+      <mat-icon>send</mat-icon>
+    </button>
+    <button mat-icon-button aria-label="Download" matTooltip="Export Grid Data" (click)=" ExportFetaDetailsToCSV();$event.stopPropagation()">
+      <mat-icon>download</mat-icon>
+    </button>
+  </mat-toolbar>
+
+  <!-- TOP HORIZONTAL FILTER BAR -->
+  <section class="filter-top-bar" [class.expanded]="isFiltersExpanded">
+    <app-filter-sidebar 
+      (filtersChanged)="onFiltersChanged($event)"
+      (clearFilters)="onClearFilters()">
+    </app-filter-sidebar>
+  </section>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <div class="content-wrapper">
+      <app-store-table></app-store-table>
+    </div>
   </div>
 </div>
 
-Shelf Tree Component (components/shelf-tree.component.ts)
+filter-sidebar.component.ts
 
-import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
-import { TreeNode, ITreeOptions } from '@ali-hm/angular-tree-component';
-import { ShelfNode } from '../models/shelf-task.models';
+import { HttpClient } from '@angular/common/http';
+import { Component, ElementRef, EventEmitter, Inject, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
+import { FormBuilder, FormControl, FormGroup } from '@angular/forms';
+import { catchError, debounceTime, distinctUntilChanged, firstValueFrom, map, Observable, of, startWith, Subject, switchMap, takeUntil, tap } from 'rxjs';
+import { StoreFilter, FilterOptions, GetGridDataFilter } from 'src/app/shared/common.model';
+import { CommonService } from 'src/app/shared/common.service';
 
 @Component({
-  selector: 'app-shelf-tree',
-  templateUrl: './shelf-tree.component.html',
-  styleUrls: ['./shelf-tree.component.scss']
+  selector: 'app-filter-sidebar',
+  templateUrl: './filter-sidebar.component.html',
+  styleUrls: ['./filter-sidebar.component.css']
 })
-export class ShelfTreeComponent implements OnChanges {
-  @Input() nodes: ShelfNode[] = [];
-  @Input() disabled: boolean = false;
-  @Output() nodeSelect = new EventEmitter<ShelfNode>();
-  @Output() nodeCheck = new EventEmitter<ShelfNode>();
-  @Output() selectAllChildren = new EventEmitter<ShelfNode>();
+export class FilterSidebarComponent implements OnInit, OnDestroy {
+  @Output() filtersChanged = new EventEmitter<GetGridDataFilter>();
+  @Output() clearFilters = new EventEmitter<void>();
 
-  treeOptions: ITreeOptions = {
-    useCheckbox: true,
-    useTriState: true,
-    displayField: 'name',
-    childrenField: 'children',
-    hasChildrenField: 'isParent',
-    allowDrag: true,
-    allowDrop: true
-  };
+  filterForm!: FormGroup;
+  showAdvancedFilters = false;
+  showSpinner = false;
+  
+  // Data arrays
+  employeedata: any[] = [];
+  iriWeeks: any[] = [];
+  territories: any[] = [];
+  filteredStores: any[] = [];
+  filteredState: any[] = [];
+  filteredCity: any[] = [];
+  filteredCluster: any[] = [];
+  filteredTask: any[] = [];
+  filteredFSR: any[] = [];
 
-  ngOnChanges(changes: SimpleChanges) {
-    if (changes['disabled']) {
-      this.updateNodeDisabledState();
+  // Selected values
+  selectedStoreNumber = '';
+  selectedState = '';
+  selectedCity = '';
+  selectedCluster = '';
+  selectedTask = '';
+  selectedFsrId = '';
+  areaNBRctrl = new FormControl();
+  private unsubscribe$ = new Subject<void>();
+  private loggeduser: string;
+
+  constructor(
+    private fb: FormBuilder,
+    private commonService: CommonService,
+    public http: HttpClient,
+    @Inject('BASE_URL') public baseUrl: string,
+  ) {
+    this.initializeForm();
+    this.loggeduser = localStorage.getItem("loggedUserId") || '';
+  }
+
+  async ngOnInit(): Promise<void> {
+    try {
+      this.employeedata = await firstValueFrom(this.commonService.getEmployee(this.loggeduser));
+      await this.getIriWeek();
+      await this.getTerritory();
+      this.setupFormSubscriptions();
+      // Apply default filters after initialization
+      this.applyDefaultFilters();
+    } catch (error) {
+      console.error('Error initializing filter component:', error);
     }
   }
 
-  private updateNodeDisabledState() {
-    this.updateNodesRecursive(this.nodes);
-  }
-
-  private updateNodesRecursive(nodes: ShelfNode[]) {
-    nodes.forEach(node => {
-      node.disabled = this.disabled || node.optional !== 'Y';
-      if (node.children) {
-        this.updateNodesRecursive(node.children);
-      }
+  private initializeForm(): void {
+    this.filterForm = this.fb.group({
+      iriWeek: [''],
+      territory: [''],
+      store: [''],
+      state: [''],
+      city: [''],
+      cluster: [''],
+      task: [''],
+      fsr: [''],
+      fsrHour: [''],
+      storeAssignment: ['all'], // assigned, unassigned, all
+      sampleType: ['all'], // sample, nonSample, all
+      multiFsrStore: [false]
     });
   }
 
-  onNodeActivate(event: any) {
-    const node: ShelfNode = event.node.data;
-    this.nodeSelect.emit(node);
+  // FIXED: Get IRI Week with proper subscription pattern
+  private getIriWeek(): void {
+    this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetIriWeek')
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe({
+        next: (response) => {
+          this.iriWeeks = response;
+          // Set default to second item (index 1) as in your original code
+          if (this.iriWeeks.length > 1) {
+            this.filterForm.get('iriWeek')?.setValue(this.iriWeeks?.[0]?.['iri_week'], { emitEvent: false });
+          }
+        },
+        error: (error) => { 
+          console.error('Error fetching IRI weeks:', error); 
+        }
+      });
   }
 
-  onNodeToggle(event: any) {
-    const node: ShelfNode = event.node.data;
-    if (!node.disabled) {
-      this.nodeCheck.emit(node);
+  // FIXED: Get Territory with proper subscription pattern
+  private getTerritory(): void {
+    this.showSpinner = true;
+    this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetTerritory')
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe({
+        next: (response) => {
+          this.territories = response;
+          // Set default territory based on employee data
+          const defaultTerritory = this.employeedata?.['fieldTerritoryNumber'] == 0 || 
+                              !this.employeedata?.['fieldTerritoryNumber']
+                              ? this.territories?.[0]?.['territory_id']
+                              : this.employeedata?.['territory_id'];
+          this.filterForm.get('territory')?.setValue(defaultTerritory, { emitEvent: false });
+          this.areaNBRctrl.setValue( this.territories?.[0]?.['area'])
+          this.showSpinner = false;
+        },
+        error: (error) => { 
+          console.error('Error fetching territories:', error);
+          this.showSpinner = false; 
+        }
+      });
+  }
+
+  private setupFormSubscriptions(): void {
+    // Store autocomplete
+    this.filterForm.get('store')?.valueChanges.pipe(
+      debounceTime(300),
+      tap(() => (this.showSpinner = true)),
+      switchMap(searchText => this.getStore(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(stores => {
+      this.filteredStores = stores || [];
+      this.showSpinner = false;
+    });
+
+    // State autocomplete
+    this.filterForm.get('state')?.valueChanges.pipe(
+      debounceTime(300),
+      tap(() => (this.showSpinner = true)),
+      switchMap(searchText => this.getState(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(states => {
+      this.filteredState = states || [];
+      this.showSpinner = false;
+    });
+
+    // City autocomplete
+    this.filterForm.get('city')?.valueChanges.pipe(
+      debounceTime(300),
+      tap(() => (this.showSpinner = true)),
+      switchMap(searchText => this.getCity(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(cities => {
+      this.filteredCity = cities || [];
+      this.showSpinner = false;
+    });
+
+    // Cluster autocomplete
+    this.filterForm.get('cluster')?.valueChanges.pipe(
+      debounceTime(300),
+      tap(() => (this.showSpinner = true)),
+      switchMap(searchText => this.getCluster(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(clusters => {
+      this.filteredCluster = clusters || [];
+      this.showSpinner = false;
+    });
+
+    // Task autocomplete
+    this.filterForm.get('task')?.valueChanges.pipe(
+      debounceTime(300),
+      switchMap(searchText => this.getTask(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(tasks => {
+      this.filteredTask = tasks || [];
+    });
+
+    // FSR autocomplete
+    this.filterForm.get('fsr')?.valueChanges.pipe(
+      debounceTime(300),
+      switchMap(searchText => this.getFsr(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(fsrs => {
+      this.filteredFSR = fsrs || [];
+    });
+  }
+
+ 
+  getStore(searchText: string) {
+    if (!searchText || searchText.length < 3) {
+      return of([]);
     }
+
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetStore', payload)
+      .pipe(catchError(() => of([])));
   }
 
-  onSelectAllChildren(node: ShelfNode) {
-    if (!this.disabled) {
-      this.selectAllChildren.emit(node);
+  getState(searchText: string) {
+    if (!searchText || searchText.length <= 0) { return of([]); }
+    
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetState', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  getCity(searchText: string) {
+    if (!searchText || searchText.length <= 0) { return of([]); }
+    
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetCity', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  getCluster(searchText: string) {
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetCluster', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  getTask(searchText: string) {
+    if (!searchText || searchText.length <= 0) { return of([]); }
+    
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetTask', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  getFsr(searchText: string) {
+    if (!searchText || searchText.length <= 0) { return of([]); }
+    
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetFsr', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  // Event handlers for IRI Week and Territory changes
+  onIriWeekChange(): void {
+    // Clear dependent fields when IRI week changes
+    this.filterForm.patchValue({
+      store: '',
+      state: '',
+      city: '',
+      cluster: '',
+      task: '',
+      fsr: ''
+    });
+    this.clearSelectedValues();
+  }
+
+  onTerritoryChange(): void {
+    // this.areaNBRctrl.setValue(ter.area)
+    // Clear dependent fields when territory changes
+    this.filterForm.patchValue({
+      store: '',
+      state: '',
+      city: '',
+      cluster: '',
+      task: '',
+      fsr: ''
+    });
+    this.clearSelectedValues();
+  }
+
+  // Selection event handlers
+  onStoreSelected(event: any) {
+    const selectedStore = this.filteredStores.find(store => store.store_name === event.option.value);
+    this.selectedStoreNumber = selectedStore?.store_number || '';
+  }
+
+  onStateSelected(event: any) {
+    const selectedState = this.filteredState.find(state => state.state === event.option.value);
+    this.selectedState = selectedState?.state || '';
+  }
+
+  onCitySelected(event: any) {
+    const selectedCity = this.filteredCity.find(city => city.city === event.option.value);
+    this.selectedCity = selectedCity?.city || '';
+  }
+
+  onClusterSelected(event: any) {
+    const selectedCluster = this.filteredCluster.find(cluster => cluster.position_name === event.option.value);
+    this.selectedCluster = selectedCluster?.position_number || '';
+  }
+
+  onTaskSelected(event: any) {
+    const selectedTask = this.filteredTask.find(task => task.task_name === event.option.value);
+    this.selectedTask = selectedTask?.task_number || '';
+  }
+
+  onFsrSelected(event: any) {
+    const selectedFsr = this.filteredFSR.find(fsr => fsr.emp_name === event.option.value);
+    this.selectedFsrId = selectedFsr?.emp_id || '';
+  }
+
+  // Control methods
+  toggleAdvancedFilters(): void {
+    this.showAdvancedFilters = !this.showAdvancedFilters;
+  }
+
+
+  onApplyFilters(): void {
+
+    const formValue = this.filterForm.value;
+    
+    const filters = new GetGridDataFilter();
+    filters.countryId = "1"
+    filters.lanId=this.loggeduser;
+    filters.iriWeek = formValue.iriWeek || '';
+    filters.territoryId = formValue.territory || '';
+    filters.storeNumber = this.selectedStoreNumber;
+    filters.storeName = formValue.store || '';
+    filters.state = this.selectedState;
+    filters.city = this.selectedCity;
+    filters.positionNumber = this.selectedCluster;
+    filters.taskNumber = this.selectedTask;
+    filters.empId = this.selectedFsrId;
+    filters.fsrHour = formValue.fsrHour || '';
+    filters.area = this.areaNBRctrl.value||'23';
+    filters.fsrOver25hrs='false';
+    filters.fsrOver6hrs='false';
+    filters.fsrHourOperator= 'NA';
+    filters.temporary='false'
+    // Handle radio button selections
+    if (formValue.storeAssignment === 'assigned') {
+      filters.assignedStores = 'true';
+      filters.unassignedStores = 'false';
+    } else if (formValue.storeAssignment === 'unassigned') {
+      filters.assignedStores = 'false';
+      filters.unassignedStores = 'true';
+    } else {
+      filters.assignedStores = 'false';
+      filters.unassignedStores = 'false';
     }
+
+    if (formValue.sampleType === 'sample') {
+      filters.sample = 'true';
+      filters.nonSample = 'false';
+    } else if (formValue.sampleType === 'nonSample') {
+      filters.sample = 'false';
+      filters.nonSample = 'true';
+    } else {
+      filters.sample = 'false';
+      filters.nonSample = 'false';
+    }
+
+    filters.multiFsrStore = formValue.multiFsrStore ? 'true' : 'false';
+    
+    this.filtersChanged.emit(filters);
   }
 
-  canDrag = (node: TreeNode): boolean => {
-    return !this.disabled && this.hasValidDragParent(node.data);
+  // MISSING FUNCTION: Clear Filters
+  onClearFilters(): void {
+    this.filterForm.reset({
+      iriWeek: this.iriWeeks.length > 1 ? this.iriWeeks?.[0]?.['iri_week'] : '',
+      territory: this.employeedata?.['fieldTerritoryNumber'] == 0 || 
+                              !this.employeedata?.['fieldTerritoryNumber']
+                              ? this.territories?.[0]?.['territory_id']
+                              : this.employeedata?.['territory_id'],
+      storeAssignment: 'all',
+      sampleType: 'all',
+      multiFsrStore: false
+    });
+    this.clearSelectedValues();
+    this.clearFilters.emit();
   }
 
-  canDrop = (dragNode: TreeNode, dropNode: TreeNode): boolean => {
-    return !this.disabled && this.hasValidDropTarget(dragNode.data, dropNode.data);
+  // MISSING FUNCTION: Apply Default Filters on Load
+  private applyDefaultFilters(): void {
+    // Wait a moment for form to be properly initialized
+    setTimeout(() => {
+      this.onApplyFilters();
+    }, 500);
   }
 
-  private hasValidDragParent(node: ShelfNode): boolean {
-    // Implement drag validation logic
-    const allowedParents = ['Display Location', 'Department', 'Stocking Location', 'Shelf Type'];
-    // This would need parent finding logic
-    return true; // Simplified
+  private clearSelectedValues(): void {
+    this.selectedStoreNumber = '';
+    this.selectedState = '';
+    this.selectedCity = '';
+    this.selectedCluster = '';
+    this.selectedTask = '';
+    this.selectedFsrId = '';
   }
 
-  private hasValidDropTarget(dragNode: ShelfNode, dropNode: ShelfNode): boolean {
-    // Implement drop validation logic
-    return true; // Simplified
+  // Clear individual controls
+  clearStrCtrl() { 
+    this.filterForm.get('store')?.reset(); 
+    this.selectedStoreNumber = '';
+  }
+  clearStaCtrl() { 
+    this.filterForm.get('state')?.reset(); 
+    this.selectedState = '';
+  }
+  clearcityCtrl() { 
+    this.filterForm.get('city')?.reset(); 
+    this.selectedCity = '';
+  }
+  clearTaskCtrl() { 
+    this.filterForm.get('task')?.reset(); 
+    this.selectedTask = '';
+  }
+  clearFsrCtrl() { 
+    this.filterForm.get('fsr')?.reset(); 
+    this.selectedFsrId = '';
   }
 
-  isOtherSectionWidth(node: ShelfNode): boolean {
-    return node.name === 'Other Section Width' && node.var_type_id === 2;
-  }
-
-  isOtherHeight(node: ShelfNode): boolean {
-    return node.name === 'Other Height' && node.var_type_id === 2;
-  }
-
-  onCustomInputChange(node: ShelfNode, field: string, value: string) {
-    (node as any)[field] = value;
-    this.nodeCheck.emit(node);
+  ngOnDestroy(): void {
+    this.unsubscribe$.next();
+    this.unsubscribe$.complete();
   }
 }
 
-Shelf Tree Template (shelf-tree.component.html)
 
-<div class="tree-container">
-  <tree-root 
-    [nodes]="nodes" 
-    [options]="treeOptions"
-    (activate)="onNodeActivate($event)"
-    (toggleExpanded)="onNodeToggle($event)">
-    
-    <ng-template #treeNodeTemplate let-node let-index="index">
-      <div class="tree-node-content">
-        <!-- Checkbox -->
-        <input type="checkbox" 
-               [checked]="node.data.checked"
-               [disabled]="node.data.disabled || disabled"
-               (change)="onNodeToggle($event)"
-               class="node-checkbox">
+filter-sidebar.component.html
 
-        <!-- Node Name -->
-        <span class="node-name" 
-              [class.disabled]="node.data.disabled || disabled"
-              (click)="onNodeActivate($event)">
-          {{ node.data.name }}
-        </span>
-
-        <!-- Select All Children Button -->
-        <button *ngIf="node.data.isParent && !disabled" 
-                mat-button 
-                class="select-all-btn"
-                (click)="onSelectAllChildren(node.data)">
-          <b>(Select all Child variables)</b>
-        </button>
-
-        <!-- Custom Input for Other Section Width -->
-        <div *ngIf="isOtherSectionWidth(node.data) && node.data.checked" 
-             class="custom-input-container">
-          <mat-form-field appearance="fill" class="custom-input">
-            <mat-label>Min</mat-label>
-            <input matInput 
-                   type="number"
-                   [value]="node.data.taskMin"
-                   (change)="onCustomInputChange(node.data, 'taskMin', $event.target.value)"
-                   [disabled]="disabled"
-                   [attr.min]="node.data.mainMin"
-                   [attr.max]="node.data.mainMax">
-          </mat-form-field>
-          
-          <mat-form-field appearance="fill" class="custom-input">
-            <mat-label>Max</mat-label>
-            <input matInput 
-                   type="number"
-                   [value]="node.data.taskMax"
-                   (change)="onCustomInputChange(node.data, 'taskMax', $event.target.value)"
-                   [disabled]="disabled"
-                   [attr.min]="node.data.mainMin"
-                   [attr.max]="node.data.mainMax">
+<div class="filter-topbar">
+  <div class="filter-container">
+    <form [formGroup]="filterForm" class="filter-form">
+      
+      <!-- Row 1: Main Filters -->
+      <div class="filter-row main-filters">
+        <!-- IRI Week -->
+        <div class="filter-field">
+          <label class="form-label">IRI Week</label>
+          <mat-form-field appearance="outline">
+            <mat-select formControlName="iriWeek" (selectionChange)="onIriWeekChange()">
+              <mat-option *ngFor="let week of iriWeeks" [value]="week.iri_week">
+                {{week.iri_week_viewOnly}}
+              </mat-option>
+            </mat-select>
           </mat-form-field>
         </div>
 
-        <!-- Custom Input for Other Height -->
-        <div *ngIf="isOtherHeight(node.data) && node.data.checked" 
-             class="custom-input-container">
-          <mat-form-field appearance="fill" class="custom-input">
-            <mat-label>Min</mat-label>
-            <input matInput 
-                   type="number"
-                   [value]="node.data.taskMin"
-                   (change)="onCustomInputChange(node.data, 'taskMin', $event.target.value)"
-                   [disabled]="disabled"
-                   [attr.min]="node.data.mainMin"
-                   [attr.max]="node.data.mainMax">
+        <!-- Territory -->
+        <div class="filter-field">
+          <label class="form-label">Territory</label>
+          <mat-form-field appearance="outline">
+            <mat-select formControlName="territory" (selectionChange)="onTerritoryChange()">
+              <mat-option [value]="'-1'">ALL</mat-option>
+              <mat-option *ngFor="let territory of territories" [value]="territory.territory_id">
+                {{territory.territory_name}}
+              </mat-option>
+            </mat-select>
           </mat-form-field>
-          
-          <mat-form-field appearance="fill" class="custom-input">
-            <mat-label>Max</mat-label>
-            <input matInput 
-                   type="number"
-                   [value]="node.data.taskMax"
-                   (change)="onCustomInputChange(node.data, 'taskMax', $event.target.value)"
-                   [disabled]="disabled"
-                   [attr.min]="node.data.mainMin"
-                   [attr.max]="node.data.mainMax">
+        </div>
+
+        <!-- Store -->
+        <div class="filter-field">
+          <label class="form-label">Store</label>
+          <mat-form-field appearance="outline">
+            <input matInput [matAutocomplete]="storeAuto" formControlName="store" placeholder="Search stores...">
+            <button mat-button *ngIf="filterForm.get('store')?.value" matSuffix mat-icon-button (click)="clearStrCtrl()">
+              <mat-icon>cancel</mat-icon>
+            </button>
+            <mat-autocomplete #storeAuto="matAutocomplete" (optionSelected)="onStoreSelected($event)">
+              <mat-option *ngFor="let store of filteredStores" [value]="store.store_name" [matTooltip]="store.store_name">
+                {{store.store_name}} ({{store.store_number}})
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+        </div>
+
+        <!-- FSR (Field Service Representative) -->
+        <div class="filter-field">
+          <label class="form-label">FSR</label>
+          <mat-form-field appearance="outline">
+            <input matInput [matAutocomplete]="fsrAuto" formControlName="fsr" placeholder="Search FSR...">
+            <button mat-button *ngIf="filterForm.get('fsr')?.value" matSuffix mat-icon-button (click)="clearFsrCtrl()">
+              <mat-icon>cancel</mat-icon>
+            </button>
+            <mat-autocomplete #fsrAuto="matAutocomplete" (optionSelected)="onFsrSelected($event)">
+              <mat-option *ngFor="let fsr of filteredFSR" [value]="fsr.emp_name" [matTooltip]="fsr.emp_name">
+                {{fsr.emp_name}} ({{fsr.emp_id}})
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+          <button mat-raised-button color="primary" (click)="onApplyFilters()">
+            Apply Filters
+          </button>
+          <button mat-stroked-button (click)="onClearFilters()">
+            Clear Filters
+          </button>
+        </div>
+      </div>
+
+      <!-- Row 2: Advanced Filters -->
+      <div class="filter-row advanced-filters" [style.display]="showAdvancedFilters ? 'flex' : 'none'">
+        <!-- State -->
+        <div class="filter-field">
+          <label class="form-label">State</label>
+          <mat-form-field appearance="outline">
+            <input matInput [matAutocomplete]="stateAuto" formControlName="state">
+            <button mat-button *ngIf="filterForm.get('state')?.value" matSuffix mat-icon-button (click)="clearStaCtrl()">
+              <mat-icon>cancel</mat-icon>
+            </button>
+            <mat-autocomplete #stateAuto="matAutocomplete" (optionSelected)="onStateSelected($event)">
+              <mat-option *ngFor="let state of filteredState" [value]="state.state">
+                {{state.state}}
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+        </div>
+
+        <!-- City -->
+        <div class="filter-field">
+          <label class="form-label">City</label>
+          <mat-form-field appearance="outline">
+            <input matInput [matAutocomplete]="cityAuto" formControlName="city">
+            <button mat-button *ngIf="filterForm.get('city')?.value" matSuffix mat-icon-button (click)="clearcityCtrl()">
+              <mat-icon>cancel</mat-icon>
+            </button>
+            <mat-autocomplete #cityAuto="matAutocomplete" (optionSelected)="onCitySelected($event)">
+              <mat-option *ngFor="let city of filteredCity" [value]="city.city">
+                {{city.city}}
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+        </div>
+
+        <!-- Cluster -->
+        <div class="filter-field">
+          <label class="form-label">Cluster</label>
+          <mat-form-field appearance="outline">
+            <input matInput [matAutocomplete]="clusterAuto" formControlName="cluster">
+            <mat-autocomplete #clusterAuto="matAutocomplete" (optionSelected)="onClusterSelected($event)">
+              <mat-option *ngFor="let cluster of filteredCluster" [value]="cluster.position_name">
+                {{cluster.position_name}}
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+        </div>
+
+        <!-- Task -->
+        <div class="filter-field">
+          <label class="form-label">Task</label>
+          <mat-form-field appearance="outline">
+            <input matInput [matAutocomplete]="taskAuto" formControlName="task">
+            <button mat-button *ngIf="filterForm.get('task')?.value" matSuffix mat-icon-button (click)="clearTaskCtrl()">
+              <mat-icon>cancel</mat-icon>
+            </button>
+            <mat-autocomplete #taskAuto="matAutocomplete" (optionSelected)="onTaskSelected($event)">
+              <mat-option *ngFor="let task of filteredTask" [value]="task.task_name">
+                {{task.task_name}} ({{task.task_number}})
+              </mat-option>
+            </mat-autocomplete>
           </mat-form-field>
         </div>
       </div>
-    </ng-template>
-  </tree-root>
+
+      <!-- Row 3: FSR Hours & Toggle Options -->
+      <div class="filter-row options-filters" [style.display]="showAdvancedFilters ? 'flex' : 'none'">
+        <!-- FSR Hours -->
+        <div class="filter-field">
+          <label class="form-label">FSR Hours</label>
+          <mat-form-field appearance="outline">
+            <input matInput formControlName="fsrHour" type="number" placeholder="Enter hours...">
+          </mat-form-field>
+        </div>
+
+        <!-- Assigned/Unassigned Stores Toggle -->
+        <div class="toggle-field">
+          <label class="form-label">Store Assignment</label>
+          <mat-radio-group formControlName="storeAssignment" class="radio-group">
+            <mat-radio-button value="assigned">Assigned Stores</mat-radio-button>
+            <mat-radio-button value="unassigned">Unassigned Stores</mat-radio-button>
+            <mat-radio-button value="all">All Stores</mat-radio-button>
+          </mat-radio-group>
+        </div>
+
+        <!-- Sample/Non-Sample Toggle -->
+        <div class="toggle-field">
+          <label class="form-label">Sample Type</label>
+          <mat-radio-group formControlName="sampleType" class="radio-group">
+            <mat-radio-button value="sample">Sample</mat-radio-button>
+            <mat-radio-button value="nonSample">Non-Sample</mat-radio-button>
+            <mat-radio-button value="all">All Types</mat-radio-button>
+          </mat-radio-group>
+        </div>
+
+        <!-- Multi FSR Store Checkbox -->
+        <div class="checkbox-field">
+          <label class="form-label">Options</label>
+          <mat-checkbox formControlName="multiFsrStore">Multi FSR Store</mat-checkbox>
+        </div>
+      </div>
+
+      <!-- Advanced Filters Toggle -->
+      <div class="advanced-toggle">
+        <button mat-button type="button" (click)="toggleAdvancedFilters()" class="toggle-button">
+          <mat-icon>{{showAdvancedFilters ? 'expand_less' : 'expand_more'}}</mat-icon>
+          {{showAdvancedFilters ? 'Hide' : 'Show'}} Advanced Filters
+        </button>
+      </div>
+    </form>
+  </div>
 </div>
 
-Review Category Grid Component (components/review-category-grid.component.ts)
+store-table.component.html
 
-import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
-import { ReviewCategory } from '../models/shelf-task.models';
+<div class="table-container">
+  <mat-card class="table-card">
+    <!-- <mat-card-header>
+      <mat-card-title>Store Assignment Data</mat-card-title>
+      <mat-card-subtitle>{{dataSource.data.length}} stores found</mat-card-subtitle>
+    </mat-card-header>
+     -->
+    <mat-card-content>
+      <div class="table-wrapper">
+        <!-- FIXED: Using your working table structure -->
+        <mat-table #table [dataSource]="dataSource" matSort class="store-table mat-elevation-2">
+          
+          <!-- Store Number Column with Expansion -->
+          <ng-container matColumnDef="store_number">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">
+                <button 
+            mat-icon-button 
+            [disabled]="isExpandingAll"
+            (click)="expandAllRows()" 
+            [title]="allExpanded ? 'Collapse All' : 'Expand All'"
+            class="expand-all-btn">
+            <mat-icon>{{allExpanded ? 'unfold_less' : 'unfold_more'}}</mat-icon>
+          </button>
+              Store #
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="store-number-cell">
+               <span class="caret" 
+                    id="caretIcon" 
+                    [class.clicked]="isRowExpanded(element)">▼</span>
+              <span class="store-number">{{element.StoreNumber}}</span>
+              <span *ngIf="!element.hasDetails">&nbsp;&nbsp;&nbsp;&nbsp;</span>
+              <span class="store-number">{{element.StoreNumber}}</span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Store Name Column -->
+          <ng-container matColumnDef="store_name">
+            <mat-header-cell *matHeaderCellDef  class="mat-header-style">Store Name</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="store-name-cell">
+              <div class="store-info">
+                <span class="store-name" (click)="openProximityDataDialog(element);$event.stopPropagation();">{{element.StoreName}}</span>
+              </div>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Store Address Column -->
+          <ng-container matColumnDef="addr_line1">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">Store Address</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="address-cell">
+              {{element.AddrLine1}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- City Column -->
+          <ng-container matColumnDef="city">
+            <mat-header-cell *matHeaderCellDef  class="mat-header-style">City</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="city-cell">{{element.City}}</mat-cell>
+          </ng-container>
+
+          <!-- State Column -->
+          <ng-container matColumnDef="state">
+            <mat-header-cell *matHeaderCellDef  class="mat-header-style">State</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="state-cell">
+              <span class="state-badge">{{element.State}}</span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Zip Column -->
+          <ng-container matColumnDef="zip">
+            <mat-header-cell *matHeaderCellDef  class="mat-header-style">Zip</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="zip-cell">{{element.Zip}}</mat-cell>
+          </ng-container>
+
+          <!-- Assigned To Column -->
+          <ng-container matColumnDef="assigned_to">
+            <mat-header-cell *matHeaderCellDef  class="mat-header-style">Assigned To</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="assigned-cell">
+              <span class="assignment-badge" [ngClass]="getAssignmentClass(element.AssignedTo)">
+                {{element.AssignedTo}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Average Collection Time Column -->
+          <ng-container matColumnDef="expected_collection_time">
+            <mat-header-cell *matHeaderCellDef  class="mat-header-style">Avg Coll Time</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="collection-time-cell">
+              {{formatCollectionTime(element.ExpectedCollectionTime)}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- Cluster Column -->
+          <ng-container matColumnDef="position_name">
+            <mat-header-cell *matHeaderCellDef  class="mat-header-style">Cluster</mat-header-cell>
+            <mat-cell *matCellDef="let element" class="cluster-cell">
+              {{getClusterDisplay(element.PositionName)}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- FIXED: Header and Data Rows (like your working example) -->
+          <mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></mat-header-row>
+          <mat-row 
+            *matRowDef="let row; columns: displayedColumns; let i = index"
+            [ngClass]="{'selected-row': row === selectedRow}"
+            class="table-row"
+            [cdkDetailRow]="row" 
+            [cdkDetailRowTpl]="tpl"
+            (toggleChange)="GetSubgridData($event, row)"
+            (dataLoadRequest)="onDataLoadRequest($event)"
+            matRipple>
+          </mat-row>
+        </mat-table>
+      </div>
+      
+      <mat-paginator 
+        [pageSizeOptions]="[5, 10, 20, 50]" 
+        showFirstLastButtons
+        class="table-paginator">
+      </mat-paginator>
+
+      <!--  Inner Table Template  -->
+         <ng-template #tpl let-element let-subgridData="subgridData" let-isLoading="isLoading">
+        <div class="mat-row detail-row" style="overflow: hidden;">
+          
+          <!-- Loading indicator for this specific row -->
+          <div *ngIf="isLoading" class="row-loading">
+            <mat-spinner diameter="20"></mat-spinner>
+            <span>Loading data for {{element.StoreName}}...</span>
+          </div>
+          
+          <!-- Data table for this specific row -->
+          <table class="expanded-table" *ngIf="!isLoading"> 
+            <tr> 
+             <th>Task Name</th>
+              <th>Assigned To</th>              
+              <th>CSR Info</th>
+              <th>Wave</th>
+              <th>Avg Coll Time</th>
+            </tr>
+            <tr *ngFor="let item of subgridData;">
+              <td> {{item.TaskName}}</td>
+              <td>{{item.AssignedTo}} </td>              
+              <td>{{item.CsrInfo}} </td>
+              <td >
+                {{item.Wave}}       
+              </td>
+              <td >
+                {{item.ExpectedCollectionTime}}</td>
+             
+            </tr>       
+          </table>
+        </div>
+      </ng-template>
+      <!-- <ng-template #tpl let-element>
+        <div class="mat-row detail-row" [@detailExpand] style="overflow: hidden;">
+          <table class="expanded-table"> 
+            <tr> 
+              <th>Task Name</th>
+              <th>Assigned To</th>              
+              <th>CSR Info</th>
+              <th>Wave</th>
+              <th>Avg Coll Time</th>
+             
+            </tr>
+            <tr *ngFor="let item of SubgridData">
+              <td> {{item.TaskName}}</td>
+              <td>{{item.AssignedTo}} </td>              
+              <td>{{item.CsrInfo}} </td>
+              <td >
+                {{item.Wave}}       
+              </td>
+              <td >
+                {{item.ExpectedCollectionTime}}</td>
+             
+            </tr>       
+          </table>
+        </div>
+      </ng-template> -->
+    </mat-card-content>
+  </mat-card>
+</div>
+
+store-table.component.ts
+
+import { trigger, state, style, transition, animate } from '@angular/animations';
+import { SelectionModel } from '@angular/cdk/collections';
+import { HttpClient } from '@angular/common/http';
+import { AfterViewInit, Component, Inject, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
+import { MatPaginator } from '@angular/material/paginator';
+import { MatSort } from '@angular/material/sort';
+import { MatTable, MatTableDataSource } from '@angular/material/table';
+import { catchError, of, Subject, takeUntil } from 'rxjs';
+import { ProximityDialogComponent } from 'src/app/dialog/proximity-dialog/proximity-dialog.component';
+import { CdkDetailRowDirective } from 'src/app/shared/cdk-detail-row.directive';
+import { GetGridDataFilter, Store } from 'src/app/shared/common.model';
+import { CommonService } from 'src/app/shared/common.service';
 
 @Component({
-  selector: 'app-review-category-grid',
-  templateUrl: './review-category-grid.component.html',
-  styleUrls: ['./review-category-grid.component.scss']
+  selector: 'app-store-table',
+  templateUrl: './store-table.component.html',
+  styleUrls: ['./store-table.component.css'],
+  animations: [
+    trigger('detailExpand', [
+      state('collapsed', style({height: '0px', minHeight: '0'})),
+      state('expanded', style({height: '*'})),
+      transition('expanded <=> collapsed', animate('225ms cubic-bezier(0.4, 0.0, 0.2, 1)')),
+    ]),
+  ],
 })
-export class ReviewCategoryGridComponent implements OnInit {
-  @Input() categories: ReviewCategory[] = [];
-  @Input() selectedCategories: ReviewCategory[] = [];
-  @Input() disabled: boolean = false;
-  @Output() categoryChange = new EventEmitter<{category: ReviewCategory, field: string, value: any}>();
+export class StoreTableComponent implements OnInit, OnDestroy,AfterViewInit {
+   @ViewChild(MatTable, { static: false }) table:MatTable<any>;
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
+@ViewChildren(CdkDetailRowDirective) detailRows!: QueryList<CdkDetailRowDirective>;
+  isExpandingAll = false;
+  allExpanded = false;
+  expandedRowsData = new Map<string, any[]>();
+  expandedRow: CdkDetailRowDirective | undefined;
+  selectedRow:any=null;
+  private unsubscribe$ = new Subject<void>();
 
-  displayedColumns: string[] = [
-    'ReviewCategoryName', 
-    'KeycatNumber', 
-    'KeycatName', 
-    'Selected', 
-    'QCUnderReq', 
-    'QCUnderPercent', 
-    'NumberOfWeeks'
-  ];
+  displayedColumns: string[] = ['store_number','store_name', 'addr_line1', 'city', 'state', 'zip', 'assigned_to', 'expected_collection_time', 'position_name'];
+  dataSource = new MatTableDataSource<Store>([]);
+  selection = new SelectionModel<Store>(true, []);
+  GetGridDataFilter:GetGridDataFilter 
+  private destroy$ = new Subject<void>();
+  loggeduser:string
+  isExpansionDetailRow = (index, row) => row.hasOwnProperty('detailRow');
+   
+  constructor(private commonService: CommonService,
+  public http: HttpClient,
+  @Inject('BASE_URL') public baseUrl: string,
+  private dialog:MatDialog) {this.loggeduser = localStorage.getItem("loggedUserId"); }
 
-  selectedDisplayedColumns: string[] = [
-    'CategoryName',
-    'CatgDetail', 
-    'CategoryID', 
-    'QCUnderReq', 
-    'QCUnderPercent', 
-    'NumberOfWeeks'
-  ];
-
-  reviewCategories: ReviewCategory[] = [];
-  keycats: { [key: number]: ReviewCategory[] } = {};
-
-  ngOnInit() {
-    this.processCategories();
-  }
-
-  ngOnChanges() {
-    this.processCategories();
-  }
-
-  private processCategories() {
-    this.reviewCategories = this.categories.filter(cat => 
-      !cat.KeycatNumber || cat.KeycatNumber === 0
-    );
-
-    this.keycats = {};
-    this.categories.forEach(cat => {
-      if (cat.KeycatNumber && cat.KeycatNumber > 0) {
-        if (!this.keycats[cat.ReviewCategoryNumber]) {
-          this.keycats[cat.ReviewCategoryNumber] = [];
-        }
-        this.keycats[cat.ReviewCategoryNumber].push(cat);
-      }
-    });
-  }
-
-  onCategorySelected(category: ReviewCategory, selected: boolean) {
-    if (this.disabled) return;
-
-    if (selected) {
-      // Check if any keycats are already selected
-      const hasSelectedKeycats = this.hasSelectedKeycats(category.ReviewCategoryNumber);
-      if (hasSelectedKeycats) {
-        alert("You can't select a Category when a KeyCat from it is selected");
-        return;
-      }
-    }
-
-    this.categoryChange.emit({
-      category: category,
-      field: 'Selected',
-      value: selected ? 1 : null
-    });
-  }
-
-  onQCUnderChanged(category: ReviewCategory, qcUnder: boolean) {
-    if (this.disabled) return;
-
-    if (qcUnder) {
-      // Check if any keycats are already selected
-      const hasSelectedKeycats = this.hasSelectedKeycats(category.ReviewCategoryNumber);
-      if (hasSelectedKeycats) {
-        alert("You can't select a Category when a KeyCat from it is selected");
-        return;
-      }
-
-      // Auto-select the category and set default weeks
-      this.categoryChange.emit({
-        category: category,
-        field: 'Selected',
-        value: 1
+  ngOnInit(): void {
+    this.commonService.gridData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(stores => {
+       this.dataSource=new MatTableDataSource<any>([]);
+         this.dataSource = new MatTableDataSource<any>(stores);
+        this.dataSource.paginator = this.paginator;
+        this.dataSource.sort = this.sort;
+         this.resetExpansionState();
       });
-
-      this.categoryChange.emit({
-        category: category,
-        field: 'NumberOfWeeks',
-        value: 5
-      });
-    } else {
-      this.categoryChange.emit({
-        category: category,
-        field: 'NumberOfWeeks',
-        value: null
-      });
-
-      this.categoryChange.emit({
-        category: category,
-        field: 'QCUnderPercent',
-        value: null
-      });
-    }
-
-    this.categoryChange.emit({
-      category: category,
-      field: 'QCUnderReq',
-      value: qcUnder ? 1 : null
-    });
   }
-
-  onPercentChanged(category: ReviewCategory, percent: number) {
-    if (this.disabled) return;
-
-    this.categoryChange.emit({
-      category: category,
-      field: 'QCUnderPercent',
-      value: percent || null
-    });
-  }
-
-  onWeeksChanged(category: ReviewCategory, weeks: number) {
-    if (this.disabled) return;
-
-    this.categoryChange.emit({
-      category: category,
-      field: 'NumberOfWeeks',
-      value: weeks || null
-    });
-  }
-
-  onKeycatSelected(keycat: ReviewCategory, selected: boolean) {
-    if (this.disabled) return;
-
-    if (selected) {
-      // Check if parent category is selected
-      const hasSelectedParent = this.hasSelectedParentCategory(keycat.ReviewCategoryNumber);
-      if (hasSelectedParent) {
-        alert("You can't select a KeyCat when its Category is selected");
-        return;
-      }
-    }
-
-    this.categoryChange.emit({
-      category: keycat,
-      field: 'Selected',
-      value: selected ? 1 : null
-    });
-  }
-
-  onKeycatQCUnderChanged(keycat: ReviewCategory, qcUnder: boolean) {
-    if (this.disabled) return;
-
-    if (qcUnder) {
-      // Check if parent category is selected
-      const hasSelectedParent = this.hasSelectedParentCategory(keycat.ReviewCategoryNumber);
-      if (hasSelectedParent) {
-        alert("You can't select a KeyCat when its Category is selected");
-        return;
-      }
-
-      // Auto-select the keycat and set default weeks
-      this.categoryChange.emit({
-        category: keycat,
-        field: 'Selected',
-        value: 1
-      });
-
-      this.categoryChange.emit({
-        category: keycat,
-        field: 'NumberOfWeeks',
-        value: 5
-      });
-    } else {
-      this.categoryChange.emit({
-        category: keycat,
-        field: 'NumberOfWeeks',
-        value: null
-      });
-
-      this.categoryChange.emit({
-        category: keycat,
-        field: 'QCUnderPercent',
-        value: null
-      });
-    }
-
-    this.categoryChange.emit({
-      category: keycat,
-      field: 'QCUnderReq',
-      value: qcUnder ? 1 : null
-    });
-  }
-
-  private hasSelectedKeycats(reviewCategoryNumber: number): boolean {
-    return this.selectedCategories.some(cat => 
-      cat.ReviewCategoryNumber === reviewCategoryNumber && 
-      cat.KeycatNumber && 
-      cat.KeycatNumber > 0
-    );
-  }
-
-  private hasSelectedParentCategory(reviewCategoryNumber: number): boolean {
-    return this.selectedCategories.some(cat => 
-      cat.ReviewCategoryNumber === reviewCategoryNumber && 
-      cat.Catg_Type === 'R'
-    );
-  }
-
-  isSelected(category: ReviewCategory): boolean {
-    return this.selectedCategories.some(selected => 
-      selected.ReviewCategoryNumber === category.ReviewCategoryNumber &&
-      selected.KeycatNumber === category.KeycatNumber &&
-      selected.Selected === 1
-    );
-  }
-
-  isQCUnderSelected(category: ReviewCategory): boolean {
-    return this.selectedCategories.some(selected => 
-      selected.ReviewCategoryNumber === category.ReviewCategoryNumber &&
-      selected.KeycatNumber === category.KeycatNumber &&
-      selected.QCUnderReq === 1
-    );
-  }
-
-  getPercent(category: ReviewCategory): number | null {
-    const selected = this.selectedCategories.find(s => 
-      s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
-      s.KeycatNumber === category.KeycatNumber
-    );
-    return selected?.QCUnderPercent || null;
-  }
-
-  getWeeks(category: ReviewCategory): number | null {
-    const selected = this.selectedCategories.find(s => 
-      s.ReviewCategoryNumber === category.ReviewCategoryNumber &&
-      s.KeycatNumber === category.KeycatNumber
-    );
-    return selected?.NumberOfWeeks || null;
-  }
-
-  isPercentDisabled(category: ReviewCategory): boolean {
-    return this.disabled || !this.isQCUnderSelected(category);
-  }
-
-  isWeeksDisabled(category: ReviewCategory): boolean {
-    return this.disabled || !this.isQCUnderSelected(category);
-  }
-
-  // Number input validation
-  onNumberInput(event: KeyboardEvent): boolean {
-    const charCode = event.which ? event.which : event.keyCode;
-    if (charCode > 31 && (charCode < 48 || charCode > 57)) {
-      return false;
-    }
-    return true;
-  }
+getGridData(){
+// this.showSpinner= true
+ const payLoad:GetGridDataFilter ={
+   countryId: "1",
+   countryName: '',
+   lanId: this.loggeduser,
+   iriWeek: '2404',
+   iriWeekViewOnly: '',
+   area: '23',
+   territoryId: '52',
+   territoryName: '',
+   fromDate: '',
+   toDate: '',
+   storeNumber: '',
+   storeName: '',
+   state: '',
+   city: '',
+   taskNumber: '',
+   taskName: '',
+   positionNumber: '',
+   positionName: '',
+   empId: '',
+   firstName: '',
+   lastName: '',
+   empName: '',
+   fsrOver25hrs: 'false',
+   fsrOver6hrs: 'false',
+   fsrHour: '',
+   fsrHourOperator: 'NA',
+   assignedStores: 'false',
+   unassignedStores: 'false',
+   sample: 'false',
+   nonSample: 'false',
+   multiFsrStore: 'false',
+   vacation: 'false',
+   action: '',
+   comment: '',
+   fmEmail: '',
+   fmEmpId: '',
+   assignmentMode: '',
+   temporary: 'false'
+ }
+    this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetGridData',payLoad).pipe(takeUntil(this.unsubscribe$)).subscribe( { 
+      next: 
+      (response) => {                  
+        this.dataSource=new MatTableDataSource<any>([]);
+         this.dataSource = new MatTableDataSource<any>(response);
+        this.dataSource.paginator = this.paginator;
+        this.dataSource.sort = this.sort;
+       },
+       error: 
+       (error) => { console.error(error); },
+      });   
 }
-Review Category Grid Template
-<div class="review-categories-container">
-  <mat-card>
-    <mat-card-header>
-      <mat-card-title>Categories / Keycats</mat-card-title>
-    </mat-card-header>
+
+  ngAfterViewInit(): void {
+    this.dataSource.paginator = this.paginator;
+    this.dataSource.sort = this.sort;
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  /** Whether the number of selected elements matches the total number of rows. */
+  isAllSelected() {
+    const numSelected = this.selection.selected.length;
+    const numRows = this.dataSource.data.length;
+    return numSelected === numRows;
+  }
+
+  /** Selects all rows if they are not all selected; otherwise clear selection. */
+ 
+
+  /** The label for the checkbox on the passed row */
+  checkboxLabel(row?: Store): string {
+    if (!row) {
+      return `${this.isAllSelected() ? 'deselect' : 'select'} all`;
+    }
+    return `${this.selection.isSelected(row) ? 'deselect' : 'select'} row ${row.id}`;
+  }
+
+
+  /** Get full address string */
+  getFullAddress(store: Store): string {
+    return `${store.addr_line1}, ${store.city}, ${store.state} ${store.zip}`;
+  }
+
+  trackByStoreNumber(index: number, item: any): any {
+  return item.storeNumber || item.StoreNumber || index;
+}
+
+async expandAllRows(): Promise<void> {
+    if (this.isExpandingAll) {
+      return;
+    }
     
-    <mat-card-content>
-      <table mat-table [dataSource]="reviewCategories" class="categories-table">
-        <ng-container matColumnDef="ReviewCategoryName">
-          <th mat-header-cell *matHeaderCellDef>Review Category</th>
-          <td mat-cell *matCellDef="let category">
-            <strong>{{ category.ReviewCategoryName }}</strong>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="Selected">
-          <th mat-header-cell *matHeaderCellDef>Selected</th>
-          <td mat-cell *matCellDef="let category">
-            <mat-checkbox 
-              [checked]="isSelected(category)"
-              [disabled]="disabled"
-              (change)="onCategorySelected(category, $event.checked)">
-            </mat-checkbox>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="QCUnderReq">
-          <th mat-header-cell *matHeaderCellDef>QC Under</th>
-          <td mat-cell *matCellDef="let category">
-            <mat-checkbox 
-              [checked]="isQCUnderSelected(category)"
-              [disabled]="disabled"
-              (change)="onQCUnderChanged(category, $event.checked)">
-            </mat-checkbox>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="QCUnderPercent">
-          <th mat-header-cell *matHeaderCellDef>Pass/Fail%</th>
-          <td mat-cell *matCellDef="let category">
-            <input type="number" 
-                   [value]="getPercent(category)"
-                   [disabled]="isPercentDisabled(category)"
-                   (change)="onPercentChanged(category, $event.target.value)"
-                   (keypress)="onNumberInput($event)"
-                   class="percent-input"
-                   maxlength="2">
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="NumberOfWeeks">
-          <th mat-header-cell *matHeaderCellDef>Weeks</th>
-          <td mat-cell *matCellDef="let category">
-            <input type="number" 
-                   [value]="getWeeks(category)"
-                   [disabled]="isWeeksDisabled(category)"
-                   (change)="onWeeksChanged(category, $event.target.value)"
-                   (keypress)="onNumberInput($event)"
-                   class="weeks-input"
-                   maxlength="2">
-          </td>
-        </ng-container>
-
-        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;" 
-            [class.expandable-row]="keycats[row.ReviewCategoryNumber]?.length > 0"
-            (click)="row.expanded = !row.expanded">
-        </tr>
-
-        <!-- Expanded Keycats -->
-        <tr mat-row *matRowDef="let row; columns: ['expandedDetail']; when: isExpansionDetailRow"
-            class="expanded-row" [@detailExpand]="row.expanded ? 'expanded' : 'collapsed'">
-          <td mat-cell [attr.colspan]="displayedColumns.length">
-            <div class="keycats-container" *ngIf="keycats[row.ReviewCategoryNumber]">
-              <table mat-table [dataSource]="keycats[row.ReviewCategoryNumber]" class="keycats-table">
-                <!-- Keycat columns similar to above but for keycats -->
-                <ng-container matColumnDef="KeycatName">
-                  <th mat-header-cell *matHeaderCellDef>Keycat Name</th>
-                  <td mat-cell *matCellDef="let keycat">{{ keycat.KeycatName }}</td>
-                </ng-container>
-
-                <ng-container matColumnDef="KeycatSelected">
-                  <th mat-header-cell *matHeaderCellDef>Selected</th>
-                  <td mat-cell *matCellDef="let keycat">
-                    <mat-checkbox 
-                      [checked]="isSelected(keycat)"
-                      [disabled]="disabled"
-                      (change)="onKeycatSelected(keycat, $event.checked)">
-                    </mat-checkbox>
-                  </td>
-                </ng-container>
-
-                <!-- Additional keycat columns... -->
-                
-                <tr mat-header-row *matHeaderRowDef="['KeycatName', 'KeycatSelected', 'QCUnderReq', 'QCUnderPercent', 'NumberOfWeeks']"></tr>
-                <tr mat-row *matRowDef="let row; columns: ['KeycatName', 'KeycatSelected', 'QCUnderReq', 'QCUnderPercent', 'NumberOfWeeks'];"></tr>
-              </table>
-            </div>
-          </td>
-        </tr>
-      </table>
-    </mat-card-content>
-  </mat-card>
-
-  <!-- Selected Categories Display -->
-  <mat-card class="selected-categories">
-    <mat-card-header>
-      <mat-card-title>Selected Categories</mat-card-title>
-    </mat-card-header>
+    this.isExpandingAll = true;
     
-    <mat-card-content>
-      <table mat-table [dataSource]="selectedCategories" class="selected-table">
-        <!-- Selected categories columns -->
-        <tr mat-header-row *matHeaderRowDef="selectedDisplayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: selectedDisplayedColumns;"></tr>
-      </table>
-    </mat-card-content>
-  </mat-card>
-</div>
+    try {
+      if (this.allExpanded) {
+        this.collapseAllRows();
+      } else {
+        await this.expandAllRowsWithData();
+      }
+      
+      this.allExpanded = !this.allExpanded;
+      
+    } catch (error) {
+      console.error('Error in expandAllRows:', error);
+    } finally {
+      this.isExpandingAll = false;
+    }
+  }
+
+  // FIXED: Expand rows with proper data assignment
+  private async expandAllRowsWithData(): Promise<void> {
+    console.log('Starting to expand all rows with data...');
+    
+    const currentPageData = this.getCurrentPageData();
+    const detailRowsArray = this.detailRows?.toArray() || [];
+    
+    if (detailRowsArray.length === 0) {
+      console.warn('No detail row directives found');
+      return;
+    }
+
+    // Load all data first
+    console.log('Loading data for all rows...');
+    const dataLoadPromises = currentPageData.map(rowData => 
+      this.loadSubgridDataForRow(rowData).catch(error => {
+        console.error(`Error loading data for ${rowData.StoreNumber}:`, error);
+        return []; // Return empty array on error
+      })
+    );
+
+    const allRowData = await Promise.all(dataLoadPromises);
+    console.log('All data loaded, expanding rows...');
+
+    // Now expand each row with its specific data
+    for (let i = 0; i < Math.min(currentPageData.length, detailRowsArray.length); i++) {
+      const detailRowDirective = detailRowsArray[i];
+      const rowData = allRowData[i];
+      
+      if (detailRowDirective && detailRowDirective.canExpand()) {
+        try {
+          // Expand with specific data for this row
+          detailRowDirective.expandWithData(rowData);
+          console.log(`Expanded row ${i + 1} with ${rowData.length} detail records`);
+          
+          // Small delay for UI smoothness
+          await this.delay(25);
+          
+        } catch (error) {
+          console.error(`Error expanding row ${i}:`, error);
+        }
+      }
+    }
+    
+    console.log('Finished expanding all rows');
+  }
+
+  // UPDATED: Collapse all rows
+  private collapseAllRows(): void {
+    console.log('Collapsing all rows...');
+    
+    const detailRowsArray = this.detailRows?.toArray() || [];
+    
+    detailRowsArray.forEach((detailRow, index) => {
+      if (detailRow.isExpanded) {
+        detailRow.collapse();
+        console.log(`Collapsed row ${index + 1}`);
+      }
+    });
+    
+    this.selectedRow = null;
+    this.expandedRow = undefined;
+    
+    console.log('All rows collapsed');
+  }
+
+  // UPDATED: Handle individual data load requests
+  onDataLoadRequest(event: {directive: CdkDetailRowDirective, rowData: any}): void {
+    const { directive, rowData } = event;
+    
+    // Check if we have cached data
+    const storeKey = rowData.StoreNumber || rowData.store_number;
+    if (this.expandedRowsData.has(storeKey)) {
+      directive.setSubgridData(this.expandedRowsData.get(storeKey) || []);
+    } else {
+      // Load data from API
+      this.loadSubgridDataForRow(rowData)
+        .then(data => {
+          directive.setSubgridData(data);
+        })
+        .catch(error => {
+          console.error('Error loading subgrid data:', error);
+          directive.setSubgridData([]);
+        });
+    }
+  }
+
+  // UPDATED: Load subgrid data method
+  private loadSubgridDataForRow(row: any): Promise<any[]> {
+    return new Promise((resolve, reject) => {
+      const storeKey = row.StoreNumber || row.store_number;
+      
+      // Check cache first
+      if (this.expandedRowsData.has(storeKey)) {
+        resolve(this.expandedRowsData.get(storeKey) || []);
+        return;
+      }
+
+      const payload = {
+        IriWeek: row.IriWeek || row.iri_week,
+        StoreNumber: storeKey
+      };
+
+      this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetSubgridData', payload)
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe({
+          next: (response) => {
+            this.expandedRowsData.set(storeKey, response);
+            resolve(response);
+          },
+          error: (error) => {
+            console.error(`Error loading data for store ${storeKey}:`, error);
+            reject(error);
+          }
+        });
+    });
+  }
+
+  // SIMPLIFIED: Individual row expansion
+  GetSubgridData(cdkDetailRow: CdkDetailRowDirective, row: any): void {
+    console.log('Individual row toggle:', row.StoreNumber, 'Expanded:', cdkDetailRow.isExpanded);
+    
+    // Close previously expanded row if different
+    if (this.expandedRow && this.expandedRow !== cdkDetailRow && this.expandedRow.isExpanded) {
+      this.expandedRow.collapse();
+    }
+    
+    this.expandedRow = cdkDetailRow.isExpanded ? cdkDetailRow : undefined;
+    this.selectedRow = cdkDetailRow.isExpanded ? row : null;
+
+    this.updateCaretIcon(cdkDetailRow, cdkDetailRow.isExpanded);
+  }
+
+  // UPDATED: Update caret icon
+  updateCaretIcon(cdkDetailRow: CdkDetailRowDirective, isExpanded: boolean): void {
+    setTimeout(() => {
+      const rowElement = cdkDetailRow.viewContainerRef.element.nativeElement.parentElement;
+      const caretIcon = rowElement?.querySelector('.caret');
+      
+      if (caretIcon) {
+        if (isExpanded) {
+          caretIcon.classList.add('clicked');
+        } else {
+          caretIcon.classList.remove('clicked');
+        }
+      }
+    }, 0);
+  }
+
+  // UTILITY METHODS
+  private getCurrentPageData(): any[] {
+    if (!this.paginator) {
+      return this.dataSource.data;
+    }
+    
+    const startIndex = this.paginator.pageIndex * this.paginator.pageSize;
+    const endIndex = startIndex + this.paginator.pageSize;
+    return this.dataSource.data.slice(startIndex, endIndex);
+  }
+
+  private resetExpansionState(): void {
+    this.allExpanded = false;
+    this.expandedRowsData.clear();
+    this.selectedRow = null;
+    this.expandedRow = undefined;
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // TEMPLATE HELPERS
+  isRowExpanded(row: any): boolean {
+    return this.selectedRow === row;
+  }
+
+  getAssignmentClass(assignedTo: string): string {
+    return assignedTo === 'NOT ASSIGNED' ? 'not-assigned' : 'assigned';
+  }
+
+  formatCollectionTime(time: string): string {
+    return time || 'Not specified';
+  }
+
+  getClusterDisplay(positionName: string): string {
+    return positionName || 'N/A';
+  }
+
+
+  UpdateTableWidth(){
+  const tablewidth = document.getElementById('table'); 
+  if(this.displayedColumns.length == 20){
+    tablewidth.style.width = 150+'%' ;      
+  }
+ }
+
+ isExpanded(store: any): boolean {
+  return this.selectedRow === store ;
+}
+
+openProximityDataDialog(data:any){
+    const dialogRef = this.dialog.open(ProximityDialogComponent,{
+      width: '40vw',
+      maxWidth: '40vw',
+      minWidth: '600px',
+      // height: '55vh',
+      maxHeight: '55vh',
+      minHeight:'250px',
+      data:data,
+      disableClose: true,
+    })
+  }
+
+}
