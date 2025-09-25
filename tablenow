@@ -590,3 +590,171 @@ Summary:
 ✅ All existing functionality preserved - Expand/collapse, dialogs, etc.
 
 This solution adapts your existing store-table component to work with the 3 different week data structures while keeping all your existing functionality intact!
+
+
+
+
+export class CommonService {
+  
+  // Week type and data subjects  
+  private weekTypeSubject = new BehaviorSubject<'current' | 'future' | 'previous'>('current');
+  public weekType$ = this.weekTypeSubject.asObservable();
+
+  // Separate data subjects for each week type
+  private currentWeekDataSubject = new BehaviorSubject<any[]>([]);
+  public currentWeekData$ = this.currentWeekDataSubject.asObservable();
+
+  private futureWeekDataSubject = new BehaviorSubject<any[]>([]);
+  public futureWeekData$ = this.futureWeekDataSubject.asObservable();
+
+  private previousWeekDataSubject = new BehaviorSubject<any[]>([]);
+  public previousWeekData$ = this.previousWeekDataSubject.asObservable();
+
+  // Current IRI Week tracking
+  private currentIRIWeekSubject = new BehaviorSubject<string>('2405');
+  
+  // UPDATED: Enhanced getGridData to handle JSON string responses
+  getGridData(payload: GetGridDataFilter): Observable<any[]> {
+    const currentIRIWeek = this.getCurrentIRIWeek();
+    const payloadIRIWeek = payload.iriWeek;
+    
+    let apiEndpoint = '';
+    let weekType: 'current' | 'future' | 'previous' = 'current';
+    
+    // Determine which API to call (your exact endpoints)
+    if (payloadIRIWeek === currentIRIWeek) {
+      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetcurrentweekGridData`;
+      weekType = 'current';
+    } else if (payloadIRIWeek > currentIRIWeek) {
+      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetfutureweekGridData`;
+      weekType = 'future';
+    } else {
+      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetpreviousweekGridData`;
+      weekType = 'previous';
+    }
+    
+    console.log(`API Selection: ${weekType} week - ${apiEndpoint}`);
+    
+    // Update week type
+    this.weekTypeSubject.next(weekType);
+    
+    // UPDATED: Handle JSON string response from your C# controller
+    return this.http.post<string>(apiEndpoint, payload).pipe(
+      map(jsonString => {
+        try {
+          // Parse the JSON string returned by your C# controller
+          const parsedData = JSON.parse(jsonString);
+          return Array.isArray(parsedData) ? parsedData : [];
+        } catch (error) {
+          console.error('Error parsing JSON response:', error);
+          return [];
+        }
+      }),
+      catchError(this.handleError<any[]>('getGridData', []))
+    );
+  }
+
+  // UPDATED: Apply filters with specific data stream updates
+  applyFilters(filters: GetGridDataFilter): void {
+    const currentCountry = this.getCurrentCountry();
+    
+    if (!currentCountry) {
+      filters.countryId = '1';
+    } else {
+      filters.countryId = currentCountry;
+    }
+
+    this.filtersSubject.next(filters);
+    this.setCurrentFilterValues(this.convertToCurrentFilters(filters));
+    
+    // Call API and update specific data stream
+    this.getGridData(filters).subscribe({
+      next: (data) => {
+        const currentIRIWeek = this.getCurrentIRIWeek();
+        const payloadIRIWeek = filters.iriWeek;
+        
+        // Add comment editing capability and normalize field names
+        const dataWithComments = data.map(row => ({
+          ...row,
+          // Normalize field names for consistent access
+          StoreNumber: row.StoreNumber || row.store_number,
+          StoreName: row.StoreName || row.store_name,
+          City: row.CityName || row.city_name,
+          State: row.StateCd || row.state_cd,
+          Zip: row.ZipCd || row.zip_cd,
+          AddrLine1: row.AddrLine1 || row.addr_line1,
+          AssignedTo: this.getAssignedToDisplay(row),
+          UserComment: row.UserComment || '',
+          IsCommentEditing: false
+        }));
+        
+        // Update appropriate data stream based on week type
+        if (payloadIRIWeek === currentIRIWeek) {
+          this.currentWeekDataSubject.next(dataWithComments);
+          console.log(`Updated current week data: ${dataWithComments.length} records`);
+        } else if (payloadIRIWeek > currentIRIWeek) {
+          this.futureWeekDataSubject.next(dataWithComments);
+          console.log(`Updated future week data: ${dataWithComments.length} records`);
+        } else {
+          this.previousWeekDataSubject.next(dataWithComments);
+          console.log(`Updated previous week data: ${dataWithComments.length} records`);
+        }
+        
+        // Also update main grid data for backward compatibility
+        this.gridDataSubject.next(dataWithComments);
+      },
+      error: (error) => {
+        console.error('Error applying filters:', error);
+        this.currentWeekDataSubject.next([]);
+        this.futureWeekDataSubject.next([]);
+        this.previousWeekDataSubject.next([]);
+        this.gridDataSubject.next([]);
+      }
+    });
+  }
+
+  // Helper method to get assigned display
+  private getAssignedToDisplay(row: any): string {
+    if (row.FirstName && row.LastName) {
+      return `${row.LastName}, ${row.FirstName}`;
+    }
+    return 'NOT ASSIGNED';
+  }
+
+  getCurrentWeekType(): 'current' | 'future' | 'previous' {
+    return this.weekTypeSubject.value;
+  }
+
+  // Add missing methods for filter management
+  convertToCurrentFilters(filters: GetGridDataFilter): any {
+    return {
+      countryId: filters.countryId || '',
+      iri_week: filters.iriWeek || '',
+      territory_id: filters.territoryId || '',
+      area: filters.area || '23',
+      store_number: filters.storeNumber || '',
+      store_name: filters.storeName || '',
+      state: filters.state || '',
+      city: filters.city || '',
+      position_number: filters.positionNumber || '',
+      task_number: filters.taskNumber || '',
+      emp_id: filters.empId || '',
+      fsr_hour: filters.fsrHour || '',
+      fsr_hour_operator: filters.fsrHourOperator || 'NA',
+      fsr_over_25hrs: filters.fsrOver25hrs || 'false',
+      fsr_over_6hrs: filters.fsrOver6hrs || 'false',
+      assigned_stores: filters.assignedStores || 'false',
+      unassigned_stores: filters.unassignedStores || 'false',
+      sample: filters.sample || 'false',
+      nonsample: filters.nonSample || 'false',
+      multi_fsr_store: filters.multiFsrStore || 'false',
+      vacation: filters.vacation || 'false',
+      temporary: filters.temporary || 'false'
+    };
+  }
+
+  setCurrentFilterValues(filters: any): void {
+    this.currentFiltersSubject.next(filters);
+    console.log('Current filters updated:', filters);
+  }
+}
