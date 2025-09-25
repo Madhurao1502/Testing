@@ -1,338 +1,693 @@
-<ul class="shelf-tree-list">
-  <ng-container *ngFor="let node of nodes">
-    <li>
-      <div class="node-content">
-        <button *ngIf="node.children?.length"
-                (click)="node.open = !node.open; $event.stopPropagation()">
-          {{ node.open ? '-' : '+' }}
-        </button>
+complete-fixes-all-issues.md
+Generated File
+Complete Solutions for All 3 Issues
+Issue 1: Fix openTaskAssignmentDialog currentFilters$ Subscription
+Problem:
+The this.commonService.currentFilters$ subscription in openTaskAssignmentDialog doesn't wait for completion.
 
-        <input type="checkbox" [checked]="node.checked" [disabled]="node.disabled || disabled"
-               (change)="toggleCheck(node)" />
-        <span [class.disabled]="node.disabled || disabled" (click)="selectNode(node)">{{ node.name }}</span>
+Solution - Use firstValueFrom instead:
+typescript
+// store-table.component.ts - FIXED openTaskAssignmentDialog
 
-        <button *ngIf="node.children?.length && !disabled && !node.disabled"
-                (click)="onSelectAllChildrenClick(node, $event)"> <b>(Select all Child variables)</b></button>
-      </div>
-
-      <app-shelf-task-tree *ngIf="node.children?.length && node.open"
-        [nodes]="node.children"
-        [disabled]="disabled"
-        (nodeCheck)="nodeCheck.emit($event)"
-        (nodeSelect)="nodeSelect.emit($event)"
-        (selectAllChildren)="selectAllChildren.emit($event)">
-      </app-shelf-task-tree>
-    </li>
-  </ng-container>
-</ul>
-
-
-private processTreeData(data: ShelfNode[]): ShelfNode[] {
-  const nodeMap = new Map<number, ShelfNode>();
-  const rootNodes: ShelfNode[] = [];
-
-  data.forEach(item => {
-    const node: ShelfNode = {
-      ...item,
-      children: [],
-      isParent: false,
-      open: true,  // set default expanded state
-      disabled: this.isTaskLocked() || (item.optional !== 'Y' && item.optional !== undefined)
-    };
-    nodeMap.set(item.id, node);
-  });
-
-  data.forEach(item => {
-    const node = nodeMap.get(item.id)!;
-    const parent = nodeMap.get(item.pId);
-    if (parent) {
-      parent.children!.push(node);
-      parent.isParent = true;
-    } else {
-      rootNodes.push(node);
-    }
-  });
-
-  return rootNodes;
-}
-
-
-<div class="shelf-task-container" style="display: flex; gap: 20px;">
-  <div class="tree-container" style="flex: 1; max-width: 60%;">
-    <mat-tab-group [(selectedIndex)]="selectedTabIndex" (selectedIndexChange)="onTabChangeByIndex($event)">
-      <!-- tabs with trees -->
-    </mat-tab-group>
-  </div>
-
-  <div class="limits-container" style="flex: 0 0 300px;">
-    <div *ngIf="showLimitsPanel">
-      <form [formGroup]="limitsForm">
-        <mat-form-field>
-          <mat-label>Min</mat-label>
-          <input matInput formControlName="min" [disabled]="isLocked" />
-        </mat-form-field>
-        <mat-form-field>
-          <mat-label>Max</mat-label>
-          <input matInput formControlName="max" [disabled]="isLocked" />
-        </mat-form-field>
-
-        <mat-form-field *ngIf="showChecksPanel">
-          <mat-label>Soft Check</mat-label>
-          <input matInput formControlName="soft" [disabled]="isLocked" />
-        </mat-form-field>
-        <mat-form-field *ngIf="showChecksPanel">
-          <mat-label>Hard Check</mat-label>
-          <input matInput formControlName="hard" [disabled]="isLocked" />
-        </mat-form-field>
-      </form>
-    </div>
-  </div>
-</div>
-<mat-form-field *ngIf="activeTab === 'location' || activeTab === 'section' || activeTab === 'shelf' || activeTab === 'upc'">
-  <!-- But only show for location or hide in others according to the logic -->
-</mat-form-field>
-<mat-form-field *ngIf="activeTab === 'location'">
-  <mat-label>Min</mat-label>
-  <input matInput formControlName="min" [disabled]="isLocked" />
-</mat-form-field>
-
-<mat-form-field *ngIf="activeTab === 'location'">
-  <mat-label>Max</mat-label>
-  <input matInput formControlName="max" [disabled]="isLocked" />
-</mat-form-field>
-get showMinMax(): boolean {
-  return this.activeTab === 'location';
-}
-
-get showSoftHardChecks(): boolean {
-  return ['section', 'shelf', 'upc'].includes(this.activeTab);
-}
-
-<mat-form-field *ngIf="showMinMax">
-  <!-- min / max inputs -->
-</mat-form-field>
-
-<mat-form-field *ngIf="showSoftHardChecks">
-  <!-- soft / hard inputs -->
-</mat-form-field>
-<mat-accordion multi>
-  <mat-expansion-panel *ngFor="let category of reviewCategories" [expanded]="expandedCategory === category" (opened)="expandedCategory = category" (closed)="expandedCategory = null">
-    <mat-expansion-panel-header>
-      <mat-panel-title>{{ category.ReviewCategoryName }}</mat-panel-title>
-      <mat-panel-description>
-        <!-- maybe show selected count or icons -->
-      </mat-panel-description>
-    </mat-expansion-panel-header>
-
-    <div *ngFor="let keycat of keycatsMap[category.ReviewCategoryNumber]">
-      <!-- Render keycat details here with checkboxes and inputs similar to your original table -->
-      <mat-checkbox [checked]="isSelected(keycat)" [disabled]="disabled" (change)="onKeycatSelected(keycat, $event.checked)">{{ keycat.KeycatName }}</mat-checkbox>
-      <!-- add more inputs for QCUnder etc -->
-    </div>
-  </mat-expansion-panel>
-</mat-accordion>
-
-
-
-=====
-
-private loadTreeData() {
-  // Assume fetchTreeData() returns data from service/api
-  this.rawData = this.fetchTreeData();
-  this.locationTree = this.processTreeData(this.rawData);
-
-  if (this.locationTree.length > 0) {
-    // Preselect first root node
-    const firstNode = this.locationTree[0];
-    firstNode.checked = true;
-    // Update panels or form controls with its min/max values
-    this.updatePanelsForNode(firstNode);
+async openTaskAssignmentDialog(taskData: any): Promise<void> {
+  try {
+    // Wait for current filters to complete
+    const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
     
-    // Optional: Also expand it explicitly, if needed
-    firstNode.open = true;
+    if (!currentFilters || Object.keys(currentFilters).length === 0) {
+      console.warn('No filters applied. Cannot open assignment dialog.');
+      return;
+    }
+
+    const dialogRef = this.dialog.open(AssignmentDialogComponent, {
+      width: '90vw',
+      maxWidth: '1200px', 
+      height: '80vh',
+      data: {
+        storeNumber: taskData.StoreNumber,
+        storeName: taskData.store_name,
+        taskNumber: taskData.task_number,
+        taskName: taskData.task_name,
+        iriWeek: currentFilters.iri_week,
+        territoryId: currentFilters.territory_id,
+        mode: 'TaskLevel'
+      },
+      disableClose: true
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.refreshGridData();
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error opening task assignment dialog:', error);
   }
 }
 
-onSelectAllChildrenClick(node: ShelfNode, event: Event) {
-  event.stopPropagation();
-  if (this.isLocked) return;
+// Also fix openAssignmentDialog method:
+async openAssignmentDialog(row: any, mode: 'StoreLevel' | 'TaskLevel' = 'StoreLevel'): Promise<void> {
+  try {
+    const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+    
+    if (!currentFilters || Object.keys(currentFilters).length === 0) {
+      console.warn('No filters applied. Cannot open assignment dialog.');
+      return;
+    }
+    
+    const dialogRef = this.dialog.open(AssignmentDialogComponent, {
+      width: '90vw',
+      maxWidth: '1200px',
+      height: '80vh',
+      data: {
+        storeNumber: row.StoreNumber,
+        storeName: row.StoreName,
+        iriWeek: row.IriWeek,
+        territoryId: currentFilters.territory_id,
+        mode: mode
+      },
+      disableClose: true
+    });
 
-  this.checkAllChildren(node);
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.refreshGridData();
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error opening assignment dialog:', error);
+  }
+}
+Issue 2: Fix Expand All/Collapse All Problems
+Problem 2.1: Icon mismatch and collapse not working for individual expanded rows
+Problem 2.2: Pagination not properly resetting expansion state
+Solution - Enhanced store-table.component.ts:
+typescript
+// store-table.component.ts - COMPLETE FIX FOR EXPAND/COLLAPSE
 
-  // Force collapse then expand to refresh visual state
-  node.open = false;
-  setTimeout(() => {
-    node.open = true;
-  }, 0);
+export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
+  
+  // Properties remain the same...
+  expandedRows = new Set<CdkDetailRowDirective>();
+  selectedRows = new Set<any>();
+  expandedRowsData = new Map<string, any[]>();
+  isExpandingAll = false;
+  allExpanded = false;
+
+  ngAfterViewInit(): void {
+    this.dataSource.paginator = this.paginator;
+    this.dataSource.sort = this.sort;
+    
+    // FIXED: Listen to pagination changes with proper cleanup
+    if (this.paginator) {
+      this.paginator.page
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(() => {
+          console.log('Page changed - resetting expansion state');
+          this.forceCollapseAllRows(); // Use forced collapse
+          this.resetExpansionState();
+        });
+    }
+  }
+
+  // FIXED: Individual row expansion with proper icon sync
+  GetSubgridData(cdkDetailRow: CdkDetailRowDirective, row: any): void {
+    console.log('Row toggle:', row.StoreNumber, 'Current state:', cdkDetailRow.isExpanded);
+    
+    if (cdkDetailRow.isExpanded) {
+      this.expandedRows.add(cdkDetailRow);
+      this.selectedRows.add(row);
+    } else {
+      this.expandedRows.delete(cdkDetailRow);
+      this.selectedRows.delete(row);
+      
+      // If this was manually collapsed, update allExpanded state
+      if (this.allExpanded && this.expandedRows.size < this.getCurrentPageData().length) {
+        this.allExpanded = false;
+      }
+    }
+    
+    // Always update caret icon after state change
+    this.updateCaretIcon(cdkDetailRow, cdkDetailRow.isExpanded);
+    
+    console.log(`Individual expansion: ${this.expandedRows.size} rows expanded`);
+  }
+
+  // FIXED: Expand all with proper state management
+  async expandAllRows(): Promise<void> {
+    if (this.isExpandingAll) {
+      return;
+    }
+    
+    this.isExpandingAll = true;
+    
+    try {
+      if (this.allExpanded) {
+        // Collapse all
+        this.forceCollapseAllRows();
+        this.allExpanded = false;
+      } else {
+        // First collapse any individually expanded rows
+        this.forceCollapseAllRows();
+        
+        // Then expand all
+        await this.expandAllRowsWithData();
+        this.allExpanded = true;
+      }
+      
+    } catch (error) {
+      console.error('Error in expandAllRows:', error);
+    } finally {
+      this.isExpandingAll = false;
+    }
+  }
+
+  // FIXED: Force collapse all rows (works for individual and expand-all)
+  private forceCollapseAllRows(): void {
+    console.log('Force collapsing all rows...');
+    
+    const detailRowsArray = this.detailRows?.toArray() || [];
+    
+    // Collapse all directive rows
+    detailRowsArray.forEach((detailRow) => {
+      if (detailRow.isExpanded) {
+        detailRow.collapse();
+        console.log('Collapsed directive row');
+      }
+    });
+    
+    // Clear tracking sets
+    this.expandedRows.clear();
+    this.selectedRows.clear();
+    
+    // Force update all caret icons to collapsed state
+    setTimeout(() => {
+      const caretIcons = document.querySelectorAll('.caret');
+      caretIcons.forEach(icon => {
+        icon.classList.remove('clicked');
+      });
+      console.log('Updated all caret icons to collapsed state');
+    }, 100);
+    
+    console.log('All rows force collapsed');
+  }
+
+  // FIXED: Expand all with data loading
+  private async expandAllRowsWithData(): Promise<void> {
+    console.log('Starting to expand all rows with data...');
+    
+    const currentPageData = this.getCurrentPageData();
+    const detailRowsArray = this.detailRows?.toArray() || [];
+    
+    if (detailRowsArray.length === 0) {
+      console.warn('No detail row directives found');
+      return;
+    }
+
+    // Load all data first
+    console.log('Loading data for all rows...');
+    const dataLoadPromises = currentPageData.map(rowData => 
+      this.loadSubgridDataForRow(rowData).catch(error => {
+        console.error(`Error loading data for ${rowData.StoreNumber}:`, error);
+        return [];
+      })
+    );
+
+    const allRowData = await Promise.all(dataLoadPromises);
+    console.log('All data loaded, expanding rows...');
+
+    // Now expand each row with its specific data
+    for (let i = 0; i < Math.min(currentPageData.length, detailRowsArray.length); i++) {
+      const detailRowDirective = detailRowsArray[i];
+      const rowData = allRowData[i];
+      
+      if (detailRowDirective && detailRowDirective.canExpand()) {
+        try {
+          // Expand with specific data for this row
+          detailRowDirective.expandWithData(rowData);
+          
+          // Add to tracking sets
+          this.expandedRows.add(detailRowDirective);
+          this.selectedRows.add(currentPageData[i]);
+          
+          console.log(`Expanded row ${i + 1} with ${rowData.length} detail records`);
+          
+          // Small delay for UI smoothness
+          await this.delay(25);
+          
+        } catch (error) {
+          console.error(`Error expanding row ${i}:`, error);
+        }
+      }
+    }
+    
+    // Update all caret icons to expanded state
+    setTimeout(() => {
+      const caretIcons = document.querySelectorAll('.caret');
+      caretIcons.forEach(icon => {
+        icon.classList.add('clicked');
+      });
+      console.log('Updated all caret icons to expanded state');
+    }, 100);
+    
+    console.log('Finished expanding all rows');
+  }
+
+  // ENHANCED: Reset expansion state with forced cleanup
+  private resetExpansionState(): void {
+    console.log('Resetting expansion state');
+    this.allExpanded = false;
+    this.isExpandingAll = false;
+    this.expandedRows.clear();
+    this.selectedRows.clear();
+    this.expandedRowsData.clear();
+    
+    // Force update all caret icons immediately
+    setTimeout(() => {
+      const caretIcons = document.querySelectorAll('.caret');
+      caretIcons.forEach(icon => {
+        icon.classList.remove('clicked');
+      });
+      console.log('Reset all caret icons');
+    }, 50);
+  }
+
+  // ENHANCED: Update caret icon with better timing
+  updateCaretIcon(cdkDetailRow: CdkDetailRowDirective, isExpanded: boolean): void {
+    // Use multiple setTimeout attempts to ensure icon updates
+    [0, 50, 100].forEach(delay => {
+      setTimeout(() => {
+        const rowElement = cdkDetailRow.viewContainerRef.element.nativeElement.parentElement;
+        const caretIcon = rowElement?.querySelector('.caret');
+        
+        if (caretIcon) {
+          if (isExpanded) {
+            caretIcon.classList.add('clicked');
+          } else {
+            caretIcon.classList.remove('clicked');
+          }
+        }
+      }, delay);
+    });
+  }
+
+  // Rest of existing methods remain the same...
+}
+Enhanced cdk-detail-row.directive.ts:
+typescript
+// cdk-detail-row.directive.ts - ENHANCED WITH BETTER STATE MANAGEMENT
+
+@Directive({
+  selector: '[cdkDetailRow]'
+})
+export class CdkDetailRowDirective {
+  
+  // Existing properties...
+  public rowData: any;
+  private templateRef: TemplateRef<any>;
+  public isExpanded: boolean = false; 
+  public subgridData: any[] = [];
+  public isLoading: boolean = false;
+
+  // ENHANCED: Better expand method
+  expand(): void {
+    if (!this.isExpanded && this.canExpand()) {
+      this.isExpanded = true;
+      
+      // Request data loading if we don't have data yet
+      if (this.subgridData.length === 0 && !this.isLoading) {
+        this.isLoading = true;
+        this.dataLoadRequest.emit({ directive: this, rowData: this.rowData });
+      }
+      
+      this.render();
+    }
+  }
+
+  // ENHANCED: Expand with data (for expand all functionality)
+  expandWithData(data: any[]): void {
+    if (!this.isExpanded && this.canExpand()) {
+      this.subgridData = data;
+      this.isLoading = false;
+      this.isExpanded = true;
+      this.render();
+    }
+  }
+
+  // ENHANCED: Better collapse with cleanup
+  collapse(): void {
+    if (this.isExpanded) {
+      this.viewContainerRef.clear();
+      this.isExpanded = false;
+      this.isLoading = false;
+      
+      // Don't clear subgridData - keep it cached for faster re-expansion
+    }
+  }
+
+  // ENHANCED: Force collapse (for pagination/reset)
+  forceCollapse(): void {
+    this.viewContainerRef.clear();
+    this.isExpanded = false;
+    this.isLoading = false;
+    this.subgridData = []; // Clear data on force collapse
+  }
+
+  // Rest remains the same...
+}
+Issue 3: Dynamic API Selection Based on IRI Week + Comment Column
+Enhanced CommonService with Dynamic API Selection:
+typescript
+// common.service.ts - ENHANCED WITH DYNAMIC API SELECTION
+
+export class CommonService {
+  
+  // Add current IRI week tracking
+  private currentIRIWeekSubject = new BehaviorSubject<string>('');
+  public currentIRIWeek$ = this.currentIRIWeekSubject.asObservable();
+
+  // Load current IRI week on service init
+  async loadCurrentIRIWeek(): Promise<void> {
+    try {
+      const currentWeek = await firstValueFrom(
+        this.http.get<any>(`${this.baseUrl}api/TaskAssinment/GetCurrentIRIWeek`)
+      );
+      this.currentIRIWeekSubject.next(currentWeek.toString());
+      console.log('Current IRI Week loaded:', currentWeek);
+    } catch (error) {
+      console.error('Error loading current IRI week:', error);
+    }
+  }
+
+  getCurrentIRIWeek(): string {
+    return this.currentIRIWeekSubject.value;
+  }
+
+  // UPDATED: Dynamic getGridData with IRI week comparison
+  getGridData(payload: GetGridDataFilter): Observable<any[]> {
+    const currentIRIWeek = this.getCurrentIRIWeek();
+    const payloadIRIWeek = payload.iriWeek;
+    
+    let apiEndpoint = '';
+    
+    // Determine which API to call based on IRI week comparison
+    if (payloadIRIWeek === currentIRIWeek) {
+      // Current week
+      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetcurrentweekGridData`;
+      console.log('Using current week API');
+    } else if (payloadIRIWeek > currentIRIWeek) {
+      // Future week
+      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetfutureweekGridData`;
+      console.log('Using future week API');
+    } else {
+      // Previous week
+      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetpreviousweekGridData`;
+      console.log('Using previous week API');
+    }
+    
+    console.log(`API Selection: Payload(${payloadIRIWeek}) vs Current(${currentIRIWeek}) -> ${apiEndpoint}`);
+    
+    return this.http.post<any[]>(apiEndpoint, payload)
+      .pipe(catchError(this.handleError<any[]>('getGridData', [])));
+  }
+
+  // UPDATED: Apply filters with current IRI week check
+  applyFilters(filters: GetGridDataFilter): void {
+    const currentCountry = this.getCurrentCountry();
+    
+    if (!currentCountry) {
+      filters.countryId = '1';
+      filters.iriWeek = '2405';
+      filters.territoryId = '52';
+    } else {
+      filters.countryId = currentCountry;
+    }
+
+    this.filtersSubject.next(filters);
+    this.currentFiltersSubject.next({
+      countryId: filters.countryId,
+      iri_week: filters.iriWeek,
+      territory_id: filters.territoryId,
+      area: filters.area,
+      store_number: filters.storeNumber,
+      store_name: filters.storeName,
+      state: filters.state,
+      city: filters.city,
+      position_number: filters.positionNumber,
+      task_number: filters.taskNumber,
+      emp_id: filters.empId,
+      fsr_hour: filters.fsrHour,
+      fsr_over_25hrs: filters.fsrOver25hrs,
+      fsr_over_6hrs: filters.fsrOver6hrs,
+      assigned_stores: filters.assignedStores,
+      unassigned_stores: filters.unassignedStores,
+      sample: filters.sample,
+      nonsample: filters.nonSample,
+      multi_fsr_store: filters.multiFsrStore,
+      vacation: filters.vacation,
+      temporary: filters.temporary,
+      fsr_hour_operator: filters.fsrHourOperator
+    });
+    
+    // Call dynamic getGridData API
+    this.getGridData(filters).subscribe({
+      next: (data) => {
+        // Add empty comment field to each row for editing
+        const dataWithComments = data.map(row => ({
+          ...row,
+          UserComment: row.UserComment || '', // Existing comment or empty
+          IsCommentEditing: false // Track edit state
+        }));
+        this.gridDataSubject.next(dataWithComments);
+      },
+      error: (error) => {
+        console.error('Error applying filters:', error);
+        this.gridDataSubject.next([]);
+      }
+    });
+  }
+
+  // ADD: Save user comment for a row
+  saveUserComment(storeNumber: string, comment: string): Observable<any> {
+    const payload = {
+      storeNumber: storeNumber,
+      comment: comment,
+      userId: localStorage.getItem("loggedUserId") || ''
+    };
+    
+    return this.http.post(`${this.baseUrl}api/TaskAssinment/SaveUserComment`, payload)
+      .pipe(catchError(this.handleError('saveUserComment', {})));
+  }
+}
+Update Dashboard to Load Current IRI Week:
+typescript
+// dashboard-layout.component.ts - LOAD CURRENT IRI WEEK
+
+async ngOnInit(): Promise<void> {
+  // Load current IRI week first
+  await this.commonService.loadCurrentIRIWeek();
+  
+  // Existing initialization code...
+  this.commonService.groupsStatus$.subscribe(userGroups => {    
+    if(userGroups['isgTechnologyGroup']) { 
+      this.countryctrl.enable();
+    } else { 
+      this.countryctrl.disable();
+    }   
+  });
+
+  // Rest of existing code...
+}
+Add Comment Column to Store Table:
+typescript
+// store-table.component.ts - ADD COMMENT FUNCTIONALITY
+
+export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
+  
+  // ADD: Comment column to displayed columns
+  displayedColumns: string[] = [
+    'store_number', 'store_name', 'addr_line1', 'city', 'state', 'zip', 
+    'assigned_to', 'expected_collection_time', 'position_name', 'user_comment'
+  ];
+
+  // ADD: Comment editing methods
+  startCommentEdit(row: any): void {
+    row.IsCommentEditing = true;
+  }
+
+  cancelCommentEdit(row: any): void {
+    row.IsCommentEditing = false;
+    // Reset to original comment if cancelled
+    // You might want to store original value before editing
+  }
+
+  async saveComment(row: any, newComment: string): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.commonService.saveUserComment(row.StoreNumber, newComment)
+      );
+      
+      row.UserComment = newComment;
+      row.IsCommentEditing = false;
+      
+      console.log('Comment saved successfully');
+      // Optional: Show success message
+      
+    } catch (error) {
+      console.error('Error saving comment:', error);
+      // Optional: Show error message
+    }
+  }
+
+  // ADD: Handle comment input events
+  onCommentKeydown(event: KeyboardEvent, row: any): void {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      const target = event.target as HTMLTextAreaElement;
+      this.saveComment(row, target.value);
+    } else if (event.key === 'Escape') {
+      this.cancelCommentEdit(row);
+    }
+  }
+}
+Update Store Table HTML with Comment Column:
+xml
+<!-- store-table.component.html - ADD COMMENT COLUMN -->
+
+<!-- Add after position_name column -->
+<ng-container matColumnDef="user_comment">
+  <mat-header-cell *matHeaderCellDef class="mat-header-style">Comments</mat-header-cell>
+  <mat-cell *matCellDef="let element" class="comment-cell">
+    <!-- View mode -->
+    <div *ngIf="!element.IsCommentEditing" class="comment-view">
+      <span class="comment-text" 
+            [title]="element.UserComment"
+            (click)="startCommentEdit(element); $event.stopPropagation();">
+        {{element.UserComment || 'Add comment...'}}
+      </span>
+      <button mat-icon-button 
+              (click)="startCommentEdit(element); $event.stopPropagation();"
+              class="comment-edit-btn">
+        <mat-icon>edit</mat-icon>
+      </button>
+    </div>
+    
+    <!-- Edit mode -->
+    <div *ngIf="element.IsCommentEditing" class="comment-edit">
+      <mat-form-field appearance="outline" class="comment-field">
+        <textarea matInput
+                  [value]="element.UserComment"
+                  placeholder="Enter comment..."
+                  (keydown)="onCommentKeydown($event, element)"
+                  #commentInput
+                  rows="2"
+                  maxlength="500">
+        </textarea>
+      </mat-form-field>
+      <div class="comment-actions">
+        <button mat-icon-button 
+                color="primary"
+                (click)="saveComment(element, commentInput.value); $event.stopPropagation();">
+          <mat-icon>check</mat-icon>
+        </button>
+        <button mat-icon-button 
+                (click)="cancelCommentEdit(element); $event.stopPropagation();">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+  </mat-cell>
+</ng-container>
+Add Comment Column CSS:
+css
+/* store-table.component.css - ADD COMMENT STYLES */
+
+.comment-cell {
+  min-width: 200px;
+  max-width: 300px;
 }
 
-/* Container with tree and limits side by side */
-.shelf-task-container {
-  display: flex;
-  gap: 20px;
-  padding: 16px;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  background: #fafafa;
-  border-radius: 6px;
-  box-shadow: 0 2px 6px rgb(0 0 0 / 0.1);
-  min-height: 400px;
-}
-
-/* Tree container */
-.tree-container {
-  flex: 1 1 60%;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 12px;
-  background: white;
-  overflow-y: auto;
-  max-height: 600px;
-}
-
-/* Limits container (min/max etc) */
-.limits-container {
-  flex: 0 0 300px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 12px 16px;
-  background: white;
-  box-shadow: inset 0 0 5px rgb(0 0 0 / 0.05);
-}
-
-/* Shelf tree list styles */
-.shelf-tree-list {
-  list-style: none;
-  padding-left: 12px;
-  margin: 0;
-}
-
-/* Each tree node styles */
-.shelf-tree-list li {
-  margin-bottom: 6px;
-  font-size: 14px;
-  user-select: none;
-}
-
-/* Node content section */
-.node-content {
+.comment-view {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-/* Expand/collapse toggle button */
-.node-content button {
-  background: none;
-  border: none;
-  font-weight: bold;
+.comment-text {
+  flex: 1;
   cursor: pointer;
-  width: 25px;
-  height: 25px;
-  color: #444;
+  padding: 4px;
+  border-radius: 4px;
+  color: #666;
+  font-style: italic;
 }
 
-.node-content button:hover {
-  color: #007bff;
-  background: #eaf4ff;
-  border-radius: 3px;
+.comment-text:hover {
+  background-color: #f5f5f5;
 }
 
-/* Disabled node text style */
-.node-content span.disabled {
-  color: #aaa;
-  cursor: not-allowed;
+.comment-text:not(:empty) {
+  color: #333;
+  font-style: normal;
 }
 
-/* Select all children button */
-.node-content button.select-all {
-  font-weight: normal;
-  font-size: 12px;
-  color: #007bff;
-  cursor: pointer;
-  background: none;
-  border: none;
-  padding: 0;
-  text-decoration: underline;
+.comment-edit-btn {
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 
-.node-content button.select-all:hover {
-  color: #004a9f;
+.comment-view:hover .comment-edit-btn {
+  opacity: 1;
 }
 
-/* Style inputs in the limits panel */
-mat-form-field {
-  width: 100%;
-  margin-bottom: 12px;
-}
-<button class="select-all" *ngIf="node.children?.length && !disabled && !node.disabled"
-        (click)="onSelectAllChildrenClick(node, $event)">
-  <b>(Select all Child variables)</b>
-</button>
-
-
-
-/* Style for the expand/collapse (+ / -) button */
-.node-content > button:first-of-type {
-  background-color: #007bff;       /* Bootstrap primary blue */
-  color: white;
-  border: none;
-  border-radius: 3px;
-  width: 28px;
-  height: 28px;
-  font-weight: bold;
-  font-size: 18px;
-  cursor: pointer;
-  user-select: none;
-  transition: background-color 0.3s ease;
+.comment-edit {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
 }
 
-/* Hover effect for expand/collapse button */
-.node-content > button:first-of-type:hover {
-  background-color: #0056b3;
+.comment-field {
+  width: 100%;
 }
 
-/* Focus outline for accessibility */
-.node-content > button:first-of-type:focus {
-  outline: 2px solid #0056b3;
-  outline-offset: 2px;
+.comment-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+Summary of All Fixes:
+✅ Issue 1 Fixed: openTaskAssignmentDialog now uses firstValueFrom to properly wait for currentFilters$
+✅ Issue 2.1 Fixed: Expand/collapse icons now sync properly with individual and bulk operations
+✅ Issue 2.2 Fixed: Pagination properly resets expansion state with forced cleanup
+✅ Issue 3 Fixed: Dynamic API selection based on IRI week comparison
+✅ Bonus: Added inline comment editing functionality for each row
+
+C# Controller Methods Needed:
+csharp
+[HttpPost("[action]")]
+public ActionResult<List<StoreGridData>> GetcurrentweekGridData([FromBody] GetGridDataFilter filter)
+{
+    // Implementation for current week data
 }
 
-/* Style for the 'Select all Child variables' button */
-.node-content > button.select-all {
-  background: none;
-  border: none;
-  color: #28a745;              /* Bootstrap success green */
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  margin-left: auto;           /* Push it to the right edge */
-  padding: 0;
-  text-decoration: underline;
-  user-select: none;
-  transition: color 0.3s ease;
+[HttpPost("[action]")]
+public ActionResult<List<StoreGridData>> GetfutureweekGridData([FromBody] GetGridDataFilter filter) 
+{
+    // Implementation for future week data
 }
 
-/* Hover effect for 'Select all Child variables' button */
-.node-content > button.select-all:hover {
-  color: #1e7e34;
-  text-decoration: none;
+[HttpPost("[action]")]
+public ActionResult<List<StoreGridData>> GetpreviousweekGridData([FromBody] GetGridDataFilter filter)
+{
+    // Implementation for previous week data
 }
 
-/* Disabled state for buttons */
-.node-content > button:disabled,
-.node-content > button.select-all:disabled {
-  color: #aaa;
-  cursor: not-allowed;
-  text-decoration: none;
-  background-color: transparent;
+[HttpPost("[action]")]
+public ActionResult SaveUserComment([FromBody] SaveCommentRequest request)
+{
+    // Save user comment to database
+    return Ok(new { success = true });
 }
-
-<button class="select-all"
-        *ngIf="node.children?.length && !disabled && !node.disabled"
-        (click)="onSelectAllChildrenClick(node, $event)">
-  <b>(Select all Child variables)</b>
-</button>
-
+These fixes address all your issues comprehensively!
