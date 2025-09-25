@@ -6,3 +6,7 @@ iri_week,	fld_terrty_nbr,	Position_name,	bfd,	outlet_type,	store_number,	store_n
  
 For current week:
 iri_week,	fld_terrty_nbr,	Position_name,	bfd,	outlet_type,	store_number,	store_name,	addr_line1,	city_name,	state_cd,	zip_cd,	emp_id,	first_name,	last_name,	task_number,	task_completed,	quality,	cost_over,	guaranteed_miles
+
+exec USP_get_assignments
+exec USP_get_assignments_current_week
+exec USP_get_assignments_previous_weeks
