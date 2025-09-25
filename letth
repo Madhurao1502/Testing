@@ -1,46 +1,8 @@
-public bool InsertNumbersToDb(List<string> numbers)
-{
-    try
-    {
-        using SqlConnection conn = new(_sqlConnString);
-        using SqlCommand cmd = new("InsertNumbers", conn)
-        {
-            CommandType = CommandType.StoredProcedure
-        };
-
-        // Convert to DataTable for TVP
-        DataTable dt = new();
-        dt.Columns.Add("Value", typeof(string));
-        foreach (var num in numbers)
-        {
-            if (!string.IsNullOrWhiteSpace(num))
-                dt.Rows.Add(num.Trim());
-        }
-
-        // Add table-valued parameter
-        SqlParameter tvpParam = cmd.Parameters.AddWithValue("@Numbers", dt);
-        tvpParam.SqlDbType = SqlDbType.Structured;
-        tvpParam.TypeName = "dbo.StringList"; // This should match your SQL type
-
-        conn.Open();
-        cmd.ExecuteNonQuery();
-        conn.Close();
-
-        return true;
-    }
-    catch (Exception)
-    {
-        throw;
-    }
-}
-
-
-[HttpPost("insert-numbers")]
-public IActionResult InsertNumbers([FromBody] NumberPayload payload)
-{
-    if (payload?.Numbers == null || payload.Numbers.Count == 0)
-        return BadRequest("No data.");
-
-    var result = _yourDataContext.InsertNumbersToDb(payload.Numbers);
-    return result ? Ok("Inserted") : StatusCode(500, "Insert failed");
-}
+For Previous weeks:
+iri_week,	fld_terrty_nbr,	Position_name,	bfd,	outlet_type,	store_number,	store_name,	addr_line1,	city_name,	state_cd,	zip_cd,	emp_id,	first_name,	last_name,	task_number,	task_completed,	quality,	cost_over,	WK1FSRProdCost,	WK1StoreTravelCost,	WK1StoreTravelOvgCost,	WK2FSRProdCost,	WK2StoreTravelCost,	WK2StoreTravelOvgCost
+ 
+For Future week:
+iri_week,	fld_terrty_nbr,	Position_name,	bfd,	outlet_type,	store_number,	store_name,	addr_line1,	city_name,	state_cd,	zip_cd,	emp_id,	first_name,	last_name,	task_number,	avg_cost,	guaranteed_miles
+ 
+For current week:
+iri_week,	fld_terrty_nbr,	Position_name,	bfd,	outlet_type,	store_number,	store_name,	addr_line1,	city_name,	state_cd,	zip_cd,	emp_id,	first_name,	last_name,	task_number,	task_completed,	quality,	cost_over,	guaranteed_miles
