@@ -1080,3 +1080,227 @@ async openTaskAssignmentDialog(taskData: any): Promise<void> {
   }
 
 }
+
+common service 
+
+getIriWeeks(): Observable<any[]> {
+  return this.http.get<any[]>(`${this.baseUrl}api/TaskAssinment/GetIriWeek`)
+    .pipe(catchError(this.handleError<any[]>('getIriWeeks', [])));
+}
+
+getTerritories(): Observable<any[]> {
+  return this.http.get<any[]>(`${this.baseUrl}api/TaskAssinment/GetTerritory`)
+    .pipe(catchError(this.handleError<any[]>('getTerritories', [])));
+}
+
+searchStores(payload: any): Observable<any[]> {
+  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetStore`, payload)
+    .pipe(catchError(this.handleError<any[]>('searchStores', [])));
+}
+
+searchStates(payload: any): Observable<any[]> {
+  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetState`, payload)
+    .pipe(catchError(this.handleError<any[]>('searchStates', [])));
+}
+
+searchCities(payload: any): Observable<any[]> {
+  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetCity`, payload)
+    .pipe(catchError(this.handleError<any[]>('searchCities', [])));
+}
+
+searchClusters(payload: any): Observable<any[]> {
+  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetCluster`, payload)
+    .pipe(catchError(this.handleError<any[]>('searchClusters', [])));
+}
+
+searchTasks(payload: any): Observable<any[]> {
+  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetTask`, payload)
+    .pipe(catchError(this.handleError<any[]>('searchTasks', [])));
+}
+
+// getGridData(payload: GetGridDataFilter): Observable<any[]> {
+//   return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetGridData`, payload)
+//     .pipe(catchError(this.handleError<any[]>('getGridData', [])));
+// }
+
+// getGridData(payload: GetGridDataFilter): Observable<any[]> {
+//     const currentIRIWeek = this.getCurrentIRIWeek();
+//     const payloadIRIWeek = payload.iriWeek;
+    
+//     let apiEndpoint = '';
+    
+//     // Determine which API to call based on IRI week comparison
+//     if (payloadIRIWeek === currentIRIWeek) {
+//       // Current week
+//       apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetcurrentweekGridData`;
+//       console.log('Using current week API');
+//     } else if (payloadIRIWeek > currentIRIWeek) {
+//       // Future week
+//       apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetfutureweekGridData`;
+//       console.log('Using future week API');
+//     } else {
+//       // Previous week
+//       apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetpreviousweekGridData`;
+//       console.log('Using previous week API');
+//     }
+    
+//     console.log(`API Selection: Payload(${payloadIRIWeek}) vs Current(${currentIRIWeek}) -> ${apiEndpoint}`);
+    
+//     return this.http.post<any[]>(apiEndpoint, payload)
+//       .pipe(catchError(this.handleError<any[]>('getGridData', [])));
+//   }
+
+getGridData(payload: GetGridDataFilter): Observable<any[]> {
+    const currentIRIWeek = this.getCurrentIRIWeek();
+    const payloadIRIWeek = payload.iriWeek;
+    
+    let apiEndpoint = '';
+    let weekType: 'current' | 'future' | 'previous' = 'current';
+    
+    // Determine which API to call
+    if (payloadIRIWeek === currentIRIWeek) {
+      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetcurrentweekGridData`;
+      weekType = 'current';
+    } else if (payloadIRIWeek > currentIRIWeek) {
+      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetfutureweekGridData`;
+      weekType = 'future';
+    } else {
+      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetpreviousweekGridData`;
+      weekType = 'previous';
+    }
+    
+    console.log(`API Selection: ${weekType} week - ${apiEndpoint}`);
+    
+    // Update week type
+    this.weekTypeSubject.next(weekType);
+    
+    return this.http.post<any[]>(apiEndpoint, payload)
+      .pipe(catchError(this.handleError<any[]>('getGridData', [])));
+  }
+
+  // UPDATED: Apply filters with specific data stream updates
+  applyFilters(filters: GetGridDataFilter): void {
+    const currentCountry = this.getCurrentCountry();
+    
+    if (!currentCountry) {
+      filters.countryId = '1';
+    } else {
+      filters.countryId = currentCountry;
+    }
+
+    this.filtersSubject.next(filters);
+   this.currentFiltersSubject.next({
+      countryId: filters.countryId,
+      iri_week: filters.iriWeek,
+      territory_id: filters.territoryId,
+      area: filters.area,
+      store_number: filters.storeNumber,
+      store_name: filters.storeName,
+      state: filters.state,
+      city: filters.city,
+      position_number: filters.positionNumber,
+      task_number: filters.taskNumber,
+      emp_id: filters.empId,
+      fsr_hour: filters.fsrHour,
+      fsr_over_25hrs: filters.fsrOver25hrs,
+      fsr_over_6hrs: filters.fsrOver6hrs,
+      assigned_stores: filters.assignedStores,
+      unassigned_stores: filters.unassignedStores,
+      sample: filters.sample,
+      nonsample: filters.nonSample,
+      multi_fsr_store: filters.multiFsrStore,
+      vacation: filters.vacation,
+      temporary: filters.temporary,
+      fsr_hour_operator: filters.fsrHourOperator
+    });
+    
+    // Call API and update specific data stream
+    this.getGridData(filters).subscribe({
+      next: (data) => {
+        const currentIRIWeek = this.getCurrentIRIWeek();
+        const payloadIRIWeek = filters.iriWeek;
+        
+        // Add comment editing capability to data
+        const dataWithComments = data.map(row => ({
+          ...row,
+          UserComment: row.UserComment || '',
+          IsCommentEditing: false
+        }));
+        
+        // Update appropriate data stream
+        if (payloadIRIWeek === currentIRIWeek) {
+          this.currentWeekDataSubject.next(dataWithComments);
+        } else if (payloadIRIWeek > currentIRIWeek) {
+          this.futureWeekDataSubject.next(dataWithComments);
+        } else {
+          this.previousWeekDataSubject.next(dataWithComments);
+        }
+        
+        // Also update the main grid data for compatibility
+        this.gridDataSubject.next(dataWithComments);
+      },
+      error: (error) => {
+        console.error('Error applying filters:', error);
+        this.currentWeekDataSubject.next([]);
+        this.futureWeekDataSubject.next([]);
+        this.previousWeekDataSubject.next([]);
+        this.gridDataSubject.next([]);
+      }
+    });
+  }
+
+  getCurrentWeekType(): 'current' | 'future' | 'previous' {
+    return this.weekTypeSubject.value;
+  }
+
+private handleError<T>(operation = 'operation', result?: T) {
+  return (error: any): Observable<T> => {
+    console.error(`${operation} failed:`, error);
+    return of(result as T);
+  };
+}
+
+
+  // ADD: Save user comment for a row
+  saveUserComment(storeNumber: string, comment: string): Observable<any> {
+    const payload = {
+      storeNumber: storeNumber,
+      comment: comment,
+      userId: localStorage.getItem("loggedUserId") || ''
+    };
+     return this.http.post(`${this.baseUrl}api/TaskAssinment/SaveUserComment`, payload)
+     .pipe(catchError(this.handleError('saveUserComment', {})));
+  }
+
+
+
+  clearFilters(): void {
+    const defaultFilters = new GetGridDataFilter();
+    this.filtersSubject.next(defaultFilters);
+    this.gridDataSubject.next([]);
+  }
+
+setCountry(countryId: string): void {
+    this.countrySubject.next(countryId);
+  }
+
+ 
+  getCurrentCountry(): string {
+    return this.countrySubject.value;
+  }
+
+  async loadCurrentIRIWeek(): Promise<void> {
+    try {
+      const currentWeek = await firstValueFrom(
+        this.http.get<any>(`${this.baseUrl}api/TaskAssinment/GetCurrentIRIWeek`)
+      );
+      this.currentIRIWeekSubject.next(currentWeek.toString());
+      console.log('Current IRI Week loaded:', currentWeek);
+    } catch (error) {
+      console.error('Error loading current IRI week:', error);
+    }
+  }
+
+  getCurrentIRIWeek(): string {
+    return this.currentIRIWeekSubject.value;
+  }
