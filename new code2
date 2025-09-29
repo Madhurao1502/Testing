@@ -1,1104 +1,840 @@
-Complete Angular Implementation Updates - All 6 Requirements
-1. Enable Multiple Row Expansion
-Updated store-table.component.ts
+Complete Angular Project Enhancement Solutions
+1. Code Simplification Review
+Identified Areas for Simplification:
+A. Filter-Sidebar Component:
+
+Redundant API calls for same data
+
+Complex form subscription setup
+
+Can be streamlined
+
+B. Store-Table Component:
+
+Overly complex expand/collapse logic
+
+Duplicate data loading patterns
+
+Can be simplified
+
+C. Common Service:
+
+Multiple similar API methods
+
+Can be consolidated with generic approach
+
+Simplified Filter-Sidebar Component:
 typescript
-export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
-  
-  // UPDATED: Change from single to multiple row tracking
-  expandedRows = new Set<CdkDetailRowDirective>();
-  selectedRows = new Set<any>();
-  expandedRowsData = new Map<string, any[]>();
-  
-  // Remove these single row properties:
-  // expandedRow: CdkDetailRowDirective | undefined;
-  // selectedRow: any = null;
+// filter-sidebar.component.ts - SIMPLIFIED VERSION
 
-  // UPDATED: GetSubgridData for multiple expansion
-  GetSubgridData(cdkDetailRow: CdkDetailRowDirective, row: any): void {
-    console.log('Row toggle:', row.StoreNumber, 'Expanded:', cdkDetailRow.isExpanded);
-    
-    // REMOVED: Auto-collapse logic for multiple expansion
-    // No longer close previously expanded rows
-    
-    if (cdkDetailRow.isExpanded) {
-      this.expandedRows.add(cdkDetailRow);
-      this.selectedRows.add(row);
-    } else {
-      this.expandedRows.delete(cdkDetailRow);
-      this.selectedRows.delete(row);
-    }
-    
-    this.updateCaretIcon(cdkDetailRow, cdkDetailRow.isExpanded);
-  }
-
-  // UPDATED: Helper methods for multiple rows
-  isRowExpanded(row: any): boolean {
-    return this.selectedRows.has(row);
-  }
-
-  getExpandedRowCount(): number {
-    return this.expandedRows.size;
-  }
-
-  // UPDATED: Reset expansion state for pagination
-  private resetExpansionState(): void {
-    this.allExpanded = false;
-    this.expandedRows.clear();
-    this.selectedRows.clear();
-    this.expandedRowsData.clear();
-  }
-
-  // UPDATED: Collapse all rows
-  private collapseAllRows(): void {
-    console.log('Collapsing all rows...');
-    
-    this.expandedRows.forEach((detailRow) => {
-      if (detailRow.isExpanded) {
-        detailRow.collapse();
-      }
-    });
-    
-    this.expandedRows.clear();
-    this.selectedRows.clear();
-    console.log('All rows collapsed');
-  }
-}
-Updated store-table.component.html
-xml
-<!-- Show expansion count in header -->
-<mat-card-subtitle>
-  {{dataSource.data.length}} stores found
-  <span *ngIf="getExpandedRowCount() > 0" class="expanded-info">
-    • {{getExpandedRowCount()}} rows expanded
-  </span>
-</mat-card-subtitle>
-
-<!-- Enhanced expand all button -->
-<button 
-  mat-icon-button 
-  [disabled]="isExpandingAll"
-  (click)="expandAllRows()" 
-  [title]="allExpanded ? 'Collapse All' : 'Expand All'"
-  class="expand-all-btn">
-  <mat-icon>{{allExpanded ? 'unfold_less' : 'unfold_more'}}</mat-icon>
-</button>
-2. Reset Expansion State on Pagination Change
-Updated store-table.component.ts
-typescript
-export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
-
-  ngAfterViewInit(): void {
-    this.dataSource.paginator = this.paginator;
-    this.dataSource.sort = this.sort;
-    
-    // ADD: Listen to pagination changes
-    if (this.paginator) {
-      this.paginator.page
-        .pipe(takeUntil(this.destroy$))
-        .subscribe(() => {
-          console.log('Page changed - resetting expansion state');
-          this.resetExpansionState();
-        });
-    }
-  }
-
-  ngOnInit(): void {
-    this.commonService.gridData$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(stores => {
-        this.dataSource = new MatTableDataSource<any>(stores);
-        this.dataSource.paginator = this.paginator;
-        this.dataSource.sort = this.sort;
-        // Reset expansion state when data changes
-        this.resetExpansionState();
-      });
-  }
-
-  // Enhanced reset method
-  private resetExpansionState(): void {
-    console.log('Resetting expansion state');
-    this.allExpanded = false;
-    this.isExpandingAll = false;
-    this.expandedRows.clear();
-    this.selectedRows.clear();
-    this.expandedRowsData.clear();
-    
-    // Update all caret icons to collapsed state
-    setTimeout(() => {
-      const caretIcons = document.querySelectorAll('.caret');
-      caretIcons.forEach(icon => {
-        icon.classList.remove('clicked');
-      });
-    }, 100);
-  }
-}
-3. Add FSR Hour Operator Field
-Updated filter-sidebar.component.ts
-typescript
-export class FilterSidebarComponent implements OnInit, OnDestroy {
-
-  // ADD: FSR Hour Operators
-  fsrHourOperators = [
-    { value: 'NA', label: 'NA' },
-    { value: '>', label: '>' },
-    { value: '=', label: '=' },
-    { value: '<', label: '<' }
-  ];
-
-  private initializeForm(): void {
-    this.filterForm = this.fb.group({
-      iriWeek: [''],
-      territory: [''],
-      store: [''],
-      state: [''],
-      city: [''],
-      cluster: [''],
-      task: [''],
-      fsr: [''],
-      fsrHour: [''],
-      fsrHourOperator: ['NA'], // ADD: FSR Hour Operator
-      storeAssignment: ['all'],
-      sampleType: ['all'],
-      multiFsrStore: [false]
-    });
-  }
-
-  // ADD: Handle FSR Hour Operator changes
-  onFsrHourOperatorChange(): void {
-    const operator = this.filterForm.get('fsrHourOperator')?.value;
-    const fsrHourControl = this.filterForm.get('fsrHour');
-    
-    if (operator === 'NA') {
-      fsrHourControl?.setValue('');
-      fsrHourControl?.disable();
-    } else {
-      fsrHourControl?.enable();
-    }
-  }
-
-  // ADD: Handle FSR Hour changes
-  onFsrHourChange(): void {
-    const fsrHour = this.filterForm.get('fsrHour')?.value;
-    if (fsrHour && fsrHour.trim() !== '') {
-      // Reset multi FSR store if user enters FSR hours
-      this.filterForm.get('multiFsrStore')?.setValue(false);
-    }
-  }
-
-  // ADD: Handle Multi FSR Store changes
-  onMultiFsrStoreChange(): void {
-    const multiFsrStore = this.filterForm.get('multiFsrStore')?.value;
-    if (multiFsrStore) {
-      // Reset FSR hour fields if multi FSR store is selected
-      this.filterForm.get('fsrHourOperator')?.setValue('NA');
-      this.filterForm.get('fsrHour')?.setValue('');
-      this.filterForm.get('fsrHour')?.disable();
-    }
-  }
-
-  // UPDATED: Apply filters with FSR Hour Operator
-  onApplyFilters(): void {
-    const formValue = this.filterForm.value;
-    const currentCountry = this.commonService.getCurrentCountry();
-    
-    if (!currentCountry) {
-      this.showError('Please select a country first');
-      return;
-    }
-    
-    const filters = new GetGridDataFilter();
-    filters.countryId = currentCountry;
-    filters.lanId = this.loggeduser;
-    filters.iriWeek = formValue.iriWeek || '';
-    filters.territoryId = formValue.territory || '';
-    filters.area = this.areaNBRctrl.value || '23';
-    filters.storeNumber = this.selectedStoreNumber;
-    filters.storeName = formValue.store || '';
-    filters.state = this.selectedState;
-    filters.city = this.selectedCity;
-    filters.positionNumber = this.selectedCluster;
-    filters.taskNumber = this.selectedTask;
-    filters.empId = this.selectedFsrId;
-    filters.fsrHour = formValue.fsrHour || '';
-    filters.fsrHourOperator = formValue.fsrHourOperator || 'NA'; // ADD: Include operator
-    
-    // Static values
-    filters.fsrOver25hrs = 'false';
-    filters.fsrOver6hrs = 'false';
-    filters.temporary = 'false';
-    filters.vacation = 'false';
-    
-    // Handle radio button selections (same as before)...
-    
-    console.log('Applying filters:', filters);
-    this.filtersChanged.emit(filters);
-  }
-
-  // UPDATED: Clear filters
-  onClearFilters(): void {
-    this.filterForm.reset({
-      iriWeek: this.iriWeeks.length > 1 ? this.iriWeeks?.?.['iri_week'] : '',
-      territory: this.getDefaultTerritory(),
-      storeAssignment: 'all',
-      sampleType: 'all',
-      multiFsrStore: false,
-      fsrHourOperator: 'NA' // ADD: Reset operator
-    });
-    this.clearSelectedValues();
-    this.clearFilters.emit();
-  }
-
-  private showError(message: string): void {
-    // Implement error notification
-    console.error(message);
-  }
-}
-Updated filter-sidebar.component.html
-xml
-<!-- FSR Hours with Operator -->
-<div class="filter-field">
-  <label class="form-label">FSR Hours</label>
-  <div class="fsr-hours-container">
-    <!-- FSR Hour Operator -->
-    <mat-form-field appearance="outline" class="operator-field">
-      <mat-select formControlName="fsrHourOperator" (selectionChange)="onFsrHourOperatorChange()">
-        <mat-option *ngFor="let op of fsrHourOperators" [value]="op.value">
-          {{op.label}}
-        </mat-option>
-      </mat-select>
-    </mat-form-field>
-    
-    <!-- FSR Hour Value -->
-    <mat-form-field appearance="outline" class="hour-field">
-      <input matInput 
-             formControlName="fsrHour" 
-             type="number" 
-             placeholder="Enter hours..."
-             (change)="onFsrHourChange()"
-             min="0"
-             max="999">
-    </mat-form-field>
-  </div>
-</div>
-
-<!-- Multi FSR Store Checkbox with enhanced logic -->
-<div class="checkbox-field">
-  <label class="form-label">Options</label>
-  <mat-checkbox formControlName="multiFsrStore" (change)="onMultiFsrStoreChange()">
-    Multi FSR Store
-  </mat-checkbox>
-</div>
-Add CSS for FSR Hours
-css
-/* filter-sidebar.component.css */
-.fsr-hours-container {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.operator-field {
-  flex: 0 0 80px;
-  min-width: 80px;
-}
-
-.hour-field {
-  flex: 1;
-  min-width: 100px;
-}
-
-.expanded-info {
-  font-size: 12px;
-  color: #666;
-  font-weight: normal;
-}
-4. Wait for Form Controls Before Calling GetGridData
-Updated filter-sidebar.component.ts
-typescript
 export class FilterSidebarComponent implements OnInit, OnDestroy {
   
-  // ADD: Loading states
-  private formInitialized = false;
-  private dataLoaded = {
-    iriWeek: false,
-    territory: false,
-    employee: false
-  };
-
-  async ngOnInit(): Promise<void> {
-    try {
-      // Load data in sequence and wait for each
-      this.employeedata = await firstValueFrom(this.commonService.getEmployee(this.loggeduser));
-      this.dataLoaded.employee = true;
-      
-      await this.getIriWeek();
-      this.dataLoaded.iriWeek = true;
-      
-      await this.getTerritory();  
-      this.dataLoaded.territory = true;
-      
-      // Setup form subscriptions after data is loaded
-      this.setupFormSubscriptions();
-      
-      // Mark form as initialized
-      this.formInitialized = true;
-      
-      // NOW apply default filters after everything is ready
-      this.applyDefaultFilters();
-      
-    } catch (error) {
-      console.error('Error initializing filter component:', error);
-    }
-  }
-
-  // UPDATED: Get IRI Week with async/await
-  private async getIriWeek(): Promise<void> {
-    try {
-      const response = await firstValueFrom(
-        this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetIriWeek')
-      );
-      
-      this.iriWeeks = response;
-      
-      // Set default value
-      if (this.iriWeeks.length > 0) {
-        this.filterForm.get('iriWeek')?.setValue(
-          this.iriWeeks['iri_week'], 
-          { emitEvent: false }
-        );
-      }
-    } catch (error) {
-      console.error('Error fetching IRI weeks:', error);
-      throw error;
-    }
-  }
-
-  // UPDATED: Get Territory with async/await  
-  private async getTerritory(): Promise<void> {
+  // Simplified data loading
+  private async loadAllData(): Promise<void> {
     try {
       this.showSpinner = true;
-      const response = await firstValueFrom(
-        this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetTerritory')
-      );
       
-      this.territories = response;
+      // Load all data in parallel
+      const [iriWeeks, territories, employeeData] = await Promise.all([
+        firstValueFrom(this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetIriWeek')),
+        firstValueFrom(this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetTerritory')),
+        firstValueFrom(this.commonService.getEmployee(this.loggeduser))
+      ]);
+
+      this.iriWeeks = iriWeeks;
+      this.territories = territories;
+      this.employeedata = employeeData;
       
-      // Set default territory
-      const defaultTerritory = this.getDefaultTerritory();
-      this.filterForm.get('territory')?.setValue(defaultTerritory, { emitEvent: false });
-      
-      if (this.territories.length > 0) {
-        this.areaNBRctrl.setValue(this.territories['area']);
-      }
+      this.setDefaultValues();
+      this.setupFormSubscriptions();
       
     } catch (error) {
-      console.error('Error fetching territories:', error);
-      throw error;
+      console.error('Error loading data:', error);
     } finally {
       this.showSpinner = false;
     }
   }
 
-  private getDefaultTerritory(): string {
-    if (!this.employeedata) return '';
-    
-    return this.employeedata['fieldTerritoryNumber'] == 0 || 
-           !this.employeedata['fieldTerritoryNumber']
-           ? this.territories?.?.['territory_id'] || ''
-           : this.employeedata['territory_id'] || '';
-  }
-
-  // UPDATED: Only apply filters when form is ready
-  private applyDefaultFilters(): void {
-    if (!this.formInitialized || !this.allDataLoaded()) {
-      console.log('Form not ready for default filters');
-      return;
-    }
-
-    console.log('Applying default filters - all data loaded');
-    setTimeout(() => {
-      this.onApplyFilters();
-    }, 500);
-  }
-
-  private allDataLoaded(): boolean {
-    return this.dataLoaded.iriWeek && 
-           this.dataLoaded.territory && 
-           this.dataLoaded.employee;
-  }
-
-  // UPDATED: Prevent applying filters until ready
-  onApplyFilters(): void {
-    if (!this.formInitialized) {
-      console.log('Form not initialized yet, skipping filter application');
-      return;
-    }
-
-    const currentCountry = this.commonService.getCurrentCountry();
-    if (!currentCountry) {
-      this.showError('Please select a country first');
-      return;
-    }
-
-    // Validate required fields
-    const formValue = this.filterForm.value;
-    if (!formValue.iriWeek || !formValue.territory) {
-      console.log('Required fields not set:', {
-        iriWeek: formValue.iriWeek,
-        territory: formValue.territory
-      });
-      return;
-    }
-
-    // Continue with existing filter application logic...
-    const filters = new GetGridDataFilter();
-    // ... rest of implementation
-  }
-}
-5. Fix ExportFetaDetailsToCSV to Use Latest Filters
-Updated dashboard-layout.component.ts
-typescript
-export class DashbordLayoutComponent implements OnInit, OnDestroy {
-
-  // UPDATED: Use current filters from CommonService
-  ExportFetaDetailsToCSV(): void {
-    console.log('Exporting with current filters...');
-    
-    // Get current filter values from CommonService
-    const currentFilters = this.commonService.getCurrentFilterValues();
-    
-    if (!currentFilters || Object.keys(currentFilters).length === 0) {
-      this.snackbar.openSnackBar("No filters applied. Please apply filters first.", "error");
-      return;
-    }
-
-    // Use current filters instead of hardcoded values
-    const payLoad: GetGridDataFilter = {
-      countryId: currentFilters.countryId || "1",
-      countryName: '',
-      lanId: this.loggeduser,
-      iriWeek: currentFilters.iri_week || '',
-      iriWeekViewOnly: '',
-      area: currentFilters.area || '23',
-      territoryId: currentFilters.territory_id || '',
-      territoryName: '',
-      fromDate: '',
-      toDate: '',
-      storeNumber: currentFilters.store_number || '',
-      storeName: currentFilters.store_name || '',
-      state: currentFilters.state || '',
-      city: currentFilters.city || '',
-      taskNumber: currentFilters.task_number || '',
-      taskName: '',
-      positionNumber: currentFilters.position_number || '',
-      positionName: '',
-      empId: currentFilters.emp_id || '',
-      firstName: '',
-      lastName: '',
-      empName: '',
-      fsrOver25hrs: currentFilters.fsr_over_25hrs || 'false',
-      fsrOver6hrs: currentFilters.fsr_over_6hrs || 'false',
-      fsrHour: currentFilters.fsr_hour || '',
-      fsrHourOperator: currentFilters.fsr_hour_operator || 'NA', // ADD: Use current operator
-      assignedStores: currentFilters.assigned_stores || 'false',
-      unassignedStores: currentFilters.unassigned_stores || 'false',
-      sample: currentFilters.sample || 'false',
-      nonSample: currentFilters.nonsample || 'false',
-      multiFsrStore: currentFilters.multi_fsr_store || 'false',
-      vacation: currentFilters.vacation || 'false',
-      action: '',
-      comment: '',
-      fmEmail: '',
-      fmEmpId: '',
-      assignmentMode: '',
-      temporary: currentFilters.temporary || 'false'
-    };
-
-    console.log('Export payload:', payLoad);
-
-    this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/ExportFetaDetailsToCSV', payLoad)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (response) => {
-          if (!response || response.length === 0) {
-            this.snackbar.openSnackBar("No Data Found", "error");
-            return;
-          }
-
-          // Generate filename with current timestamp
-          const now = new Date();
-          const year = now.getFullYear();
-          const month = String(now.getMonth() + 1).padStart(2, '0');
-          const day = String(now.getDate()).padStart(2, '0');
-          let hours = now.getHours();
-          const minutes = String(now.getMinutes()).padStart(2, '0');
-          const seconds = String(now.getSeconds()).padStart(2, '0');
-          hours = hours % 12 || 12;
-          const formattedHours = String(hours).padStart(2, '0');
-          const formattedDateTime = `${year}-${month}-${day}_${formattedHours}_${minutes}_${seconds}`;
-
-          // Create Excel file
-          const columnNames = response.map(item => ({
-            ['Store Number']: item.StoreNumber,
-            ['Store Name']: item.StoreName,
-            ['Store Address']: item.AddrLine1,
-            ['Store City']: item.City,
-            ['Store State']: item.State,
-            ['Store Zip']: item.Zip,
-            ['Task Name']: item.TaskName,
-            ['Assigned To']: item.AssignedTo,
-            ['Csr Info']: item.CsrInfo,
-            Wave: item.Wave,
-            ['Expected Collection Time']: item.ExpectedCollectionTime,
-          }));
-
-          const worksheet = XLSX.utils.json_to_sheet(columnNames);
-
-          // Style header row
-          const headerRow = Object.keys(columnNames);
-          for (let colIndex = 0; colIndex < headerRow.length; colIndex++) {
-            const cellAddress = XLSX.utils.encode_cell({ r: 0, c: colIndex });
-            if (!worksheet[cellAddress]) continue;
-            worksheet[cellAddress].s = {
-              font: { bold: true }
-            };
-          }
-
-          // Auto-size columns
-          const colWidths = headerRow.map(header => {
-            const maxLength = Math.max(header.length, ...columnNames.map(row => (row[header] ? row[header].toString().length : 0)));
-            return { wch: maxLength + 2 };
-          });
-          worksheet['!cols'] = colWidths;
-
-          // Create and download file
-          const workbook = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(workbook, worksheet, `Task_Assignment_Details`);
-          XLSX.writeFile(workbook, `Task_Assignment_Details_${formattedDateTime}.xlsx`);
-
-          this.snackbar.openSnackBar("Export completed successfully", "success");
-        },
-        error: (error) => {
-          console.error('Export error:', error);
-          this.snackbar.openSnackBar("Error during export", "error");
-        },
-      });
-  }
-}
-6. Implement Assignment Popup (from jQuery code)
-Create Assignment Dialog Component
-typescript
-// assignment-dialog.component.ts
-import { Component, Inject, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup } from '@angular/forms';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { HttpClient } from '@angular/common/http';
-import { MatTableDataSource } from '@angular/material/table';
-import { firstValueFrom } from 'rxjs';
-
-export interface AssignmentDialogData {
-  storeNumber: string;
-  storeName: string;
-  taskNumber?: string;
-  taskName?: string;
-  iriWeek: string;
-  territoryId: string;
-  positionNumber?: string;
-  mode: 'StoreLevel' | 'TaskLevel' | 'ClusterLevel';
-}
-
-@Component({
-  selector: 'app-assignment-dialog',
-  template: `
-    <h2 mat-dialog-title>{{getDialogTitle()}}</h2>
-    
-    <mat-dialog-content class="assignment-dialog-content">
-      <!-- Filter Section -->
-      <div class="filter-section" [formGroup]="filterForm">
-        <div class="filter-row">
-          <mat-form-field appearance="outline">
-            <mat-label>IRI Week</mat-label>
-            <input matInput [value]="data.iriWeek" readonly>
-          </mat-form-field>
-          
-          <mat-form-field appearance="outline">
-            <mat-label>Territory</mat-label>
-            <mat-select formControlName="territory">
-              <mat-option *ngFor="let territory of territories" [value]="territory.territory_id">
-                {{territory.territory_name}}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
-        </div>
-        
-        <div class="filter-row">
-          <mat-form-field appearance="outline">
-            <mat-label>First Name</mat-label>
-            <input matInput formControlName="firstName" placeholder="Search by first name">
-          </mat-form-field>
-          
-          <mat-form-field appearance="outline">
-            <mat-label>Last Name</mat-label>
-            <input matInput formControlName="lastName" placeholder="Search by last name">
-          </mat-form-field>
-          
-          <button mat-raised-button color="primary" (click)="searchFsrs()" [disabled]="isLoading">
-            <mat-icon>search</mat-icon>
-            Search
-          </button>
-        </div>
-      </div>
-
-      <!-- Loading Indicator -->
-      <div *ngIf="isLoading" class="loading-container">
-        <mat-spinner diameter="30"></mat-spinner>
-        <span>Loading FSRs...</span>
-      </div>
-
-      <!-- FSR Table -->
-      <div class="table-container" *ngIf="!isLoading">
-        <mat-table [dataSource]="fsrDataSource" class="fsr-table">
-          
-          <!-- Action Columns (conditional based on mode) -->
-          <ng-container matColumnDef="assign_all" *ngIf="showColumn('assign_all')">
-            <mat-header-cell *matHeaderCellDef>Assign All</mat-header-cell>
-            <mat-cell *matCellDef="let fsr">
-              <button mat-stroked-button color="primary" (click)="assignTask(fsr, 2)">
-                Assign All
-              </button>
-            </mat-cell>
-          </ng-container>
-
-          <ng-container matColumnDef="unassign_all" *ngIf="showColumn('unassign_all')">
-            <mat-header-cell *matHeaderCellDef>Unassign All</mat-header-cell>
-            <mat-cell *matCellDef="let fsr">
-              <button mat-stroked-button color="warn" (click)="assignTask(fsr, 4)">
-                Unassign All
-              </button>
-            </mat-cell>
-          </ng-container>
-
-          <ng-container matColumnDef="assign" *ngIf="showColumn('assign')">
-            <mat-header-cell *matHeaderCellDef>Assign</mat-header-cell>
-            <mat-cell *matCellDef="let fsr">
-              <button mat-stroked-button color="primary" (click)="assignTask(fsr, 1)">
-                Assign
-              </button>
-            </mat-cell>
-          </ng-container>
-
-          <ng-container matColumnDef="unassign" *ngIf="showColumn('unassign')">
-            <mat-header-cell *matHeaderCellDef>Unassign</mat-header-cell>
-            <mat-cell *matCellDef="let fsr">
-              <button mat-stroked-button color="warn" (click)="assignTask(fsr, 3)">
-                Unassign
-              </button>
-            </mat-cell>
-          </ng-container>
-
-          <!-- FSR Information Columns -->
-          <ng-container matColumnDef="name">
-            <mat-header-cell *matHeaderCellDef>Name</mat-header-cell>
-            <mat-cell *matCellDef="let fsr">{{fsr.last_name}}, {{fsr.first_name}}</mat-cell>
-          </ng-container>
-
-          <ng-container matColumnDef="address">
-            <mat-header-cell *matHeaderCellDef>Address</mat-header-cell>
-            <mat-cell *matCellDef="let fsr">{{fsr.addr_line1}}</mat-cell>
-          </ng-container>
-
-          <ng-container matColumnDef="assigned_hrs">
-            <mat-header-cell *matHeaderCellDef>Assigned Hrs</mat-header-cell>
-            <mat-cell *matCellDef="let fsr">{{fsr.assigned_hrs}}</mat-cell>
-          </ng-container>
-
-          <ng-container matColumnDef="max_hrs">
-            <mat-header-cell *matHeaderCellDef>Max Hours</mat-header-cell>
-            <mat-cell *matCellDef="let fsr">{{fsr.max_hrs}}</mat-cell>
-          </ng-container>
-
-          <ng-container matColumnDef="cluster">
-            <mat-header-cell *matHeaderCellDef>Cluster</mat-header-cell>
-            <mat-cell *matCellDef="let fsr">{{fsr.position_name}}</mat-cell>
-          </ng-container>
-
-          <ng-container matColumnDef="contact">
-            <mat-header-cell *matHeaderCellDef>Contact</mat-header-cell>
-            <mat-cell *matCellDef="let fsr">
-              <div>{{fsr.phone}}</div>
-              <div><a href="mailto:{{fsr.email}}">{{fsr.email}}</a></div>
-            </mat-cell>
-          </ng-container>
-
-          <mat-header-row *matHeaderRowDef="getDisplayedColumns()"></mat-header-row>
-          <mat-row *matRowDef="let row; columns: getDisplayedColumns()"></mat-row>
-        </mat-table>
-
-        <div *ngIf="fsrDataSource.data.length === 0 && !isLoading" class="no-data">
-          No FSRs found. Please adjust your search criteria.
-        </div>
-      </div>
-    </mat-dialog-content>
-    
-    <mat-dialog-actions align="end">
-      <button mat-button (click)="onClose()">Close</button>
-    </mat-dialog-actions>
-  `,
-  styles: [`
-    .assignment-dialog-content {
-      max-height: 70vh;
-      overflow-y: auto;
-      width: 100%;
-    }
-
-    .filter-section {
-      margin-bottom: 20px;
-      padding: 16px;
-      background-color: #f5f5f5;
-      border-radius: 4px;
-    }
-
-    .filter-row {
-      display: flex;
-      gap: 16px;
-      align-items: center;
-      margin-bottom: 16px;
-    }
-
-    .filter-row mat-form-field {
-      flex: 1;
-    }
-
-    .loading-container {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      padding: 40px;
-    }
-
-    .table-container {
-      max-height: 400px;
-      overflow-y: auto;
-    }
-
-    .fsr-table {
-      width: 100%;
-    }
-
-    .no-data {
-      text-align: center;
-      padding: 40px;
-      color: #666;
-    }
-  `]
-})
-export class AssignmentDialogComponent implements OnInit {
-  filterForm: FormGroup;
-  territories: any[] = [];
-  fsrDataSource = new MatTableDataSource<any>([]);
-  isLoading = false;
-
-  constructor(
-    private dialogRef: MatDialogRef<AssignmentDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: AssignmentDialogData,
-    private fb: FormBuilder,
-    private http: HttpClient,
-    @Inject('BASE_URL') private baseUrl: string
-  ) {
-    this.filterForm = this.fb.group({
-      territory: [data.territoryId],
-      firstName: [''],
-      lastName: ['']
+  // Generic autocomplete method
+  private setupAutocomplete<T>(controlName: string, apiEndpoint: string): void {
+    this.filterForm.get(controlName)?.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      tap(() => this.showSpinner = true),
+      switchMap(searchText => this.genericSearch<T>(apiEndpoint, searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(results => {
+      this[`filtered${controlName.charAt(0).toUpperCase() + controlName.slice(1)}`] = results;
+      this.showSpinner = false;
     });
   }
 
-  async ngOnInit(): Promise<void> {
-    await this.loadTerritories();
-    await this.loadCurrentAssignment();
-  }
-
-  getDialogTitle(): string {
-    const location = this.data.mode === 'ClusterLevel' 
-      ? `Cluster: ${this.data.positionNumber} | Store: ALL`
-      : `Store: ${this.data.storeName} (${this.data.storeNumber})`;
+  // Generic search method
+  private genericSearch<T>(endpoint: string, searchText: string): Observable<T[]> {
+    if (!searchText || searchText.length < 2) return of([]);
     
-    const task = this.data.taskName 
-      ? ` | Task: ${this.data.taskName}`
-      : ' | Task: ALL';
-    
-    return `Assignment for ${location}${task}`;
-  }
-
-  getDisplayedColumns(): string[] {
-    const columns = [];
-    
-    // Add action columns based on mode
-    if (this.data.mode === 'StoreLevel') {
-      columns.push('assign_all', 'unassign_all');
-    } else if (this.data.mode === 'TaskLevel') {
-      columns.push('assign', 'unassign');
-    } else if (this.data.mode === 'ClusterLevel') {
-      columns.push('assign_to_cluster', 'unassign_from_cluster');
-    }
-    
-    // Add info columns
-    columns.push('name', 'address', 'assigned_hrs', 'max_hrs', 'cluster', 'contact');
-    
-    return columns;
-  }
-
-  showColumn(columnName: string): boolean {
-    return this.getDisplayedColumns().includes(columnName);
-  }
-
-  private async loadTerritories(): Promise<void> {
-    try {
-      this.territories = await firstValueFrom(
-        this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetTerritory')
-      );
-    } catch (error) {
-      console.error('Error loading territories:', error);
-    }
-  }
-
-  private async loadCurrentAssignment(): Promise<void> {
-    this.isLoading = true;
-    try {
-      const params = {
-        iri_week: this.data.iriWeek,
-        store_number: this.data.storeNumber,
-        task_number: this.data.taskNumber || '',
-        assignment_mode: this.data.mode,
-        position_number: this.data.positionNumber || '',
-        countryId: '1' // Get from service
-      };
-
-      const response = await firstValueFrom(
-        this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetCurrentAssignment', params)
-      );
-
-      this.fsrDataSource.data = response;
-    } catch (error) {
-      console.error('Error loading current assignment:', error);
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  async searchFsrs(): Promise<void> {
-    this.isLoading = true;
-    try {
-      const formValue = this.filterForm.value;
-      const params = {
-        iri_week: this.data.iriWeek,
-        territory_id: formValue.territory,
-        first_name: formValue.firstName,
-        last_name: formValue.lastName,
-        position_number: this.data.positionNumber || '',
-        countryId: '1',
-        area: '23'
-      };
-
-      const response = await firstValueFrom(
-        this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetFsrForAssignment', params)
-      );
-
-      this.fsrDataSource.data = response;
-    } catch (error) {
-      console.error('Error searching FSRs:', error);
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  async assignTask(fsr: any, action: number): Promise<void> {
-    const actionNames = {
-      1: 'assign current task to',
-      2: 'assign all tasks to',
-      3: 'unassign current task from',
-      4: 'unassign all tasks from',
-      5: 'assign to cluster',
-      6: 'unassign from cluster'
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
     };
-
-    const message = `Are you sure you want to ${actionNames[action]} ${fsr.first_name} ${fsr.last_name}?`;
     
-    if (!confirm(message)) return;
-
-    try {
-      const params = {
-        iri_week: this.data.iriWeek,
-        territory_id: this.filterForm.get('territory')?.value,
-        store_number: this.data.storeNumber,
-        emp_id: fsr.emp_id,
-        task_number: this.data.taskNumber || '',
-        position_number: this.data.positionNumber || '',
-        action: action,
-        assignment_mode: this.data.mode,
-        countryId: '1'
-      };
-
-      await firstValueFrom(
-        this.http.post(this.baseUrl + 'api/TaskAssinment/SaveAssignment', params)
-      );
-
-      // Refresh the assignment list
-      await this.loadCurrentAssignment();
-      
-      // Clear search fields
-      this.filterForm.patchValue({ firstName: '', lastName: '' });
-      
-      alert('New Assignment saved successfully.');
-      
-    } catch (error) {
-      console.error('Error saving assignment:', error);
-      alert('Error while saving assignments.');
-    }
-  }
-
-  onClose(): void {
-    this.dialogRef.close(true); // Return true to indicate refresh needed
+    return this.http.post<T[]>(this.baseUrl + endpoint, payload)
+      .pipe(catchError(() => of([])));
   }
 }
-Updated store-table.component.ts - Add Assignment Dialog
+2. Column Hide/Show Functionality
+Enhanced Filter-Sidebar with Column Visibility:
 typescript
-// Import the dialog component
-import { AssignmentDialogComponent } from './assignment-dialog.component';
+// filter-sidebar.component.ts - ADD COLUMN VISIBILITY
+
+export class FilterSidebarComponent implements OnInit, OnDestroy {
+  
+  // Column visibility options
+  availableColumns = [
+    { key: 'store_number', label: 'Store Number', required: true },
+    { key: 'store_name', label: 'Store Name', required: true },
+    { key: 'addr_line1', label: 'Address', required: false },
+    { key: 'city', label: 'City', required: false },
+    { key: 'state', label: 'State', required: false },
+    { key: 'zip', label: 'Zip', required: false },
+    { key: 'assigned_to', label: 'Assigned To', required: true },
+    { key: 'task_completed', label: 'Task Completed', required: false },
+    { key: 'quality', label: 'Quality', required: false },
+    { key: 'cost_over', label: 'Cost Over', required: false },
+    { key: 'guaranteed_miles', label: 'Miles', required: false },
+    { key: 'user_comment', label: 'Comments', required: true }
+  ];
+
+  selectedColumns: string[] = [];
+
+  @Output() columnsChanged = new EventEmitter<string[]>();
+
+  ngOnInit(): void {
+    // Initialize with default columns
+    this.selectedColumns = this.availableColumns
+      .filter(col => col.required || ['addr_line1', 'city', 'state'].includes(col.key))
+      .map(col => col.key);
+      
+    // ... existing ngOnInit code
+  }
+
+  onColumnSelectionChange(): void {
+    // Ensure required columns are always selected
+    const requiredColumns = this.availableColumns
+      .filter(col => col.required)
+      .map(col => col.key);
+      
+    this.selectedColumns = [...new Set([...this.selectedColumns, ...requiredColumns])];
+    this.columnsChanged.emit(this.selectedColumns);
+  }
+
+  isColumnRequired(columnKey: string): boolean {
+    return this.availableColumns.find(col => col.key === columnKey)?.required || false;
+  }
+}
+Updated Filter-Sidebar HTML:
+xml
+<!-- filter-sidebar.component.html - ADD AFTER MULTI FSR STORE CHECKBOX -->
+
+<!-- Column Visibility Dropdown -->
+<div class="checkbox-field">
+  <label class="form-label">Visible Columns</label>
+  <mat-form-field appearance="outline">
+    <mat-label>Select Columns</mat-label>
+    <mat-select multiple [(value)]="selectedColumns" (selectionChange)="onColumnSelectionChange()">
+      <mat-option *ngFor="let column of availableColumns" 
+                  [value]="column.key" 
+                  [disabled]="column.required">
+        {{column.label}}
+        <span *ngIf="column.required" class="required-indicator"> *</span>
+      </mat-option>
+    </mat-select>
+  </mat-form-field>
+</div>
+CSS for Column Selector:
+css
+/* filter-sidebar.component.css - ADD THESE STYLES */
+
+.required-indicator {
+  color: #f44336;
+  font-weight: bold;
+}
+
+.mat-option[aria-disabled="true"] {
+  background-color: #f5f5f5;
+  color: #999;
+}
+
+.column-selector-field {
+  min-width: 200px;
+}
+3. Table Search Functionality
+Enhanced Store-Table with Search:
+typescript
+// store-table.component.ts - ADD SEARCH FUNCTIONALITY
 
 export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
+  
+  // Search properties
+  searchControl = new FormControl('');
+  originalData: any[] = [];
+  isSearching = false;
 
-  // ADD: Open assignment dialog for main grid
-  openAssignmentDialog(row: any, mode: 'StoreLevel' | 'TaskLevel' = 'StoreLevel'): void {
-    const dialogRef = this.dialog.open(AssignmentDialogComponent, {
-      width: '90vw',
-      maxWidth: '1200px',
-      height: '80vh',
-      data: {
-        storeNumber: row.StoreNumber,
-        storeName: row.StoreName,
-        iriWeek: row.IriWeek || '2405', // Get from current filters
-        territoryId: '52', // Get from current filters
-        mode: mode
-      },
-      disableClose: true
-    });
+  ngOnInit(): void {
+    // ... existing ngOnInit code
 
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        // Refresh the grid data
-        this.refreshGridData();
-      }
+    // Setup search functionality
+    this.setupSearch();
+  }
+
+  private setupSearch(): void {
+    this.searchControl.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      tap(() => {
+        this.isSearching = true;
+        this.showSpinner = true;
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe(searchTerm => {
+      this.performSearch(searchTerm || '');
     });
   }
 
-  // ADD: Open assignment dialog for subgrid (task level)
-  openTaskAssignmentDialog(taskData: any): void {
-    const dialogRef = this.dialog.open(AssignmentDialogComponent, {
-      width: '90vw',
-      maxWidth: '1200px', 
-      height: '80vh',
-      data: {
-        storeNumber: taskData.store_number,
-        storeName: taskData.store_name,
-        taskNumber: taskData.task_number,
-        taskName: taskData.task_name,
-        iriWeek: taskData.iri_week || '2405',
-        territoryId: '52',
-        mode: 'TaskLevel'
-      },
-      disableClose: true
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        this.refreshGridData();
+  private performSearch(searchTerm: string): void {
+    try {
+      if (!searchTerm.trim()) {
+        // No search term, show all data
+        this.dataSource.data = [...this.originalData];
+      } else {
+        // Filter data based on search term
+        const filtered = this.originalData.filter(row => 
+          this.matchesSearchTerm(row, searchTerm.toLowerCase())
+        );
+        this.dataSource.data = filtered;
       }
+      
+      // Reset pagination and expansion state
+      if (this.paginator) {
+        this.paginator.firstPage();
+      }
+      this.resetExpansionState();
+      
+    } catch (error) {
+      console.error('Error performing search:', error);
+    } finally {
+      this.isSearching = false;
+      this.showSpinner = false;
+    }
+  }
+
+  private matchesSearchTerm(row: any, searchTerm: string): boolean {
+    const searchableFields = [
+      'StoreNumber', 'StoreName', 'AddrLine1', 'City', 'State', 
+      'Zip', 'AssignedTo', 'TaskCompleted', 'Quality', 'UserComment'
+    ];
+
+    return searchableFields.some(field => {
+      const value = row[field];
+      return value && value.toString().toLowerCase().includes(searchTerm);
     });
   }
 
-  private refreshGridData(): void {
-    // Trigger a refresh of the current data
-    // This depends on your current data loading implementation
-    console.log('Refreshing grid data after assignment change');
+  clearSearch(): void {
+    this.searchControl.setValue('');
+  }
+
+  // Enhanced updateDataSource to preserve original data
+  private updateDataSource(data: any[]): void {
+    // Store original data for search functionality
+    this.originalData = [...data];
+    
+    // Apply current search if active
+    const searchTerm = this.searchControl.value;
+    if (searchTerm && searchTerm.trim()) {
+      this.performSearch(searchTerm);
+    } else {
+      this.dataSource.data = data;
+    }
+    
+    this.dataSource.paginator = this.paginator;
+    this.dataSource.sort = this.sort;
+    this.resetExpansionState();
   }
 }
-Updated store-table.component.html - Add Click Handlers
+Updated Store-Table HTML with Search:
 xml
-<!-- Main grid: Make "Assigned To" clickable -->
-<ng-container matColumnDef="assigned_to">
-  <mat-header-cell *matHeaderCellDef class="mat-header-style">Assigned To</mat-header-cell>
-  <mat-cell *matCellDef="let element" class="assigned-cell">
-    <span class="assignment-badge clickable" 
-          [ngClass]="getAssignmentClass(element.AssignedTo)"
-          (click)="openAssignmentDialog(element, 'StoreLevel'); $event.stopPropagation();">
-      {{element.AssignedTo}}
-    </span>
-  </mat-cell>
-</ng-container>
+<!-- store-table.component.html - ADD SEARCH BAR -->
 
-<!-- Subgrid template: Make "Assigned To" clickable -->
-<ng-template #tpl let-element let-subgridData="subgridData" let-isLoading="isLoading">
-  <div class="mat-row detail-row" style="overflow: hidden;">
+<div class="table-container">
+  <mat-card class="table-card">
+    <mat-card-content>
+      
+      <!-- Search Bar -->
+      <div class="search-container">
+        <mat-form-field appearance="outline" class="search-field">
+          <mat-label>Search stores...</mat-label>
+          <input matInput [formControl]="searchControl" 
+                 placeholder="Search by store number, name, address, city, state, assigned to, etc.">
+          <mat-icon matPrefix>search</mat-icon>
+          <button mat-button *ngIf="searchControl.value" matSuffix mat-icon-button (click)="clearSearch()">
+            <mat-icon>clear</mat-icon>
+          </button>
+        </mat-form-field>
+        
+        <div class="search-info" *ngIf="searchControl.value">
+          Showing {{dataSource.data.length}} of {{originalData.length}} stores
+          <span *ngIf="isSearching" class="searching-indicator">
+            <mat-spinner diameter="16"></mat-spinner>
+            Searching...
+          </span>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <!-- Existing table code -->
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>
+Search CSS:
+css
+/* store-table.component.css - ADD SEARCH STYLES */
+
+.search-container {
+  padding: 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.search-field {
+  flex: 1;
+  min-width: 300px;
+}
+
+.search-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #666;
+}
+
+.searching-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #1976d2;
+}
+
+@media (max-width: 768px) {
+  .search-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .search-field {
+    min-width: auto;
+  }
+}
+4. Comprehensive Spinner Implementation
+Enhanced Spinner Service:
+typescript
+// shared/spinner.service.ts - CREATE NEW SERVICE
+
+import { Injectable } from '@angular/core';
+import { BehaviorSubject } from 'rxjs';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class SpinnerService {
+  private spinnerSubject = new BehaviorSubject<boolean>(false);
+  public spinner$ = this.spinnerSubject.asObservable();
+  
+  private loadingTasks = new Set<string>();
+
+  show(taskId: string = 'default'): void {
+    this.loadingTasks.add(taskId);
+    this.spinnerSubject.next(true);
+  }
+
+  hide(taskId: string = 'default'): void {
+    this.loadingTasks.delete(taskId);
+    if (this.loadingTasks.size === 0) {
+      this.spinnerSubject.next(false);
+    }
+  }
+
+  hideAll(): void {
+    this.loadingTasks.clear();
+    this.spinnerSubject.next(false);
+  }
+
+  isLoading(): boolean {
+    return this.spinnerSubject.value;
+  }
+}
+Updated Components with Spinner:
+typescript
+// store-table.component.ts - ENHANCED SPINNER USAGE
+
+export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
+  
+  constructor(
+    // ... existing dependencies
+    private spinnerService: SpinnerService
+  ) {}
+
+  ngOnInit(): void {
+    // Subscribe to spinner state
+    this.spinnerService.spinner$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(isLoading => {
+        this.showSpinner = isLoading;
+      });
+
+    // ... existing code
+  }
+
+  private updateDataSource(data: any[]): void {
+    this.spinnerService.show('table-update');
     
-    <div *ngIf="isLoading" class="row-loading">
-      <mat-spinner diameter="20"></mat-spinner>
-      <span>Loading data for {{element.StoreName}}...</span>
+    try {
+      // ... existing update logic
+    } finally {
+      this.spinnerService.hide('table-update');
+    }
+  }
+
+  private performSearch(searchTerm: string): void {
+    this.spinnerService.show('table-search');
+    
+    try {
+      // ... existing search logic
+    } finally {
+      this.spinnerService.hide('table-search');
+    }
+  }
+
+  async GetSubgridData(cdkDetailRow: CdkDetailRowDirective, rowData: any): Promise<void> {
+    this.spinnerService.show(`subgrid-${rowData.StoreNumber}`);
+    
+    try {
+      // ... existing subgrid logic
+    } finally {
+      this.spinnerService.hide(`subgrid-${rowData.StoreNumber}`);
+    }
+  }
+}
+Updated Filter-Sidebar with Spinner:
+typescript
+// filter-sidebar.component.ts - ENHANCED SPINNER
+
+export class FilterSidebarComponent implements OnInit, OnDestroy {
+  
+  constructor(
+    // ... existing dependencies
+    private spinnerService: SpinnerService
+  ) {}
+
+  onApplyFilters(): void {
+    this.spinnerService.show('apply-filters');
+    
+    try {
+      // ... existing filter logic
+      this.filtersChanged.emit(filters);
+    } finally {
+      // Don't hide here - let the data loading complete first
+      setTimeout(() => this.spinnerService.hide('apply-filters'), 100);
+    }
+  }
+
+  private genericSearch<T>(endpoint: string, searchText: string): Observable<T[]> {
+    const taskId = `search-${endpoint}`;
+    this.spinnerService.show(taskId);
+    
+    return this.http.post<T[]>(this.baseUrl + endpoint, payload).pipe(
+      finalize(() => this.spinnerService.hide(taskId)),
+      catchError(() => of([]))
+    );
+  }
+}
+5. Comment Editing with User Group Restrictions
+Enhanced Store-Table with User Group Security:
+typescript
+// store-table.component.ts - ADD USER GROUP SECURITY
+
+export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
+  
+  // User permissions
+  canEditComments = false;
+  canDeleteComments = false;
+
+  ngOnInit(): void {
+    // ... existing code
+
+    // Subscribe to user group status
+    this.commonService.groupStatus$.subscribe(userGroups => {
+      this.canEditComments = userGroups['tech'] || userGroups['admin'];
+      this.canDeleteComments = userGroups['tech'] || userGroups['admin'];
+    });
+  }
+
+  startCommentEdit(element: any): void {
+    if (!this.canEditComments) {
+      console.log('User does not have permission to edit comments');
+      return;
+    }
+    
+    element.IsCommentEditing = true;
+  }
+
+  deleteComment(element: any): void {
+    if (!this.canDeleteComments) {
+      console.log('User does not have permission to delete comments');
+      return;
+    }
+    
+    if (confirm('Are you sure you want to delete this comment?')) {
+      this.saveComment(element, '');
+    }
+  }
+
+  async saveComment(element: any, comment: string): Promise<void> {
+    if (!this.canEditComments) {
+      console.log('User does not have permission to save comments');
+      return;
+    }
+
+    this.spinnerService.show('save-comment');
+    
+    try {
+      await firstValueFrom(
+        this.commonService.saveUserComment(element.StoreNumber, comment)
+      );
+      
+      element.UserComment = comment;
+      element.IsCommentEditing = false;
+      console.log('Comment saved successfully');
+      
+    } catch (error) {
+      console.error('Error saving comment:', error);
+    } finally {
+      this.spinnerService.hide('save-comment');
+    }
+  }
+}
+Updated HTML with Security:
+xml
+<!-- store-table.component.html - SECURE COMMENT COLUMN -->
+
+<ng-container matColumnDef="user_comment">
+  <mat-header-cell *matHeaderCellDef class="mat-header-style">Comments</mat-header-cell>
+  <mat-cell *matCellDef="let element" class="comment-cell">
+    <!-- View mode -->
+    <div *ngIf="!element.IsCommentEditing" class="comment-view">
+      <span class="comment-text" 
+            [title]="element.UserComment"
+            (click)="canEditComments && startCommentEdit(element); $event.stopPropagation();"
+            [style.cursor]="canEditComments ? 'pointer' : 'default'">
+        {{element.UserComment || (canEditComments ? 'Add comment...' : 'No comment')}}
+      </span>
+      
+      <!-- Edit button - only show if user has permission -->
+      <button *ngIf="canEditComments" 
+              mat-icon-button 
+              (click)="startCommentEdit(element); $event.stopPropagation();"
+              class="comment-edit-btn">
+        <mat-icon>edit</mat-icon>
+      </button>
+      
+      <!-- Delete button - only show if user has permission and comment exists -->
+      <button *ngIf="canDeleteComments && element.UserComment" 
+              mat-icon-button 
+              (click)="deleteComment(element); $event.stopPropagation();"
+              class="comment-delete-btn">
+        <mat-icon>delete</mat-icon>
+      </button>
     </div>
     
-    <table class="expanded-table" *ngIf="!isLoading"> 
-      <tr> 
-       <th>Task Name</th>
-        <th>Assigned To</th>              
-        <th>CSR Info</th>
-        <th>Wave</th>
-        <th>Avg Coll Time</th>
-      </tr>
-      <tr *ngFor="let item of subgridData;">
-        <td>{{item.TaskName}}</td>
-        <td>
-          <span class="assignment-link" 
-                (click)="openTaskAssignmentDialog(item); $event.stopPropagation();">
-            {{item.AssignedTo}}
-          </span>
-        </td>              
-        <td>{{item.CsrInfo}}</td>
-        <td>{{item.Wave}}</td>
-        <td>{{item.ExpectedCollectionTime}}</td>
-      </tr>       
-    </table>
-  </div>
-</ng-template>
-Add CSS for Assignment Links
+    <!-- Edit mode - only if user has permission -->
+    <div *ngIf="element.IsCommentEditing && canEditComments" class="comment-edit">
+      <mat-form-field appearance="outline" class="comment-field">
+        <textarea matInput
+                  [value]="element.UserComment"
+                  placeholder="Enter comment..."
+                  (keydown)="onCommentKeydown($event, element)"
+                  #commentInput
+                  rows="2"
+                  maxlength="500">
+        </textarea>
+      </mat-form-field>
+      <div class="comment-actions">
+        <button mat-icon-button 
+                color="primary"
+                (click)="saveComment(element, commentInput.value); $event.stopPropagation();">
+          <mat-icon>check</mat-icon>
+        </button>
+        <button mat-icon-button 
+                (click)="cancelCommentEdit(element); $event.stopPropagation();">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+  </mat-cell>
+</ng-container>
+6. Enhanced Assigned To Display (Multiple Names)
+Updated Common Service:
+typescript
+// common.service.ts - ENHANCED ASSIGNED TO DISPLAY
+
+private getAssignedToDisplay(row: any): string {
+  if (!row.FirstName || !row.LastName) {
+    return 'NOT ASSIGNED';
+  }
+
+  // Handle multiple names separated by commas
+  const firstNames = row.FirstName.split(',').map(name => name.trim());
+  const lastNames = row.LastName.split(',').map(name => name.trim());
+
+  if (firstNames.length !== lastNames.length) {
+    console.warn('Mismatch between first names and last names count');
+    return `${row.FirstName} ${row.LastName}`;
+  }
+
+  // Create full names
+  const fullNames = firstNames.map((firstName, index) => {
+    const lastName = lastNames[index] || '';
+    return `${firstName} ${lastName}`.trim();
+  });
+
+  return fullNames.join(', ');
+}
+Enhanced Assigned To Column:
+typescript
+// store-table.component.ts - ADD ASSIGNED TO HELPER METHODS
+
+export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
+  
+  // Get assigned to display with proper formatting
+  getAssignedToDisplay(assignedTo: string): string {
+    if (!assignedTo || assignedTo === 'NOT ASSIGNED') {
+      return 'NOT ASSIGNED';
+    }
+
+    // Split by comma and take only first 2 names for display
+    const names = assignedTo.split(',').map(name => name.trim());
+    
+    if (names.length <= 2) {
+      return assignedTo;
+    }
+
+    // Show first 2 names and add "..." for more
+    return `${names}, ${names}...`;
+  }
+
+  getAssignedToTooltip(assignedTo: string): string {
+    if (!assignedTo || assignedTo === 'NOT ASSIGNED') {
+      return 'No one assigned';
+    }
+
+    // Return full list for tooltip
+    const names = assignedTo.split(',').map(name => name.trim());
+    return names.join('\n');
+  }
+
+  getAssignmentClass(assignedTo: string): string {
+    if (!assignedTo || assignedTo === 'NOT ASSIGNED') {
+      return 'not-assigned';
+    }
+    
+    // Check if multiple people assigned
+    const nameCount = assignedTo.split(',').length;
+    return nameCount > 1 ? 'multiple-assigned' : 'single-assigned';
+  }
+}
+Updated HTML for Assigned To Column:
+xml
+<!-- store-table.component.html - ENHANCED ASSIGNED TO COLUMN -->
+
+<ng-container matColumnDef="assigned_to">
+  <mat-header-cell *matHeaderCellDef class="mat-header-style">Assigned To</mat-header-cell>
+  <mat-cell *matCellDef="let element" class="assigned-cell" 
+            (click)="openAssignmentDialog(element, 'StoreLevel'); $event.stopPropagation()">
+    
+    <div class="assignment-container">
+      <!-- Display truncated names -->
+      <span class="assignment-badge" 
+            [ngClass]="getAssignmentClass(element.AssignedTo)"
+            [matTooltip]="getAssignedToTooltip(element.AssignedTo)"
+            matTooltipClass="multi-line-tooltip">
+        {{getAssignedToDisplay(element.AssignedTo)}}
+      </span>
+      
+      <!-- Show count if multiple people -->
+      <span *ngIf="element.AssignedTo && element.AssignedTo.includes(',')" 
+            class="assignment-count">
+        (+{{element.AssignedTo.split(',').length - 2}} more)
+      </span>
+    </div>
+  </mat-cell>
+</ng-container>
+CSS for Enhanced Assigned To:
 css
-/* store-table.component.css */
-.assignment-badge.clickable {
-  cursor: pointer;
-  text-decoration: underline;
-  color: #1976d2;
+/* store-table.component.css - ENHANCED ASSIGNED TO STYLES */
+
+.assignment-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.assignment-badge.clickable:hover {
-  background-color: rgba(25, 118, 210, 0.1);
-  text-decoration: none;
+.assignment-badge.multiple-assigned {
+  background: #2196f3;
+  color: white;
+  position: relative;
 }
 
-.assignment-link {
-  cursor: pointer;
-  color: #1976d2;
-  text-decoration: underline;
+.assignment-badge.single-assigned {
+  background: #4caf50;
+  color: white;
 }
 
-.assignment-link:hover {
-  text-decoration: none;
-  font-weight: 500;
+.assignment-count {
+  font-size: 10px;
+  color: #666;
+  font-style: italic;
 }
-Summary of All Changes
-✅ 1. Multiple Row Expansion - Users can now expand multiple rows simultaneously
-✅ 2. Reset on Pagination - Expansion state resets when changing pages
-✅ 3. FSR Hour Operator - Added dropdown with NA, >, =, < options
-✅ 4. Sequential Loading - Waits for IRI Week, Territory, Country before calling GetGridData
-✅ 5. Export with Current Filters - Uses actual applied filters instead of hardcoded values
-✅ 6. Assignment Popup - Full dialog implementation matching jQuery functionality
 
-All changes maintain backward compatibility and follow Angular best practices!
+/* Multi-line tooltip */
+.mat-tooltip.multi-line-tooltip {
+  white-space: pre-line;
+  max-width: 300px;
+  text-align: left;
+}
+
+/* Text overflow handling for all cells */
+.mat-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+.mat-cell[matTooltip] {
+  cursor: help;
+}
+
+/* Specific column max-widths to prevent overflow */
+.mat-column-store_name .mat-cell {
+  max-width: 250px;
+}
+
+.mat-column-addr_line1 .mat-cell {
+  max-width: 200px;
+}
+
+.mat-column-assigned_to .mat-cell {
+  max-width: 180px;
+}
+7. Table Alignment Fix
+Updated Table CSS:
+css
+/* store-table.component.css - FIXED TABLE ALIGNMENT */
+
+.store-table {
+  width: 100%;
+  table-layout: fixed; /* This ensures consistent column widths */
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.store-table .mat-header-cell,
+.store-table .mat-cell {
+  padding: 8px 12px;
+  border-right: 1px solid #e0e0e0;
+  vertical-align: middle;
+  word-wrap: break-word;
+}
+
+.store-table .mat-header-cell:last-child,
+.store-table .mat-cell:last-child {
+  border-right: none;
+}
+
+/* Fixed column widths */
+.mat-column-store_number {
+  width: 120px;
+  min-width: 120px;
+}
+
+.mat-column-store_name {
+  width: 200px;
+  min-width: 200px;
+}
+
+.mat-column-addr_line1 {
+  width: 180px;
+  min-width: 180px;
+}
+
+.mat-column-city {
+  width: 150px;
+  min-width: 150px;
+}
+
+.mat-column-state {
+  width: 80px;
+  min-width: 80px;
+}
+
+.mat-column-assigned_to {
+  width: 160px;
+  min-width: 160px;
+}
+
+.mat-column-user_comment {
+  width: 200px;
+  min-width: 200px;
+}
+
+/* Header alignment */
+.mat-header-cell {
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  background: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+}
+
+/* Cell alignment */
+.mat-cell {
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.4;
+}
+
+/* Ensure proper row height */
+.mat-row {
+  min-height: 48px;
+}
+
+.mat-header-row {
+  min-height: 56px;
+}
+Implementation Summary:
+✅ Code Simplified: Consolidated repetitive patterns, generic search methods
+✅ Column Hide/Show: Multi-select dropdown in advanced filters
+✅ Table Search: Real-time search across all table data
+✅ Enhanced Spinner: Centralized spinner service for all loading states
+✅ Secure Comments: Role-based edit/delete permissions
+✅ Multi-name Display: Proper handling of multiple assigned people
+✅ Fixed Alignment: Proper table column alignment and overflow handling
+
+These enhancements provide a professional, user-friendly interface with proper security controls and improved performance!
