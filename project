@@ -1,30 +1,1886 @@
-private getAssignedToDisplay(row: any): string {
-  if (!row.FirstName || !row.LastName) {
-    return 'NOT ASSIGNED';
-  }
+COMPLETE CODE - All Components with Fixes
+1. COMPLETE common.service.ts
+typescript
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, BehaviorSubject, firstValueFrom, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
+import { GetGridDataFilter } from './common.model';
 
-  const hasCommaInFirst = row.FirstName.includes(',');
-  const hasCommaInLast = row.LastName.includes(',');
+@Injectable({
+  providedIn: 'root'
+})
+export class CommonService {
+  
+  public baseUrl: string = '';
 
-  // Case 1: Not comma separated (just a single name)
-  if (!hasCommaInFirst && !hasCommaInLast) {
-    return `${row.FirstName.trim()} ${row.LastName.trim()}`.trim();
-  }
+  // Week type and data subjects  
+  private weekTypeSubject = new BehaviorSubject<'current' | 'future' | 'previous'>('current');
+  public weekType$ = this.weekTypeSubject.asObservable();
 
-  // Case 2: Comma separated names
-  const firstNames = row.FirstName.split(',').map(name => name.trim());
-  const lastNames = row.LastName.split(',').map(name => name.trim());
+  // Separate data subjects for each week type
+  private currentWeekDataSubject = new BehaviorSubject<any[]>([]);
+  public currentWeekData$ = this.currentWeekDataSubject.asObservable();
 
-  if (firstNames.length !== lastNames.length) {
-    console.warn('Mismatch between first names and last names count');
-    return `${row.FirstName} ${row.LastName}`.trim();
-  }
+  private futureWeekDataSubject = new BehaviorSubject<any[]>([]);
+  public futureWeekData$ = this.futureWeekDataSubject.asObservable();
 
-  // Create full names
-  const fullNames = firstNames.map((firstName, index) => {
-    const lastName = lastNames[index] || '';
-    return `${firstName} ${lastName}`.trim();
+  private previousWeekDataSubject = new BehaviorSubject<any[]>([]);
+  public previousWeekData$ = this.previousWeekDataSubject.asObservable();
+
+  // Current IRI Week tracking
+  private currentIRIWeekSubject = new BehaviorSubject<string>('2405');
+  
+  // Existing subjects (keep your existing ones)
+  private filtersSubject = new BehaviorSubject<GetGridDataFilter>(new GetGridDataFilter());
+  public filters$ = this.filtersSubject.asObservable();
+
+  private gridDataSubject = new BehaviorSubject<any[]>([]);
+  public gridData$ = this.gridDataSubject.asObservable();
+
+  private currentFiltersSubject = new BehaviorSubject<any>({});
+  public currentFilters$ = this.currentFiltersSubject.asObservable();
+
+  private countrySubject = new BehaviorSubject<string>('1');
+  public country$ = this.countrySubject.asObservable();
+
+  private groupsStatusSubject = new BehaviorSubject<any>({});
+  public groupsStatus$ = this.groupsStatusSubject.asObservable();
+
+  // FIXED: Add missing groupStatus$ subject
+  private groupStatusSubject = new BehaviorSubject<any>({
+    tech: false,
+    admin: false
   });
+  public groupStatus$ = this.groupStatusSubject.asObservable();
 
-  return fullNames.join(', ');
+  constructor(private http: HttpClient) {
+    this.baseUrl = 'YOUR_BASE_URL_HERE/'; // Set your base URL
+    
+    // Initialize user group status
+    this.loadUserGroups();
+  }
+
+  // FIXED: Enhanced getGridData method that properly handles JSON string responses
+  getGridData(payload: GetGridDataFilter): Observable<any[]> {
+    const currentIRIWeek = this.getCurrentIRIWeek();
+    const payloadIRIWeek = payload.iriWeek;
+    
+    let apiEndpoint = '';
+    let weekType: 'current' | 'future' | 'previous' = 'current';
+    
+    // Determine which API to call based on IRI week comparison
+    if (payloadIRIWeek === currentIRIWeek) {
+      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetcurrentweekGridData`;
+      weekType = 'current';
+    } else if (payloadIRIWeek > currentIRIWeek) {
+      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetfutureweekGridData`;
+      weekType = 'future';
+    } else {
+      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetpreviousweekGridData`;
+      weekType = 'previous';
+    }
+    
+    console.log(`API Selection: ${weekType} week - ${apiEndpoint}`);
+    console.log(`Payload IRI Week: ${payloadIRIWeek}, Current IRI Week: ${currentIRIWeek}`);
+    
+    // Update week type
+    this.weekTypeSubject.next(weekType);
+    
+    // FIXED: Handle JSON string response from your C# controller
+    return this.http.post<string>(apiEndpoint, payload).pipe(
+      map(response => {
+        try {
+          // Check if response is already parsed or is a string
+          if (typeof response === 'string') {
+            const parsedData = JSON.parse(response);
+            return Array.isArray(parsedData) ? parsedData : [];
+          } else {
+            // Response is already parsed
+            return Array.isArray(response) ? response : [];
+          }
+        } catch (error) {
+          console.error('Error parsing JSON response:', error);
+          console.log('Raw response:', response);
+          return [];
+        }
+      }),
+      catchError(this.handleError<any[]>('getGridData', []))
+    );
+  }
+
+  // FIXED: Enhanced applyFilters method that properly calls APIs and updates data
+  applyFilters(filters: GetGridDataFilter): void {
+    console.log('applyFilters called with:', filters);
+    
+    const currentCountry = this.getCurrentCountry();
+    
+    if (!currentCountry) {
+      filters.countryId = '1';
+    } else {
+      filters.countryId = currentCountry;
+    }
+
+    // Update filters subject
+    this.filtersSubject.next(filters);
+    
+    // Convert to current filters format
+    const currentFilters = {
+      countryId: filters.countryId,
+      iri_week: filters.iriWeek,
+      territory_id: filters.territoryId,
+      area: filters.area,
+      store_number: filters.storeNumber,
+      store_name: filters.storeName,
+      state: filters.state,
+      city: filters.city,
+      position_number: filters.positionNumber,
+      task_number: filters.taskNumber,
+      emp_id: filters.empId,
+      fsr_hour: filters.fsrHour,
+      fsr_over_25hrs: filters.fsrOver25hrs,
+      fsr_over_6hrs: filters.fsrOver6hrs,
+      assigned_stores: filters.assignedStores,
+      unassigned_stores: filters.unassignedStores,
+      sample: filters.sample,
+      nonsample: filters.nonSample,
+      multi_fsr_store: filters.multiFsrStore,
+      vacation: filters.vacation,
+      temporary: filters.temporary,
+      fsr_hour_operator: filters.fsrHourOperator
+    };
+    
+    // Update current filters
+    this.currentFiltersSubject.next(currentFilters);
+    
+    console.log('Calling getGridData API...');
+    
+    // FIXED: Call API and update specific data stream
+    this.getGridData(filters).subscribe({
+      next: (data) => {
+        console.log('API Response received:', data.length, 'records');
+        
+        const currentIRIWeek = this.getCurrentIRIWeek();
+        const payloadIRIWeek = filters.iriWeek;
+        
+        // Process data with comment editing capability and normalize field names
+        const dataWithComments = data.map(row => ({
+          ...row,
+          // Normalize field names for consistent access
+          StoreNumber: row.StoreNumber || row.store_number,
+          StoreName: row.StoreName || row.store_name,
+          City: row.CityName || row.city_name,
+          State: row.StateCd || row.state_cd,
+          Zip: row.ZipCd || row.zip_cd,
+          AddrLine1: row.AddrLine1 || row.addr_line1,
+          AssignedTo: this.getAssignedToDisplay(row),
+          UserComment: row.UserComment || '',
+          IsCommentEditing: false,
+          // Keep original fields for API calls
+          IriWeek: row.IriWeek || filters.iriWeek,
+          iri_week: row.iri_week || filters.iriWeek
+        }));
+        
+        console.log('Processed data sample:', dataWithComments);
+        
+        // Update appropriate data stream based on week type
+        if (payloadIRIWeek === currentIRIWeek) {
+          this.currentWeekDataSubject.next(dataWithComments);
+          console.log(`Updated current week data: ${dataWithComments.length} records`);
+        } else if (payloadIRIWeek > currentIRIWeek) {
+          this.futureWeekDataSubject.next(dataWithComments);
+          console.log(`Updated future week data: ${dataWithComments.length} records`);
+        } else {
+          this.previousWeekDataSubject.next(dataWithComments);
+          console.log(`Updated previous week data: ${dataWithComments.length} records`);
+        }
+        
+        // Also update main grid data for backward compatibility
+        this.gridDataSubject.next(dataWithComments);
+      },
+      error: (error) => {
+        console.error('Error applying filters:', error);
+        this.currentWeekDataSubject.next([]);
+        this.futureWeekDataSubject.next([]);
+        this.previousWeekDataSubject.next([]);
+        this.gridDataSubject.next([]);
+      }
+    });
+  }
+
+  // FIXED: Enhanced getAssignedToDisplay for multiple names
+  private getAssignedToDisplay(row: any): string {
+    if (!row.FirstName || !row.LastName) {
+      return 'NOT ASSIGNED';
+    }
+
+    // Handle multiple names separated by commas
+    const firstNames = row.FirstName.split(',').map(name => name.trim());
+    const lastNames = row.LastName.split(',').map(name => name.trim());
+
+    if (firstNames.length !== lastNames.length) {
+      console.warn('Mismatch between first names and last names count');
+      return `${row.FirstName} ${row.LastName}`;
+    }
+
+    // Create full names
+    const fullNames = firstNames.map((firstName, index) => {
+      const lastName = lastNames[index] || '';
+      return `${firstName} ${lastName}`.trim();
+    });
+
+    return fullNames.join(', ');
+  }
+
+  // Week type methods
+  getCurrentWeekType(): 'current' | 'future' | 'previous' {
+    return this.weekTypeSubject.value;
+  }
+
+  // IRI Week methods
+  async loadCurrentIRIWeek(): Promise<void> {
+    try {
+      const currentWeek = await firstValueFrom(
+        this.http.get<any>(`${this.baseUrl}api/TaskAssinment/GetCurrentIRIWeek`)
+      );
+      this.currentIRIWeekSubject.next(currentWeek.toString());
+      console.log('Current IRI Week loaded:', currentWeek);
+    } catch (error) {
+      console.error('Error loading current IRI week:', error);
+      // Set fallback value
+      this.currentIRIWeekSubject.next('2405');
+    }
+  }
+
+  getCurrentIRIWeek(): string {
+    return this.currentIRIWeekSubject.value;
+  }
+
+  // Country methods
+  setCountry(countryId: string): void {
+    this.countrySubject.next(countryId);
+  }
+  
+  getCurrentCountry(): string {
+    return this.countrySubject.value;
+  }
+
+  // User group methods
+  private async loadUserGroups(): Promise<void> {
+    try {
+      const userGroups = await firstValueFrom(
+        this.http.get<any>(`${this.baseUrl}api/User/GetUserGroups`)
+      );
+      
+      const processedGroups = {
+        tech: userGroups.isgTechnologyGroup || false,
+        admin: userGroups.isAdmin || false
+      };
+      
+      this.groupStatusSubject.next(processedGroups);
+      console.log('User groups loaded:', processedGroups);
+    } catch (error) {
+      console.error('Error loading user groups:', error);
+      // Set default permissions
+      this.groupStatusSubject.next({
+        tech: false,
+        admin: false
+      });
+    }
+  }
+
+  // Clear filters
+  clearFilters(): void {
+    const defaultFilters = new GetGridDataFilter();
+    this.filtersSubject.next(defaultFilters);
+    this.currentWeekDataSubject.next([]);
+    this.futureWeekDataSubject.next([]);
+    this.previousWeekDataSubject.next([]);
+    this.gridDataSubject.next([]);
+    this.currentFiltersSubject.next({});
+  }
+
+  // Comment methods
+  saveUserComment(storeNumber: string, comment: string): Observable<any> {
+    const payload = {
+      storeNumber: storeNumber,
+      comment: comment,
+      userId: localStorage.getItem(\"loggedUserId\") || ''
+    };
+    
+    return this.http.post(`${this.baseUrl}api/TaskAssinment/SaveUserComment`, payload)
+      .pipe(catchError(this.handleError('saveUserComment', {})));
+  }
+
+  // Employee data methods
+  getEmployee(loggedUserId: string): Observable<any[]> {
+    return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetEmployee`, { userId: loggedUserId })
+      .pipe(catchError(this.handleError<any[]>('getEmployee', [])));
+  }
+
+  // Country data methods
+  async getcountry(): Promise<any[]> {
+    return await firstValueFrom(
+      this.http.get<any[]>(`${this.baseUrl}api/TaskAssinment/GetCountry`)
+        .pipe(catchError(this.handleError<any[]>('getCountry', [])))
+    );
+  }
+
+  // Error handling
+  private handleError<T>(operation = 'operation', result?: T) {
+    return (error: any): Observable<T> => {
+      console.error(`${operation} failed:`, error);
+      return of(result as T);
+    };
+  }
+
+  // API methods for autocomplete (keep your existing ones)
+  searchStores(payload: any): Observable<any[]> {
+    return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetStore`, payload)
+      .pipe(catchError(this.handleError<any[]>('searchStores', [])));
+  }
+
+  searchStates(payload: any): Observable<any[]> {
+    return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetState`, payload)
+      .pipe(catchError(this.handleError<any[]>('searchStates', [])));
+  }
+
+  searchCities(payload: any): Observable<any[]> {
+    return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetCity`, payload)
+      .pipe(catchError(this.handleError<any[]>('searchCities', [])));
+  }
 }
+2. COMPLETE filter-sidebar.component.ts
+typescript
+import { HttpClient } from '@angular/common/http';
+import { Component, ElementRef, EventEmitter, Inject, OnDestroy, OnInit, Output } from '@angular/core';
+import { FormBuilder, FormControl, FormGroup } from '@angular/forms';
+import { catchError, debounceTime, distinctUntilChanged, firstValueFrom, Observable, of, Subject, switchMap, takeUntil, tap } from 'rxjs';
+import { GetGridDataFilter } from '../shared/common.model';
+import { CommonService } from '../shared/common.service';
+
+@Component({
+  selector: 'app-filter-sidebar',
+  templateUrl: './filter-sidebar.component.html',
+  styleUrls: ['./filter-sidebar.component.css']
+})
+export class FilterSidebarComponent implements OnInit, OnDestroy {
+  
+  @Output() filtersChanged = new EventEmitter<GetGridDataFilter>();
+  @Output() columnsChanged = new EventEmitter<string[]>();
+
+  filterForm!: FormGroup;
+  showAdvancedFilters = false;
+  showSpinner = false;
+  
+  // Form initialization tracking
+  private formInitialized = false;
+  private dataLoaded = {
+    iriWeek: false,
+    territory: false,
+    employee: false
+  };
+  
+  // Data arrays
+  employeedata: any[] = [];
+  iriWeeks: any[] = [];
+  territories: any[] = [];
+  filteredStores: any[] = [];
+  filteredState: any[] = [];
+  filteredCity: any[] = [];
+  filteredCluster: any[] = [];
+  filteredTask: any[] = [];
+  filteredFSR: any[] = [];
+  
+  // FSR Hour operators
+  fsrHourOperators = [
+    { value: 'NA', label: 'NA' },
+    { value: '>', label: '>' },
+    { value: '=', label: '=' },
+    { value: '<', label: '<' }
+  ];
+
+  // Column visibility options
+  availableColumns = [
+    { key: 'store_number', label: 'Store Number', required: true },
+    { key: 'store_name', label: 'Store Name', required: true },
+    { key: 'addr_line1', label: 'Address', required: false },
+    { key: 'city', label: 'City', required: false },
+    { key: 'state', label: 'State', required: false },
+    { key: 'zip', label: 'Zip', required: false },
+    { key: 'assigned_to', label: 'Assigned To', required: true },
+    { key: 'task_completed', label: 'Task Completed', required: false },
+    { key: 'quality', label: 'Quality', required: false },
+    { key: 'cost_over', label: 'Cost Over', required: false },
+    { key: 'guaranteed_miles', label: 'Miles', required: false },
+    { key: 'avg_cost', label: 'Avg Cost', required: false },
+    { key: 'wk1_costs', label: 'WK1 Costs', required: false },
+    { key: 'wk2_costs', label: 'WK2 Costs', required: false },
+    { key: 'user_comment', label: 'Comments', required: true }
+  ];
+
+  selectedColumns: string[] = [];
+  
+  // Selected values for API calls
+  selectedStoreNumber = '';
+  selectedState = '';
+  selectedCity = '';
+  selectedCluster = '';
+  selectedTask = '';
+  selectedFsrId = '';
+  
+  // Form controls
+  areaNBRctrl = new FormControl();
+  
+  private unsubscribe$ = new Subject<void>();
+  private loggeduser: string;
+
+  constructor(
+    private fb: FormBuilder,
+    private commonService: CommonService,
+    public http: HttpClient,
+    @Inject('BASE_URL') public baseUrl: string,
+  ) {
+    this.initializeForm();
+    this.loggeduser = localStorage.getItem(\"loggedUserId\") || '';
+  }
+
+  async ngOnInit(): Promise<void> {
+    console.log('FilterSidebar ngOnInit started');
+    
+    try {
+      // Initialize selected columns with defaults
+      this.selectedColumns = this.availableColumns
+        .filter(col => col.required || ['addr_line1', 'city', 'state'].includes(col.key))
+        .map(col => col.key);
+
+      // Load all required data in sequence
+      await this.loadEmployeeData();
+      await this.loadIriWeekData();
+      await this.loadTerritoryData();
+      
+      // Setup form subscriptions after data is loaded
+      this.setupFormSubscriptions();
+      
+      // Mark form as initialized
+      this.formInitialized = true;
+      console.log('Form initialized, applying default filters...');
+      
+      // Apply default filters with delay to ensure everything is ready
+      setTimeout(() => {
+        this.applyDefaultFilters();
+      }, 500);
+      
+    } catch (error) {
+      console.error('Error initializing filter component:', error);
+    }
+  }
+
+  private initializeForm(): void {
+    this.filterForm = this.fb.group({
+      iriWeek: [''],
+      territory: [''],
+      store: [''],
+      state: [''],
+      city: [''],
+      cluster: [''],
+      task: [''],
+      fsr: [''],
+      fsrHour: [''],
+      fsrHourOperator: ['NA'], 
+      storeAssignment: ['all'],
+      sampleType: ['all'],
+      multiFsrStore: [false]
+    });
+  }
+
+  // FIXED: Load employee data first
+  private async loadEmployeeData(): Promise<void> {
+    try {
+      this.employeedata = await firstValueFrom(this.commonService.getEmployee(this.loggeduser));
+      this.dataLoaded.employee = true;
+      console.log('Employee data loaded:', this.employeedata);
+    } catch (error) {
+      console.error('Error fetching employee data:', error);
+      this.employeedata = [];
+      this.dataLoaded.employee = true;
+    }
+  }
+
+  // FIXED: Load IRI Week data with proper default setting
+  private async loadIriWeekData(): Promise<void> {
+    try {
+      const response = await firstValueFrom(
+        this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetIriWeek')
+      );
+      
+      this.iriWeeks = response;
+      console.log('IRI Weeks loaded:', this.iriWeeks.length);
+      
+      // FIXED: Set default IRI week value
+      if (this.iriWeeks.length > 0) {
+        const defaultIriWeek = this.iriWeeks?.iri_week;
+        this.filterForm.patchValue({
+          iriWeek: defaultIriWeek
+        }, { emitEvent: false });
+        console.log('Default IRI Week set to:', defaultIriWeek);
+      }
+      
+      this.dataLoaded.iriWeek = true;
+    } catch (error) {
+      console.error('Error fetching IRI weeks:', error);
+      this.dataLoaded.iriWeek = true;
+    }
+  }
+
+  // FIXED: Load territory data with proper default setting
+  private async loadTerritoryData(): Promise<void> {
+    try {
+      this.showSpinner = true;
+      const response = await firstValueFrom(
+        this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetTerritory')
+      );
+      
+      this.territories = response;
+      console.log('Territories loaded:', this.territories.length);
+      
+      // FIXED: Set default territory based on employee data
+      const defaultTerritory = this.getDefaultTerritoryId();
+      this.filterForm.patchValue({
+        territory: defaultTerritory
+      }, { emitEvent: false });
+      console.log('Default Territory set to:', defaultTerritory);
+      
+      // Set area NBR control
+      if (this.territories.length > 0) {
+        const territoryData = this.territories.find(t => t.territory_id === defaultTerritory);
+        this.areaNBRctrl.setValue(territoryData?.area || '23');
+      }
+      
+      this.dataLoaded.territory = true;
+      
+    } catch (error) {
+      console.error('Error fetching territories:', error);
+      this.dataLoaded.territory = true;
+    } finally {
+      this.showSpinner = false;
+    }
+  }
+
+  // FIXED: Get default territory ID based on employee data
+  private getDefaultTerritoryId(): string {
+    if (this.employeedata && this.employeedata.length > 0) {
+      const employeeTerritory = this.employeedata?.fieldTerritoryNumber;
+      if (employeeTerritory && employeeTerritory !== 0) {
+        return employeeTerritory.toString();
+      }
+    }
+    
+    // Fallback to first territory
+    return this.territories.length > 0 ? this.territories?.territory_id : '';
+  }
+
+  private setupFormSubscriptions(): void {
+    console.log('Setting up form subscriptions');
+    
+    // Store autocomplete
+    this.filterForm.get('store')?.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      tap(() => (this.showSpinner = true)),
+      switchMap(searchText => this.getStore(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(stores => {
+      this.filteredStores = stores || [];
+      this.showSpinner = false;
+    });
+
+    // State autocomplete
+    this.filterForm.get('state')?.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      tap(() => (this.showSpinner = true)),
+      switchMap(searchText => this.getState(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(states => {
+      this.filteredState = states || [];
+      this.showSpinner = false;
+    });
+
+    // City autocomplete
+    this.filterForm.get('city')?.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      tap(() => (this.showSpinner = true)),
+      switchMap(searchText => this.getCity(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(cities => {
+      this.filteredCity = cities || [];
+      this.showSpinner = false;
+    });
+
+    // Cluster autocomplete
+    this.filterForm.get('cluster')?.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      tap(() => (this.showSpinner = true)),
+      switchMap(searchText => this.getCluster(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(clusters => {
+      this.filteredCluster = clusters || [];
+      this.showSpinner = false;
+    });
+
+    // Task autocomplete
+    this.filterForm.get('task')?.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      switchMap(searchText => this.getTask(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(tasks => {
+      this.filteredTask = tasks || [];
+    });
+
+    // FSR autocomplete
+    this.filterForm.get('fsr')?.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      switchMap(searchText => this.getFsr(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(fsrs => {
+      this.filteredFSR = fsrs || [];
+    });
+  }
+
+  // API methods for autocomplete
+  getStore(searchText: string): Observable<any[]> {
+    if (!searchText || searchText.length < 3) {
+      return of([]);
+    }
+
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetStore', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  getState(searchText: string): Observable<any[]> {
+    if (!searchText || searchText.length <= 0) { 
+      return of([]); 
+    }
+    
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetState', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  getCity(searchText: string): Observable<any[]> {
+    if (!searchText || searchText.length <= 0) { 
+      return of([]); 
+    }
+    
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetCity', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  getCluster(searchText: string): Observable<any[]> {
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetCluster', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  getTask(searchText: string): Observable<any[]> {
+    if (!searchText || searchText.length <= 0) { 
+      return of([]); 
+    }
+    
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetTask', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  getFsr(searchText: string): Observable<any[]> {
+    if (!searchText || searchText.length <= 0) { 
+      return of([]); 
+    }
+    
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetFsr', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  // Column visibility methods
+  onColumnSelectionChange(): void {
+    // Ensure required columns are always selected
+    const requiredColumns = this.availableColumns
+      .filter(col => col.required)
+      .map(col => col.key);
+      
+    this.selectedColumns = [...new Set([...this.selectedColumns, ...requiredColumns])];
+    this.columnsChanged.emit(this.selectedColumns);
+  }
+
+  isColumnRequired(columnKey: string): boolean {
+    return this.availableColumns.find(col => col.key === columnKey)?.required || false;
+  }
+
+  // Event handlers
+  onIriWeekChange(): void {
+    console.log('IRI Week changed');
+    this.clearDependentFields();
+  }
+
+  onTerritoryChange(): void {
+    console.log('Territory changed');
+    this.clearDependentFields();
+  }
+
+  private clearDependentFields(): void {
+    this.filterForm.patchValue({
+      store: '',
+      state: '',
+      city: '',
+      cluster: '',
+      task: '',
+      fsr: ''
+    });
+    this.clearSelectedValues();
+  }
+
+  // Selection event handlers
+  onStoreSelected(event: any): void {
+    const selectedStore = this.filteredStores.find(store => store.store_name === event.option.value);
+    this.selectedStoreNumber = selectedStore?.store_number || '';
+  }
+
+  onStateSelected(event: any): void {
+    const selectedState = this.filteredState.find(state => state.state === event.option.value);
+    this.selectedState = selectedState?.state || '';
+  }
+
+  onCitySelected(event: any): void {
+    const selectedCity = this.filteredCity.find(city => city.city === event.option.value);
+    this.selectedCity = selectedCity?.city || '';
+  }
+
+  onClusterSelected(event: any): void {
+    const selectedCluster = this.filteredCluster.find(cluster => cluster.position_name === event.option.value);
+    this.selectedCluster = selectedCluster?.position_number || '';
+  }
+
+  onTaskSelected(event: any): void {
+    const selectedTask = this.filteredTask.find(task => task.task_name === event.option.value);
+    this.selectedTask = selectedTask?.task_number || '';
+  }
+
+  onFsrSelected(event: any): void {
+    const selectedFsr = this.filteredFSR.find(fsr => fsr.emp_name === event.option.value);
+    this.selectedFsrId = selectedFsr?.emp_id || '';
+  }
+
+  // Toggle methods
+  toggleAdvancedFilters(): void {
+    this.showAdvancedFilters = !this.showAdvancedFilters;
+  }
+
+  // FIXED: Apply filters method that properly calls the API
+  onApplyFilters(): void {
+    if (!this.formInitialized) {
+      console.log('Form not initialized yet, skipping filter application');
+      return;
+    }
+
+    const formValue = this.filterForm.value;
+    console.log('Applying filters with form values:', formValue);
+
+    // Validate required fields
+    if (!formValue.iriWeek || !formValue.territory) {
+      console.warn('Required fields missing:', {
+        iriWeek: formValue.iriWeek,
+        territory: formValue.territory
+      });
+      return;
+    }
+
+    const currentCountry = this.commonService.getCurrentCountry();
+    console.log('Current country:', currentCountry);
+
+    // Build filter object
+    const filters = new GetGridDataFilter();
+    filters.countryId = currentCountry || '1';
+    filters.lanId = this.loggeduser;
+    filters.iriWeek = formValue.iriWeek;
+    filters.territoryId = formValue.territory;
+    filters.area = this.areaNBRctrl.value || '23';
+    filters.storeNumber = this.selectedStoreNumber;
+    filters.storeName = formValue.store || '';
+    filters.state = this.selectedState;
+    filters.city = this.selectedCity;
+    filters.positionNumber = this.selectedCluster;
+    filters.taskNumber = this.selectedTask;
+    filters.empId = this.selectedFsrId;
+    filters.fsrHour = formValue.fsrHour || '';
+    filters.fsrHourOperator = formValue.fsrHourOperator || 'NA';
+    filters.fsrOver25hrs = 'false';
+    filters.fsrOver6hrs = 'false';
+    filters.temporary = 'false';
+    filters.vacation = 'false';
+
+    // Handle radio button selections
+    if (formValue.storeAssignment === 'assigned') {
+      filters.assignedStores = 'true';
+      filters.unassignedStores = 'false';
+    } else if (formValue.storeAssignment === 'unassigned') {
+      filters.assignedStores = 'false';
+      filters.unassignedStores = 'true';
+    } else {
+      filters.assignedStores = 'false';
+      filters.unassignedStores = 'false';
+    }
+
+    if (formValue.sampleType === 'sample') {
+      filters.sample = 'true';
+      filters.nonSample = 'false';
+    } else if (formValue.sampleType === 'nonSample') {
+      filters.sample = 'false';
+      filters.nonSample = 'true';
+    } else {
+      filters.sample = 'false';
+      filters.nonSample = 'false';
+    }
+
+    filters.multiFsrStore = formValue.multiFsrStore ? 'true' : 'false';
+
+    console.log('Filter object created:', filters);
+    
+    // Emit to parent component and CommonService
+    this.filtersChanged.emit(filters);
+  }
+
+  // FIXED: Clear filters method
+  onClearFilters(): void {
+    console.log('Clearing filters');
+    
+    this.filterForm.reset({
+      iriWeek: this.iriWeeks.length > 0 ? this.iriWeeks?.iri_week : '',
+      territory: this.getDefaultTerritoryId(),
+      storeAssignment: 'all',
+      sampleType: 'all',
+      multiFsrStore: false,
+      fsrHourOperator: 'NA'
+    });
+    
+    this.clearSelectedValues();
+    
+    // Reset columns to default
+    this.selectedColumns = this.availableColumns
+      .filter(col => col.required || ['addr_line1', 'city', 'state'].includes(col.key))
+      .map(col => col.key);
+    this.columnsChanged.emit(this.selectedColumns);
+    
+    // Clear data in CommonService
+    this.commonService.clearFilters();
+  }
+
+  // FIXED: Apply default filters on load
+  private applyDefaultFilters(): void {
+    if (!this.formInitialized || !this.allDataLoaded()) {
+      console.log('Not ready for default filters:', {
+        formInitialized: this.formInitialized,
+        dataLoaded: this.dataLoaded
+      });
+      return;
+    }
+
+    console.log('All data loaded, applying default filters');
+    this.onApplyFilters();
+  }
+
+  private allDataLoaded(): boolean {
+    return this.dataLoaded.iriWeek && 
+           this.dataLoaded.territory && 
+           this.dataLoaded.employee;
+  }
+
+  private clearSelectedValues(): void {
+    this.selectedStoreNumber = '';
+    this.selectedState = '';
+    this.selectedCity = '';
+    this.selectedCluster = '';
+    this.selectedTask = '';
+    this.selectedFsrId = '';
+  }
+
+  // Clear individual controls
+  clearStrCtrl(): void { 
+    this.filterForm.get('store')?.reset(); 
+    this.selectedStoreNumber = '';
+  }
+  
+  clearStaCtrl(): void { 
+    this.filterForm.get('state')?.reset(); 
+    this.selectedState = '';
+  }
+  
+  clearcityCtrl(): void { 
+    this.filterForm.get('city')?.reset(); 
+    this.selectedCity = '';
+  }
+  
+  clearTaskCtrl(): void { 
+    this.filterForm.get('task')?.reset(); 
+    this.selectedTask = '';
+  }
+  
+  clearFsrCtrl(): void { 
+    this.filterForm.get('fsr')?.reset(); 
+    this.selectedFsrId = '';
+  }
+
+  // FSR Hour operator change
+  onFsrHourOperatorChange(): void {
+    const operator = this.filterForm.get('fsrHourOperator')?.value;
+    const fsrHourControl = this.filterForm.get('fsrHour');
+    
+    if (operator === 'NA') {
+      fsrHourControl?.setValue('');
+      fsrHourControl?.disable();
+    } else {
+      fsrHourControl?.enable();
+    }
+  }
+
+  onFsrHourChange(): void {
+    const fsrHour = this.filterForm.get('fsrHour')?.value;
+    if (fsrHour && fsrHour.trim() !== '') {
+      this.filterForm.get('multiFsrStore')?.setValue(false);
+    }
+  }
+
+  onMultiFsrStoreChange(): void {
+    const multiFsrStore = this.filterForm.get('multiFsrStore')?.value;
+    if (multiFsrStore) {
+      this.filterForm.get('fsrHourOperator')?.setValue('NA');
+      this.filterForm.get('fsrHour')?.setValue('');
+      this.filterForm.get('fsrHour')?.disable();
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.unsubscribe$.next();
+    this.unsubscribe$.complete();
+  }
+}
+3. UPDATED filter-sidebar.component.html
+xml
+<div class="filter-topbar">
+  <div class="filter-container">
+    <form [formGroup]="filterForm" class="filter-form">
+      
+      <!-- Row 1: Main Filters -->
+      <div class="filter-row main-filters">
+        <!-- IRI Week -->
+        <div class="filter-field">
+          <label class="form-label">IRI Week</label>
+          <mat-form-field appearance="outline">
+            <mat-select formControlName="iriWeek" (selectionChange)="onIriWeekChange()">
+              <mat-option *ngFor="let week of iriWeeks" [value]="week.iri_week">
+                {{week.iri_week_viewOnly}}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <!-- Territory -->
+        <div class="filter-field">
+          <label class="form-label">Territory</label>
+          <mat-form-field appearance="outline">
+            <mat-select formControlName="territory" (selectionChange)="onTerritoryChange()">
+              <mat-option [value]="'-1'">ALL</mat-option>
+              <mat-option *ngFor="let territory of territories" [value]="territory.territory_id">
+                {{territory.territory_name}}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <!-- Store -->
+        <div class="filter-field">
+          <label class="form-label">Store</label>
+          <mat-form-field appearance="outline">
+            <input matInput [matAutocomplete]="storeAuto" formControlName="store" placeholder="Search stores...">
+            <button mat-button *ngIf="filterForm.get('store')?.value" matSuffix mat-icon-button (click)="clearStrCtrl()">
+              <mat-icon>cancel</mat-icon>
+            </button>
+            <mat-autocomplete #storeAuto="matAutocomplete" (optionSelected)="onStoreSelected($event)">
+              <mat-option *ngFor="let store of filteredStores" [value]="store.store_name" [matTooltip]="store.store_name">
+                {{store.store_name}} ({{store.store_number}})
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+        </div>
+
+        <!-- FSR -->
+        <div class="filter-field">
+          <label class="form-label">FSR</label>
+          <mat-form-field appearance="outline">
+            <input matInput [matAutocomplete]="fsrAuto" formControlName="fsr" placeholder="Search FSR...">
+            <button mat-button *ngIf="filterForm.get('fsr')?.value" matSuffix mat-icon-button (click)="clearFsrCtrl()">
+              <mat-icon>cancel</mat-icon>
+            </button>
+            <mat-autocomplete #fsrAuto="matAutocomplete" (optionSelected)="onFsrSelected($event)">
+              <mat-option *ngFor="let fsr of filteredFSR" [value]="fsr.emp_name" [matTooltip]="fsr.emp_name">
+                {{fsr.emp_name}} ({{fsr.emp_id}})
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+          <button mat-raised-button color="primary" (click)="onApplyFilters()">
+            Apply Filters
+          </button>
+          <button mat-stroked-button (click)="onClearFilters()">
+            Clear Filters
+          </button>
+        </div>
+      </div>
+
+      <!-- Row 2: Advanced Filters -->
+      <div class="filter-row advanced-filters" [style.display]="showAdvancedFilters ? 'flex' : 'none'">
+        <!-- State -->
+        <div class="filter-field">
+          <label class="form-label">State</label>
+          <mat-form-field appearance="outline">
+            <input matInput [matAutocomplete]="stateAuto" formControlName="state">
+            <button mat-button *ngIf="filterForm.get('state')?.value" matSuffix mat-icon-button (click)="clearStaCtrl()">
+              <mat-icon>cancel</mat-icon>
+            </button>
+            <mat-autocomplete #stateAuto="matAutocomplete" (optionSelected)="onStateSelected($event)">
+              <mat-option *ngFor="let state of filteredState" [value]="state.state">
+                {{state.state}}
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+        </div>
+
+        <!-- City -->
+        <div class="filter-field">
+          <label class="form-label">City</label>
+          <mat-form-field appearance="outline">
+            <input matInput [matAutocomplete]="cityAuto" formControlName="city">
+            <button mat-button *ngIf="filterForm.get('city')?.value" matSuffix mat-icon-button (click)="clearcityCtrl()">
+              <mat-icon>cancel</mat-icon>
+            </button>
+            <mat-autocomplete #cityAuto="matAutocomplete" (optionSelected)="onCitySelected($event)">
+              <mat-option *ngFor="let city of filteredCity" [value]="city.city">
+                {{city.city}}
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+        </div>
+
+        <!-- Cluster -->
+        <div class="filter-field">
+          <label class="form-label">Cluster</label>
+          <mat-form-field appearance="outline">
+            <input matInput [matAutocomplete]="clusterAuto" formControlName="cluster">
+            <mat-autocomplete #clusterAuto="matAutocomplete" (optionSelected)="onClusterSelected($event)">
+              <mat-option *ngFor="let cluster of filteredCluster" [value]="cluster.position_name">
+                {{cluster.position_name}}
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+        </div>
+
+        <!-- Task -->
+        <div class="filter-field">
+          <label class="form-label">Task</label>
+          <mat-form-field appearance="outline">
+            <input matInput [matAutocomplete]="taskAuto" formControlName="task">
+            <button mat-button *ngIf="filterForm.get('task')?.value" matSuffix mat-icon-button (click)="clearTaskCtrl()">
+              <mat-icon>cancel</mat-icon>
+            </button>
+            <mat-autocomplete #taskAuto="matAutocomplete" (optionSelected)="onTaskSelected($event)">
+              <mat-option *ngFor="let task of filteredTask" [value]="task.task_name">
+                {{task.task_name}} ({{task.task_number}})
+              </mat-option>
+            </mat-autocomplete>
+          </mat-form-field>
+        </div>
+      </div>
+
+      <!-- Row 3: Options & Column Selection -->
+      <div class="filter-row options-filters" [style.display]="showAdvancedFilters ? 'flex' : 'none'">
+        <!-- FSR Hours -->
+        <div class="filter-field">
+          <label class="form-label">FSR Hours</label>
+          <div class="fsr-hours-container">
+            <mat-form-field appearance="outline" class="operator-field">
+              <mat-select formControlName="fsrHourOperator" (selectionChange)="onFsrHourOperatorChange()">
+                <mat-option *ngFor="let op of fsrHourOperators" [value]="op.value">
+                  {{op.label}}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+            
+            <mat-form-field appearance="outline" class="hour-field">
+              <input matInput 
+                    formControlName="fsrHour" 
+                    type="number" 
+                    placeholder="Enter hours..."
+                    (change)="onFsrHourChange()"
+                    min="0"
+                    max="999">
+            </mat-form-field>
+          </div>
+        </div>
+
+        <!-- Store Assignment Toggle -->
+        <div class="toggle-field">
+          <label class="form-label">Store Assignment</label>
+          <mat-radio-group formControlName="storeAssignment" class="radio-group">
+            <mat-radio-button value="assigned">Assigned Stores</mat-radio-button>
+            <mat-radio-button value="unassigned">Unassigned Stores</mat-radio-button>
+            <mat-radio-button value="all">All Stores</mat-radio-button>
+          </mat-radio-group>
+        </div>
+
+        <!-- Sample Type Toggle -->
+        <div class="toggle-field">
+          <label class="form-label">Sample Type</label>
+          <mat-radio-group formControlName="sampleType" class="radio-group">
+            <mat-radio-button value="sample">Sample</mat-radio-button>
+            <mat-radio-button value="nonSample">Non-Sample</mat-radio-button>
+            <mat-radio-button value="all">All Types</mat-radio-button>
+          </mat-radio-group>
+        </div>
+
+        <!-- Multi FSR Store Checkbox -->
+        <div class="checkbox-field">
+          <label class="form-label">Options</label>
+          <mat-checkbox formControlName="multiFsrStore" (change)="onMultiFsrStoreChange()">
+            Multi FSR Store
+          </mat-checkbox>
+        </div>
+
+        <!-- ADDED: Column Visibility Dropdown -->
+        <div class="checkbox-field">
+          <label class="form-label">Visible Columns</label>
+          <mat-form-field appearance="outline">
+            <mat-label>Select Columns to Display</mat-label>
+            <mat-select multiple [(value)]="selectedColumns" (selectionChange)="onColumnSelectionChange()">
+              <mat-option *ngFor="let column of availableColumns" 
+                          [value]="column.key" 
+                          [disabled]="column.required">
+                {{column.label}}
+                <span *ngIf="column.required" class="required-indicator"> *</span>
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+      </div>
+
+      <!-- Advanced Filters Toggle -->
+      <div class="advanced-toggle">
+        <button mat-button type="button" (click)="toggleAdvancedFilters()" class="toggle-button">
+          <mat-icon>{{showAdvancedFilters ? 'expand_less' : 'expand_more'}}</mat-icon>
+          {{showAdvancedFilters ? 'Hide' : 'Show'}} Advanced Filters
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<footer>
+  <div class="mat-spinner-container">
+    <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
+    <div *ngIf="showSpinner" style="position:relative;left: 10px">Loading...</div>
+  </div>
+</footer>
+4. COMPLETE store-table.component.ts
+typescript
+import { Component, OnInit, OnDestroy, AfterViewInit, ViewChild, ViewChildren, QueryList, ChangeDetectorRef } from '@angular/core';
+import { FormControl } from '@angular/forms';
+import { MatTable, MatTableDataSource } from '@angular/material/table';
+import { MatPaginator } from '@angular/material/paginator';
+import { MatSort } from '@angular/material/sort';
+import { MatDialog } from '@angular/material/dialog';
+import { HttpClient } from '@angular/common/http';
+import { Subject, takeUntil, firstValueFrom } from 'rxjs';
+import { debounceTime, distinctUntilChanged, tap } from 'rxjs/operators';
+
+import { CommonService } from '../shared/common.service';
+import { GetGridDataFilter } from '../shared/common.model';
+import { CdkDetailRowDirective } from '../shared/cdk-detail-row.directive';
+import { AssignmentDialogComponent } from '../dialogs/assignment-dialog/assignment-dialog.component';
+import { ProximityDialogComponent } from '../dialogs/proximity-dialog/proximity-dialog.component';
+
+@Component({
+  selector: 'app-store-table',
+  templateUrl: './store-table.component.html',
+  styleUrls: ['./store-table.component.css']
+})
+export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
+  
+  @ViewChild(MatTable, { static: false }) table: MatTable<any>;
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
+  @ViewChildren(CdkDetailRowDirective) detailRows!: QueryList<CdkDetailRowDirective>;
+
+  // Week type tracking
+  currentWeekType: 'current' | 'future' | 'previous' = 'current';
+
+  // Column definitions
+  baseColumns = ['store_number', 'store_name', 'addr_line1', 'city', 'state', 'assigned_to', 'user_comment'];
+  
+  currentWeekColumns = [
+    'store_number', 'store_name', 'addr_line1', 'city', 'state', 'assigned_to', 
+    'task_completed', 'quality', 'cost_over', 'guaranteed_miles', 'user_comment'
+  ];
+  
+  futureWeekColumns = [
+    'store_number', 'store_name', 'addr_line1', 'city', 'state', 'assigned_to',
+    'avg_cost', 'guaranteed_miles', 'user_comment'
+  ];
+  
+  previousWeekColumns = [
+    'store_number', 'store_name', 'addr_line1', 'city', 'state', 'assigned_to',
+    'task_completed', 'quality', 'cost_over', 'wk1_costs', 'wk2_costs', 'user_comment'
+  ];
+
+  // Dynamic column management
+  availableColumns: string[] = [];
+  displayedColumns: string[] = [];
+  visibleColumns: string[] = [];
+
+  // Data and state
+  dataSource = new MatTableDataSource<any>([]);
+  originalData: any[] = [];
+  showSpinner = false;
+  
+  // Search functionality
+  searchControl = new FormControl('');
+  isSearching = false;
+
+  // Expansion state
+  isExpandingAll = false;
+  allExpanded = false;
+  expandedRowsData = new Map<string, any[]>();
+  expandedRows = new Set<CdkDetailRowDirective>();
+  selectedRows = new Set<any>();
+
+  // User permissions
+  canEditComments = false;
+  canDeleteComments = false;
+
+  private destroy$ = new Subject<void>();
+  private loggeduser: string;
+
+  constructor(
+    private commonService: CommonService,
+    private http: HttpClient,
+    private dialog: MatDialog,
+    private cdr: ChangeDetectorRef
+  ) {
+    this.loggeduser = localStorage.getItem("loggedUserId") || '';
+  }
+
+  ngOnInit(): void {
+    console.log('StoreTable ngOnInit started');
+
+    // Subscribe to user group permissions
+    this.commonService.groupStatus$.subscribe(userGroups => {
+      this.canEditComments = userGroups['tech'] || userGroups['admin'];
+      this.canDeleteComments = userGroups['tech'] || userGroups['admin'];
+      console.log('User permissions:', { canEdit: this.canEditComments, canDelete: this.canDeleteComments });
+    });
+
+    // Subscribe to week type changes
+    this.commonService.weekType$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(weekType => {
+        console.log('Week type changed to:', weekType);
+        this.currentWeekType = weekType;
+        this.updateAvailableColumns();
+        this.updateDisplayedColumns();
+        this.cdr.detectChanges();
+      });
+
+    // Subscribe to current week data
+    this.commonService.currentWeekData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (this.currentWeekType === 'current') {
+          console.log('Received current week data:', data.length);
+          this.updateDataSource(data);
+        }
+      });
+
+    // Subscribe to future week data
+    this.commonService.futureWeekData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (this.currentWeekType === 'future') {
+          console.log('Received future week data:', data.length);
+          this.updateDataSource(data);
+        }
+      });
+
+    // Subscribe to previous week data
+    this.commonService.previousWeekData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (this.currentWeekType === 'previous') {
+          console.log('Received previous week data:', data.length);
+          this.updateDataSource(data);
+        }
+      });
+
+    // Setup search functionality
+    this.setupSearch();
+  }
+
+  // ADDED: Column visibility management
+  updateVisibleColumns(selectedColumns: string[]): void {
+    console.log('Updating visible columns:', selectedColumns);
+    this.visibleColumns = selectedColumns;
+    this.updateDisplayedColumns();
+    this.cdr.detectChanges();
+  }
+
+  private updateAvailableColumns(): void {
+    switch (this.currentWeekType) {
+      case 'current':
+        this.availableColumns = this.currentWeekColumns;
+        break;
+      case 'future':
+        this.availableColumns = this.futureWeekColumns;
+        break;
+      case 'previous':
+        this.availableColumns = this.previousWeekColumns;
+        break;
+      default:
+        this.availableColumns = this.baseColumns;
+    }
+  }
+
+  private updateDisplayedColumns(): void {
+    if (this.visibleColumns.length > 0) {
+      // Show intersection of available columns and visible columns
+      this.displayedColumns = this.availableColumns.filter(col => 
+        this.visibleColumns.includes(col)
+      );
+    } else {
+      // Show all available columns if no specific selection
+      this.displayedColumns = [...this.availableColumns];
+    }
+    
+    console.log(`Updated displayed columns for ${this.currentWeekType} week:`, this.displayedColumns);
+  }
+
+  isColumnVisible(columnName: string): boolean {
+    return this.displayedColumns.includes(columnName);
+  }
+
+  // Search functionality
+  private setupSearch(): void {
+    this.searchControl.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      tap(() => {
+        this.isSearching = true;
+        this.showSpinner = true;
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe(searchTerm => {
+      this.performSearch(searchTerm || '');
+    });
+  }
+
+  private performSearch(searchTerm: string): void {
+    try {
+      if (!searchTerm.trim()) {
+        this.dataSource.data = [...this.originalData];
+      } else {
+        const filtered = this.originalData.filter(row => 
+          this.matchesSearchTerm(row, searchTerm.toLowerCase())
+        );
+        this.dataSource.data = filtered;
+      }
+      
+      if (this.paginator) {
+        this.paginator.firstPage();
+      }
+      this.resetExpansionState();
+      
+    } catch (error) {
+      console.error('Error performing search:', error);
+    } finally {
+      this.isSearching = false;
+      this.showSpinner = false;
+    }
+  }
+
+  private matchesSearchTerm(row: any, searchTerm: string): boolean {
+    const searchableFields = [
+      'StoreNumber', 'StoreName', 'AddrLine1', 'City', 'State', 
+      'Zip', 'AssignedTo', 'TaskCompleted', 'Quality', 'UserComment'
+    ];
+
+    return searchableFields.some(field => {
+      const value = row[field];
+      return value && value.toString().toLowerCase().includes(searchTerm);
+    });
+  }
+
+  clearSearch(): void {
+    this.searchControl.setValue('');
+  }
+
+  // FIXED: Data management
+  private updateDataSource(data: any[]): void {
+    console.log('Updating data source with', data.length, 'records');
+    
+    try {
+      // Store original data for search functionality
+      this.originalData = [...data];
+      
+      // Apply current search if active
+      const searchTerm = this.searchControl.value;
+      if (searchTerm && searchTerm.trim()) {
+        this.performSearch(searchTerm);
+      } else {
+        this.dataSource.data = data;
+      }
+      
+      this.dataSource.paginator = this.paginator;
+      this.dataSource.sort = this.sort;
+      this.resetExpansionState();
+      
+    } catch (error) {
+      console.error('Error updating data source:', error);
+    }
+  }
+
+  // FIXED: Multiple names handling
+  getAssignedToDisplay(assignedTo: string): string {
+    if (!assignedTo || assignedTo === 'NOT ASSIGNED') {
+      return 'NOT ASSIGNED';
+    }
+
+    // Split by comma and take only first 2 names for display
+    const names = assignedTo.split(',').map(name => name.trim());
+    
+    if (names.length <= 2) {
+      return assignedTo;
+    }
+
+    // Show first 2 names and add "..." for more
+    return `${names}, ${names}...`;
+  }
+
+  getAssignedToTooltip(assignedTo: string): string {
+    if (!assignedTo || assignedTo === 'NOT ASSIGNED') {
+      return 'No one assigned';
+    }
+
+    // Return full list for tooltip (line by line)
+    const names = assignedTo.split(',').map(name => name.trim());
+    return names.join('\\n');
+  }
+
+  getAssignmentClass(assignedTo: string): string {
+    if (!assignedTo || assignedTo === 'NOT ASSIGNED') {
+      return 'not-assigned';
+    }
+    
+    // Check if multiple people assigned
+    const nameCount = assignedTo.split(',').length;
+    return nameCount > 1 ? 'multiple-assigned' : 'single-assigned';
+  }
+
+  // Comment management with security
+  startCommentEdit(element: any): void {
+    if (!this.canEditComments) {
+      console.log('User does not have permission to edit comments');
+      return;
+    }
+    
+    element.IsCommentEditing = true;
+  }
+
+  cancelCommentEdit(element: any): void {
+    element.IsCommentEditing = false;
+  }
+
+  deleteComment(element: any): void {
+    if (!this.canDeleteComments) {
+      console.log('User does not have permission to delete comments');
+      return;
+    }
+    
+    if (confirm('Are you sure you want to delete this comment?')) {
+      this.saveComment(element, '');
+    }
+  }
+
+  async saveComment(element: any, comment: string): Promise<void> {
+    if (!this.canEditComments) {
+      console.log('User does not have permission to save comments');
+      return;
+    }
+
+    this.showSpinner = true;
+    
+    try {
+      await firstValueFrom(
+        this.commonService.saveUserComment(element.StoreNumber, comment)
+      );
+      
+      element.UserComment = comment;
+      element.IsCommentEditing = false;
+      console.log('Comment saved successfully');
+      
+    } catch (error) {
+      console.error('Error saving comment:', error);
+    } finally {
+      this.showSpinner = false;
+    }
+  }
+
+  onCommentKeydown(event: KeyboardEvent, element: any): void {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      const target = event.target as HTMLTextAreaElement;
+      this.saveComment(element, target.value);
+    } else if (event.key === 'Escape') {
+      this.cancelCommentEdit(element);
+    }
+  }
+
+  // Week type display methods
+  getWeekTypeDisplayName(): string {
+    switch (this.currentWeekType) {
+      case 'current': return 'Current Week Tasks';
+      case 'future': return 'Future Week Planning';
+      case 'previous': return 'Previous Week History';
+      default: return 'Store Assignment Data';
+    }
+  }
+
+  getWeekTypeClass(): string {
+    return `week-${this.currentWeekType}`;
+  }
+
+  // Data formatting methods for different week types
+  formatTaskCompleted(value: any): string {
+    return value?.toLowerCase() === 'yes' ? 'Yes' : 'No';
+  }
+
+  formatQuality(value: any): string {
+    return value || 'N/A';
+  }
+
+  formatCostOver(value: any): string {
+    return value?.toLowerCase() === 'yes' ? 'Yes' : 'No';
+  }
+
+  formatGuaranteedMiles(value: any): string {
+    return value ? `${value} miles` : 'N/A';
+  }
+
+  formatAvgCost(value: any): string {
+    return value ? `$${parseFloat(value).toFixed(2)}` : 'TBD';
+  }
+
+  formatWk1Costs(row: any): string {
+    const prod = parseFloat(row.WK1FSRProdCost || 0);
+    const travel = parseFloat(row.WK1StoreTravelCost || 0);
+    const ovg = parseFloat(row.WK1StoreTravelOvgCost || 0);
+    const total = prod + travel + ovg;
+    return total > 0 ? `$${total.toFixed(2)}` : '$0.00';
+  }
+
+  formatWk2Costs(row: any): string {
+    const prod = parseFloat(row.WK2FSRProdCost || 0);
+    const travel = parseFloat(row.WK2StoreTravelCost || 0);
+    const ovg = parseFloat(row.WK2StoreTravelOvgCost || 0);
+    const total = prod + travel + ovg;
+    return total > 0 ? `$${total.toFixed(2)}` : '$0.00';
+  }
+
+  // Status badge classes
+  getTaskCompletedClass(value: any): string {
+    return value?.toLowerCase() === 'yes' ? 'completed' : 'incomplete';
+  }
+
+  getQualityClass(value: any): string {
+    const quality = value?.toLowerCase();
+    if (quality === 'good') return 'quality-good';
+    if (quality === 'average') return 'quality-average';
+    if (quality === 'poor') return 'quality-poor';
+    return 'quality-unknown';
+  }
+
+  getCostOverClass(value: any): string {
+    return value?.toLowerCase() === 'yes' ? 'cost-over' : 'cost-ok';
+  }
+
+  // Keep all your existing expansion methods
+  ngAfterViewInit(): void {
+    this.dataSource.paginator = this.paginator;
+    this.dataSource.sort = this.sort;
+    
+    if (this.paginator) {
+      this.paginator.page
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(() => {
+          console.log('Page changed - resetting expansion state');
+          this.forceCollapseAllRows();
+          this.resetExpansionState();
+        });
+    }
+  }
+
+  // Keep all your existing methods:
+  // - expandAllRows()
+  // - forceCollapseAllRows()
+  // - GetSubgridData()
+  // - resetExpansionState()
+  // - isRowExpanded()
+  // - openAssignmentDialog()
+  // - openTaskAssignmentDialog()
+  // - openProximityDataDialog()
+  // etc. (all your existing expansion and dialog methods)
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+}
+5. COMPLETE dashboard-layout.component.ts
+typescript
+import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
+import { FormControl } from '@angular/forms';
+import { Subject, firstValueFrom } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+import { GetGridDataFilter } from '../shared/common.model';
+import { CommonService } from '../shared/common.service';
+import { StoreTableComponent } from './store-table/store-table.component';
+
+@Component({
+  selector: 'app-dashboard-layout',
+  templateUrl: './dashboard-layout.component.html',
+  styleUrls: ['./dashboard-layout.component.css']
+})
+export class DashboardLayoutComponent implements OnInit, OnDestroy {
+  
+  @ViewChild('storeTableComponent') storeTableComponent!: StoreTableComponent;
+
+  private destroy$ = new Subject<void>();
+  countrylist: any[] = [];
+  employeedata: any[] = [];
+  countryctrl = new FormControl();
+  isFiltersExpanded = false;
+  showSpinner = false;
+  
+  private loggeduser: string;
+
+  constructor(
+    private commonService: CommonService
+  ) { 
+    this.loggeduser = localStorage.getItem("loggedUserId") || '';
+  }
+
+  async ngOnInit(): Promise<void> {
+    console.log('Dashboard layout initializing...');
+
+    // Load current IRI week first
+    await this.commonService.loadCurrentIRIWeek();
+     
+    // Subscribe to user groups for country control permissions
+    this.commonService.groupsStatus$.subscribe(userGroups => {    
+      if (userGroups['isgTechnologyGroup']) { 
+        this.countryctrl.enable();
+      } else { 
+        this.countryctrl.disable();
+      }   
+    }); 
+    
+    try {
+      // Load employee data
+      this.employeedata = await firstValueFrom(this.commonService.getEmployee(this.loggeduser));
+      
+      if (this.employeedata.length > 0) {
+        const defaultCountryId = this.employeedata?.countryId || '1';
+        this.countryctrl.setValue(defaultCountryId);
+        this.commonService.setCountry(defaultCountryId);
+      }
+    } catch(error) {
+      console.error('Error fetching employee data:', error);
+      // Set default country
+      this.countryctrl.setValue('1');
+      this.commonService.setCountry('1');
+    }
+
+    try {
+      // Load country list
+      this.countrylist = await this.commonService.getcountry();
+    } catch {
+      console.error('Error fetching country data');
+    }      
+    
+    // Subscribe to country changes
+    this.countryctrl.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(countryId => {
+        if (countryId) {
+          this.commonService.setCountry(countryId);
+        }
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  // Toggle filters visibility
+  toggleFilters(): void {
+    this.isFiltersExpanded = !this.isFiltersExpanded;
+  }
+
+  // Handle filter changes from sidebar
+  onFiltersChanged(filters: GetGridDataFilter): void {
+    console.log('Dashboard received filters:', filters);
+    this.commonService.applyFilters(filters);
+  }
+
+  // ADDED: Handle column changes from sidebar
+  onColumnsChanged(selectedColumns: string[]): void {
+    console.log('Dashboard received column changes:', selectedColumns);
+    if (this.storeTableComponent) {
+      this.storeTableComponent.updateVisibleColumns(selectedColumns);
+    }
+  }
+
+  // Handle clear filters
+  onClearFilters(): void {
+    this.commonService.clearFilters();
+  }
+
+  // Handle country selection
+  selectedcountry(event: any): void {
+    if (event.isUserInput && event.source.value) {
+      this.commonService.setCountry(event.source.value);
+    }
+  }
+}
+6. UPDATED dashboard-layout.component.html
+xml
+<div class="dashboard-layout">
+  <!-- Toolbar -->
+  <mat-toolbar class="mat-toolbar-primary">
+    <button mat-icon-button (click)="toggleFilters()" aria-label="Toggle filters">
+      <mat-icon>filter_list</mat-icon>
+    </button>
+    <h1 class="toolbar-title">Assignments Dashboard</h1>
+    <span class="toolbar-spacer"></span>
+    
+    <!-- Country Selector -->
+    <div class="country-field">
+      <mat-form-field appearance="standard">
+        <mat-select [formControl]="countryctrl" placeholder="Select country">
+          <mat-option *ngFor="let country of countrylist" 
+                      [value]="country.countryID" 
+                      (onSelectionChange)="selectedcountry($event)">
+            {{country.countryName}}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>        
+    </div>
+    
+    <button mat-icon-button aria-label="Edit" matTooltip="Generate Work Order"> 
+      <mat-icon>edit_square</mat-icon>
+    </button>
+    <button mat-icon-button aria-label="Send" matTooltip="Email Work Order">
+      <mat-icon>send</mat-icon>
+    </button>
+    <button mat-icon-button aria-label="Download" matTooltip="Export Grid Data">
+      <mat-icon>download</mat-icon>
+    </button>
+  </mat-toolbar>
+
+  <!-- TOP HORIZONTAL FILTER BAR -->
+  <section class="filter-top-bar" [class.expanded]="isFiltersExpanded">
+    <app-filter-sidebar 
+      (filtersChanged)="onFiltersChanged($event)"
+      (columnsChanged)="onColumnsChanged($event)">
+    </app-filter-sidebar>
+  </section>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <div class="content-wrapper">
+      <app-store-table #storeTableComponent></app-store-table>
+    </div>
+  </div>
+</div>
+Key Fixes Applied:
+✅ Apply Filters Issue FIXED: commonService.applyFilters() now properly calls the correct C# API based on IRI week comparison
+
+✅ JSON String Parsing FIXED: Handles C# JSON string responses correctly
+
+✅ Initial Load Patching FIXED: Default values are now properly set for IRI Week and Territory
+
+✅ Multiple Names Display FIXED: Properly concatenates and displays multiple assigned names
+
+✅ Column Hide/Show FIXED: Fully implemented in both filter sidebar and store table
+
+✅ User Group Permissions FIXED: Added proper groupStatus$ subject for comment editing
+
+✅ Data Flow FIXED: Proper sequence of loading employee data → IRI weeks → territories → apply filters
+
+The key issues were:
+
+Filter sidebar was not properly setting default values
+
+CommonService was not calling the right API endpoints
+
+JSON string responses from C# were not being parsed
+
+Initial data loading sequence was incorrect
+
+Now everything should work properly with your existing C# backend! 🎯
