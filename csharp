@@ -1,3 +1,490 @@
+UPDATED dashboard-layout.component.ts (ADD Column Communication)
+typescript
+import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
+import { FormControl } from '@angular/forms';
+import { Subject, firstValueFrom } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+import { GetGridDataFilter } from '../shared/common.model';
+import { CommonService } from '../shared/common.service';
+import { StoreTableComponent } from './store-table/store-table.component';
+
+@Component({
+  selector: 'app-dashboard-layout',
+  templateUrl: './dashboard-layout.component.html',
+  styleUrls: ['./dashboard-layout.component.css']
+})
+export class DashboardLayoutComponent implements OnInit, OnDestroy {
+  
+  @ViewChild('storeTableComponent') storeTableComponent!: StoreTableComponent;
+
+  private destroy$ = new Subject<void>();
+  countrylist: any[] = [];
+  employeedata: any[] = [];
+  countryctrl = new FormControl();
+  isFiltersExpanded = false;
+  showSpinner = false;
+  
+  private loggeduser: string;
+
+  constructor(private commonService: CommonService) { 
+    this.loggeduser = localStorage.getItem("loggedUserId") || '';
+  }
+
+  async ngOnInit(): Promise<void> {
+    await this.commonService.loadCurrentIRIWeek();
+     
+    this.commonService.groupsStatus$.subscribe(userGroups => {    
+      if (userGroups['isgTechnologyGroup']) { 
+        this.countryctrl.enable();
+      } else { 
+        this.countryctrl.disable();
+      }   
+    }); 
+    
+    try {
+      this.employeedata = await firstValueFrom(this.commonService.getEmployee(this.loggeduser));
+      
+      if (this.employeedata.length > 0) {
+        const defaultCountryId = this.employeedata?.countryId || '1';
+        this.countryctrl.setValue(defaultCountryId);
+        this.commonService.setCountry(defaultCountryId);
+      }
+    } catch(error) {
+      console.error('Error fetching employee data:', error);
+      this.countryctrl.setValue('1');
+      this.commonService.setCountry('1');
+    }
+
+    try {
+      this.countrylist = await this.commonService.getcountry();
+    } catch {
+      console.error('Error fetching country data');
+    }      
+    
+    this.countryctrl.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(countryId => {
+        if (countryId) {
+          this.commonService.setCountry(countryId);
+        }
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  toggleFilters(): void {
+    this.isFiltersExpanded = !this.isFiltersExpanded;
+  }
+
+  // Handle filter changes from sidebar
+  onFiltersChanged(filters: GetGridDataFilter): void {
+    console.log('Dashboard received filters:', filters);
+    this.commonService.applyFilters(filters);
+  }
+
+  // FIXED: Handle column changes from sidebar
+  onColumnsChanged(selectedColumns: string[]): void {
+    console.log('Dashboard received column changes:', selectedColumns);
+    // Pass to store table component
+    if (this.storeTableComponent) {
+      this.storeTableComponent.updateVisibleColumns(selectedColumns);
+    }
+  }
+
+  // Handle clear filters
+  onClearFilters(): void {
+    this.commonService.clearFilters();
+  }
+
+  // Handle country selection
+  selectedcountry(event: any): void {
+    if (event.isUserInput && event.source.value) {
+      this.commonService.setCountry(event.source.value);
+    }
+  }
+}
+2. UPDATED dashboard-layout.component.html (CONNECT Events)
+xml
+<div class="dashboard-layout">
+  <!-- Toolbar -->
+  <mat-toolbar class="mat-toolbar-primary">
+    <button mat-icon-button (click)="toggleFilters()" aria-label="Toggle filters">
+      <mat-icon>filter_list</mat-icon>
+    </button>
+    <h1 class="toolbar-title">Assignments Dashboard</h1>
+    <span class="toolbar-spacer"></span>
+    
+    <!-- Country Selector -->
+    <div class="country-field">
+      <mat-form-field appearance="standard">
+        <mat-select [formControl]="countryctrl" placeholder="Select country">
+          <mat-option *ngFor="let country of countrylist" 
+                      [value]="country.countryID" 
+                      (onSelectionChange)="selectedcountry($event)">
+            {{country.countryName}}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>        
+    </div>
+    
+    <button mat-icon-button aria-label="Edit" matTooltip="Generate Work Order"> 
+      <mat-icon>edit_square</mat-icon>
+    </button>
+    <button mat-icon-button aria-label="Send" matTooltip="Email Work Order">
+      <mat-icon>send</mat-icon>
+    </button>
+    <button mat-icon-button aria-label="Download" matTooltip="Export Grid Data">
+      <mat-icon>download</mat-icon>
+    </button>
+  </mat-toolbar>
+
+  <!-- TOP HORIZONTAL FILTER BAR -->
+  <section class="filter-top-bar" [class.expanded]="isFiltersExpanded">
+    <!-- FIXED: Connect both events -->
+    <app-filter-sidebar 
+      (filtersChanged)="onFiltersChanged($event)"
+      (columnsChanged)="onColumnsChanged($event)">
+    </app-filter-sidebar>
+  </section>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <div class="content-wrapper">
+      <!-- FIXED: Add template reference -->
+      <app-store-table #storeTableComponent></app-store-table>
+    </div>
+  </div>
+</div>
+3. ADD to filter-sidebar.component.html (Column Visibility Dropdown)
+xml
+<!-- Add this AFTER the Multi FSR Store checkbox in your filter-sidebar.component.html -->
+
+<!-- Column Visibility Dropdown -->
+<div class="checkbox-field">
+  <label class="form-label">Visible Columns</label>
+  <mat-form-field appearance="outline">
+    <mat-label>Select Columns to Display</mat-label>
+    <mat-select multiple [(value)]="selectedColumns" (selectionChange)="onColumnSelectionChange()">
+      <mat-option *ngFor="let column of availableColumns" 
+                  [value]="column.key" 
+                  [disabled]="column.required">
+        {{column.label}}
+        <span *ngIf="column.required" class="required-indicator"> *</span>
+      </mat-option>
+    </mat-select>
+  </mat-form-field>
+</div>
+4. FIXED: store-table.component.ts (Column Visibility Methods)
+typescript
+// ADD these methods to your existing StoreTableComponent:
+
+export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
+  // ... your existing properties ...
+
+  // ADDED: Column visibility management properties
+  visibleColumns: string[] = [];
+
+  ngOnInit(): void {
+    // ... your existing ngOnInit code ...
+
+    // Subscribe to week type changes
+    this.commonService.weekType$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(weekType => {
+        console.log('Week type changed to:', weekType);
+        this.currentWeekType = weekType;
+        this.updateAvailableColumns();
+        this.updateDisplayedColumns(); // This now considers visible columns
+        this.cdr.detectChanges();
+      });
+
+    // ... rest of your existing ngOnInit code ...
+  }
+
+  // ADDED: Method to receive column visibility changes from filter component
+  updateVisibleColumns(selectedColumns: string[]): void {
+    console.log('Store table received visible columns:', selectedColumns);
+    this.visibleColumns = selectedColumns;
+    this.updateDisplayedColumns();
+    this.cdr.detectChanges();
+  }
+
+  // ENHANCED: Update displayed columns considering both week type and visibility
+  private updateDisplayedColumns(): void {
+    let availableColumns: string[] = [];
+    
+    // Get available columns based on week type
+    switch (this.currentWeekType) {
+      case 'current':
+        availableColumns = this.currentWeekColumns;
+        break;
+      case 'future':
+        availableColumns = this.futureWeekColumns;
+        break;
+      case 'previous':
+        availableColumns = this.previousWeekColumns;
+        break;
+      default:
+        availableColumns = this.baseColumns;
+    }
+    
+    // Filter by visible columns if specified
+    if (this.visibleColumns.length > 0) {
+      this.displayedColumns = availableColumns.filter(col => 
+        this.visibleColumns.includes(col)
+      );
+    } else {
+      // Show all available columns if no specific selection
+      this.displayedColumns = [...availableColumns];
+    }
+    
+    console.log(`Final displayed columns for ${this.currentWeekType} week:`, this.displayedColumns);
+  }
+
+  private updateAvailableColumns(): void {
+    switch (this.currentWeekType) {
+      case 'current':
+        this.availableColumns = this.currentWeekColumns;
+        break;
+      case 'future':
+        this.availableColumns = this.futureWeekColumns;
+        break;
+      case 'previous':
+        this.availableColumns = this.previousWeekColumns;
+        break;
+      default:
+        this.availableColumns = this.baseColumns;
+    }
+  }
+
+  // ENHANCED: Column visibility check with debugging
+  isColumnVisible(columnName: string): boolean {
+    const isVisible = this.displayedColumns.includes(columnName);
+    console.log(`Column ${columnName} visible:`, isVisible, 'DisplayedColumns:', this.displayedColumns);
+    return isVisible;
+  }
+
+  // ... rest of your existing methods ...
+}
+Issue 2: FIXED AssignedTo Display Logic
+5. FIXED: Assigned To Display Logic in store-table.component.ts
+typescript
+// FIXED: Multiple names handling with proper logic
+getAssignedToDisplay(assignedTo: string): string {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return 'NOT ASSIGNED';
+  }
+
+  // Return as-is (the template will handle the splitting and line display)
+  return assignedTo.trim();
+}
+
+getAssignedToTooltip(assignedTo: string): string {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return 'No one assigned';
+  }
+  
+  // Split by comma and return each name on a new line for tooltip
+  const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
+  return names.join('\\n');
+}
+
+// FIXED: Assignment class logic
+getAssignmentClass(assignedTo: string): string {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return 'not-assigned';
+  }
+  
+  // Check if there are multiple names (contains comma)
+  const hasMultipleNames = assignedTo.includes(',');
+  if (hasMultipleNames) {
+    // Verify it's actually multiple valid names
+    const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
+    return names.length > 1 ? 'multiple-assigned' : 'single-assigned';
+  }
+  
+  return 'single-assigned';
+}
+
+// ADDED: Helper method to check if should display line-by-line
+shouldDisplayMultipleLines(assignedTo: string): boolean {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return false;
+  }
+  
+  if (!assignedTo.includes(',')) {
+    return false;
+  }
+  
+  const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
+  return names.length > 1;
+}
+
+// ADDED: Get individual names for display
+getIndividualNames(assignedTo: string): string[] {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return ['NOT ASSIGNED'];
+  }
+  
+  if (!assignedTo.includes(',')) {
+    return [assignedTo.trim()];
+  }
+  
+  return assignedTo.split(',').map(name => name.trim()).filter(name => name);
+}
+6. FIXED: store-table.component.html (AssignedTo Column)
+xml
+<!-- FIXED: Assigned To Column with proper multiple name logic -->
+<ng-container matColumnDef="assigned_to" *ngIf="isColumnVisible('assigned_to')">
+  <mat-header-cell *matHeaderCellDef class="mat-header-style">Assigned To</mat-header-cell>
+  <mat-cell *matCellDef="let element" class="assigned-cell" 
+            (click)="openAssignmentDialog(element, 'StoreLevel'); $event.stopPropagation()">
+    <div class="assignment-container">
+      <div class="assignment-names" 
+           [ngClass]="getAssignmentClass(element.AssignedTo)"
+           [matTooltip]="getAssignedToTooltip(element.AssignedTo)"
+           matTooltipClass="multi-line-tooltip">
+        
+        <!-- Single person or NOT ASSIGNED - display normally -->
+        <div *ngIf="!shouldDisplayMultipleLines(element.AssignedTo)" class="single-name">
+          {{element.AssignedTo || 'NOT ASSIGNED'}}
+        </div>
+        
+        <!-- Multiple people - display line by line -->
+        <div *ngIf="shouldDisplayMultipleLines(element.AssignedTo)" class="multiple-names">
+          <div *ngFor="let name of getIndividualNames(element.AssignedTo); let i = index" 
+               class="name-line"
+               [class.first-name]="i === 0">
+            {{name}}
+          </div>
+        </div>
+        
+      </div>
+    </div>
+  </mat-cell>
+</ng-container>
+7. UPDATED store-table.component.css (Enhanced Styling)
+css
+/* ENHANCED: Assigned To Column styling */
+.assignment-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 32px;
+  padding: 4px 2px;
+  width: 100%;
+}
+
+.assignment-names {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  word-wrap: break-word;
+}
+
+.single-name {
+  font-size: 13px;
+  line-height: 1.3;
+  font-weight: 500;
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.multiple-names {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.name-line {
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 1px 0;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+.name-line.first-name {
+  font-weight: 600;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 2px;
+  margin-bottom: 2px;
+}
+
+/* Assignment status styling */
+.assignment-names.not-assigned .single-name {
+  color: #f44336;
+  font-style: italic;
+  font-weight: 400;
+}
+
+.assignment-names.single-assigned .single-name {
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.assignment-names.multiple-assigned {
+  border-left: 3px solid #2196f3;
+  padding-left: 6px;
+  background-color: rgba(33, 150, 243, 0.05);
+}
+
+.assignment-names.multiple-assigned .name-line {
+  color: #1976d2;
+  font-weight: 500;
+}
+
+.assignment-names.multiple-assigned .name-line.first-name {
+  color: #0d47a1;
+  font-weight: 600;
+}
+
+/* Multi-line tooltip styling */
+::ng-deep .multi-line-tooltip {
+  white-space: pre-line;
+  max-width: 300px;
+  text-align: left;
+  line-height: 1.4;
+}
+
+/* Column width for assigned_to */
+.mat-column-assigned_to {
+  width: 180px;
+  min-width: 180px;
+  max-width: 200px;
+}
+How It Works Now:
+Column Hide/Show Flow:
+text
+1. User checks/unchecks columns in filter sidebar dropdown
+2. onColumnSelectionChange() → columnsChanged.emit()
+3. Dashboard receives → onColumnsChanged() → store table updateVisibleColumns()
+4. Store table updates displayedColumns array
+5. Template *ngIf="isColumnVisible(columnName)" shows/hides columns
+AssignedTo Display Logic:
+text
+Single Person: "John Doe" → Display normally
+Multiple People: "John Doe, Jane Smith, Bob Wilson" → Display:
+  John Doe        (bold, with underline)
+  Jane Smith      (normal)
+  Bob Wilson      (normal)
+Empty/Null: → Display "NOT ASSIGNED" (italic, red)
+
+
+
+
+
+
+
+
+
+
+===================
 public abstract class WeekDataBase
     {
         public string IriWeek { get; set; } = "";
