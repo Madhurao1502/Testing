@@ -1,683 +1,465 @@
-Alternative Solution: 3 Separate Tables for Different Week Types
-Strategy: Dedicated Table Components for Each Week Type
-Instead of one complex dynamic table, create 3 specialized table components that are optimized for each week type's specific data structure and user workflow.
-
-1. Enhanced CommonService with Week Type Management
+Complete Column Hide/Show Implementation for 3 Table Types
+Issue: Column visibility changes from filter component need to work with 3 different table types (current/future/previous weeks)
+Solution: Enhanced communication between filter-sidebar and store-table components
+1. UPDATED filter-sidebar.component.ts (Column Management Enhancement)
 typescript
-// common.service.ts - SIMPLIFIED FOR 3 TABLE APPROACH
+// ADD these properties to your existing FilterSidebarComponent:
 
-export class CommonService {
-  
-  // Week type and data subjects
-  private weekTypeSubject = new BehaviorSubject<'current' | 'future' | 'previous'>('current');
-  public weekType$ = this.weekTypeSubject.asObservable();
+export class FilterSidebarComponent implements OnInit, OnDestroy {
+  // ... your existing properties ...
 
-  // Separate data subjects for each week type
-  private currentWeekDataSubject = new BehaviorSubject<any[]>([]);
-  public currentWeekData$ = this.currentWeekDataSubject.asObservable();
+  // ENHANCED: Dynamic column definitions based on week type
+  private allAvailableColumns = {
+    base: [
+      { key: 'store_number', label: 'Store Number', required: true },
+      { key: 'store_name', label: 'Store Name', required: true },
+      { key: 'addr_line1', label: 'Address', required: false },
+      { key: 'city', label: 'City', required: false },
+      { key: 'state', label: 'State', required: false },
+      { key: 'zip', label: 'Zip', required: false },
+      { key: 'assigned_to', label: 'Assigned To', required: true },
+      { key: 'user_comment', label: 'Comments', required: true }
+    ],
+    current: [
+      { key: 'store_number', label: 'Store Number', required: true },
+      { key: 'store_name', label: 'Store Name', required: true },
+      { key: 'addr_line1', label: 'Address', required: false },
+      { key: 'city', label: 'City', required: false },
+      { key: 'state', label: 'State', required: false },
+      { key: 'assigned_to', label: 'Assigned To', required: true },
+      { key: 'task_completed', label: 'Task Completed', required: false },
+      { key: 'quality', label: 'Quality', required: false },
+      { key: 'cost_over', label: 'Cost Over', required: false },
+      { key: 'guaranteed_miles', label: 'Miles', required: false },
+      { key: 'user_comment', label: 'Comments', required: true }
+    ],
+    future: [
+      { key: 'store_number', label: 'Store Number', required: true },
+      { key: 'store_name', label: 'Store Name', required: true },
+      { key: 'addr_line1', label: 'Address', required: false },
+      { key: 'city', label: 'City', required: false },
+      { key: 'state', label: 'State', required: false },
+      { key: 'assigned_to', label: 'Assigned To', required: true },
+      { key: 'avg_cost', label: 'Avg Cost', required: false },
+      { key: 'guaranteed_miles', label: 'Miles', required: false },
+      { key: 'user_comment', label: 'Comments', required: true }
+    ],
+    previous: [
+      { key: 'store_number', label: 'Store Number', required: true },
+      { key: 'store_name', label: 'Store Name', required: true },
+      { key: 'addr_line1', label: 'Address', required: false },
+      { key: 'city', label: 'City', required: false },
+      { key: 'state', label: 'State', required: false },
+      { key: 'assigned_to', label: 'Assigned To', required: true },
+      { key: 'task_completed', label: 'Task Completed', required: false },
+      { key: 'quality', label: 'Quality', required: false },
+      { key: 'cost_over', label: 'Cost Over', required: false },
+      { key: 'wk1_costs', label: 'WK1 Costs', required: false },
+      { key: 'wk2_costs', label: 'WK2 Costs', required: false },
+      { key: 'user_comment', label: 'Comments', required: true }
+    ]
+  };
 
-  private futureWeekDataSubject = new BehaviorSubject<any[]>([]);
-  public futureWeekData$ = this.futureWeekDataSubject.asObservable();
+  // Current week type tracking
+  currentWeekType: 'current' | 'future' | 'previous' = 'current';
 
-  private previousWeekDataSubject = new BehaviorSubject<any[]>([]);
-  public previousWeekData$ = this.previousWeekDataSubject.asObservable();
+  // ADD these methods to your existing component:
 
-  // UPDATED: Simplified getGridData with separate data streams
-  getGridData(payload: GetGridDataFilter): Observable<any[]> {
-    const currentIRIWeek = this.getCurrentIRIWeek();
-    const payloadIRIWeek = payload.iriWeek;
-    
-    let apiEndpoint = '';
-    let weekType: 'current' | 'future' | 'previous' = 'current';
-    
-    // Determine which API to call
-    if (payloadIRIWeek === currentIRIWeek) {
-      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetcurrentweekGridData`;
-      weekType = 'current';
-    } else if (payloadIRIWeek > currentIRIWeek) {
-      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetfutureweekGridData`;
-      weekType = 'future';
-    } else {
-      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetpreviousweekGridData`;
-      weekType = 'previous';
-    }
-    
-    console.log(`API Selection: ${weekType} week - ${apiEndpoint}`);
-    
-    // Update week type
-    this.weekTypeSubject.next(weekType);
-    
-    return this.http.post<any[]>(apiEndpoint, payload)
-      .pipe(catchError(this.handleError<any[]>('getGridData', [])));
-  }
+  ngOnInit(): Promise<void> {
+    // ... your existing ngOnInit code ...
 
-  // UPDATED: Apply filters with specific data stream updates
-  applyFilters(filters: GetGridDataFilter): void {
-    const currentCountry = this.getCurrentCountry();
-    
-    if (!currentCountry) {
-      filters.countryId = '1';
-    } else {
-      filters.countryId = currentCountry;
-    }
-
-    this.filtersSubject.next(filters);
-    this.setCurrentFilterValues(this.convertToCurrentFilters(filters));
-    
-    // Call API and update specific data stream
-    this.getGridData(filters).subscribe({
-      next: (data) => {
-        const currentIRIWeek = this.getCurrentIRIWeek();
-        const payloadIRIWeek = filters.iriWeek;
-        
-        // Add comment editing capability to data
-        const dataWithComments = data.map(row => ({
-          ...row,
-          UserComment: row.UserComment || '',
-          IsCommentEditing: false
-        }));
-        
-        // Update appropriate data stream
-        if (payloadIRIWeek === currentIRIWeek) {
-          this.currentWeekDataSubject.next(dataWithComments);
-        } else if (payloadIRIWeek > currentIRIWeek) {
-          this.futureWeekDataSubject.next(dataWithComments);
-        } else {
-          this.previousWeekDataSubject.next(dataWithComments);
-        }
-        
-        // Also update the main grid data for compatibility
-        this.gridDataSubject.next(dataWithComments);
-      },
-      error: (error) => {
-        console.error('Error applying filters:', error);
-        this.currentWeekDataSubject.next([]);
-        this.futureWeekDataSubject.next([]);
-        this.previousWeekDataSubject.next([]);
-        this.gridDataSubject.next([]);
-      }
-    });
-  }
-
-  getCurrentWeekType(): 'current' | 'future' | 'previous' {
-    return this.weekTypeSubject.value;
-  }
-}
-2. Create 3 Separate Table Components
-A. Current Week Table Component
-typescript
-// current-week-table.component.ts
-import { Component, OnInit, OnDestroy, AfterViewInit, ViewChild, ViewChildren, QueryList } from '@angular/core';
-import { MatTable, MatTableDataSource } from '@angular/material/table';
-import { MatPaginator } from '@angular/material/paginator';
-import { MatSort } from '@angular/material/sort';
-import { Subject, takeUntil } from 'rxjs';
-import { CommonService } from '../services/common.service';
-import { CdkDetailRowDirective } from '../shared/cdk-detail-row.directive';
-
-@Component({
-  selector: 'app-current-week-table',
-  template: `
-    <div class="current-week-container">
-      <mat-card class="table-card">
-        <mat-card-header>
-          <mat-card-title>
-            Current Week Tasks 
-            <span class="week-indicator current">CURRENT</span>
-          </mat-card-title>
-        </mat-card-header>
-        
-        <mat-card-content>
-          <div class="table-controls">
-            <button mat-icon-button 
-                    [disabled]="isExpandingAll"
-                    (click)="expandAllRows()" 
-                    [title]="allExpanded ? 'Collapse All' : 'Expand All'">
-              <mat-icon>{{allExpanded ? 'unfold_less' : 'unfold_more'}}</mat-icon>
-            </button>
-          </div>
-
-          <mat-table [dataSource]="dataSource" matSort class="current-week-table">
-            
-            <!-- Current Week Specific Columns -->
-            <ng-container matColumnDef="store_number">
-              <mat-header-cell *matHeaderCellDef mat-sort-header>Store #</mat-header-cell>
-              <mat-cell *matCellDef="let element">
-                <span class="caret" [class.clicked]="isRowExpanded(element)">▼</span>
-                {{element.StoreNumber}}
-              </mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="store_name">
-              <mat-header-cell *matHeaderCellDef mat-sort-header>Store Name</mat-header-cell>
-              <mat-cell *matCellDef="let element">{{element.StoreName}}</mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="current_status">
-              <mat-header-cell *matHeaderCellDef mat-sort-header>Status</mat-header-cell>
-              <mat-cell *matCellDef="let element">
-                <span class="status-badge" [class]="'status-' + element.CurrentStatus?.toLowerCase()">
-                  {{element.CurrentStatus}}
-                </span>
-              </mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="completion_percentage">
-              <mat-header-cell *matHeaderCellDef mat-sort-header>Progress</mat-header-cell>
-              <mat-cell *matCellDef="let element">
-                <div class="progress-container">
-                  <mat-progress-bar 
-                    mode="determinate" 
-                    [value]="element.CompletionPercentage || 0"
-                    [color]="getProgressColor(element.CompletionPercentage)">
-                  </mat-progress-bar>
-                  <span class="progress-text">{{element.CompletionPercentage || 0}}%</span>
-                </div>
-              </mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="assigned_to">
-              <mat-header-cell *matHeaderCellDef>Assigned To</mat-header-cell>
-              <mat-cell *matCellDef="let element">
-                <span class="assignment-link" 
-                      (click)="openAssignmentDialog(element)">
-                  {{element.AssignedTo}}
-                </span>
-              </mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="last_updated">
-              <mat-header-cell *matHeaderCellDef mat-sort-header>Last Updated</mat-header-cell>
-              <mat-cell *matCellDef="let element">
-                {{formatDate(element.LastUpdated)}}
-              </mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="user_comment">
-              <mat-header-cell *matHeaderCellDef>Comments</mat-header-cell>
-              <mat-cell *matCellDef="let element">
-                <div class="comment-cell">
-                  <span *ngIf="!element.IsCommentEditing" 
-                        class="comment-text"
-                        (click)="startCommentEdit(element)">
-                    {{element.UserComment || 'Add comment...'}}
-                  </span>
-                  <div *ngIf="element.IsCommentEditing" class="comment-edit">
-                    <mat-form-field appearance="outline">
-                      <textarea matInput 
-                                [value]="element.UserComment"
-                                #commentInput
-                                (keydown)="onCommentKeydown($event, element)">
-                      </textarea>
-                    </mat-form-field>
-                  </div>
-                </div>
-              </mat-cell>
-            </ng-container>
-
-            <mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></mat-header-row>
-            <mat-row 
-              *matRowDef="let row; columns: displayedColumns"
-              [ngClass]="{'selected-row': isRowExpanded(row)}"
-              [cdkDetailRow]="row" 
-              [cdkDetailRowTpl]="currentWeekDetailTpl"
-              (toggleChange)="GetSubgridData($event, row)"
-              matRipple>
-            </mat-row>
-          </mat-table>
-
-          <mat-paginator [pageSizeOptions]="[5, 10, 20, 50]"></mat-paginator>
-
-          <!-- Current Week Detail Template -->
-          <ng-template #currentWeekDetailTpl let-element let-subgridData="subgridData" let-isLoading="isLoading">
-            <div class="detail-row">
-              <div *ngIf="isLoading" class="loading">
-                <mat-spinner diameter="20"></mat-spinner>
-                <span>Loading current tasks...</span>
-              </div>
-              
-              <table *ngIf="!isLoading" class="detail-table">
-                <tr>
-                  <th>Task Name</th>
-                  <th>Assigned To</th>
-                  <th>Status</th>
-                  <th>Progress</th>
-                  <th>Due Time</th>
-                  <th>Actions</th>
-                </tr>
-                <tr *ngFor="let task of subgridData">
-                  <td>{{task.TaskName}}</td>
-                  <td>
-                    <span class="assignment-link" (click)="openTaskAssignment(task)">
-                      {{task.AssignedTo}}
-                    </span>
-                  </td>
-                  <td>
-                    <span class="status-badge" [class]="'status-' + task.Status?.toLowerCase()">
-                      {{task.Status}}
-                    </span>
-                  </td>
-                  <td>{{task.Progress}}%</td>
-                  <td>{{task.DueTime}}</td>
-                  <td>
-                    <button mat-icon-button (click)="markComplete(task)" 
-                            [disabled]="task.Status === 'Completed'">
-                      <mat-icon>check_circle</mat-icon>
-                    </button>
-                  </td>
-                </tr>
-              </table>
-            </div>
-          </ng-template>
-        </mat-card-content>
-      </mat-card>
-    </div>
-  `,
-  styles: [`
-    .current-week-container {
-      padding: 16px;
-    }
-
-    .week-indicator.current {
-      background: #4caf50;
-      color: white;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-    }
-
-    .progress-container {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .progress-container mat-progress-bar {
-      flex: 1;
-      height: 8px;
-    }
-
-    .progress-text {
-      min-width: 35px;
-      font-size: 12px;
-    }
-
-    .status-badge {
-      padding: 2px 6px;
-      border-radius: 3px;
-      font-size: 11px;
-      font-weight: 500;
-    }
-
-    .status-badge.status-pending { background: #fff3cd; color: #856404; }
-    .status-badge.status-in-progress { background: #d1ecf1; color: #0c5460; }
-    .status-badge.status-completed { background: #d4edda; color: #155724; }
-    .status-badge.status-overdue { background: #f8d7da; color: #721c24; }
-
-    .assignment-link {
-      color: #1976d2;
-      cursor: pointer;
-      text-decoration: underline;
-    }
-
-    .comment-cell {
-      min-width: 150px;
-    }
-
-    .detail-table {
-      width: 100%;
-      margin: 16px;
-      border-collapse: collapse;
-    }
-
-    .detail-table th,
-    .detail-table td {
-      padding: 8px;
-      border: 1px solid #ddd;
-      text-align: left;
-    }
-
-    .detail-table th {
-      background: #f5f5f5;
-      font-weight: 500;
-    }
-  `]
-})
-export class CurrentWeekTableComponent implements OnInit, OnDestroy, AfterViewInit {
-  
-  @ViewChild(MatTable) table: MatTable<any>;
-  @ViewChild(MatPaginator) paginator: MatPaginator;
-  @ViewChild(MatSort) sort: MatSort;
-  @ViewChildren(CdkDetailRowDirective) detailRows: QueryList<CdkDetailRowDirective>;
-
-  displayedColumns = [
-    'store_number', 'store_name', 'current_status', 
-    'completion_percentage', 'assigned_to', 'last_updated', 'user_comment'
-  ];
-
-  dataSource = new MatTableDataSource<any>([]);
-  expandedRows = new Set<CdkDetailRowDirective>();
-  selectedRows = new Set<any>();
-  allExpanded = false;
-  isExpandingAll = false;
-
-  private destroy$ = new Subject<void>();
-
-  constructor(
-    private commonService: CommonService
-  ) {}
-
-  ngOnInit(): void {
-    // Subscribe to current week data
-    this.commonService.currentWeekData$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(data => {
-        this.dataSource.data = data;
-        this.resetExpansionState();
+    // ADDED: Subscribe to week type changes from CommonService
+    this.commonService.weekType$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(weekType => {
+        this.currentWeekType = weekType;
+        this.updateAvailableColumns();
+        this.resetSelectedColumnsForWeekType();
       });
+
+    // ... rest of your existing ngOnInit code ...
   }
 
-  ngAfterViewInit(): void {
-    this.dataSource.paginator = this.paginator;
-    this.dataSource.sort = this.sort;
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
-  // Current week specific methods
-  getProgressColor(percentage: number): string {
-    if (percentage >= 80) return 'primary';
-    if (percentage >= 50) return 'accent';
-    return 'warn';
-  }
-
-  formatDate(date: any): string {
-    if (!date) return '';
-    return new Date(date).toLocaleDateString();
-  }
-
-  markComplete(task: any): void {
-    // Implementation for marking task complete
-    console.log('Marking task complete:', task);
-  }
-
-  // Standard methods (same as original store-table)
-  GetSubgridData(cdkDetailRow: CdkDetailRowDirective, row: any): void {
-    // Implementation same as before
-  }
-
-  expandAllRows(): void {
-    // Implementation same as before
-  }
-
-  resetExpansionState(): void {
-    // Implementation same as before
-  }
-
-  isRowExpanded(row: any): boolean {
-    return this.selectedRows.has(row);
-  }
-
-  openAssignmentDialog(element: any): void {
-    // Implementation same as before
-  }
-
-  openTaskAssignment(task: any): void {
-    // Implementation same as before
-  }
-
-  startCommentEdit(element: any): void {
-    element.IsCommentEditing = true;
-  }
-
-  onCommentKeydown(event: KeyboardEvent, element: any): void {
-    // Implementation same as before
-  }
-}
-B. Future Week Table Component
-typescript
-// future-week-table.component.ts
-@Component({
-  selector: 'app-future-week-table',
-  template: `
-    <div class="future-week-container">
-      <mat-card class="table-card">
-        <mat-card-header>
-          <mat-card-title>
-            Future Week Planning 
-            <span class="week-indicator future">FUTURE</span>
-          </mat-card-title>
-        </mat-card-header>
-        
-        <mat-card-content>
-          <mat-table [dataSource]="dataSource" matSort class="future-week-table">
-            
-            <!-- Future Week Specific Columns -->
-            <ng-container matColumnDef="store_number">
-              <mat-header-cell *matHeaderCellDef mat-sort-header>Store #</mat-header-cell>
-              <mat-cell *matCellDef="let element">{{element.StoreNumber}}</mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="store_name">
-              <mat-header-cell *matHeaderCellDef mat-sort-header>Store Name</mat-header-cell>
-              <mat-cell *matCellDef="let element">{{element.StoreName}}</mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="planned_start">
-              <mat-header-cell *matHeaderCellDef mat-sort-header>Planned Start</mat-header-cell>
-              <mat-cell *matCellDef="let element">
-                <mat-form-field appearance="outline" class="date-field">
-                  <input matInput [matDatepicker]="picker" 
-                         [value]="element.PlannedStartDate"
-                         (dateChange)="updatePlannedDate(element, $event)">
-                  <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
-                  <mat-datepicker #picker></mat-datepicker>
-                </mat-form-field>
-              </mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="priority">
-              <mat-header-cell *matHeaderCellDef mat-sort-header>Priority</mat-header-cell>
-              <mat-cell *matCellDef="let element">
-                <mat-select [value]="element.Priority" 
-                            (selectionChange)="updatePriority(element, $event)">
-                  <mat-option value="High">High</mat-option>
-                  <mat-option value="Medium">Medium</mat-option>
-                  <mat-option value="Low">Low</mat-option>
-                </mat-select>
-              </mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="prerequisites">
-              <mat-header-cell *matHeaderCellDef>Prerequisites</mat-header-cell>
-              <mat-cell *matCellDef="let element">
-                <mat-chip-list>
-                  <mat-chip *ngFor="let req of getPrerequisites(element.Prerequisites)">
-                    {{req}}
-                  </mat-chip>
-                </mat-chip-list>
-              </mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="assigned_to">
-              <mat-header-cell *matHeaderCellDef>Assigned To</mat-header-cell>
-              <mat-cell *matCellDef="let element">
-                <span class="assignment-link" (click)="openAssignmentDialog(element)">
-                  {{element.AssignedTo || 'Not Assigned'}}
-                </span>
-              </mat-cell>
-            </ng-container>
-
-            <!-- Rest of template... -->
-          </mat-table>
-        </mat-card-content>
-      </mat-card>
-    </div>
-  `,
-  styles: [`
-    .future-week-container { padding: 16px; }
-    .week-indicator.future { 
-      background: #2196f3; 
-      color: white; 
-      padding: 4px 8px; 
-      border-radius: 4px; 
+  // ADDED: Update available columns based on week type
+  private updateAvailableColumns(): void {
+    switch (this.currentWeekType) {
+      case 'current':
+        this.availableColumns = this.allAvailableColumns.current;
+        break;
+      case 'future':
+        this.availableColumns = this.allAvailableColumns.future;
+        break;
+      case 'previous':
+        this.availableColumns = this.allAvailableColumns.previous;
+        break;
+      default:
+        this.availableColumns = this.allAvailableColumns.base;
     }
-    .date-field { width: 120px; }
-    /* More future-specific styles... */
-  `]
-})
-export class FutureWeekTableComponent implements OnInit, OnDestroy {
-  
-  displayedColumns = [
-    'store_number', 'store_name', 'planned_start', 
-    'priority', 'prerequisites', 'assigned_to', 'user_comment'
-  ];
-
-  // Future week specific methods
-  updatePlannedDate(element: any, event: any): void {
-    // Update planned start date
+    
+    console.log(`Available columns updated for ${this.currentWeekType} week:`, this.availableColumns);
   }
 
-  updatePriority(element: any, event: any): void {
-    // Update priority
+  // ADDED: Reset selected columns when week type changes
+  private resetSelectedColumnsForWeekType(): void {
+    // Reset to default columns for the new week type
+    this.selectedColumns = this.availableColumns
+      .filter(col => col.required || this.getDefaultVisibleColumns().includes(col.key))
+      .map(col => col.key);
+    
+    // Emit the change
+    this.columnsChanged.emit(this.selectedColumns);
+    
+    console.log(`Selected columns reset for ${this.currentWeekType} week:`, this.selectedColumns);
   }
 
-  getPrerequisites(prerequisites: string): string[] {
-    return prerequisites ? prerequisites.split(',') : [];
-  }
-
-  // Rest of implementation...
-}
-C. Previous Week Table Component
-typescript
-// previous-week-table.component.ts
-@Component({
-  selector: 'app-previous-week-table',
-  template: `
-    <div class="previous-week-container">
-      <mat-card class="table-card">
-        <mat-card-header>
-          <mat-card-title>
-            Previous Week History 
-            <span class="week-indicator previous">COMPLETED</span>
-          </mat-card-title>
-        </mat-card-header>
-        
-        <mat-card-content>
-          <mat-table [dataSource]="dataSource" matSort class="previous-week-table">
-            
-            <!-- Previous Week Specific Columns -->
-            <ng-container matColumnDef="store_number">
-              <mat-header-cell *matHeaderCellDef mat-sort-header>Store #</mat-header-cell>
-              <mat-cell *matCellDef="let element">{{element.StoreNumber}}</mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="completion_status">
-              <mat-header-cell *matHeaderCellDef mat-sort-header>Completion</mat-header-cell>
-              <mat-cell *matCellDef="let element">
-                <mat-icon [class]="element.ActualCompletion === '100%' ? 'completed' : 'incomplete'">
-                  {{element.ActualCompletion === '100%' ? 'check_circle' : 'cancel'}}
-                </mat-icon>
-                {{element.ActualCompletion}}
-              </mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="completed_date">
-              <mat-header-cell *matHeaderCellDef mat-sort-header>Completed Date</mat-header-cell>
-              <mat-cell *matCellDef="let element">{{formatDate(element.CompletedDate)}}</mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="issues">
-              <mat-header-cell *matHeaderCellDef>Issues</mat-header-cell>
-              <mat-cell *matCellDef="let element">
-                <mat-icon *ngIf="element.Issues" 
-                          class="issues-icon" 
-                          [title]="element.Issues">
-                  warning
-                </mat-icon>
-                <span class="issues-text">{{element.Issues || 'None'}}</span>
-              </mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="notes">
-              <mat-header-cell *matHeaderCellDef>Notes</mat-header-cell>
-              <mat-cell *matCellDef="let element">
-                <div class="notes-cell" [title]="element.Notes">
-                  {{truncateText(element.Notes, 50)}}
-                </div>
-              </mat-cell>
-            </ng-container>
-
-            <!-- Rest of template... -->
-          </mat-table>
-        </mat-card-content>
-      </mat-card>
-    </div>
-  `,
-  styles: [`
-    .previous-week-container { padding: 16px; }
-    .week-indicator.previous { 
-      background: #ff9800; 
-      color: white; 
-      padding: 4px 8px; 
-      border-radius: 4px; 
+  // ADDED: Get default visible columns based on week type
+  private getDefaultVisibleColumns(): string[] {
+    const common = ['addr_line1', 'city', 'state'];
+    
+    switch (this.currentWeekType) {
+      case 'current':
+        return [...common, 'task_completed', 'quality'];
+      case 'future':
+        return [...common, 'avg_cost'];
+      case 'previous':
+        return [...common, 'task_completed', 'wk1_costs'];
+      default:
+        return common;
     }
-    .completed { color: #4caf50; }
-    .incomplete { color: #f44336; }
-    .issues-icon { color: #ff9800; }
-    .notes-cell { max-width: 200px; overflow: hidden; }
-  `]
-})
-export class PreviousWeekTableComponent implements OnInit, OnDestroy {
-  
-  displayedColumns = [
-    'store_number', 'store_name', 'completion_status', 
-    'completed_date', 'issues', 'notes', 'user_comment'
-  ];
-
-  // Previous week specific methods
-  truncateText(text: string, maxLength: number): string {
-    if (!text) return '';
-    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
   }
 
-  // Rest of implementation...
-}
-3. Main Container Component
-typescript
-// store-grid-container.component.ts
-@Component({
-  selector: 'app-store-grid-container',
-  template: `
-    <div class="store-grid-container">
-      <ng-container [ngSwitch]="weekType">
-        <app-current-week-table *ngSwitchCase="'current'"></app-current-week-table>
-        <app-future-week-table *ngSwitchCase="'future'"></app-future-week-table>
-        <app-previous-week-table *ngSwitchCase="'previous'"></app-previous-week-table>
-      </ng-container>
-    </div>
-  `
-})
-export class StoreGridContainerComponent implements OnInit, OnDestroy {
-  weekType: 'current' | 'future' | 'previous' = 'current';
+  // ENHANCED: Column selection change with week type awareness
+  onColumnSelectionChange(): void {
+    // Ensure required columns are always selected
+    const requiredColumns = this.availableColumns
+      .filter(col => col.required)
+      .map(col => col.key);
+      
+    this.selectedColumns = [...new Set([...this.selectedColumns, ...requiredColumns])];
+    
+    console.log(`Column selection changed for ${this.currentWeekType} week:`, this.selectedColumns);
+    
+    // Emit the change with week type context
+    this.columnsChanged.emit(this.selectedColumns);
+  }
 
-  constructor(private commonService: CommonService) {}
+  // ... rest of your existing methods ...
+}
+2. ENHANCED store-table.component.ts (Add Column Visibility Methods)
+typescript
+// ADD these methods to your existing StoreTableComponent:
+
+export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
+  // ... your existing properties ...
+
+  // ADDED: Column visibility management properties
+  private visibleColumns: string[] = [];
 
   ngOnInit(): void {
-    this.commonService.weekType$.subscribe(weekType => {
-      this.weekType = weekType;
-    });
-  }
-}
-Benefits of 3 Separate Tables:
-✅ Specialized UI - Each table optimized for its specific use case
-✅ Cleaner Code - No complex dynamic logic, easier to maintain
-✅ Better Performance - No unnecessary rendering of unused columns
-✅ Focused Functionality - Each table has features specific to its week type
-✅ Easier Testing - Test each table component independently
-✅ Simple Styling - CSS specific to each table's purpose
+    // ... your existing ngOnInit code ...
 
-This approach is much simpler and more maintainable than the dynamic column solution!
+    // Keep your existing week type subscription but enhance it:
+    this.commonService.weekType$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(weekType => {
+        console.log('Week type changed to:', weekType);
+        this.currentWeekType = weekType;
+        this.updateDisplayedColumns(); // This will now consider visible columns too
+        this.cdr.detectChanges();
+      });
+
+    // ... rest of your existing ngOnInit code ...
+  }
+
+  // ADDED: Method to receive column visibility changes from filter component
+  updateVisibleColumns(selectedColumns: string[]): void {
+    console.log('Store table received visible columns:', selectedColumns);
+    this.visibleColumns = selectedColumns;
+    this.updateDisplayedColumns();
+    this.cdr.detectChanges();
+  }
+
+  // ENHANCED: Update displayed columns considering both week type and visibility
+  private updateDisplayedColumns(): void {
+    let availableColumns: string[] = [];
+    
+    // Get available columns based on week type
+    switch (this.currentWeekType) {
+      case 'current':
+        availableColumns = this.currentWeekColumns;
+        break;
+      case 'future':
+        availableColumns = this.futureWeekColumns;
+        break;
+      case 'previous':
+        availableColumns = this.previousWeekColumns;
+        break;
+      default:
+        availableColumns = this.baseColumns;
+    }
+    
+    // Filter by visible columns if specified
+    if (this.visibleColumns.length > 0) {
+      this.displayedColumns = availableColumns.filter(col => 
+        this.visibleColumns.includes(col)
+      );
+    } else {
+      // Show all available columns if no specific selection
+      this.displayedColumns = [...availableColumns];
+    }
+    
+    console.log(`Final displayed columns for ${this.currentWeekType} week:`, this.displayedColumns);
+  }
+
+  // ENHANCED: Column visibility check
+  isColumnVisible(columnName: string): boolean {
+    const isVisible = this.displayedColumns.includes(columnName);
+    console.log(`Column ${columnName} visible:`, isVisible);
+    return isVisible;
+  }
+
+  // ... rest of your existing methods ...
+}
+3. UPDATE store-table.component.html (Add *ngIf to ALL columns)
+xml
+<!-- UPDATE all your ng-container column definitions to include *ngIf: -->
+
+<!-- Store Number Column (Always visible as it's required) -->
+<ng-container matColumnDef="store_number" *ngIf="isColumnVisible('store_number')">
+  <mat-header-cell *matHeaderCellDef class="mat-header-style">
+    <button mat-icon-button 
+            [disabled]="isExpandingAll"
+            (click)="expandAllRows()" 
+            [title]="allExpanded ? 'Collapse All' : 'Expand All'"
+            class="expand-all-btn">
+      <mat-icon>{{allExpanded ? 'unfold_less' : 'unfold_more'}}</mat-icon>
+    </button>
+    Store #
+  </mat-header-cell>
+  <mat-cell *matCellDef="let element" class="store-number-cell">
+    <span class="caret" [class.clicked]="isRowExpanded(element)">▼</span>
+    <span class="store-number">{{element.StoreNumber}}</span>
+  </mat-cell>
+</ng-container>
+
+<!-- Store Name Column -->
+<ng-container matColumnDef="store_name" *ngIf="isColumnVisible('store_name')">
+  <mat-header-cell *matHeaderCellDef class="mat-header-style">Store Name</mat-header-cell>
+  <mat-cell *matCellDef="let element" class="store-name-cell">
+    <span class="store-name" (click)="openProximityDataDialog(element); $event.stopPropagation();">
+      {{element.StoreName}}
+    </span>
+  </mat-cell>
+</ng-container>
+
+<!-- Address Column -->
+<ng-container matColumnDef="addr_line1" *ngIf="isColumnVisible('addr_line1')">
+  <mat-header-cell *matHeaderCellDef class="mat-header-style">Address</mat-header-cell>
+  <mat-cell *matCellDef="let element">{{element.AddrLine1}}</mat-cell>
+</ng-container>
+
+<!-- City Column -->
+<ng-container matColumnDef="city" *ngIf="isColumnVisible('city')">
+  <mat-header-cell *matHeaderCellDef class="mat-header-style">City</mat-header-cell>
+  <mat-cell *matCellDef="let element">{{element.City}}</mat-cell>
+</ng-container>
+
+<!-- State Column -->
+<ng-container matColumnDef="state" *ngIf="isColumnVisible('state')">
+  <mat-header-cell *matHeaderCellDef class="mat-header-style">State</mat-header-cell>
+  <mat-cell *matCellDef="let element">
+    <span class="state-badge">{{element.State}}</span>
+  </mat-cell>
+</ng-container>
+
+<!-- Zip Column -->
+<ng-container matColumnDef="zip" *ngIf="isColumnVisible('zip')">
+  <mat-header-cell *matHeaderCellDef class="mat-header-style">Zip</mat-header-cell>
+  <mat-cell *matCellDef="let element">{{element.Zip}}</mat-cell>
+</ng-container>
+
+<!-- Assigned To Column -->
+<ng-container matColumnDef="assigned_to" *ngIf="isColumnVisible('assigned_to')">
+  <mat-header-cell *matHeaderCellDef class="mat-header-style">Assigned To</mat-header-cell>
+  <mat-cell *matCellDef="let element" class="assigned-cell" 
+            (click)="openAssignmentDialog(element, 'StoreLevel'); $event.stopPropagation()">
+    <span class="assignment-badge" [ngClass]="getAssignmentClass(element.AssignedTo)">
+      {{element.AssignedTo}}
+    </span>
+  </mat-cell>
+</ng-container>
+
+<!-- Task Completed Column (Current & Previous weeks only) -->
+<ng-container matColumnDef="task_completed" *ngIf="isColumnVisible('task_completed')">
+  <mat-header-cell *matHeaderCellDef class="mat-header-style">Completed</mat-header-cell>
+  <mat-cell *matCellDef="let element">
+    <span class="status-badge" [ngClass]="getTaskCompletedClass(element.TaskCompleted)">
+      {{formatTaskCompleted(element.TaskCompleted)}}
+    </span>
+  </mat-cell>
+</ng-container>
+
+<!-- Quality Column (Current & Previous weeks only) -->
+<ng-container matColumnDef="quality" *ngIf="isColumnVisible('quality')">
+  <mat-header-cell *matHeaderCellDef class="mat-header-style">Quality</mat-header-cell>
+  <mat-cell *matCellDef="let element">
+    <span class="quality-badge" [ngClass]="getQualityClass(element.Quality)">
+      {{formatQuality(element.Quality)}}
+    </span>
+  </mat-cell>
+</ng-container>
+
+<!-- Cost Over Column (Current & Previous weeks only) -->
+<ng-container matColumnDef="cost_over" *ngIf="isColumnVisible('cost_over')">
+  <mat-header-cell *matHeaderCellDef class="mat-header-style">Over Cost</mat-header-cell>
+  <mat-cell *matCellDef="let element">
+    <span class="cost-badge" [ngClass]="getCostOverClass(element.CostOver)">
+      {{formatCostOver(element.CostOver)}}
+    </span>
+  </mat-cell>
+</ng-container>
+
+<!-- Guaranteed Miles Column -->
+<ng-container matColumnDef="guaranteed_miles" *ngIf="isColumnVisible('guaranteed_miles')">
+  <mat-header-cell *matHeaderCellDef class="mat-header-style">Miles</mat-header-cell>
+  <mat-cell *matCellDef="let element">{{formatGuaranteedMiles(element.GuaranteedMiles)}}</mat-cell>
+</ng-container>
+
+<!-- Average Cost Column (Future week only) -->
+<ng-container matColumnDef="avg_cost" *ngIf="isColumnVisible('avg_cost')">
+  <mat-header-cell *matHeaderCellDef class="mat-header-style">Avg Cost</mat-header-cell>
+  <mat-cell *matCellDef="let element">{{formatAvgCost(element.AvgCost)}}</mat-cell>
+</ng-container>
+
+<!-- WK1 Costs Column (Previous week only) -->
+<ng-container matColumnDef="wk1_costs" *ngIf="isColumnVisible('wk1_costs')">
+  <mat-header-cell *matHeaderCellDef class="mat-header-style">WK1 Costs</mat-header-cell>
+  <mat-cell *matCellDef="let element">{{formatWk1Costs(element)}}</mat-cell>
+</ng-container>
+
+<!-- WK2 Costs Column (Previous week only) -->
+<ng-container matColumnDef="wk2_costs" *ngIf="isColumnVisible('wk2_costs')">
+  <mat-header-cell *matHeaderCellDef class="mat-header-style">WK2 Costs</mat-header-cell>
+  <mat-cell *matCellDef="let element">{{formatWk2Costs(element)}}</mat-cell>
+</ng-container>
+
+<!-- Comments Column -->
+<ng-container matColumnDef="user_comment" *ngIf="isColumnVisible('user_comment')">
+  <mat-header-cell *matHeaderCellDef class="mat-header-style">Comments</mat-header-cell>
+  <mat-cell *matCellDef="let element" class="comment-cell">
+    <!-- Your existing comment cell content -->
+    <div *ngIf="!element.IsCommentEditing" class="comment-view">
+      <span class="comment-text" 
+            [title]="element.UserComment"
+            (click)="canEditComments && startCommentEdit(element); $event.stopPropagation();"
+            [style.cursor]="canEditComments ? 'pointer' : 'default'">
+        {{element.UserComment || (canEditComments ? 'Add comment...' : 'No comment')}}
+      </span>
+      
+      <button *ngIf="canEditComments" 
+              mat-icon-button 
+              (click)="startCommentEdit(element); $event.stopPropagation();"
+              class="comment-edit-btn">
+        <mat-icon>edit</mat-icon>
+      </button>
+      
+      <button *ngIf="canDeleteComments && element.UserComment" 
+              mat-icon-button 
+              (click)="deleteComment(element); $event.stopPropagation();"
+              class="comment-delete-btn">
+        <mat-icon>delete</mat-icon>
+      </button>
+    </div>
+    
+    <div *ngIf="element.IsCommentEditing && canEditComments" class="comment-edit">
+      <mat-form-field appearance="standard" class="comment-field">
+        <textarea matInput
+                  [value]="element.UserComment"
+                  placeholder="Enter comment..."
+                  (keydown)="onCommentKeydown($event, element)"
+                  #commentInput
+                  rows="2"
+                  maxlength="500">
+        </textarea>
+      </mat-form-field>
+      <div class="comment-actions">
+        <button mat-icon-button 
+                color="primary"
+                (click)="saveComment(element, commentInput.value); $event.stopPropagation();">
+          <mat-icon>check</mat-icon>
+        </button>
+        <button mat-icon-button 
+                (click)="cancelCommentEdit(element); $event.stopPropagation();">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+  </mat-cell>
+</ng-container>
+4. UPDATE dashboard-layout.component.ts
+typescript
+// ADD this method to handle column changes:
+
+export class DashboardLayoutComponent implements OnInit, OnDestroy {
+  // ... your existing properties and methods ...
+
+  // Handle column visibility changes from filter sidebar
+  onColumnsChanged(selectedColumns: string[]): void {
+    console.log('Dashboard received column changes:', selectedColumns);
+    
+    // Pass to store table component
+    if (this.storeTableComponent) {
+      this.storeTableComponent.updateVisibleColumns(selectedColumns);
+    }
+  }
+
+  // ... rest of your existing methods ...
+}
+5. UPDATE dashboard-layout.component.html
+xml
+<!-- Update your filter sidebar to emit column changes -->
+<app-filter-sidebar 
+  (filtersChanged)="onFiltersChanged($event)"
+  (columnsChanged)="onColumnsChanged($event)">
+</app-filter-sidebar>
+
+<!-- Make sure you have reference to store table -->
+<app-store-table #storeTableComponent></app-store-table>
+How It Works:
+1. Week Type Detection:
+CommonService determines current/future/previous week based on IRI week comparison
+
+Filter sidebar subscribes to weekType$ changes
+
+2. Dynamic Column Options:
+Filter sidebar updates available columns based on week type
+
+Different column options for current (Task Completed, Quality) vs future (Avg Cost) vs previous (WK1/WK2 Costs)
+
+3. Column Selection Flow:
+text
+User Changes Week → CommonService.weekType$ → Filter Sidebar updates availableColumns 
+↓
+User Selects Columns → onColumnSelectionChange() → Emit columnsChanged
+↓
+Dashboard receives → onColumnsChanged() → Store Table.updateVisibleColumns()
+↓
+Store Table updates displayedColumns → Template *ngIf shows/hides columns
+4. Template Rendering:
+Each ng-container has *ngIf="isColumnVisible(columnName)"
+
+isColumnVisible() checks if column is in current displayedColumns array
+
+Columns automatically show/hide based on both week type AND user selection
+
+This solution provides:
+
+✅ Dynamic column options based on week type
+
+✅ Real-time show/hide functionality
+
+✅ Required columns protection (can't hide Store #, Name, Assigned To, Comments)
+
+✅ Week-appropriate defaults (different default visible columns per week type)
+
+✅ Seamless integration with your existing 3-table system
