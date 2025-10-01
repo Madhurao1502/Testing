@@ -1,3 +1,19 @@
+currentWeekColumns = [
+    'store_number', 'territory','position_number','bdf', 'outlet','store_name', 'addr_line1', 'city', 'state', 'assigned_to', 
+    'task_completed', 'quality', 'cost_over', 'guaranteed_miles', 'user_comment'
+  ];
+  
+  futureWeekColumns = [
+    'store_number','territory', 'position_number','bdf', 'outlet','store_name', 'addr_line1', 'city', 'state', 'assigned_to',
+    'avg_cost', 'guaranteed_miles', 'user_comment'
+  ];
+  
+  previousWeekColumns = [
+    'store_number','territory', 'position_number','bdf','outlet', 'store_name', 'addr_line1', 'city', 'state', 'assigned_to',
+    'task_completed', 'quality', 'cost_over', 'wk1_costs','wk1_travel', 'wk1_ovg_travel','wk2_costs', 'wk2_travel','wk2_ovg_travel','user_comment'
+  ];
+
+
 1. Country Selection State Management
 Updated Common Service (Add Country Management)
 typescript
