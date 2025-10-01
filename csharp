@@ -1,191 +1,164 @@
-UPDATED dashboard-layout.component.ts (ADD Column Communication)
-typescript
-import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
-import { FormControl } from '@angular/forms';
-import { Subject, firstValueFrom } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
-import { GetGridDataFilter } from '../shared/common.model';
-import { CommonService } from '../shared/common.service';
-import { StoreTableComponent } from './store-table/store-table.component';
+Dynamic Week Type Class Assignment for Store Table
+How the Week Type Classes Are Applied
+The CSS classes week-current, week-future, and week-previous are dynamically applied to the <mat-table> element based on the current week type from CommonService.
 
-@Component({
-  selector: 'app-dashboard-layout',
-  templateUrl: './dashboard-layout.component.html',
-  styleUrls: ['./dashboard-layout.component.css']
-})
-export class DashboardLayoutComponent implements OnInit, OnDestroy {
-  
-  @ViewChild('storeTableComponent') storeTableComponent!: StoreTableComponent;
-
-  private destroy$ = new Subject<void>();
-  countrylist: any[] = [];
-  employeedata: any[] = [];
-  countryctrl = new FormControl();
-  isFiltersExpanded = false;
-  showSpinner = false;
-  
-  private loggeduser: string;
-
-  constructor(private commonService: CommonService) { 
-    this.loggeduser = localStorage.getItem("loggedUserId") || '';
-  }
-
-  async ngOnInit(): Promise<void> {
-    await this.commonService.loadCurrentIRIWeek();
-     
-    this.commonService.groupsStatus$.subscribe(userGroups => {    
-      if (userGroups['isgTechnologyGroup']) { 
-        this.countryctrl.enable();
-      } else { 
-        this.countryctrl.disable();
-      }   
-    }); 
+1. UPDATE store-table.component.html (Add Dynamic Class)
+xml
+<div class="table-container">
+  <mat-card class="table-card" [ngClass]="getWeekTypeClass()">
+    <mat-card-header>
+      <!-- Search Bar -->
+      <div class="search-container">
+        <mat-form-field appearance="outline" class="search-field">
+          <mat-label>Search stores...</mat-label>
+          <input matInput [formControl]="searchControl" 
+                placeholder="Search by store number, name, address, city, state, assigned to, etc.">
+          <mat-icon matPrefix>search</mat-icon>
+          <button mat-button *ngIf="searchControl.value" matSuffix mat-icon-button (click)="clearSearch()">
+            <mat-icon>clear</mat-icon>
+          </button>
+        </mat-form-field>
+      </div>
+    </mat-card-header>
     
-    try {
-      this.employeedata = await firstValueFrom(this.commonService.getEmployee(this.loggeduser));
+    <mat-card-content>
+      <div class="table-wrapper">
+        <!-- UPDATED: Add dynamic week type class to table -->
+        <mat-table #table 
+                   [dataSource]="dataSource" 
+                   matSort 
+                   class="store-table mat-elevation-2"
+                   [ngClass]="getWeekTypeTableClass()">
+          
+          <!-- All your existing column definitions remain the same -->
+          <!-- Store Number Column -->
+          <ng-container matColumnDef="store_number" *ngIf="isColumnVisible('store_number')">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">
+              <button mat-icon-button 
+                      [disabled]="isExpandingAll"
+                      (click)="expandAllRows()" 
+                      [title]="allExpanded ? 'Collapse All' : 'Expand All'"
+                      class="expand-all-btn">
+                <mat-icon>{{allExpanded ? 'unfold_less' : 'unfold_more'}}</mat-icon>
+              </button>
+              Store #
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="store-number-cell">
+              <span class="caret" [class.clicked]="isRowExpanded(element)">▼</span>
+              <span class="store-number">{{element.StoreNumber}}</span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Territory Column -->
+          <ng-container matColumnDef="territory" *ngIf="isColumnVisible('territory')">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">Terr</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.Territory}}</mat-cell>
+          </ng-container>
+
+          <!-- Position Number Column -->
+          <ng-container matColumnDef="position_number" *ngIf="isColumnVisible('position_number')">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">Position #</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.PositionNumber}}</mat-cell>
+          </ng-container>
+
+          <!-- BDF Column -->
+          <ng-container matColumnDef="bdf" *ngIf="isColumnVisible('bdf')">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">BDF</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.BDF}}</mat-cell>
+          </ng-container>
+
+          <!-- Outlet Column -->
+          <ng-container matColumnDef="outlet" *ngIf="isColumnVisible('outlet')">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">Outlet</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.Outlet}}</mat-cell>
+          </ng-container>
+
+          <!-- All other existing columns... -->
+          
+          <!-- Header and Data Rows -->
+          <mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></mat-header-row>
+          <mat-row *matRowDef="let row; columns: displayedColumns; let i = index"
+                  class="table-row"
+                  [cdkDetailRow]="row" 
+                  [cdkDetailRowTpl]="tpl"
+                  (toggleChange)="GetSubgridData($event, row)"
+                  (dataLoadRequest)="onDataLoadRequest($event)"
+                  matRipple>
+          </mat-row>
+        </mat-table>
+      </div>
       
-      if (this.employeedata.length > 0) {
-        const defaultCountryId = this.employeedata?.countryId || '1';
-        this.countryctrl.setValue(defaultCountryId);
-        this.commonService.setCountry(defaultCountryId);
-      }
-    } catch(error) {
-      console.error('Error fetching employee data:', error);
-      this.countryctrl.setValue('1');
-      this.commonService.setCountry('1');
-    }
-
-    try {
-      this.countrylist = await this.commonService.getcountry();
-    } catch {
-      console.error('Error fetching country data');
-    }      
-    
-    this.countryctrl.valueChanges
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(countryId => {
-        if (countryId) {
-          this.commonService.setCountry(countryId);
-        }
-      });
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
-  toggleFilters(): void {
-    this.isFiltersExpanded = !this.isFiltersExpanded;
-  }
-
-  // Handle filter changes from sidebar
-  onFiltersChanged(filters: GetGridDataFilter): void {
-    console.log('Dashboard received filters:', filters);
-    this.commonService.applyFilters(filters);
-  }
-
-  // FIXED: Handle column changes from sidebar
-  onColumnsChanged(selectedColumns: string[]): void {
-    console.log('Dashboard received column changes:', selectedColumns);
-    // Pass to store table component
-    if (this.storeTableComponent) {
-      this.storeTableComponent.updateVisibleColumns(selectedColumns);
-    }
-  }
-
-  // Handle clear filters
-  onClearFilters(): void {
-    this.commonService.clearFilters();
-  }
-
-  // Handle country selection
-  selectedcountry(event: any): void {
-    if (event.isUserInput && event.source.value) {
-      this.commonService.setCountry(event.source.value);
-    }
-  }
-}
-2. UPDATED dashboard-layout.component.html (CONNECT Events)
-xml
-<div class="dashboard-layout">
-  <!-- Toolbar -->
-  <mat-toolbar class="mat-toolbar-primary">
-    <button mat-icon-button (click)="toggleFilters()" aria-label="Toggle filters">
-      <mat-icon>filter_list</mat-icon>
-    </button>
-    <h1 class="toolbar-title">Assignments Dashboard</h1>
-    <span class="toolbar-spacer"></span>
-    
-    <!-- Country Selector -->
-    <div class="country-field">
-      <mat-form-field appearance="standard">
-        <mat-select [formControl]="countryctrl" placeholder="Select country">
-          <mat-option *ngFor="let country of countrylist" 
-                      [value]="country.countryID" 
-                      (onSelectionChange)="selectedcountry($event)">
-            {{country.countryName}}
-          </mat-option>
-        </mat-select>
-      </mat-form-field>        
-    </div>
-    
-    <button mat-icon-button aria-label="Edit" matTooltip="Generate Work Order"> 
-      <mat-icon>edit_square</mat-icon>
-    </button>
-    <button mat-icon-button aria-label="Send" matTooltip="Email Work Order">
-      <mat-icon>send</mat-icon>
-    </button>
-    <button mat-icon-button aria-label="Download" matTooltip="Export Grid Data">
-      <mat-icon>download</mat-icon>
-    </button>
-  </mat-toolbar>
-
-  <!-- TOP HORIZONTAL FILTER BAR -->
-  <section class="filter-top-bar" [class.expanded]="isFiltersExpanded">
-    <!-- FIXED: Connect both events -->
-    <app-filter-sidebar 
-      (filtersChanged)="onFiltersChanged($event)"
-      (columnsChanged)="onColumnsChanged($event)">
-    </app-filter-sidebar>
-  </section>
-
-  <!-- Main Content -->
-  <div class="main-content">
-    <div class="content-wrapper">
-      <!-- FIXED: Add template reference -->
-      <app-store-table #storeTableComponent></app-store-table>
-    </div>
-  </div>
+      <mat-paginator [pageSizeOptions]="[50, 100, 150, 200]" 
+                    showFirstLastButtons
+                    class="table-paginator">
+      </mat-paginator>
+    </mat-card-content>
+  </mat-card>
 </div>
-3. ADD to filter-sidebar.component.html (Column Visibility Dropdown)
-xml
-<!-- Add this AFTER the Multi FSR Store checkbox in your filter-sidebar.component.html -->
-
-<!-- Column Visibility Dropdown -->
-<div class="checkbox-field">
-  <label class="form-label">Visible Columns</label>
-  <mat-form-field appearance="outline">
-    <mat-label>Select Columns to Display</mat-label>
-    <mat-select multiple [(value)]="selectedColumns" (selectionChange)="onColumnSelectionChange()">
-      <mat-option *ngFor="let column of availableColumns" 
-                  [value]="column.key" 
-                  [disabled]="column.required">
-        {{column.label}}
-        <span *ngIf="column.required" class="required-indicator"> *</span>
-      </mat-option>
-    </mat-select>
-  </mat-form-field>
-</div>
-4. FIXED: store-table.component.ts (Column Visibility Methods)
+2. ADD to store-table.component.ts (Class Generation Methods)
 typescript
-// ADD these methods to your existing StoreTableComponent:
-
 export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
-  // ... your existing properties ...
+  
+  // ... all your existing properties ...
 
-  // ADDED: Column visibility management properties
-  visibleColumns: string[] = [];
+  // Week type tracking (you should already have this)
+  currentWeekType: 'current' | 'future' | 'previous' = 'current';
+
+  // ... all your existing methods ...
+
+  // EXISTING: Week type class for card (you already have this)
+  getWeekTypeClass(): string {
+    return `week-${this.currentWeekType}`;
+  }
+
+  // ADD: Week type class specifically for table min-width
+  getWeekTypeTableClass(): string {
+    return `week-${this.currentWeekType}`;
+  }
+
+  // ADD: Get current table min-width for debugging/info
+  getCurrentTableMinWidth(): number {
+    switch (this.currentWeekType) {
+      case 'current':
+        return 1520;
+      case 'future':
+        return 1320;
+      case 'previous':
+        return 2100;
+      default:
+        return 1200;
+    }
+  }
+
+  // ADD: Get week type display info
+  getWeekTypeInfo(): { name: string, minWidth: number, columns: number } {
+    switch (this.currentWeekType) {
+      case 'current':
+        return { 
+          name: 'Current Week Tasks', 
+          minWidth: 1520, 
+          columns: this.currentWeekColumns.length 
+        };
+      case 'future':
+        return { 
+          name: 'Future Week Planning', 
+          minWidth: 1320, 
+          columns: this.futureWeekColumns.length 
+        };
+      case 'previous':
+        return { 
+          name: 'Previous Week History', 
+          minWidth: 2100, 
+          columns: this.previousWeekColumns.length 
+        };
+      default:
+        return { 
+          name: 'Store Data', 
+          minWidth: 1200, 
+          columns: this.baseColumns.length 
+        };
+    }
+  }
 
   ngOnInit(): void {
     // ... your existing ngOnInit code ...
@@ -195,948 +168,91 @@ export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
       .pipe(takeUntil(this.destroy$))
       .subscribe(weekType => {
         console.log('Week type changed to:', weekType);
-        this.currentWeekType = weekType;
+        this.currentWeekType = weekType; // This is key - updates the currentWeekType
         this.updateAvailableColumns();
-        this.updateDisplayedColumns(); // This now considers visible columns
+        this.updateDisplayedColumns();
+        
+        // Log table info for debugging
+        const tableInfo = this.getWeekTypeInfo();
+        console.log(`Table configured for ${tableInfo.name}:`, {
+          minWidth: `${tableInfo.minWidth}px`,
+          columns: tableInfo.columns,
+          cssClass: this.getWeekTypeTableClass()
+        });
+        
         this.cdr.detectChanges();
       });
 
     // ... rest of your existing ngOnInit code ...
   }
 
-  // ADDED: Method to receive column visibility changes from filter component
-  updateVisibleColumns(selectedColumns: string[]): void {
-    console.log('Store table received visible columns:', selectedColumns);
-    this.visibleColumns = selectedColumns;
-    this.updateDisplayedColumns();
-    this.cdr.detectChanges();
-  }
-
-  // ENHANCED: Update displayed columns considering both week type and visibility
-  private updateDisplayedColumns(): void {
-    let availableColumns: string[] = [];
-    
-    // Get available columns based on week type
-    switch (this.currentWeekType) {
-      case 'current':
-        availableColumns = this.currentWeekColumns;
-        break;
-      case 'future':
-        availableColumns = this.futureWeekColumns;
-        break;
-      case 'previous':
-        availableColumns = this.previousWeekColumns;
-        break;
-      default:
-        availableColumns = this.baseColumns;
-    }
-    
-    // Filter by visible columns if specified
-    if (this.visibleColumns.length > 0) {
-      this.displayedColumns = availableColumns.filter(col => 
-        this.visibleColumns.includes(col)
-      );
-    } else {
-      // Show all available columns if no specific selection
-      this.displayedColumns = [...availableColumns];
-    }
-    
-    console.log(`Final displayed columns for ${this.currentWeekType} week:`, this.displayedColumns);
-  }
-
-  private updateAvailableColumns(): void {
-    switch (this.currentWeekType) {
-      case 'current':
-        this.availableColumns = this.currentWeekColumns;
-        break;
-      case 'future':
-        this.availableColumns = this.futureWeekColumns;
-        break;
-      case 'previous':
-        this.availableColumns = this.previousWeekColumns;
-        break;
-      default:
-        this.availableColumns = this.baseColumns;
-    }
-  }
-
-  // ENHANCED: Column visibility check with debugging
-  isColumnVisible(columnName: string): boolean {
-    const isVisible = this.displayedColumns.includes(columnName);
-    console.log(`Column ${columnName} visible:`, isVisible, 'DisplayedColumns:', this.displayedColumns);
-    return isVisible;
-  }
-
   // ... rest of your existing methods ...
 }
-Issue 2: FIXED AssignedTo Display Logic
-5. FIXED: Assigned To Display Logic in store-table.component.ts
+3. HOW IT WORKS - The Flow:
+Step 1: CommonService Determines Week Type
 typescript
-// FIXED: Multiple names handling with proper logic
-getAssignedToDisplay(assignedTo: string): string {
-  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
-    return 'NOT ASSIGNED';
-  }
+// In CommonService.applyFilters()
+const currentIRIWeek = this.getCurrentIRIWeek();
+const payloadIRIWeek = payload.iriWeek;
 
-  // Return as-is (the template will handle the splitting and line display)
-  return assignedTo.trim();
+if (payloadIRIWeek === currentIRIWeek) {
+  weekType = 'current';
+} else if (payloadIRIWeek > currentIRIWeek) {
+  weekType = 'future';
+} else {
+  weekType = 'previous';
 }
 
-getAssignedToTooltip(assignedTo: string): string {
-  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
-    return 'No one assigned';
-  }
-  
-  // Split by comma and return each name on a new line for tooltip
-  const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
-  return names.join('\\n');
-}
-
-// FIXED: Assignment class logic
-getAssignmentClass(assignedTo: string): string {
-  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
-    return 'not-assigned';
-  }
-  
-  // Check if there are multiple names (contains comma)
-  const hasMultipleNames = assignedTo.includes(',');
-  if (hasMultipleNames) {
-    // Verify it's actually multiple valid names
-    const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
-    return names.length > 1 ? 'multiple-assigned' : 'single-assigned';
-  }
-  
-  return 'single-assigned';
-}
-
-// ADDED: Helper method to check if should display line-by-line
-shouldDisplayMultipleLines(assignedTo: string): boolean {
-  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
-    return false;
-  }
-  
-  if (!assignedTo.includes(',')) {
-    return false;
-  }
-  
-  const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
-  return names.length > 1;
-}
-
-// ADDED: Get individual names for display
-getIndividualNames(assignedTo: string): string[] {
-  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
-    return ['NOT ASSIGNED'];
-  }
-  
-  if (!assignedTo.includes(',')) {
-    return [assignedTo.trim()];
-  }
-  
-  return assignedTo.split(',').map(name => name.trim()).filter(name => name);
-}
-6. FIXED: store-table.component.html (AssignedTo Column)
-xml
-<!-- FIXED: Assigned To Column with proper multiple name logic -->
-<ng-container matColumnDef="assigned_to" *ngIf="isColumnVisible('assigned_to')">
-  <mat-header-cell *matHeaderCellDef class="mat-header-style">Assigned To</mat-header-cell>
-  <mat-cell *matCellDef="let element" class="assigned-cell" 
-            (click)="openAssignmentDialog(element, 'StoreLevel'); $event.stopPropagation()">
-    <div class="assignment-container">
-      <div class="assignment-names" 
-           [ngClass]="getAssignmentClass(element.AssignedTo)"
-           [matTooltip]="getAssignedToTooltip(element.AssignedTo)"
-           matTooltipClass="multi-line-tooltip">
-        
-        <!-- Single person or NOT ASSIGNED - display normally -->
-        <div *ngIf="!shouldDisplayMultipleLines(element.AssignedTo)" class="single-name">
-          {{element.AssignedTo || 'NOT ASSIGNED'}}
-        </div>
-        
-        <!-- Multiple people - display line by line -->
-        <div *ngIf="shouldDisplayMultipleLines(element.AssignedTo)" class="multiple-names">
-          <div *ngFor="let name of getIndividualNames(element.AssignedTo); let i = index" 
-               class="name-line"
-               [class.first-name]="i === 0">
-            {{name}}
-          </div>
-        </div>
-        
-      </div>
-    </div>
-  </mat-cell>
-</ng-container>
-7. UPDATED store-table.component.css (Enhanced Styling)
-css
-/* ENHANCED: Assigned To Column styling */
-.assignment-container {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  min-height: 32px;
-  padding: 4px 2px;
-  width: 100%;
-}
-
-.assignment-names {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  width: 100%;
-  word-wrap: break-word;
-}
-
-.single-name {
-  font-size: 13px;
-  line-height: 1.3;
-  font-weight: 500;
-  max-width: 100%;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-}
-
-.multiple-names {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-}
-
-.name-line {
-  font-size: 12px;
-  line-height: 1.2;
-  padding: 1px 0;
-  word-break: break-word;
-  max-width: 100%;
-}
-
-.name-line.first-name {
-  font-weight: 600;
-  border-bottom: 1px solid #e0e0e0;
-  padding-bottom: 2px;
-  margin-bottom: 2px;
-}
-
-/* Assignment status styling */
-.assignment-names.not-assigned .single-name {
-  color: #f44336;
-  font-style: italic;
-  font-weight: 400;
-}
-
-.assignment-names.single-assigned .single-name {
-  color: #4caf50;
-  font-weight: 500;
-}
-
-.assignment-names.multiple-assigned {
-  border-left: 3px solid #2196f3;
-  padding-left: 6px;
-  background-color: rgba(33, 150, 243, 0.05);
-}
-
-.assignment-names.multiple-assigned .name-line {
-  color: #1976d2;
-  font-weight: 500;
-}
-
-.assignment-names.multiple-assigned .name-line.first-name {
-  color: #0d47a1;
-  font-weight: 600;
-}
-
-/* Multi-line tooltip styling */
-::ng-deep .multi-line-tooltip {
-  white-space: pre-line;
-  max-width: 300px;
-  text-align: left;
-  line-height: 1.4;
-}
-
-/* Column width for assigned_to */
-.mat-column-assigned_to {
-  width: 180px;
-  min-width: 180px;
-  max-width: 200px;
-}
-How It Works Now:
-Column Hide/Show Flow:
-text
-1. User checks/unchecks columns in filter sidebar dropdown
-2. onColumnSelectionChange() → columnsChanged.emit()
-3. Dashboard receives → onColumnsChanged() → store table updateVisibleColumns()
-4. Store table updates displayedColumns array
-5. Template *ngIf="isColumnVisible(columnName)" shows/hides columns
-AssignedTo Display Logic:
-text
-Single Person: "John Doe" → Display normally
-Multiple People: "John Doe, Jane Smith, Bob Wilson" → Display:
-  John Doe        (bold, with underline)
-  Jane Smith      (normal)
-  Bob Wilson      (normal)
-Empty/Null: → Display "NOT ASSIGNED" (italic, red)
-
-
-
-
-
-
-
-
-
-
-===================
-public abstract class WeekDataBase
-    {
-        public string IriWeek { get; set; } = "";
-        public string FldTerrtynbr { get; set; } = "";
-        public string PositionName { get; set; } = "";
-        public string Bfd { get; set; } = "";
-        public string OutletType { get; set; } = "";
-        public string StoreNumber { get; set; } = "";
-        public string StoreName { get; set; } = "";
-        public string AddrLine1 { get; set; } = "";
-        public string CityName { get; set; } = "";
-        public string StateCd { get; set; } = "";
-        public string ZipCd { get; set; } = "";
-        public string EmpId { get; set; } = "";
-        public string FirstName { get; set; } = "";
-        public string LastName { get; set; } = "";
-        public string TaskNumber { get; set; } = "";
-        
-        // Common computed properties
-        public string FullName => $"{LastName}, {FirstName}";
-        public string FullAddress => $"{AddrLine1}, {CityName}, {StateCd} {ZipCd}";
-        public string AssignedTo => !string.IsNullOrEmpty(FirstName) ? FullName : "Unassigned";
-    }
-
-    // Previous Week Data Model
-    public class PreviousWeekData : WeekDataBase
-    {
-        public string TaskCompleted { get; set; } = "";
-        public string Quality { get; set; } = "";
-        public string CostOver { get; set; } = "";
-        public decimal? Wk1FsrProdCost { get; set; }
-        public decimal? Wk1StoreTravelCost { get; set; }
-        public decimal? Wk1StoreTravelOvgCost { get; set; }
-        public decimal? Wk2FsrProdCost { get; set; }
-        public decimal? Wk2StoreTravelCost { get; set; }
-        public decimal? Wk2StoreTravelOvgCost { get; set; }
-        
-        // Computed properties specific to previous week
-        public decimal TotalWk1Cost => (Wk1FsrProdCost ?? 0) + (Wk1StoreTravelCost ?? 0) + (Wk1StoreTravelOvgCost ?? 0);
-        public decimal TotalWk2Cost => (Wk2FsrProdCost ?? 0) + (Wk2StoreTravelCost ?? 0) + (Wk2StoreTravelOvgCost ?? 0);
-        public decimal TotalCost => TotalWk1Cost + TotalWk2Cost;
-        public string CompletionStatus => TaskCompleted?.ToLower() == "yes" ? "Completed" : "Incomplete";
-        public bool IsCompleted => TaskCompleted?.ToLower() == "yes";
-        public bool HasIssues => CostOver?.ToLower() == "yes" || Quality?.ToLower() != "good";
-    }
-
-    // Future Week Data Model
-    public class FutureWeekData : WeekDataBase
-    {
-        public decimal? AvgCost { get; set; }
-        public decimal? GuaranteedMiles { get; set; }
-        
-        // Computed properties specific to future week
-        public string EstimatedCost => AvgCost?.ToString("C") ?? "TBD";
-        public string MileageInfo => GuaranteedMiles?.ToString("N1") + " miles" ?? "TBD";
-        public string PlanningStatus => !string.IsNullOrEmpty(EmpId) ? "Assigned" : "Planning";
-    }
-
-    // Current Week Data Model
-    public class CurrentWeekData : WeekDataBase
-    {
-        public string TaskCompleted { get; set; } = "";
-        public string Quality { get; set; } = "";
-        public string CostOver { get; set; } = "";
-        public decimal? GuaranteedMiles { get; set; }
-        
-        // Computed properties specific to current week
-        public string CurrentStatus => GetCurrentStatus();
-        public int CompletionPercentage => GetCompletionPercentage();
-        public bool IsInProgress => !string.IsNullOrEmpty(EmpId) && TaskCompleted?.ToLower() != "yes";
-        public bool IsCompleted => TaskCompleted?.ToLower() == "yes";
-        public string MileageInfo => GuaranteedMiles?.ToString("N1") + " miles" ?? "TBD";
-        public bool HasQualityIssues => Quality?.ToLower() != "good" && !string.IsNullOrEmpty(Quality);
-        public bool IsOverCost => CostOver?.ToLower() == "yes";
-        
-        private string GetCurrentStatus()
-        {
-            if (string.IsNullOrEmpty(EmpId)) return "Unassigned";
-            if (TaskCompleted?.ToLower() == "yes") return "Completed";
-            if (!string.IsNullOrEmpty(EmpId)) return "In Progress";
-            return "Pending";
-        }
-        
-        private int GetCompletionPercentage()
-        {
-            if (TaskCompleted?.ToLower() == "yes") return 100;
-            if (!string.IsNullOrEmpty(EmpId)) return 50; // In progress
-            return 0; // Unassigned
-        }
-    }
-
-    // Request Models
-    public class WeekDataRequest
-    {
-        public string CountryId { get; set; } = "";
-        public string IriWeek { get; set; } = "";
-        public string TerritoryId { get; set; } = "";
-        public string Area { get; set; } = "";
-        public string StoreNumber { get; set; } = "";
-        public string State { get; set; } = "";
-        public string City { get; set; } = "";
-        public string PositionNumber { get; set; } = "";
-        public string TaskNumber { get; set; } = "";
-        public string EmpId { get; set; } = "";
-        public string FsrHour { get; set; } = "";
-        public string FsrHourOperator { get; set; } = "NA";
-        public string AssignedStores { get; set; } = "false";
-        public string UnassignedStores { get; set; } = "false";
-        public string Sample { get; set; } = "false";
-        public string NonSample { get; set; } = "false";
-        public string MultiFsrStore { get; set; } = "false";
-        public string Vacation { get; set; } = "false";
-        public string Temporary { get; set; } = "false";
-    }
-
-    // Response Models
-    public class WeekDataResponse<T> where T : WeekDataBase
-    {
-        public List<T> Data { get; set; } = new List<T>();
-        public string WeekType { get; set; } = "";
-        public int TotalCount { get; set; }
-        public string Message { get; set; } = "";
-        public bool Success { get; set; } = true;
-    }
-}
-2. Data Access Layer
-DataContext/TaskAssignmentContext.cs
-csharp
-using Microsoft.Data.SqlClient;
-using System.Data;
-using YourProject.Models;
-
-namespace YourProject.DataContext
-{
-    public interface ITaskAssignmentContext
-    {
-        Task<List<PreviousWeekData>> GetPreviousWeekDataAsync(WeekDataRequest request);
-        Task<List<FutureWeekData>> GetFutureWeekDataAsync(WeekDataRequest request);
-        Task<List<CurrentWeekData>> GetCurrentWeekDataAsync(WeekDataRequest request);
-        Task<string> GetCurrentIriWeekAsync();
-    }
-
-    public class TaskAssignmentContext : ITaskAssignmentContext
-    {
-        private readonly string _connectionString;
-        private readonly ILogger<TaskAssignmentContext> _logger;
-
-        public TaskAssignmentContext(IConfiguration configuration, ILogger<TaskAssignmentContext> logger)
-        {
-            _connectionString = configuration.GetConnectionString("DefaultConnection") 
-                ?? throw new ArgumentNullException("Connection string not found");
-            _logger = logger;
-        }
-
-        // Get Previous Week Data
-        public async Task<List<PreviousWeekData>> GetPreviousWeekDataAsync(WeekDataRequest request)
-        {
-            var results = new List<PreviousWeekData>();
-
-            try
-            {
-                using var connection = new SqlConnection(_connectionString);
-                await connection.OpenAsync();
-                
-                using var command = new SqlCommand("USP_get_assignments_previous_weeks", connection)
-                {
-                    CommandType = CommandType.StoredProcedure,
-                    CommandTimeout = 60
-                };
-
-                // Add parameters
-                AddCommonParameters(command, request);
-
-                using var reader = await command.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    results.Add(new PreviousWeekData
-                    {
-                        IriWeek = GetSafeString(reader, "iri_week"),
-                        FldTerrtynbr = GetSafeString(reader, "fld_terrty_nbr"),
-                        PositionName = GetSafeString(reader, "Position_name"),
-                        Bfd = GetSafeString(reader, "bfd"),
-                        OutletType = GetSafeString(reader, "outlet_type"),
-                        StoreNumber = GetSafeString(reader, "store_number"),
-                        StoreName = GetSafeString(reader, "store_name"),
-                        AddrLine1 = GetSafeString(reader, "addr_line1"),
-                        CityName = GetSafeString(reader, "city_name"),
-                        StateCd = GetSafeString(reader, "state_cd"),
-                        ZipCd = GetSafeString(reader, "zip_cd"),
-                        EmpId = GetSafeString(reader, "emp_id"),
-                        FirstName = GetSafeString(reader, "first_name"),
-                        LastName = GetSafeString(reader, "last_name"),
-                        TaskNumber = GetSafeString(reader, "task_number"),
-                        TaskCompleted = GetSafeString(reader, "task_completed"),
-                        Quality = GetSafeString(reader, "quality"),
-                        CostOver = GetSafeString(reader, "cost_over"),
-                        Wk1FsrProdCost = GetSafeDecimal(reader, "WK1FSRProdCost"),
-                        Wk1StoreTravelCost = GetSafeDecimal(reader, "WK1StoreTravelCost"),
-                        Wk1StoreTravelOvgCost = GetSafeDecimal(reader, "WK1StoreTravelOvgCost"),
-                        Wk2FsrProdCost = GetSafeDecimal(reader, "WK2FSRProdCost"),
-                        Wk2StoreTravelCost = GetSafeDecimal(reader, "WK2StoreTravelCost"),
-                        Wk2StoreTravelOvgCost = GetSafeDecimal(reader, "WK2StoreTravelOvgCost")
-                    });
-                }
-
-                _logger.LogInformation($"Retrieved {results.Count} previous week records");
-                return results;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving previous week data");
-                throw new ApplicationException("Failed to retrieve previous week data", ex);
-            }
-        }
-
-        // Get Future Week Data
-        public async Task<List<FutureWeekData>> GetFutureWeekDataAsync(WeekDataRequest request)
-        {
-            var results = new List<FutureWeekData>();
-
-            try
-            {
-                using var connection = new SqlConnection(_connectionString);
-                await connection.OpenAsync();
-                
-                using var command = new SqlCommand("USP_get_assignments", connection)
-                {
-                    CommandType = CommandType.StoredProcedure,
-                    CommandTimeout = 60
-                };
-
-                // Add parameters
-                AddCommonParameters(command, request);
-
-                using var reader = await command.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    results.Add(new FutureWeekData
-                    {
-                        IriWeek = GetSafeString(reader, "iri_week"),
-                        FldTerrtynbr = GetSafeString(reader, "fld_terrty_nbr"),
-                        PositionName = GetSafeString(reader, "Position_name"),
-                        Bfd = GetSafeString(reader, "bfd"),
-                        OutletType = GetSafeString(reader, "outlet_type"),
-                        StoreNumber = GetSafeString(reader, "store_number"),
-                        StoreName = GetSafeString(reader, "store_name"),
-                        AddrLine1 = GetSafeString(reader, "addr_line1"),
-                        CityName = GetSafeString(reader, "city_name"),
-                        StateCd = GetSafeString(reader, "state_cd"),
-                        ZipCd = GetSafeString(reader, "zip_cd"),
-                        EmpId = GetSafeString(reader, "emp_id"),
-                        FirstName = GetSafeString(reader, "first_name"),
-                        LastName = GetSafeString(reader, "last_name"),
-                        TaskNumber = GetSafeString(reader, "task_number"),
-                        AvgCost = GetSafeDecimal(reader, "avg_cost"),
-                        GuaranteedMiles = GetSafeDecimal(reader, "guaranteed_miles")
-                    });
-                }
-
-                _logger.LogInformation($"Retrieved {results.Count} future week records");
-                return results;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving future week data");
-                throw new ApplicationException("Failed to retrieve future week data", ex);
-            }
-        }
-
-        // Get Current Week Data
-        public async Task<List<CurrentWeekData>> GetCurrentWeekDataAsync(WeekDataRequest request)
-        {
-            var results = new List<CurrentWeekData>();
-
-            try
-            {
-                using var connection = new SqlConnection(_connectionString);
-                await connection.OpenAsync();
-                
-                using var command = new SqlCommand("USP_get_assignments_current_week", connection)
-                {
-                    CommandType = CommandType.StoredProcedure,
-                    CommandTimeout = 60
-                };
-
-                // Add parameters
-                AddCommonParameters(command, request);
-
-                using var reader = await command.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    results.Add(new CurrentWeekData
-                    {
-                        IriWeek = GetSafeString(reader, "iri_week"),
-                        FldTerrtynbr = GetSafeString(reader, "fld_terrty_nbr"),
-                        PositionName = GetSafeString(reader, "Position_name"),
-                        Bfd = GetSafeString(reader, "bfd"),
-                        OutletType = GetSafeString(reader, "outlet_type"),
-                        StoreNumber = GetSafeString(reader, "store_number"),
-                        StoreName = GetSafeString(reader, "store_name"),
-                        AddrLine1 = GetSafeString(reader, "addr_line1"),
-                        CityName = GetSafeString(reader, "city_name"),
-                        StateCd = GetSafeString(reader, "state_cd"),
-                        ZipCd = GetSafeString(reader, "zip_cd"),
-                        EmpId = GetSafeString(reader, "emp_id"),
-                        FirstName = GetSafeString(reader, "first_name"),
-                        LastName = GetSafeString(reader, "last_name"),
-                        TaskNumber = GetSafeString(reader, "task_number"),
-                        TaskCompleted = GetSafeString(reader, "task_completed"),
-                        Quality = GetSafeString(reader, "quality"),
-                        CostOver = GetSafeString(reader, "cost_over"),
-                        GuaranteedMiles = GetSafeDecimal(reader, "guaranteed_miles")
-                    });
-                }
-
-                _logger.LogInformation($"Retrieved {results.Count} current week records");
-                return results;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving current week data");
-                throw new ApplicationException("Failed to retrieve current week data", ex);
-            }
-        }
-
-        // Get Current IRI Week
-        public async Task<string> GetCurrentIriWeekAsync()
-        {
-            try
-            {
-                using var connection = new SqlConnection(_connectionString);
-                await connection.OpenAsync();
-                
-                using var command = new SqlCommand("SELECT TOP 1 current_iri_week FROM system_settings ORDER BY id DESC", connection)
-                {
-                    CommandTimeout = 30
-                };
-
-                var result = await command.ExecuteScalarAsync();
-                return result?.ToString() ?? DateTime.Now.Year.ToString() + "01";
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving current IRI week");
-                throw new ApplicationException("Failed to retrieve current IRI week", ex);
-            }
-        }
-
-        // Helper Methods
-        private void AddCommonParameters(SqlCommand command, WeekDataRequest request)
-        {
-            command.Parameters.Add(new SqlParameter("@country_id", SqlDbType.VarChar, 10) { Value = request.CountryId ?? "" });
-            command.Parameters.Add(new SqlParameter("@iri_week", SqlDbType.VarChar, 10) { Value = request.IriWeek ?? "" });
-            command.Parameters.Add(new SqlParameter("@territory_id", SqlDbType.VarChar, 10) { Value = request.TerritoryId ?? "" });
-            command.Parameters.Add(new SqlParameter("@area", SqlDbType.VarChar, 10) { Value = request.Area ?? "" });
-            command.Parameters.Add(new SqlParameter("@store_number", SqlDbType.VarChar, 20) { Value = request.StoreNumber ?? "" });
-            command.Parameters.Add(new SqlParameter("@state", SqlDbType.VarChar, 5) { Value = request.State ?? "" });
-            command.Parameters.Add(new SqlParameter("@city", SqlDbType.VarChar, 100) { Value = request.City ?? "" });
-            command.Parameters.Add(new SqlParameter("@position_number", SqlDbType.VarChar, 10) { Value = request.PositionNumber ?? "" });
-            command.Parameters.Add(new SqlParameter("@task_number", SqlDbType.VarChar, 10) { Value = request.TaskNumber ?? "" });
-            command.Parameters.Add(new SqlParameter("@emp_id", SqlDbType.VarChar, 20) { Value = request.EmpId ?? "" });
-            command.Parameters.Add(new SqlParameter("@fsr_hour", SqlDbType.VarChar, 10) { Value = request.FsrHour ?? "" });
-            command.Parameters.Add(new SqlParameter("@fsr_hour_operator", SqlDbType.VarChar, 5) { Value = request.FsrHourOperator ?? "NA" });
-            command.Parameters.Add(new SqlParameter("@assigned_stores", SqlDbType.VarChar, 10) { Value = request.AssignedStores ?? "false" });
-            command.Parameters.Add(new SqlParameter("@unassigned_stores", SqlDbType.VarChar, 10) { Value = request.UnassignedStores ?? "false" });
-            command.Parameters.Add(new SqlParameter("@sample", SqlDbType.VarChar, 10) { Value = request.Sample ?? "false" });
-            command.Parameters.Add(new SqlParameter("@non_sample", SqlDbType.VarChar, 10) { Value = request.NonSample ?? "false" });
-            command.Parameters.Add(new SqlParameter("@multi_fsr_store", SqlDbType.VarChar, 10) { Value = request.MultiFsrStore ?? "false" });
-            command.Parameters.Add(new SqlParameter("@vacation", SqlDbType.VarChar, 10) { Value = request.Vacation ?? "false" });
-            command.Parameters.Add(new SqlParameter("@temporary", SqlDbType.VarChar, 10) { Value = request.Temporary ?? "false" });
-        }
-
-        private string GetSafeString(SqlDataReader reader, string columnName)
-        {
-            try
-            {
-                var ordinal = reader.GetOrdinal(columnName);
-                return reader.IsDBNull(ordinal) ? "" : reader.GetString(ordinal);
-            }
-            catch
-            {
-                return "";
-            }
-        }
-
-        private decimal? GetSafeDecimal(SqlDataReader reader, string columnName)
-        {
-            try
-            {
-                var ordinal = reader.GetOrdinal(columnName);
-                return reader.IsDBNull(ordinal) ? null : reader.GetDecimal(ordinal);
-            }
-            catch
-            {
-                return null;
-            }
-        }
-    }
-}
-3. Enhanced Controller
-Controllers/TaskAssignmentController.cs
-csharp
-using Microsoft.AspNetCore.Mvc;
-using YourProject.DataContext;
-using YourProject.Models;
-
-namespace YourProject.Controllers
-{
-    [ApiController]
-    [Route("api/[controller]")]
-    public class TaskAssignmentController : ControllerBase
-    {
-        private readonly ITaskAssignmentContext _context;
-        private readonly ILogger<TaskAssignmentController> _logger;
-
-        public TaskAssignmentController(ITaskAssignmentContext context, ILogger<TaskAssignmentController> logger)
-        {
-            _context = context;
-            _logger = logger;
-        }
-
-        // Get Current IRI Week
-        [HttpGet("[action]")]
-        public async Task<ActionResult<string>> GetCurrentIRIWeek()
-        {
-            try
-            {
-                var currentWeek = await _context.GetCurrentIriWeekAsync();
-                _logger.LogInformation($"Current IRI Week: {currentWeek}");
-                return Ok(currentWeek);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving current IRI week");
-                return StatusCode(500, "Error retrieving current IRI week");
-            }
-        }
-
-        // Get Previous Week Data
-        [HttpPost("[action]")]
-        public async Task<ActionResult<WeekDataResponse<PreviousWeekData>>> GetPreviousWeekGridData([FromBody] WeekDataRequest request)
-        {
-            try
-            {
-                _logger.LogInformation($"Getting previous week data for IRI Week: {request.IriWeek}");
-
-                var data = await _context.GetPreviousWeekDataAsync(request);
-
-                var response = new WeekDataResponse<PreviousWeekData>
-                {
-                    Data = data,
-                    WeekType = "previous",
-                    TotalCount = data.Count,
-                    Success = true,
-                    Message = $"Retrieved {data.Count} previous week records"
-                };
-
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving previous week data");
-                return StatusCode(500, new WeekDataResponse<PreviousWeekData>
-                {
-                    Success = false,
-                    Message = "Error retrieving previous week data: " + ex.Message
-                });
-            }
-        }
-
-        // Get Future Week Data
-        [HttpPost("[action]")]
-        public async Task<ActionResult<WeekDataResponse<FutureWeekData>>> GetFutureWeekGridData([FromBody] WeekDataRequest request)
-        {
-            try
-            {
-                _logger.LogInformation($"Getting future week data for IRI Week: {request.IriWeek}");
-
-                var data = await _context.GetFutureWeekDataAsync(request);
-
-                var response = new WeekDataResponse<FutureWeekData>
-                {
-                    Data = data,
-                    WeekType = "future",
-                    TotalCount = data.Count,
-                    Success = true,
-                    Message = $"Retrieved {data.Count} future week records"
-                };
-
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving future week data");
-                return StatusCode(500, new WeekDataResponse<FutureWeekData>
-                {
-                    Success = false,
-                    Message = "Error retrieving future week data: " + ex.Message
-                });
-            }
-        }
-
-        // Get Current Week Data
-        [HttpPost("[action]")]
-        public async Task<ActionResult<WeekDataResponse<CurrentWeekData>>> GetCurrentWeekGridData([FromBody] WeekDataRequest request)
-        {
-            try
-            {
-                _logger.LogInformation($"Getting current week data for IRI Week: {request.IriWeek}");
-
-                var data = await _context.GetCurrentWeekDataAsync(request);
-
-                var response = new WeekDataResponse<CurrentWeekData>
-                {
-                    Data = data,
-                    WeekType = "current",
-                    TotalCount = data.Count,
-                    Success = true,
-                    Message = $"Retrieved {data.Count} current week records"
-                };
-
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving current week data");
-                return StatusCode(500, new WeekDataResponse<CurrentWeekData>
-                {
-                    Success = false,
-                    Message = "Error retrieving current week data: " + ex.Message
-                });
-            }
-        }
-
-        // Get Summary Statistics (Bonus endpoint)
-        [HttpPost("[action]")]
-        public async Task<ActionResult<object>> GetWeekSummary([FromBody] WeekDataRequest request)
-        {
-            try
-            {
-                var currentWeek = await _context.GetCurrentIriWeekAsync();
-                var requestWeek = request.IriWeek;
-
-                if (requestWeek == currentWeek)
-                {
-                    var currentData = await _context.GetCurrentWeekDataAsync(request);
-                    return Ok(new
-                    {
-                        WeekType = "current",
-                        TotalStores = currentData.Count,
-                        AssignedStores = currentData.Count(x => !string.IsNullOrEmpty(x.EmpId)),
-                        CompletedTasks = currentData.Count(x => x.IsCompleted),
-                        InProgressTasks = currentData.Count(x => x.IsInProgress),
-                        QualityIssues = currentData.Count(x => x.HasQualityIssues),
-                        OverCostTasks = currentData.Count(x => x.IsOverCost)
-                    });
-                }
-                else if (string.Compare(requestWeek, currentWeek) > 0)
-                {
-                    var futureData = await _context.GetFutureWeekDataAsync(request);
-                    return Ok(new
-                    {
-                        WeekType = "future",
-                        TotalStores = futureData.Count,
-                        AssignedStores = futureData.Count(x => !string.IsNullOrEmpty(x.EmpId)),
-                        EstimatedCost = futureData.Where(x => x.AvgCost.HasValue).Sum(x => x.AvgCost.Value),
-                        TotalMiles = futureData.Where(x => x.GuaranteedMiles.HasValue).Sum(x => x.GuaranteedMiles.Value)
-                    });
-                }
-                else
-                {
-                    var previousData = await _context.GetPreviousWeekDataAsync(request);
-                    return Ok(new
-                    {
-                        WeekType = "previous",
-                        TotalStores = previousData.Count,
-                        CompletedStores = previousData.Count(x => x.IsCompleted),
-                        TotalCost = previousData.Sum(x => x.TotalCost),
-                        StoresWithIssues = previousData.Count(x => x.HasIssues),
-                        CompletionRate = previousData.Count > 0 ? (double)previousData.Count(x => x.IsCompleted) / previousData.Count * 100 : 0
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving week summary");
-                return StatusCode(500, "Error retrieving week summary");
-            }
-        }
-    }
-}
-4. Dependency Injection Setup
-Program.cs
-csharp
-using YourProject.DataContext;
-
-var builder = WebApplication.CreateBuilder(args);
-
-// Add services
-builder.Services.AddControllers();
-builder.Services.AddLogging();
-
-// Register Data Context
-builder.Services.AddScoped<ITaskAssignmentContext, TaskAssignmentContext>();
-
-// Add CORS
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAngularApp",
-        policy =>
-        {
-            policy.WithOrigins("http://localhost:4200")
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-        });
+this.weekTypeSubject.next(weekType); // Emits to weekType$ observable
+Step 2: Store Table Subscribes to Week Type Changes
+typescript
+// In store-table.component.ts ngOnInit()
+this.commonService.weekType$.subscribe(weekType => {
+  this.currentWeekType = weekType; // Updates the component property
+  // This triggers Angular change detection
 });
-
-var app = builder.Build();
-
-// Configure pipeline
-if (app.Environment.IsDevelopment())
-{
-    app.UseDeveloperExceptionPage();
+Step 3: Template Uses Dynamic Class
+xml
+<!-- Angular evaluates [ngClass] on every change detection cycle -->
+<mat-table [ngClass]="getWeekTypeTableClass()">
+Step 4: CSS Rules Apply Based on Class
+css
+/* Angular adds/removes these classes dynamically */
+.store-table.week-current { min-width: 1520px; }
+.store-table.week-future { min-width: 1320px; }
+.store-table.week-previous { min-width: 2100px; }
+4. DEBUGGING - Add Console Logs (Optional)
+typescript
+// ADD to getWeekTypeTableClass() for debugging
+getWeekTypeTableClass(): string {
+  const className = `week-${this.currentWeekType}`;
+  console.log(`Table class applied: ${className}`);
+  return className;
 }
+5. ALTERNATIVE: Inline Style Approach (If Classes Don't Work)
+If the CSS classes don't work for some reason, you can use inline styles:
 
-app.UseRouting();
-app.UseCors("AllowAngularApp");
-app.MapControllers();
+xml
+<mat-table #table 
+           [dataSource]="dataSource" 
+           matSort 
+           class="store-table mat-elevation-2"
+           [style.min-width.px]="getCurrentTableMinWidth()">
+Summary of the Complete Flow:
+text
+1. User applies filters → CommonService.applyFilters()
+2. CommonService compares IRI weeks → determines week type
+3. CommonService.weekTypeSubject.next(weekType) → emits change
+4. StoreTable subscribes → this.currentWeekType = weekType
+5. Angular change detection → evaluates [ngClass]="getWeekTypeTableClass()"
+6. getWeekTypeTableClass() returns 'week-current' or 'week-future' or 'week-previous'
+7. CSS applies: .store-table.week-current { min-width: 1520px; }
+8. Table gets appropriate minimum width for horizontal scroll
+Expected Results:
+✅ Current Week: Table min-width = 1520px, ~15 columns
 
-app.Run();
-5. appsettings.json
-json
-{
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
-  },
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=your-server;Database=your-database;Trusted_Connection=true;MultipleActiveResultSets=true;TrustServerCertificate=true;"
-  },
-  "AllowedHosts": "*"
-}
-Key Features:
-✅ Type-Safe Models - Separate models for each week type with computed properties
-✅ Async Operations - All database operations are asynchronous
-✅ Error Handling - Comprehensive exception handling with logging
-✅ Parameter Safety - SQL injection protection with parameterized queries
-✅ Computed Properties - Intelligent calculated fields (completion status, totals, etc.)
-✅ Flexible Response - Rich response models with metadata
-✅ Performance - Proper connection management and timeouts
-✅ Logging - Detailed logging for debugging and monitoring
+✅ Future Week: Table min-width = 1320px, ~13 columns
 
-This implementation maps directly to your stored procedures and column specifications!
+✅ Previous Week: Table min-width = 2100px, ~20 columns
+
+The key is that this.currentWeekType gets updated when the CommonService emits week type changes, and Angular's change detection automatically applies the correct CSS class! 🎯
