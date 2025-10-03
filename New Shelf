@@ -1,3 +1,142 @@
+<div style="padding-left: 1em; padding-right: 1em;padding-bottom:0px">
+    <h6 class="filter-left fw-bold">Store Performance Report</h6>
+    <!--Filter Section-->
+    <div class="filter">
+        <div class="filter-left">
+            <mat-form-field appearance="outline" style="color: #077f99;width:150px">
+                <mat-label>Select Country</mat-label>
+                <mat-select [formControl]="countryctrl" (selectionChange)="onCountryChange($event)">
+                    <mat-option *ngFor="let country of countrylist" [value]="country.countryName">
+                        {{country.countryName}}
+                    </mat-option>
+                </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" style="width:170px" class="required-field">
+                <mat-label>Report Week</mat-label>
+                <input matInput [matDatepicker]="picker1" [formControl]="datetimectrl2" (dateChange)="onDateSelected($event,'iriweekctrl')" hidden>
+                <input matInput [formControl]="iriweekctrl" maxlength="4" (keypress)="allowOnlyNumber($event)">
+                <mat-datepicker-toggle matSuffix [for]="picker1"></mat-datepicker-toggle>
+                <mat-datepicker #picker1></mat-datepicker>
+            </mat-form-field>
+
+            <mat-button-toggle-group [formControl]="reportWeekCtrl" name="fontStyle" class="week-toggle-group" (change)="getStorePerfReport()" style="width:auto;height:40px;margin-top:4px" aria-label="Font Style">
+                <mat-button-toggle value="WEEK">Week</mat-button-toggle>
+                <mat-button-toggle value="4WEEK">4 Week</mat-button-toggle>
+                <mat-button-toggle value="8WEEK">8 Week</mat-button-toggle>
+                <mat-button-toggle value="QTY">QTD</mat-button-toggle>
+                <mat-button-toggle value="YTD">YTD</mat-button-toggle>
+            </mat-button-toggle-group>
+
+        </div>
+        <div class="filter-right">
+            <button mat-raised-button color="primary" style="height: 40px; min-width: 90px" [disabled]="showSpinner" (click)="this.getStorePerfReport()">Search<mat-icon style="font-size: large;padding-top:2px">search</mat-icon></button>
+            <button mat-raised-button color="primary" style="height: 40px; min-width: 90px" matTooltip="Export to Excel" [disabled]="this.totalRecords==0" (click)="exportToExcel()">Export<mat-icon style="font-size: large; padding-top: 2px">description</mat-icon></button>
+        </div>
+    </div>
+
+    <div>
+        <mat-paginator [length]="totalRecords"
+                       [pageSize]="50"
+                       [pageSizeOptions]="[50,100,150,200]"
+                       aria-label="Select page"
+                       showFirstLastButtons="true">
+        </mat-paginator>
+    </div>
+
+    <div class="table-container">
+        <table mat-table [dataSource]="dataSource" matSort (matSortChange)="announceSortChange($event)" [ngClass]="{'fixed-height':totalRecords>=10,'dynamic-height':totalRecords<10}" class="mat-elevation-z8">
+
+            <ng-container matColumnDef="reportWeek">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Report Week</th>
+                <td mat-cell *matCellDef="let element"> {{element.reportWeek}}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="stateCd">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>State CD</th>
+                <td mat-cell *matCellDef="let element"> {{element.stateCd}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="territory">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Territory</th>
+                <td mat-cell *matCellDef="let element"> {{element.territory}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="outlet">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Outlet</th>
+                <td mat-cell *matCellDef="let element"> {{element.outlet}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="storeNumber">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Store Number</th>
+                <td mat-cell *matCellDef="let element"> {{element.storeNumber}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="storeName">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Store Name</th>
+                <td mat-cell *matCellDef="let element"> {{element.storeName}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="taskNumber">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Task Number</th>
+                <td mat-cell *matCellDef="let element"> {{element.taskNumber}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="completionPercent">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Completion %</th>
+                <td mat-cell *matCellDef="let element"> {{element.completionPercent}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="collectedNotPortalAssigned">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Collected Not Portal Assigned</th>
+                <td mat-cell *matCellDef="let element"> {{element.collectedNotPortalAssigned}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="qualityApproval">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Quality Approval</th>
+                <td mat-cell *matCellDef="let element"> {{element.qualityApproval}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="gpsTravelTime">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>GPS Travel Time</th>
+                <td mat-cell *matCellDef="let element"> {{element.gpsTravelTime}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="gpsDistance">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>GPS Distance</th>
+                <td mat-cell *matCellDef="let element"> {{element.gpsDistance}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="toll">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Toll</th>
+                <td mat-cell *matCellDef="let element"> {{element.toll}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="gpsTotalCost">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>GPS Total Cost</th>
+                <td mat-cell *matCellDef="let element"> {{element.gpsTotalCost}} </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns;sticky:true"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        </table>
+
+        <ng-container *ngIf="this.totalRecords==0">
+            <div class="no-data">No Data Found!!!</div>
+        </ng-container>
+    </div>
+
+    <div class="mat-spinner-container">
+        <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
+        <div *ngIf="showSpinner" style="position:relative;left: 10px">Loading...</div>
+    </div>
+</div>
+
+
+
+
+
+*********************************
 import { Injectable, Inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, firstValueFrom, of } from 'rxjs';
