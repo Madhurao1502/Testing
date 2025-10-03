@@ -1,671 +1,136 @@
-<div class="dashboard-layout">
-  
-  <!-- TOP TOOLBAR with Navigation Menu -->
-  <mat-toolbar class="mat-toolbar-primary">
-    <!-- Navigation Menu Button -->
-    <button mat-icon-button [matMenuTriggerFor]="navMenu" class="nav-menu-btn" matTooltip="Navigate">
-      <mat-icon>apps</mat-icon>
-    </button>
-    
-    <!-- Navigation Menu -->
-    <mat-menu #navMenu="matMenu" class="nav-menu">
-      <button mat-menu-item (click)="navigateToComponent('dashboard')">
-        <mat-icon>dashboard</mat-icon>
-        <span>Assignment Dashboard</span>
-      </button>
-      <button mat-menu-item (click)="navigateToComponent('performance')" disabled>
-        <mat-icon>assessment</mat-icon>
-        <span>Store Performance Report</span>
-      </button>
-      <button mat-menu-item (click)="navigateToComponent('analytics')">
-        <mat-icon>analytics</mat-icon>
-        <span>Analytics</span>
-      </button>
-      <mat-divider></mat-divider>
-      <button mat-menu-item (click)="navigateToComponent('settings')">
-        <mat-icon>settings</mat-icon>
-        <span>Settings</span>
-      </button>
-    </mat-menu>
+<div style="padding-left: 1em; padding-right: 1em;padding-bottom:0px">
+    <h6 class="filter-left fw-bold">Store Performance Report</h6>
+    <!--Filter Section-->
+    <div class="filter">
+        <div class="filter-left">
+            <mat-form-field appearance="outline" style="color: #077f99;width:150px">
+                <mat-label>Select Country</mat-label>
+                <mat-select [formControl]="countryctrl" (selectionChange)="onCountryChange($event)">
+                    <mat-option *ngFor="let country of countrylist" [value]="country.countryName">
+                        {{country.countryName}}
+                    </mat-option>
+                </mat-select>
+            </mat-form-field>
 
-    <!-- Page Title -->
-    <h1 class="toolbar-title">Store Performance Report</h1>
-    
-    <span class="toolbar-spacer"></span>
+            <mat-form-field appearance="outline" style="width:170px" class="required-field">
+                <mat-label>Report Week</mat-label>
+                <input matInput [matDatepicker]="picker1" [formControl]="datetimectrl2" (dateChange)="onDateSelected($event,'iriweekctrl')" hidden>
+                <input matInput [formControl]="iriweekctrl" maxlength="4" (keypress)="allowOnlyNumber($event)">
+                <mat-datepicker-toggle matSuffix [for]="picker1"></mat-datepicker-toggle>
+                <mat-datepicker #picker1></mat-datepicker>
+            </mat-form-field>
 
-    <!-- Toolbar Actions -->
-    <button mat-icon-button matTooltip="Refresh Data">
-      <mat-icon>refresh</mat-icon>
-    </button>
-    
-    <!-- Filter Toggle Button -->
-    <button mat-icon-button (click)="toggleFilters()" matTooltip="Toggle Filters">
-      <mat-icon>{{isFiltersExpanded ? 'expand_less' : 'expand_more'}}</mat-icon>
-    </button>
-  </mat-toolbar>
+            <mat-button-toggle-group [formControl]="reportWeekCtrl" name="fontStyle" class="week-toggle-group" (change)="getStorePerfReport()" style="width:auto;height:40px;margin-top:4px" aria-label="Font Style">
+                <mat-button-toggle value="WEEK">Week</mat-button-toggle>
+                <mat-button-toggle value="4WEEK">4 Week</mat-button-toggle>
+                <mat-button-toggle value="8WEEK">8 Week</mat-button-toggle>
+                <mat-button-toggle value="QTY">QTD</mat-button-toggle>
+                <mat-button-toggle value="YTD">YTD</mat-button-toggle>
+            </mat-button-toggle-group>
 
-  <!-- EXPANDABLE FILTER TOPBAR - Always Expanded by Default -->
-  <section class="filter-topbar expanded">
-    <div class="filter-container">
-      
-      <!-- Filter Row -->
-      <div class="filter-row">
-        
-        <!-- Country Selection -->
-        <div class="filter-field">
-          <label class="form-label">Country</label>
-          <mat-form-field appearance="outline">
-            <mat-select [formControl]="countryctrl" (selectionChange)="onCountryChange($event)">
-              <mat-option *ngFor="let country of countrylist" [value]="country.countryName">
-                {{country.countryName}}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
         </div>
-
-        <!-- Report Week with Date Picker -->
-        <div class="filter-field required-field">
-          <label class="form-label">Report Week *</label>
-          <mat-form-field appearance="outline">
-            <input matInput [matDatepicker]="picker1" [formControl]="datetimectrl2" 
-                   (dateChange)="onDateSelected($event,'iriweekctrl')" hidden>
-            <input matInput [formControl]="iriweekctrl" maxlength="4" 
-                   (keypress)="allowOnlyNumber($event)" placeholder="YYWW">
-            <mat-datepicker-toggle matSuffix [for]="picker1"></mat-datepicker-toggle>
-            <mat-datepicker #picker1></mat-datepicker>
-          </mat-form-field>
+        <div class="filter-right">
+            <button mat-raised-button color="primary" style="height: 40px; min-width: 90px" [disabled]="showSpinner" (click)="this.getStorePerfReport()">Search<mat-icon style="font-size: large;padding-top:2px">search</mat-icon></button>
+            <button mat-raised-button color="primary" style="height: 40px; min-width: 90px" matTooltip="Export to Excel" [disabled]="this.totalRecords==0" (click)="exportToExcel()">Export<mat-icon style="font-size: large; padding-top: 2px">description</mat-icon></button>
         </div>
-
-        <!-- Report Period Toggle -->
-        <div class="filter-field">
-          <label class="form-label">Report Period</label>
-          <mat-button-toggle-group [formControl]="reportWeekCtrl" 
-                                   (change)="getStorePerfReport()" 
-                                   class="period-toggle-group">
-            <mat-button-toggle value="WEEK">Week</mat-button-toggle>
-            <mat-button-toggle value="4WEEK">4 Week</mat-button-toggle>
-            <mat-button-toggle value="8WEEK">8 Week</mat-button-toggle>
-            <mat-button-toggle value="QTY">QTD</mat-button-toggle>
-            <mat-button-toggle value="YTD">YTD</mat-button-toggle>
-          </mat-button-toggle-group>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="action-buttons">
-          <button mat-raised-button color="primary" 
-                  [disabled]="showSpinner" 
-                  (click)="getStorePerfReport()"
-                  class="search-btn">
-            <mat-spinner diameter="16" *ngIf="showSpinner"></mat-spinner>
-            <mat-icon *ngIf="!showSpinner">search</mat-icon>
-            Search
-          </button>
-          
-          <button mat-stroked-button color="primary" 
-                  matTooltip="Export to Excel" 
-                  [disabled]="totalRecords === 0" 
-                  (click)="exportToExcel()"
-                  class="export-btn">
-            <mat-icon>description</mat-icon>
-            Export
-          </button>
-        </div>
-      </div>
-      
-      <!-- Collapse toggle for user -->
-      <div class="filter-collapse-toggle" (click)="toggleFilters()">
-        <mat-icon>{{isFiltersExpanded ? 'keyboard_arrow_up' : 'keyboard_arrow_down'}}</mat-icon>
-        <span>{{isFiltersExpanded ? 'Hide Filters' : 'Show Filters'}}</span>
-      </div>
     </div>
-  </section>
 
-  <!-- MAIN CONTENT AREA -->
-  <div class="main-content">
-    
-    <!-- TABLE CONTAINER -->
+    <div>
+        <mat-paginator [length]="totalRecords"
+                       [pageSize]="50"
+                       [pageSizeOptions]="[50,100,150,200]"
+                       aria-label="Select page"
+                       showFirstLastButtons="true">
+        </mat-paginator>
+    </div>
+
     <div class="table-container">
-      <mat-card class="table-card">
-        <mat-card-content>
-          <div class="table-wrapper">
-            
-            <!-- Data Table -->
-            <table mat-table [dataSource]="dataSource" matSort 
-                   (matSortChange)="announceSortChange($event)" 
-                   class="performance-table mat-elevation-2"
-                   [ngClass]="{'has-data': totalRecords > 0, 'no-data': totalRecords === 0}">
+        <table mat-table [dataSource]="dataSource" matSort (matSortChange)="announceSortChange($event)" [ngClass]="{'fixed-height':totalRecords>=10,'dynamic-height':totalRecords<10}" class="mat-elevation-z8">
 
-              <ng-container matColumnDef="reportWeek">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Report Week</th>
+            <ng-container matColumnDef="reportWeek">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Report Week</th>
                 <td mat-cell *matCellDef="let element"> {{element.reportWeek}}</td>
-              </ng-container>
-
-              <ng-container matColumnDef="stateCd">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">State CD</th>
-                <td mat-cell *matCellDef="let element"> {{element.stateCd}} </td>
-              </ng-container>
-
-              <ng-container matColumnDef="territory">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Territory</th>
-                <td mat-cell *matCellDef="let element"> {{element.territory}} </td>
-              </ng-container>
-
-              <ng-container matColumnDef="outlet">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Outlet</th>
-                <td mat-cell *matCellDef="let element"> {{element.outlet}} </td>
-              </ng-container>
-
-              <ng-container matColumnDef="storeNumber">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Store Number</th>
-                <td mat-cell *matCellDef="let element"> {{element.storeNumber}} </td>
-              </ng-container>
-
-              <ng-container matColumnDef="storeName">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Store Name</th>
-                <td mat-cell *matCellDef="let element"> {{element.storeName}} </td>
-              </ng-container>
-
-              <ng-container matColumnDef="taskNumber">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Task Number</th>
-                <td mat-cell *matCellDef="let element"> {{element.taskNumber}} </td>
-              </ng-container>
-
-              <ng-container matColumnDef="completionPercent">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Completion %</th>
-                <td mat-cell *matCellDef="let element"> {{element.completionPercent}} </td>
-              </ng-container>
-
-              <ng-container matColumnDef="collectedNotPortalAssigned">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Collected Not Portal Assigned</th>
-                <td mat-cell *matCellDef="let element"> {{element.collectedNotPortalAssigned}} </td>
-              </ng-container>
-
-              <ng-container matColumnDef="qualityApproval">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Quality Approval</th>
-                <td mat-cell *matCellDef="let element"> {{element.qualityApproval}} </td>
-              </ng-container>
-
-              <ng-container matColumnDef="gpsTravelTime">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">GPS Travel Time</th>
-                <td mat-cell *matCellDef="let element"> {{element.gpsTravelTime}} </td>
-              </ng-container>
-
-              <ng-container matColumnDef="gpsDistance">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">GPS Distance</th>
-                <td mat-cell *matCellDef="let element"> {{element.gpsDistance}} </td>
-              </ng-container>
-
-              <ng-container matColumnDef="toll">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Toll</th>
-                <td mat-cell *matCellDef="let element"> {{element.toll}} </td>
-              </ng-container>
-
-              <ng-container matColumnDef="gpsTotalCost">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">GPS Total Cost</th>
-                <td mat-cell *matCellDef="let element"> {{element.gpsTotalCost}} </td>
-              </ng-container>
-
-              <tr mat-header-row *matHeaderRowDef="displayedColumns;sticky:true"></tr>
-              <tr mat-row *matRowDef="let row; columns: displayedColumns;" 
-                  class="table-row" 
-                  matRipple></tr>
-            </table>
-
-            <!-- No Data Message -->
-            <ng-container *ngIf="this.totalRecords==0">
-              <div class="no-data">No Data Found!!!</div>
             </ng-container>
-          </div>
-        </mat-card-content>
-      </mat-card>
+
+            <ng-container matColumnDef="stateCd">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>State CD</th>
+                <td mat-cell *matCellDef="let element"> {{element.stateCd}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="territory">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Territory</th>
+                <td mat-cell *matCellDef="let element"> {{element.territory}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="outlet">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Outlet</th>
+                <td mat-cell *matCellDef="let element"> {{element.outlet}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="storeNumber">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Store Number</th>
+                <td mat-cell *matCellDef="let element"> {{element.storeNumber}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="storeName">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Store Name</th>
+                <td mat-cell *matCellDef="let element"> {{element.storeName}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="taskNumber">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Task Number</th>
+                <td mat-cell *matCellDef="let element"> {{element.taskNumber}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="completionPercent">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Completion %</th>
+                <td mat-cell *matCellDef="let element"> {{element.completionPercent}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="collectedNotPortalAssigned">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Collected Not Portal Assigned</th>
+                <td mat-cell *matCellDef="let element"> {{element.collectedNotPortalAssigned}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="qualityApproval">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Quality Approval</th>
+                <td mat-cell *matCellDef="let element"> {{element.qualityApproval}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="gpsTravelTime">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>GPS Travel Time</th>
+                <td mat-cell *matCellDef="let element"> {{element.gpsTravelTime}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="gpsDistance">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>GPS Distance</th>
+                <td mat-cell *matCellDef="let element"> {{element.gpsDistance}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="toll">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Toll</th>
+                <td mat-cell *matCellDef="let element"> {{element.toll}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="gpsTotalCost">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>GPS Total Cost</th>
+                <td mat-cell *matCellDef="let element"> {{element.gpsTotalCost}} </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns;sticky:true"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        </table>
+
+        <ng-container *ngIf="this.totalRecords==0">
+            <div class="no-data">No Data Found!!!</div>
+        </ng-container>
     </div>
 
-    <!-- Records Info and Bottom Pagination -->
-    <div class="table-footer">
-      <div class="records-info">
-        <span class="record-count">{{totalRecords}} records</span>
-      </div>
-      
-      <mat-paginator [length]="totalRecords"
-                     [pageSize]="50"
-                     [pageSizeOptions]="[50,100,150,200]"
-                     showFirstLastButtons="true"
-                     class="table-paginator">
-      </mat-paginator>
+    <div class="mat-spinner-container">
+        <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
+        <div *ngIf="showSpinner" style="position:relative;left: 10px">Loading...</div>
     </div>
-  </div>
 </div>
 
-<div class="mat-spinner-container">
-    <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
-    <div *ngIf="showSpinner" style="position:relative;left: 10px">Loading...</div>
-</div>
-Updated CSS Styles
-css
-/* Dashboard Layout */
-.dashboard-layout {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  width: 100%;
-  background: #f5f5f5;
-}
 
-/* Toolbar Styling */
-.mat-toolbar-primary {
-  background: #1976d2;
-  color: white;
-  height: 64px;
-  padding: 0 16px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
 
-.toolbar-title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 500;
-  margin-left: 16px;
-}
-
-.toolbar-spacer {
-  flex: 1 1 auto;
-}
-
-.nav-menu-btn {
-  color: white;
-}
-
-/* Filter Section - Matching Store Component Theme */
-.filter-topbar {
-  width: 100%;
-  padding: 16px;
-  background: #fafafa;
-  border-bottom: 1px solid #e0e0e0;
-  transition: all 0.3s ease;
-  overflow: hidden;
-}
-
-.filter-topbar.expanded {
-  max-height: 200px;
-}
-
-.filter-topbar.collapsed {
-  max-height: 0;
-  padding: 0 16px;
-}
-
-.filter-container {
-  max-width: 100%;
-}
-
-.filter-row {
-  display: grid;
-  gap: 16px;
-  align-items: end;
-  margin-bottom: 16px;
-  width: 100%;
-  grid-template-columns: 
-    1fr          /* Country */
-    1fr          /* Report Week */
-    1.5fr        /* Report Period */
-    auto;        /* Action Buttons */
-}
-
-.filter-field {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.form-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: #666;
-  margin-bottom: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.filter-field .mat-form-field {
-  width: 100%;
-  font-size: 14px;
-}
-
-.filter-field .mat-form-field .mat-form-field-wrapper {
-  padding-bottom: 0;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-  flex-shrink: 0;
-}
-
-.action-buttons button {
-  min-width: 100px;
-  height: 40px;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.filter-collapse-toggle {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  color: #1976d2;
-  font-size: 14px;
-  padding: 8px;
-  margin-top: 8px;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-}
-
-.filter-collapse-toggle:hover {
-  background-color: rgba(25, 118, 210, 0.1);
-}
-
-/* Main Content Area */
-.main-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-  overflow: hidden;
-}
-
-/* Table Container - Matching Store Component */
-.table-container {
-  flex: 1;
-  width: 100%;
-  height: 100%;
-  position: relative;
-  min-height: 70vh;
-  max-height: 70vh;
-  overflow: hidden;
-}
-
-.table-card {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  width: 100%;
-  max-width: none;
-  background: white;
-}
-
-.table-wrapper {
-  flex: 1;
-  overflow: auto;
-  height: calc(70vh - 80px);
-  width: 100%;
-  overflow-x: auto;
-  overflow-y: auto;
-}
-
-.mat-card-content {
-  display: block;
-  margin-bottom: 0 !important;
-  flex: 1;
-  overflow: hidden;
-}
-
-/* Table Styling - Matching Store Component */
-.performance-table {
-  width: 100%;
-  min-width: 1400px;
-  background: white;
-  display: table;
-  table-layout: auto;
-  border-collapse: collapse;
-  margin: 0px;
-}
-
-.performance-table .mat-header-row {
-  height: 40px;
-}
-
-.performance-table .mat-row {
-  max-width: 120%;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  min-height: 40px !important;
-}
-
-.performance-table .mat-row:hover {
-  background-color: mintcream;
-}
-
-.mat-header-style {
-  font-weight: bold !important;
-  font-size: 15px !important;
-  background-color: lightgray !important;
-  text-align: left;
-  font-weight: 600;
-  color: #333;
-  border-bottom: 2px solid #dee2e6;
-}
-
-/* Cell Styling */
-.mat-cell, .mat-header-cell {
-  padding: 0px 12px;
-  vertical-align: middle;
-  word-wrap: break-word;
-  text-align: left;
-  vertical-align: top;
-  line-height: 1.4;
-}
-
-.mat-cell {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Table Footer Section */
-.table-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 16px;
-  background: #fafafa;
-  border-top: 1px solid #e0e0e0;
-  margin-top: 8px;
-  border-radius: 0 0 8px 8px;
-}
-
-.records-info {
-  display: flex;
-  align-items: center;
-  font-size: 14px;
-  color: #666;
-}
-
-.record-count {
-  font-weight: 500;
-}
-
-/* Paginator - Bottom positioned as in store component */
-.table-paginator {
-  background: transparent;
-  border: none;
-}
-
-/* No Data Message */
-.no-data {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 200px;
-  font-size: 18px;
-  color: #666;
-  font-style: italic;
-}
-
-/* Spinner Container */
-.mat-spinner-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 8px;
-  z-index: 1000;
-}
-
-.mat-spinner {
-  z-index: 111;
-}
-
-/* Responsive Design */
-@media (max-width: 1600px) {
-  .filter-row {
-    grid-template-columns: 
-      0.9fr 0.9fr 1.3fr auto;
-  }
-}
-
-@media (max-width: 1400px) {
-  .filter-row {
-    gap: 12px;
-    grid-template-columns: 
-      0.8fr 0.8fr 1.2fr auto;
-  }
-  
-  .action-buttons button {
-    min-width: 90px;
-    font-size: 12px;
-  }
-}
-
-@media (max-width: 1200px) {
-  .filter-row {
-    gap: 8px;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  }
-  
-  .action-buttons {
-    grid-column: 1 / -1;
-    justify-content: center;
-    margin-top: 8px;
-  }
-}
-
-@media (max-width: 768px) {
-  .filter-container {
-    padding: 0 8px;
-  }
-  
-  .filter-row {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-  
-  .filter-field {
-    width: 100%;
-  }
-  
-  .action-buttons {
-    flex-direction: column;
-    width: 100%;
-  }
-  
-  .action-buttons button {
-    width: 100%;
-    min-width: unset;
-  }
-  
-  .performance-table {
-    min-width: 800px;
-  }
-  
-  .table-footer {
-    flex-direction: column;
-    gap: 8px;
-    align-items: stretch;
-  }
-}
-
-/* Hover Effects */
-.filter-field:hover mat-form-field {
-  transform: translateY(-1px);
-  transition: transform 0.2s ease;
-}
-
-.action-buttons button:hover {
-  transform: translateY(-1px);
-  transition: transform 0.2s ease;
-}
-
-/* Focus States */
-.mat-form-field.mat-focused {
-  transform: scale(1.02);
-  transition: transform 0.2s ease;
-}
-
-/* Period Toggle Group Styling */
-.period-toggle-group {
-  display: flex;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.period-toggle-group .mat-button-toggle {
-  font-size: 12px;
-  min-width: 50px;
-}
-Key Changes Made:
-1. Theme Matching:
-Applied the same color scheme as your store component
-
-Used matching mat-header-style class for table headers
-
-Applied same background colors (#fafafa, lightgray for headers)
-
-Matched the mintcream hover effect on table rows
-
-2. Filter Section:
-Set filters to be always expanded by default (removed collapse/expand logic from template)
-
-Added a user-controlled collapse toggle at the bottom of the filter section
-
-Maintained the same filter styling and layout structure as your store component
-
-3. Table Styling:
-Matched table card styling with same box-shadow and border-radius
-
-Applied same header styling with lightgray background
-
-Used same row heights and hover effects
-
-Applied consistent cell padding and text styling
-
-4. Pagination:
-Moved pagination to bottom in a separate footer section
-
-Removed the top pagination completely
-
-Added records count display alongside pagination
-
-Used same paginator styling as store component
-
-5. Layout Structure:
-Maintained toolbar at top with navigation
-
-Filter section with user-controllable collapse
-
-Main content area with table
-
-Footer with records info and pagination at bottom
-
-The component now matches your store component's theme perfectly while maintaining the functionality you requested!
