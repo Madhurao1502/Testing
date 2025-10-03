@@ -1,0 +1,935 @@
+Redesigned Store Performance Report - Dashboard Style
+UPDATED store-performance-report.component.html (Dashboard Style)
+xml
+<div class="dashboard-layout">
+  
+  <!-- TOP TOOLBAR with Navigation Menu -->
+  <mat-toolbar class="mat-toolbar-primary">
+    <!-- Navigation Menu Button -->
+    <button mat-icon-button [matMenuTriggerFor]="navMenu" class="nav-menu-btn" matTooltip="Navigate">
+      <mat-icon>apps</mat-icon>
+    </button>
+    
+    <!-- Navigation Menu -->
+    <mat-menu #navMenu="matMenu" class="nav-menu">
+      <button mat-menu-item (click)="navigateToComponent('dashboard')">
+        <mat-icon>dashboard</mat-icon>
+        <span>Assignment Dashboard</span>
+      </button>
+      <button mat-menu-item (click)="navigateToComponent('performance')" disabled>
+        <mat-icon>assessment</mat-icon>
+        <span>Store Performance Report</span>
+      </button>
+      <button mat-menu-item (click)="navigateToComponent('analytics')">
+        <mat-icon>analytics</mat-icon>
+        <span>Analytics</span>
+      </button>
+      <mat-divider></mat-divider>
+      <button mat-menu-item (click)="navigateToComponent('settings')">
+        <mat-icon>settings</mat-icon>
+        <span>Settings</span>
+      </button>
+    </mat-menu>
+
+    <!-- Page Title -->
+    <h1 class="toolbar-title">Store Performance Report</h1>
+    
+    <span class="toolbar-spacer"></span>
+
+    <!-- Toolbar Actions -->
+    <button mat-icon-button matTooltip="Refresh Data" (click)="refreshData()">
+      <mat-icon>refresh</mat-icon>
+    </button>
+    
+    <!-- Filter Toggle Button -->
+    <button mat-icon-button (click)="toggleFilters()" matTooltip="Toggle Filters">
+      <mat-icon>{{isFiltersExpanded ? 'expand_less' : 'expand_more'}}</mat-icon>
+    </button>
+  </mat-toolbar>
+
+  <!-- EXPANDABLE FILTER TOPBAR -->
+  <section class="filter-topbar" [class.expanded]="isFiltersExpanded" [class.collapsed]="!isFiltersExpanded">
+    <div class="filter-container">
+      
+      <!-- Filter Row -->
+      <div class="filter-row">
+        
+        <!-- Country Selection -->
+        <div class="filter-field">
+          <label class="form-label">Country</label>
+          <mat-form-field appearance="outline">
+            <mat-select [formControl]="countryctrl" (selectionChange)="onCountryChange($event)">
+              <mat-option *ngFor="let country of countrylist" [value]="country.countryName">
+                {{country.countryName}}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <!-- Report Week with Date Picker -->
+        <div class="filter-field required-field">
+          <label class="form-label">Report Week *</label>
+          <mat-form-field appearance="outline">
+            <input matInput [matDatepicker]="picker1" [formControl]="datetimectrl2" 
+                   (dateChange)="onDateSelected($event,'iriweekctrl')" hidden>
+            <input matInput [formControl]="iriweekctrl" maxlength="4" 
+                   (keypress)="allowOnlyNumber($event)" placeholder="YYWW">
+            <mat-datepicker-toggle matSuffix [for]="picker1"></mat-datepicker-toggle>
+            <mat-datepicker #picker1></mat-datepicker>
+          </mat-form-field>
+        </div>
+
+        <!-- Report Period Toggle -->
+        <div class="filter-field">
+          <label class="form-label">Report Period</label>
+          <mat-button-toggle-group [formControl]="reportWeekCtrl" 
+                                   (change)="getStorePerfReport()" 
+                                   class="period-toggle-group">
+            <mat-button-toggle value="WEEK">Week</mat-button-toggle>
+            <mat-button-toggle value="4WEEK">4 Week</mat-button-toggle>
+            <mat-button-toggle value="8WEEK">8 Week</mat-button-toggle>
+            <mat-button-toggle value="QTY">QTD</mat-button-toggle>
+            <mat-button-toggle value="YTD">YTD</mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+          <button mat-raised-button color="primary" 
+                  [disabled]="showSpinner" 
+                  (click)="getStorePerfReport()"
+                  class="search-btn">
+            <mat-spinner diameter="16" *ngIf="showSpinner && isSearching"></mat-spinner>
+            <mat-icon *ngIf="!showSpinner || !isSearching">search</mat-icon>
+            Search
+          </button>
+          
+          <button mat-stroked-button color="primary" 
+                  matTooltip="Export to Excel" 
+                  [disabled]="totalRecords === 0" 
+                  (click)="exportToExcel()"
+                  class="export-btn">
+            <mat-icon>description</mat-icon>
+            Export
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter Toggle Icon (when collapsed) -->
+    <div class="filter-toggle-hint" *ngIf="!isFiltersExpanded" (click)="toggleFilters()">
+      <mat-icon>keyboard_arrow_down</mat-icon>
+      <span>Show Filters</span>
+    </div>
+  </section>
+
+  <!-- MAIN CONTENT AREA -->
+  <div class="main-content" [class.filters-expanded]="isFiltersExpanded">
+    
+    <!-- Table Controls Bar -->
+    <div class="table-controls">
+      <!-- Records Count -->
+      <div class="records-info">
+        <span class="record-count">{{totalRecords}} records</span>
+      </div>
+
+      <!-- Pagination (Top) -->
+      <mat-paginator [length]="totalRecords"
+                     [pageSize]="50"
+                     [pageSizeOptions]="[50,100,150,200]"
+                     showFirstLastButtons="true"
+                     class="top-paginator">
+      </mat-paginator>
+    </div>
+
+    <!-- TABLE CONTAINER -->
+    <div class="table-container">
+      <div class="table-wrapper" [class.no-data]="totalRecords === 0">
+        
+        <!-- Data Table -->
+        <table mat-table [dataSource]="dataSource" matSort 
+               (matSortChange)="announceSortChange($event)" 
+               class="performance-table mat-elevation-4"
+               [ngClass]="{'has-data': totalRecords > 0, 'no-data': totalRecords === 0}">
+
+          <!-- Report Week Column -->
+          <ng-container matColumnDef="reportWeek">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header class="week-column">Report Week</th>
+            <td mat-cell *matCellDef="let element" class="week-column">{{element.reportWeek}}</td>
+          </ng-container>
+
+          <!-- State CD Column -->
+          <ng-container matColumnDef="stateCd">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header class="state-column">State</th>
+            <td mat-cell *matCellDef="let element" class="state-column">
+              <span class="state-badge">{{element.stateCd}}</span>
+            </td>
+          </ng-container>
+
+          <!-- Territory Column -->
+          <ng-container matColumnDef="territory">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header class="territory-column">Territory</th>
+            <td mat-cell *matCellDef="let element" class="territory-column">{{element.territory}}</td>
+          </ng-container>
+
+          <!-- Outlet Column -->
+          <ng-container matColumnDef="outlet">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header class="outlet-column">Outlet</th>
+            <td mat-cell *matCellDef="let element" class="outlet-column text-center">{{element.outlet}}</td>
+          </ng-container>
+
+          <!-- Store Number Column -->
+          <ng-container matColumnDef="storeNumber">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header class="store-num-column">Store #</th>
+            <td mat-cell *matCellDef="let element" class="store-num-column">
+              <span class="store-number">{{element.storeNumber}}</span>
+            </td>
+          </ng-container>
+
+          <!-- Store Name Column -->
+          <ng-container matColumnDef="storeName">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header class="store-name-column">Store Name</th>
+            <td mat-cell *matCellDef="let element" class="store-name-column" 
+                [matTooltip]="element.storeName">
+              <span class="store-name">{{element.storeName}}</span>
+            </td>
+          </ng-container>
+
+          <!-- Task Number Column -->
+          <ng-container matColumnDef="taskNumber">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header class="task-column">Task #</th>
+            <td mat-cell *matCellDef="let element" class="task-column text-center">{{element.taskNumber}}</td>
+          </ng-container>
+
+          <!-- Completion Percent Column -->
+          <ng-container matColumnDef="completionPercent">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header class="completion-column">Completion %</th>
+            <td mat-cell *matCellDef="let element" class="completion-column">
+              <div class="completion-bar">
+                <mat-progress-bar mode="determinate" 
+                                  [value]="parseFloat(element.completionPercent)" 
+                                  [ngClass]="getCompletionClass(element.completionPercent)">
+                </mat-progress-bar>
+                <span class="completion-text">{{element.completionPercent}}%</span>
+              </div>
+            </td>
+          </ng-container>
+
+          <!-- Collected Not Portal Assigned Column -->
+          <ng-container matColumnDef="collectedNotPortalAssigned">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header class="collected-column">Not Portal Assigned</th>
+            <td mat-cell *matCellDef="let element" class="collected-column text-center">
+              <span class="badge" [ngClass]="getBadgeClass(element.collectedNotPortalAssigned)">
+                {{element.collectedNotPortalAssigned}}
+              </span>
+            </td>
+          </ng-container>
+
+          <!-- Quality Approval Column -->
+          <ng-container matColumnDef="qualityApproval">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header class="quality-column">Quality</th>
+            <td mat-cell *matCellDef="let element" class="quality-column text-center">
+              <span class="quality-badge" [ngClass]="getQualityClass(element.qualityApproval)">
+                {{element.qualityApproval}}
+              </span>
+            </td>
+          </ng-container>
+
+          <!-- GPS Travel Time Column -->
+          <ng-container matColumnDef="gpsTravelTime">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header class="travel-time-column">Travel Time</th>
+            <td mat-cell *matCellDef="let element" class="travel-time-column text-right">
+              {{formatTravelTime(element.gpsTravelTime)}}
+            </td>
+          </ng-container>
+
+          <!-- GPS Distance Column -->
+          <ng-container matColumnDef="gpsDistance">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header class="distance-column">Distance</th>
+            <td mat-cell *matCellDef="let element" class="distance-column text-right">
+              {{formatDistance(element.gpsDistance)}}
+            </td>
+          </ng-container>
+
+          <!-- Toll Column -->
+          <ng-container matColumnDef="toll">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header class="toll-column">Toll</th>
+            <td mat-cell *matCellDef="let element" class="toll-column text-right">
+              {{formatCurrency(element.toll)}}
+            </td>
+          </ng-container>
+
+          <!-- GPS Total Cost Column -->
+          <ng-container matColumnDef="gpsTotalCost">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header class="total-cost-column">Total Cost</th>
+            <td mat-cell *matCellDef="let element" class="total-cost-column text-right">
+              <span class="cost-value">{{formatCurrency(element.gpsTotalCost)}}</span>
+            </td>
+          </ng-container>
+
+          <!-- Table Rows -->
+          <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true" class="header-row"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;" 
+              class="data-row" 
+              [class.odd]="isOddRow(row)"
+              matRipple></tr>
+        </table>
+
+        <!-- No Data State -->
+        <div class="no-data-container" *ngIf="totalRecords === 0">
+          <div class="no-data-content">
+            <mat-icon class="no-data-icon">inbox</mat-icon>
+            <h3>No Data Found</h3>
+            <p>Try adjusting your search criteria or check back later.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Pagination -->
+    <div class="bottom-pagination" *ngIf="totalRecords > 0">
+      <mat-paginator [length]="totalRecords"
+                     [pageSize]="50"
+                     [pageSizeOptions]="[50,100,150,200]"
+                     showFirstLastButtons="true">
+      </mat-paginator>
+    </div>
+  </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" *ngIf="showSpinner && !isSearching">
+  <div class="loading-content">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p>Loading report data...</p>
+  </div>
+</div>
+COMPLETE store-performance-report.component.css (Dashboard Style)
+css
+/* MAIN LAYOUT */
+.dashboard-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background-color: #fafafa;
+}
+
+/* TOOLBAR STYLING */
+.mat-toolbar-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  z-index: 1000;
+}
+
+.toolbar-title {
+  font-size: 20px;
+  font-weight: 500;
+  margin: 0 16px;
+}
+
+.toolbar-spacer {
+  flex: 1 1 auto;
+}
+
+.nav-menu-btn {
+  margin-right: 8px;
+}
+
+.nav-menu-btn mat-icon {
+  font-size: 24px;
+}
+
+/* NAVIGATION MENU */
+.nav-menu {
+  min-width: 250px;
+}
+
+.nav-menu .mat-menu-item {
+  line-height: 48px;
+  height: 48px;
+}
+
+.nav-menu .mat-menu-item mat-icon {
+  margin-right: 16px;
+  color: #666;
+}
+
+.nav-menu .mat-menu-item:hover:not([disabled]) {
+  background-color: #f5f5f5;
+}
+
+.nav-menu .mat-menu-item[disabled] {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+/* EXPANDABLE FILTER TOPBAR */
+.filter-topbar {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-bottom: 1px solid #dee2e6;
+  transition: all 0.3s ease-in-out;
+  overflow: hidden;
+  position: relative;
+  z-index: 999;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.filter-topbar.expanded {
+  max-height: 200px;
+  padding: 16px 0;
+}
+
+.filter-topbar.collapsed {
+  max-height: 0;
+  padding: 0;
+}
+
+.filter-container {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+/* FILTER ROW */
+.filter-row {
+  display: grid;
+  grid-template-columns: 150px 200px 300px 1fr auto;
+  gap: 16px;
+  align-items: end;
+  width: 100%;
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.required-field .form-label::after {
+  content: ' *';
+  color: #dc3545;
+}
+
+.filter-field mat-form-field {
+  width: 100%;
+}
+
+.filter-field .mat-form-field-wrapper {
+  padding-bottom: 0;
+}
+
+/* PERIOD TOGGLE GROUP */
+.period-toggle-group {
+  height: 40px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+}
+
+.period-toggle-group .mat-button-toggle {
+  border: none;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.period-toggle-group .mat-button-toggle-checked {
+  background-color: #007bff;
+  color: white;
+}
+
+/* ACTION BUTTONS */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.search-btn, .export-btn {
+  height: 40px;
+  min-width: 100px;
+  font-weight: 500;
+}
+
+.search-btn {
+  padding: 0 16px;
+}
+
+.search-btn mat-spinner {
+  margin-right: 8px;
+}
+
+/* FILTER TOGGLE HINT */
+.filter-toggle-hint {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  background-color: rgba(255,255,255,0.9);
+  border-radius: 16px 16px 0 0;
+  cursor: pointer;
+  font-size: 12px;
+  color: #6c757d;
+  transition: all 0.2s ease;
+}
+
+.filter-toggle-hint:hover {
+  background-color: white;
+  color: #495057;
+}
+
+/* MAIN CONTENT */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+}
+
+.main-content.filters-expanded {
+  padding-top: 0;
+}
+
+/* TABLE CONTROLS */
+.table-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background-color: white;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.records-info {
+  display: flex;
+  align-items: center;
+}
+
+.record-count {
+  font-size: 14px;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.top-paginator {
+  border: none;
+  background: transparent;
+}
+
+/* TABLE CONTAINER */
+.table-container {
+  flex: 1;
+  overflow: hidden;
+  background-color: white;
+  position: relative;
+}
+
+.table-wrapper {
+  height: 100%;
+  overflow: auto;
+}
+
+/* TABLE STYLING */
+.performance-table {
+  width: 100%;
+  min-width: 1400px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.performance-table.has-data {
+  background-color: white;
+}
+
+/* HEADER STYLING */
+.mat-header-row {
+  background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.mat-header-cell {
+  color: white;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: none;
+  padding: 16px 12px;
+}
+
+/* COLUMN WIDTHS */
+.week-column { width: 100px; min-width: 100px; }
+.state-column { width: 80px; min-width: 80px; }
+.territory-column { width: 100px; min-width: 100px; }
+.outlet-column { width: 80px; min-width: 80px; }
+.store-num-column { width: 120px; min-width: 120px; }
+.store-name-column { width: 200px; min-width: 180px; }
+.task-column { width: 100px; min-width: 100px; }
+.completion-column { width: 140px; min-width: 140px; }
+.collected-column { width: 150px; min-width: 140px; }
+.quality-column { width: 120px; min-width: 120px; }
+.travel-time-column { width: 120px; min-width: 120px; }
+.distance-column { width: 100px; min-width: 100px; }
+.toll-column { width: 100px; min-width: 100px; }
+.total-cost-column { width: 120px; min-width: 120px; }
+
+/* DATA ROW STYLING */
+.data-row {
+  transition: background-color 0.2s ease;
+}
+
+.data-row:hover {
+  background-color: #f8f9fa;
+}
+
+.data-row.odd {
+  background-color: #fafafa;
+}
+
+.mat-cell {
+  padding: 12px;
+  border-bottom: 1px solid #e9ecef;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* TEXT ALIGNMENT */
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+
+/* BADGES AND STATUS INDICATORS */
+.state-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  background-color: #e9ecef;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.store-number {
+  font-weight: 500;
+  color: #495057;
+}
+
+.store-name {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+/* COMPLETION BAR */
+.completion-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.completion-bar mat-progress-bar {
+  flex: 1;
+  margin-right: 8px;
+  height: 8px;
+  border-radius: 4px;
+}
+
+.completion-bar .mat-progress-bar-fill::after {
+  border-radius: 4px;
+}
+
+.completion-text {
+  font-size: 12px;
+  font-weight: 500;
+  min-width: 35px;
+}
+
+.completion-high .mat-progress-bar-fill::after { background-color: #28a745; }
+.completion-medium .mat-progress-bar-fill::after { background-color: #ffc107; }
+.completion-low .mat-progress-bar-fill::after { background-color: #dc3545; }
+
+/* QUALITY BADGES */
+.quality-badge, .badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  text-align: center;
+  min-width: 50px;
+}
+
+.quality-approved { background-color: #d4edda; color: #155724; }
+.quality-pending { background-color: #fff3cd; color: #856404; }
+.quality-rejected { background-color: #f8d7da; color: #721c24; }
+
+.badge-high { background-color: #d4edda; color: #155724; }
+.badge-medium { background-color: #fff3cd; color: #856404; }
+.badge-low { background-color: #f8d7da; color: #721c24; }
+
+/* COST VALUE */
+.cost-value {
+  font-weight: 500;
+  color: #495057;
+}
+
+/* NO DATA STATE */
+.no-data-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  width: 100%;
+}
+
+.no-data-content {
+  text-align: center;
+  color: #6c757d;
+}
+
+.no-data-icon {
+  font-size: 64px;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  color: #dee2e6;
+}
+
+.no-data-content h3 {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.no-data-content p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* BOTTOM PAGINATION */
+.bottom-pagination {
+  background-color: white;
+  border-top: 1px solid #e0e0e0;
+  padding: 8px 0;
+}
+
+/* LOADING OVERLAY */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.loading-content {
+  text-align: center;
+  color: white;
+}
+
+.loading-content p {
+  margin: 16px 0 0 0;
+  font-size: 16px;
+}
+
+/* RESPONSIVE DESIGN */
+@media (max-width: 1400px) {
+  .filter-row {
+    grid-template-columns: 140px 180px 250px 1fr auto;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .filter-row {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+  }
+  
+  .action-buttons {
+    grid-column: 1 / -1;
+    justify-content: center;
+    margin-top: 12px;
+  }
+  
+  .performance-table {
+    min-width: 1200px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-layout {
+    height: 100vh;
+  }
+  
+  .filter-container {
+    padding: 0 8px;
+  }
+  
+  .filter-row {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .table-controls {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  
+  .performance-table {
+    min-width: 1000px;
+  }
+}
+ADD to store-performance-report.component.ts (Navigation Methods)
+typescript
+export class StorePerformanceReportComponent implements OnInit {
+  // ... existing properties ...
+
+  // ADD: Navigation and UI state properties
+  isFiltersExpanded = true;
+  isSearching = false;
+
+  // ... existing methods ...
+
+  // ADD: Navigation methods
+  navigateToComponent(component: string): void {
+    console.log(`Navigating to: ${component}`);
+    // Implement your navigation logic here
+    // Example: this.router.navigate([`/${component}`]);
+  }
+
+  toggleFilters(): void {
+    this.isFiltersExpanded = !this.isFiltersExpanded;
+  }
+
+  refreshData(): void {
+    this.getStorePerfReport();
+  }
+
+  // ADD: Enhanced search method with loading state
+  getStorePerfReport(): void {
+    this.isSearching = true;
+    this.showSpinner = true;
+
+    // Your existing API call logic here
+    // ...
+
+    // After API call completes:
+    // this.isSearching = false;
+    // this.showSpinner = false;
+  }
+
+  // ADD: Formatting methods for enhanced display
+  formatTravelTime(time: any): string {
+    if (!time) return 'N/A';
+    return `${time} min`;
+  }
+
+  formatDistance(distance: any): string {
+    if (!distance) return 'N/A';
+    return `${distance} mi`;
+  }
+
+  formatCurrency(value: any): string {
+    if (!value || value === 0) return '$0.00';
+    return `$${parseFloat(value).toFixed(2)}`;
+  }
+
+  getCompletionClass(percentage: any): string {
+    const percent = parseFloat(percentage);
+    if (percent >= 80) return 'completion-high';
+    if (percent >= 50) return 'completion-medium';
+    return 'completion-low';
+  }
+
+  getQualityClass(quality: string): string {
+    if (!quality) return 'quality-pending';
+    switch (quality.toLowerCase()) {
+      case 'approved': return 'quality-approved';
+      case 'rejected': return 'quality-rejected';
+      default: return 'quality-pending';
+    }
+  }
+
+  getBadgeClass(value: any): string {
+    const num = parseInt(value);
+    if (num === 0) return 'badge-high';
+    if (num <= 5) return 'badge-medium';
+    return 'badge-low';
+  }
+
+  isOddRow(row: any): boolean {
+    const index = this.dataSource.data.indexOf(row);
+    return index % 2 === 1;
+  }
+}
+Summary of Enhancements:
+✅ Dashboard-Style Layout:
+Consistent toolbar with gradient background
+
+Expandable filter topbar (always expanded by default)
+
+Professional navigation menu with apps icon
+
+Responsive design for all screen sizes
+
+✅ Enhanced Navigation:
+Apps menu button (recommended icon) with dropdown
+
+Navigation menu items for different components
+
+Smooth transitions between expanded/collapsed states
+
+✅ Improved Table Design:
+Sticky headers with gradient background
+
+Enhanced column styling with proper widths
+
+Status badges and progress bars for completion
+
+Professional hover effects and row striping
+
+✅ Better UX Features:
+Loading states with spinners
+
+No data state with helpful message
+
+Dual pagination (top and bottom)
+
+Records count display
+
+✅ Responsive Behavior:
+Desktop: Full expanded layout
+
+Tablet: Adjusted filter layout
+
+Mobile: Stacked vertical layout with horizontal table scroll
+
+This design maintains consistency with your dashboard component while providing a professional, feature-rich reporting interface! 🎯
