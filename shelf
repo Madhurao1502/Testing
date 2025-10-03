@@ -1,757 +1,671 @@
-// shelf-tree.component.ts using Angular Material MatTree
-import { Component, Input, OnInit } from '@angular/core';
-import { NestedTreeControl } from '@angular/cdk/tree';
-import { MatTreeNestedDataSource } from '@angular/material/tree';
-import { ShelfService } from '../shelf.service';
-import { cloneDeep } from 'lodash';
-
-interface ShelfNode {
-  id: number;
-  name: string;
-  mainMin?: string;
-  mainMax?: string;
-  main_soft_check?: string;
-  main_hard_check?: string;
-  isNewlyAdded?: string;
-  children?: ShelfNode[];
-}
-
-@Component({
-  selector: 'app-shelf-tree',
-  templateUrl: './shelf-tree.component.html',
-  styleUrls: ['./shelf-tree.component.scss']
-})
-export class ShelfTreeComponent implements OnInit {
-  @Input() group!: number;
-  @Input() title!: string;
-
-  treeControl = new NestedTreeControl<ShelfNode>(node => node.children);
-  dataSource = new MatTreeNestedDataSource<ShelfNode>();
-
-  selectedNode: ShelfNode | null = null;
-  showLimits = false;
-  showChecks = false;
-  disableMinMax = false;
-
-  constructor(private shelfService: ShelfService) {}
-
-  ngOnInit(): void {
-    this.shelfService.getShelfVars(this.group).subscribe((data) => {
-      this.dataSource.data = data;
-    });
-  }
-
-  hasChild = (_: number, node: ShelfNode) => !!node.children && node.children.length > 0;
-
-  onSelect(node: ShelfNode): void {
-    this.selectedNode = node;
-    this.configureDisplayFields(node);
-  }
-
-  configureDisplayFields(node: ShelfNode): void {
-    const limitIds = [11160, 14825, 15490, 15995, 16910, 22700];
-    const checkIds = [10100, 20000, 30100];
-
-    this.disableMinMax = limitIds.includes(node.id);
-
-    if (this.disableMinMax) {
-      this.showLimits = true;
-      this.showChecks = false;
-    } else if (checkIds.includes(node.id)) {
-      this.showLimits = false;
-      this.showChecks = true;
-    } else {
-      this.showLimits = true;
-      this.showChecks = true;
-    }
-  }
-
-  updateValue(type: 'min' | 'max' | 'soft' | 'hard', value: string): void {
-    if (!this.selectedNode) return;
-
-    if (type === 'min') this.selectedNode.mainMin = value;
-    if (type === 'max') this.selectedNode.mainMax = value;
-    if (type === 'soft') this.selectedNode.main_soft_check = value;
-    if (type === 'hard') this.selectedNode.main_hard_check = value;
-
-    this.selectedNode.isNewlyAdded = 'U';
-  }
-
-  getSelectedData(): any[] {
-    const result: any[] = [];
-    const traverse = (node: ShelfNode) => {
-      if (node.isNewlyAdded === 'N' || node.isNewlyAdded === 'U') {
-        const cleaned = cloneDeep(node);
-        delete cleaned.children;
-        result.push(cleaned);
-      }
-      if (node.children) {
-        node.children.forEach(child => traverse(child));
-      }
-    };
-    this.dataSource.data.forEach(n => traverse(n));
-    return result;
-  }
-}
-
-
-<h3>{{ title }}</h3>
-
-<mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
-  <!-- Node without children -->
-  <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
-    <button mat-icon-button disabled></button>
-    <span (click)="onSelect(node)">{{ node.name }}</span>
-  </mat-tree-node>
-
-  <!-- Node with children -->
-  <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild">
-    <div class="mat-tree-node" (click)="onSelect(node)">
-      <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'toggle ' + node.name">
-        <mat-icon>
-          {{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}
-        </mat-icon>
-      </button>
-      {{ node.name }}
-    </div>
-    <div *ngIf="treeControl.isExpanded(node)">
-      <ng-container matTreeNodeOutlet></ng-container>
-    </div>
-  </mat-nested-tree-node>
-</mat-tree>
-
-<div *ngIf="selectedNode" style="margin-top: 10px">
-  <h4>{{ title }} Limits</h4>
-
-  <div *ngIf="showLimits">
-    <mat-form-field>
-      <input matInput placeholder="Min" [(ngModel)]="selectedNode.mainMin"
-             (change)="updateValue('min', selectedNode.mainMin)" [disabled]="disableMinMax" />
-    </mat-form-field>
-
-    <mat-form-field>
-      <input matInput placeholder="Max" [(ngModel)]="selectedNode.mainMax"
-             (change)="updateValue('max', selectedNode.mainMax)" [disabled]="disableMinMax" />
-    </mat-form-field>
-  </div>
-
-  <div *ngIf="showChecks">
-    <mat-form-field>
-      <input matInput placeholder="Soft" [(ngModel)]="selectedNode.main_soft_check"
-             (change)="updateValue('soft', selectedNode.main_soft_check)" />
-    </mat-form-field>
-
-    <mat-form-field>
-      <input matInput placeholder="Hard" [(ngModel)]="selectedNode.main_hard_check"
-             (change)="updateValue('hard', selectedNode.main_hard_check)" />
-    </mat-form-field>
-  </div>
-</div>
-
-***************************************
-
-<mat-tab-group>
-  <mat-tab label="Location">
-    <app-shelf-tree #treeLocation [group]="1" title="Location"></app-shelf-tree>
-  </mat-tab>
-  <mat-tab label="Section">
-    <app-shelf-tree #treeSection [group]="2" title="Section"></app-shelf-tree>
-  </mat-tab>
-  <mat-tab label="Shelf">
-    <app-shelf-tree #treeShelf [group]="3" title="Shelf"></app-shelf-tree>
-  </mat-tab>
-  <mat-tab label="UPC">
-    <app-shelf-tree #treeUPC [group]="4" title="UPC"></app-shelf-tree>
-  </mat-tab>
-</mat-tab-group>
-
-<button mat-raised-button color="primary" (click)="save()">Save Shelf Variables</button>
-
-
-import { Component, ViewChild } from '@angular/core';
-import { ShelfTreeComponent } from '../shelf-tree/shelf-tree.component';
-
-@Component({
-  selector: 'app-shelf-master',
-  templateUrl: './shelf-master.component.html',
-})
-export class ShelfMasterComponent {
-  @ViewChild('treeLocation') treeLocation!: ShelfTreeComponent;
-  @ViewChild('treeSection') treeSection!: ShelfTreeComponent;
-  @ViewChild('treeShelf') treeShelf!: ShelfTreeComponent;
-  @ViewChild('treeUPC') treeUPC!: ShelfTreeComponent;
-
-  save(): void {
-    const allData = [
-      ...this.treeLocation.getSelectedData(),
-      ...this.treeSection.getSelectedData(),
-      ...this.treeShelf.getSelectedData(),
-      ...this.treeUPC.getSelectedData(),
-    ];
-    console.log('Saving:', allData);
-    // Call ShelfService.saveShelfVars(allData) if needed
-  }
-}
-
-
->>>>>>>>>>>>>>>>>>>>>
-
-function buildNestedTree(flatData: any[]): any[] {
-  const idMapping: { [key: number]: any } = {};
-  const rootNodes: any[] = [];
-
-  // Step 1: Map by ID
-  flatData.forEach(node => {
-    node.children = [];
-    idMapping[node.id] = node;
-  });
-
-  // Step 2: Build the hierarchy
-  flatData.forEach(node => {
-    if (node.pId && idMapping[node.pId]) {
-      idMapping[node.pId].children.push(node);
-    } else {
-      rootNodes.push(node);
-    }
-  });
-
-  return rootNodes;
-}
-
-ngOnInit(): void {
-  this.shelfService.getShelfVars(this.group).subscribe((data) => {
-    const nestedData = buildNestedTree(data);
-    this.dataSource.data = nestedData;
-  });
-}
-****************************************************
-<mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
-
-  <!-- Leaf node -->
-  <mat-tree-node *matTreeNodeDef="let node">
-    <div
-      class="node-line"
-      [ngStyle]="{ 'padding-left.px': (node.level || 0) * 20 }"
-      (click)="onSelect(node)"
-    >
-      <button mat-icon-button disabled></button>
-      <mat-icon class="node-icon">insert_drive_file</mat-icon>
-      {{ node.name }}
-    </div>
-  </mat-tree-node>
-
-  <!-- Expandable node -->
-  <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild">
-    <div
-      class="node-line"
-      [ngStyle]="{ 'padding-left.px': (node.level || 0) * 20 }"
-      (click)="onSelect(node)"
-    >
-      <button mat-icon-button matTreeNodeToggle>
-        <mat-icon>
-          {{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}
-        </mat-icon>
-      </button>
-      <mat-icon class="node-icon">folder</mat-icon>
-      {{ node.name }}
-    </div>
-    <div *ngIf="treeControl.isExpanded(node)">
-      <ng-container matTreeNodeOutlet></ng-container>
-    </div>
-  </mat-nested-tree-node>
-
-</mat-tree>
-🔧 Customize Indent Level
-Change 20 in padding-left.px to any value to control indent per level.
-
-✅ Result
-Each nested level will now be indented manually based on your level field — exactly matching your visual expectation.
-
-✅ Bonus (CSS Cleanup)
-In your SCSS you can remove default Angular Material padding if needed:
-
-scss
-Copy
-Edit
-::ng-deep .mat-tree-node,
-::ng-deep .mat-nested-tree-node {
-  padding-left: 0 !important;
-}
-Let me know if you'd like me to regenerate the full HTML with this change.
-
-
-
-
-=================================================
-
-<div class="shelf-wrapper">
-  <div class="tree-panel">
-    <h3>{{ title }}</h3>
-
-    <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
-      <!-- Leaf node -->
-      <mat-tree-node *matTreeNodeDef="let node">
-        <div
-          class="node-line compact-node"
-          [class.selected]="node === selectedNode"
-          [ngStyle]="{ 'margin-left.px': (node.level || 0) * 20 }"
-          (click)="onSelect(node)"
-          (contextmenu)="onRightClick($event, node)"
-        >
-          <button mat-icon-button disabled></button>
-          <mat-icon class="node-icon">insert_drive_file</mat-icon>
-          {{ node.Name }}
-        </div>
-      </mat-tree-node>
-
-      <!-- Expandable node -->
-      <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild">
-        <div
-          class="node-line compact-node"
-          [class.selected]="node === selectedNode"
-          [ngStyle]="{ 'margin-left.px': (node.level || 0) * 20 }"
-          (click)="onSelect(node)"
-          (contextmenu)="onRightClick($event, node)"
-        >
-          <button mat-icon-button matTreeNodeToggle>
-            <mat-icon>
-              {{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}
-            </mat-icon>
-          </button>
-          <mat-icon class="node-icon">folder</mat-icon>
-          {{ node.Name }}
-        </div>
-        <div *ngIf="treeControl.isExpanded(node)">
-          <ng-container matTreeNodeOutlet></ng-container>
-        </div>
-      </mat-nested-tree-node>
-    </mat-tree>
-  </div>
-
-  <div *ngIf="selectedNode?.level === 0 && (showLimits || showChecks)" class="form-panel">
-    <h4>Checks / Limits</h4>
-
-    <div *ngIf="showLimits" class="form-section">
-      <mat-form-field appearance="outline">
-        <mat-label>Min</mat-label>
-        <input matInput [(ngModel)]="selectedNode.MainMin"
-               (change)="updateValue('min', selectedNode.MainMin)" [disabled]="disableMinMax" />
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Max</mat-label>
-        <input matInput [(ngModel)]="selectedNode.MainMax"
-               (change)="updateValue('max', selectedNode.MainMax)" [disabled]="disableMinMax" />
-      </mat-form-field>
-    </div>
-
-    <div *ngIf="showChecks" class="form-section">
-      <mat-form-field appearance="outline">
-        <mat-label>Soft</mat-label>
-        <input matInput [(ngModel)]="selectedNode.MainSoftCheck"
-               (change)="updateValue('soft', selectedNode.MainSoftCheck)" />
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Hard</mat-label>
-        <input matInput [(ngModel)]="selectedNode.MainHardCheck"
-               (change)="updateValue('hard', selectedNode.MainHardCheck)" />
-      </mat-form-field>
-    </div>
-  </div>
-</div>
-
-<!-- Right-click context menu -->
-<div class="rMenu" *ngIf="contextMenuVisible" [ngStyle]="{ top: contextY + 'px', left: contextX + 'px' }">
-  <ul>
-    <li><button [disabled]="!canAdd()" (click)="openAddDialog()">Add Variable</button></li>
-    <li><button [disabled]="!canEdit()" (click)="openEditDialog()">Edit Variable</button></li>
-    <li><button [disabled]="!canDelete()" (click)="deleteNode()">Delete Variable</button></li>
-    <li><button [disabled]="!canRetire()" (click)="retireNode()">Retire</button></li>
-    <li><button [disabled]="!canUnretire()" (click)="unretireNode()">Unretire</button></li>
-  </ul>
-</div>
-
-<!-- Add/Edit inline dialog -->
-<div class="dialog" *ngIf="showDialog">
-  <h3>{{ dialogMode === 'add' ? 'Add' : 'Edit' }} Shelf Variable</h3>
-  <mat-form-field appearance="fill">
-    <mat-label>Name</mat-label>
-    <input matInput [(ngModel)]="dialogNodeName" />
-  </mat-form-field>
-  <div class="actions">
-    <button mat-button (click)="confirmDialog()">{{ dialogMode === 'add' ? 'Add' : 'Save' }}</button>
-    <button mat-button (click)="cancelDialog()">Cancel</button>
-  </div>
-</div>
-
-======================================================
-
-import { Component, HostListener, Inject, Input, OnInit } from '@angular/core';
-import { NestedTreeControl } from '@angular/cdk/tree';
-import { MatTreeNestedDataSource } from '@angular/material/tree';
-import { cloneDeep } from 'lodash';
-import { HttpClient } from '@angular/common/http';
-import { MatDialog } from '@angular/material/dialog';
-import { Router, ActivatedRoute } from '@angular/router';
-import { CommonService } from '../shared/common.service';
-import { SnackbarService } from '../shared/snackbar.service';
-import { Subject, takeUntil } from 'rxjs';
-
-interface ShelfNode {
-  Id: number;
-  PId?: number;
-  Name: string;
-  level?: number;
-  MainMin?: string;
-  MainMax?: string;
-  MainSoftCheck?: string;
-  MainHardCheck?: string;
-  RetiredDate?:string;
-  optional?:string;
-  IsNewlyAdded?: string;
-  children?: ShelfNode[];
-}
-
-@Component({
-  selector: 'app-shelf-tree',
-  templateUrl: './shelf-tree.component.html',
-  styleUrls: ['./shelf-tree.component.css']
-})
-export class ShelfTreeComponent implements OnInit {
-@Input() group!: number;
-@Input() title!: string;
-treeControl = new NestedTreeControl<ShelfNode>(node => node.children);
-dataSource = new MatTreeNestedDataSource<ShelfNode>();
-selectedNode: ShelfNode | null = null;
-showLimits = false;
-showChecks = false;
-disableMinMax = false;
-loggedUser: string;
-showSpinner: boolean;
-
-rightClickedNode:ShelfNode | null = null;
-showDialog=false;
-dialogMode:'add'|'edit'='add';
-dialogNodeName='';
-
-contextMenuVisible=false;
-contextX=0;
-contextY=0;
-
-private unsubscribe$ = new Subject<void>();
-  constructor(
-    public http: HttpClient,
-        @Inject('BASE_URL') public baseUrl: string,
-        private router: Router,
-        private activatedRoute: ActivatedRoute,
-        private dialog: MatDialog,
-        public service: CommonService,
-        private _snackBar: SnackbarService, 
-  ) {  this.loggedUser = localStorage.getItem("loggedUserId");}
-
-  ngOnInit(): void {
-    this. getShelfVars()
-  }
-
-  getShelfVars(){
-    this.http.post<any>(this.baseUrl + `api/MasterShelfVariables/GetShelfVar`,{Group:Number(this.group)})
-        .pipe(takeUntil(this.unsubscribe$)).subscribe({next:(res)=>{
-          this.showSpinner = true
-            
-            if(res){
-              const nestedData = this.buildNestedTree(res);
-              this.dataSource.data=nestedData;
-              this.expandAllNodes(nestedData)
-              if (nestedData.length > 0) {
-                this.onSelect(nestedData[0]); // Select root
-              }
-            }
-          
-            this.showSpinner = false
-        },
-        error:(error)=>{console.error(error);  this.showSpinner = false}})
-    }
-        
+<div class="dashboard-layout">
   
+  <!-- TOP TOOLBAR with Navigation Menu -->
+  <mat-toolbar class="mat-toolbar-primary">
+    <!-- Navigation Menu Button -->
+    <button mat-icon-button [matMenuTriggerFor]="navMenu" class="nav-menu-btn" matTooltip="Navigate">
+      <mat-icon>apps</mat-icon>
+    </button>
+    
+    <!-- Navigation Menu -->
+    <mat-menu #navMenu="matMenu" class="nav-menu">
+      <button mat-menu-item (click)="navigateToComponent('dashboard')">
+        <mat-icon>dashboard</mat-icon>
+        <span>Assignment Dashboard</span>
+      </button>
+      <button mat-menu-item (click)="navigateToComponent('performance')" disabled>
+        <mat-icon>assessment</mat-icon>
+        <span>Store Performance Report</span>
+      </button>
+      <button mat-menu-item (click)="navigateToComponent('analytics')">
+        <mat-icon>analytics</mat-icon>
+        <span>Analytics</span>
+      </button>
+      <mat-divider></mat-divider>
+      <button mat-menu-item (click)="navigateToComponent('settings')">
+        <mat-icon>settings</mat-icon>
+        <span>Settings</span>
+      </button>
+    </mat-menu>
 
-  hasChild = (_: number, node: ShelfNode) => !!node.children && node.children.length > 0;
+    <!-- Page Title -->
+    <h1 class="toolbar-title">Store Performance Report</h1>
+    
+    <span class="toolbar-spacer"></span>
 
-  onSelect(node: ShelfNode): void {
-    this.selectedNode = node;
-    this.configureDisplayFields(node);
-  }
+    <!-- Toolbar Actions -->
+    <button mat-icon-button matTooltip="Refresh Data">
+      <mat-icon>refresh</mat-icon>
+    </button>
+    
+    <!-- Filter Toggle Button -->
+    <button mat-icon-button (click)="toggleFilters()" matTooltip="Toggle Filters">
+      <mat-icon>{{isFiltersExpanded ? 'expand_less' : 'expand_more'}}</mat-icon>
+    </button>
+  </mat-toolbar>
 
-  onRightClick(event:MouseEvent,node:ShelfNode):void{
-    event.preventDefault();
-    console.log(node)
-    this.contextX=event.clientX
-    this.contextY=event.clientY
-    this.contextMenuVisible=true
-    this.rightClickedNode=node
-  }
+  <!-- EXPANDABLE FILTER TOPBAR - Always Expanded by Default -->
+  <section class="filter-topbar expanded">
+    <div class="filter-container">
+      
+      <!-- Filter Row -->
+      <div class="filter-row">
+        
+        <!-- Country Selection -->
+        <div class="filter-field">
+          <label class="form-label">Country</label>
+          <mat-form-field appearance="outline">
+            <mat-select [formControl]="countryctrl" (selectionChange)="onCountryChange($event)">
+              <mat-option *ngFor="let country of countrylist" [value]="country.countryName">
+                {{country.countryName}}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
 
-  @HostListener('document:click')
-  hideContextMenu(){
-    this.contextMenuVisible=false
-  }
+        <!-- Report Week with Date Picker -->
+        <div class="filter-field required-field">
+          <label class="form-label">Report Week *</label>
+          <mat-form-field appearance="outline">
+            <input matInput [matDatepicker]="picker1" [formControl]="datetimectrl2" 
+                   (dateChange)="onDateSelected($event,'iriweekctrl')" hidden>
+            <input matInput [formControl]="iriweekctrl" maxlength="4" 
+                   (keypress)="allowOnlyNumber($event)" placeholder="YYWW">
+            <mat-datepicker-toggle matSuffix [for]="picker1"></mat-datepicker-toggle>
+            <mat-datepicker #picker1></mat-datepicker>
+          </mat-form-field>
+        </div>
 
-  configureDisplayFields(node: ShelfNode): void {
-    const limitIds = [11160, 14825, 15490, 15995, 16910, 22700];
-    const checkIds = [10100, 20000, 30100];
+        <!-- Report Period Toggle -->
+        <div class="filter-field">
+          <label class="form-label">Report Period</label>
+          <mat-button-toggle-group [formControl]="reportWeekCtrl" 
+                                   (change)="getStorePerfReport()" 
+                                   class="period-toggle-group">
+            <mat-button-toggle value="WEEK">Week</mat-button-toggle>
+            <mat-button-toggle value="4WEEK">4 Week</mat-button-toggle>
+            <mat-button-toggle value="8WEEK">8 Week</mat-button-toggle>
+            <mat-button-toggle value="QTY">QTD</mat-button-toggle>
+            <mat-button-toggle value="YTD">YTD</mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
 
-    this.disableMinMax = limitIds.includes(node.Id);
-    this.showLimits = !checkIds.includes(node.Id);
-    this.showChecks = !this.disableMinMax;
-  }
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+          <button mat-raised-button color="primary" 
+                  [disabled]="showSpinner" 
+                  (click)="getStorePerfReport()"
+                  class="search-btn">
+            <mat-spinner diameter="16" *ngIf="showSpinner"></mat-spinner>
+            <mat-icon *ngIf="!showSpinner">search</mat-icon>
+            Search
+          </button>
+          
+          <button mat-stroked-button color="primary" 
+                  matTooltip="Export to Excel" 
+                  [disabled]="totalRecords === 0" 
+                  (click)="exportToExcel()"
+                  class="export-btn">
+            <mat-icon>description</mat-icon>
+            Export
+          </button>
+        </div>
+      </div>
+      
+      <!-- Collapse toggle for user -->
+      <div class="filter-collapse-toggle" (click)="toggleFilters()">
+        <mat-icon>{{isFiltersExpanded ? 'keyboard_arrow_up' : 'keyboard_arrow_down'}}</mat-icon>
+        <span>{{isFiltersExpanded ? 'Hide Filters' : 'Show Filters'}}</span>
+      </div>
+    </div>
+  </section>
 
- updateValue(type: 'min' | 'max' | 'soft' | 'hard', val: string) {
-    if (!this.selectedNode) return;
-    (this.selectedNode as any)[{
-      min: 'mainMin',
-      max: 'mainMax',
-      soft: 'main_soft_check',
-      hard: 'main_hard_check'
-    }[type]] = val;
-    this.selectedNode.IsNewlyAdded = 'U';
-  }
+  <!-- MAIN CONTENT AREA -->
+  <div class="main-content">
+    
+    <!-- TABLE CONTAINER -->
+    <div class="table-container">
+      <mat-card class="table-card">
+        <mat-card-content>
+          <div class="table-wrapper">
+            
+            <!-- Data Table -->
+            <table mat-table [dataSource]="dataSource" matSort 
+                   (matSortChange)="announceSortChange($event)" 
+                   class="performance-table mat-elevation-2"
+                   [ngClass]="{'has-data': totalRecords > 0, 'no-data': totalRecords === 0}">
 
-  openAddDialog():void{
-    this.hideContextMenu();
-    this.dialogMode='add';
-    this.dialogNodeName=''
-    this.showDialog=true;
-  }
+              <ng-container matColumnDef="reportWeek">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Report Week</th>
+                <td mat-cell *matCellDef="let element"> {{element.reportWeek}}</td>
+              </ng-container>
 
-  openEditDialog():void{
-    if(!this.rightClickedNode) return;
-    this.hideContextMenu();
-    this.dialogMode='edit';
-    this.dialogNodeName=this.rightClickedNode.Name;
-    this.showDialog=true;
-  }
+              <ng-container matColumnDef="stateCd">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">State CD</th>
+                <td mat-cell *matCellDef="let element"> {{element.stateCd}} </td>
+              </ng-container>
 
-  confirmDialog(): void {
-    if (this.dialogMode === 'add') {
-      const newNode: ShelfNode = {
-        Id: Math.floor(Math.random() * 100000),
-        PId: this.rightClickedNode!.Id,
-        Name: this.dialogNodeName,
-        optional: 'Y',
-        IsNewlyAdded: 'N',
-        children: []
-      };
-      this.rightClickedNode!.children = this.rightClickedNode!.children || [];
-      this.rightClickedNode!.children.push(newNode);
-      this.treeControl.expand(this.rightClickedNode!);
-    } else if (this.dialogMode === 'edit') {
-      this.rightClickedNode!.Name = this.dialogNodeName;
-      this.rightClickedNode!.IsNewlyAdded = 'U';
-    }
-    this.showDialog = false;
-  }
+              <ng-container matColumnDef="territory">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Territory</th>
+                <td mat-cell *matCellDef="let element"> {{element.territory}} </td>
+              </ng-container>
 
-  cancelDialog(): void {
-    this.showDialog = false;
-  }
+              <ng-container matColumnDef="outlet">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Outlet</th>
+                <td mat-cell *matCellDef="let element"> {{element.outlet}} </td>
+              </ng-container>
 
-  deleteNode(): void {
-    if (!this.rightClickedNode) return;
-    const parent = this.findParent(this.dataSource.data, this.rightClickedNode);
-    if (parent) {
-      parent.children = parent.children?.filter(c => c.Id !== this.rightClickedNode!.Id);
-    } else {
-      this.dataSource.data = this.dataSource.data.filter(c => c.Id !== this.rightClickedNode!.Id);
-    }
-    this.contextMenuVisible = false;
-  }
+              <ng-container matColumnDef="storeNumber">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Store Number</th>
+                <td mat-cell *matCellDef="let element"> {{element.storeNumber}} </td>
+              </ng-container>
 
-  retireNode(): void {
-    if (!this.rightClickedNode) return;
-    this.rightClickedNode.Name += ' (Retired)';
-    this.rightClickedNode.RetiredDate = new Date().toLocaleDateString();
-    this.rightClickedNode.IsNewlyAdded = 'U';
-    this.contextMenuVisible = false;
-  }
+              <ng-container matColumnDef="storeName">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Store Name</th>
+                <td mat-cell *matCellDef="let element"> {{element.storeName}} </td>
+              </ng-container>
 
+              <ng-container matColumnDef="taskNumber">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Task Number</th>
+                <td mat-cell *matCellDef="let element"> {{element.taskNumber}} </td>
+              </ng-container>
 
+              <ng-container matColumnDef="completionPercent">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Completion %</th>
+                <td mat-cell *matCellDef="let element"> {{element.completionPercent}} </td>
+              </ng-container>
 
-  unretireNode(): void {
-    if (!this.rightClickedNode) return;
-    this.rightClickedNode.Name = this.rightClickedNode.Name.replace(' (Retired)', '');
-    this.rightClickedNode.RetiredDate = '';
-    this.rightClickedNode.IsNewlyAdded = 'U';
-    this.contextMenuVisible = false;
-  }
+              <ng-container matColumnDef="collectedNotPortalAssigned">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Collected Not Portal Assigned</th>
+                <td mat-cell *matCellDef="let element"> {{element.collectedNotPortalAssigned}} </td>
+              </ng-container>
 
+              <ng-container matColumnDef="qualityApproval">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Quality Approval</th>
+                <td mat-cell *matCellDef="let element"> {{element.qualityApproval}} </td>
+              </ng-container>
 
-  getSelectedData(): any[] {
-    const res: any[] = [];
-    const walk = (node: ShelfNode) => {
-      if (['N', 'U'].includes(node.IsNewlyAdded || '')) {
-        const copy = cloneDeep(node);
-        delete (copy as any).children;
-        res.push(copy);
-      }
-      node.children?.forEach(walk);
-    };
-    this.dataSource.data.forEach(walk);
-    return res;
-  }
+              <ng-container matColumnDef="gpsTravelTime">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">GPS Travel Time</th>
+                <td mat-cell *matCellDef="let element"> {{element.gpsTravelTime}} </td>
+              </ng-container>
 
-  private buildNestedTree(flat: ShelfNode[]): ShelfNode[] {
-    const map: { [Id: number]: ShelfNode } = {};
-    const roots: ShelfNode[] = [];
+              <ng-container matColumnDef="gpsDistance">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">GPS Distance</th>
+                <td mat-cell *matCellDef="let element"> {{element.gpsDistance}} </td>
+              </ng-container>
 
-    flat.forEach(n => {
-      n.children = [];
-      // n.level = 0;
-      map[n.Id] = n;
-    });
+              <ng-container matColumnDef="toll">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">Toll</th>
+                <td mat-cell *matCellDef="let element"> {{element.toll}} </td>
+              </ng-container>
 
-    flat.forEach(n => {
-      if (n.PId && map[n.PId]) {
-        // n.level = (map[n.PId].level || 0) + 1;
-        map[n.PId].children!.push(n);
-      } else {
-        roots.push(n);
-      }
-    });
+              <ng-container matColumnDef="gpsTotalCost">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header class="mat-header-style">GPS Total Cost</th>
+                <td mat-cell *matCellDef="let element"> {{element.gpsTotalCost}} </td>
+              </ng-container>
 
-    const setLevel = (node:ShelfNode,level:number)=>{
-      node.level=level
-      node.children?.forEach(child=>setLevel(child,level+1))
-    }
+              <tr mat-header-row *matHeaderRowDef="displayedColumns;sticky:true"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumns;" 
+                  class="table-row" 
+                  matRipple></tr>
+            </table>
 
-    roots.forEach(root=>setLevel(root,0))
+            <!-- No Data Message -->
+            <ng-container *ngIf="this.totalRecords==0">
+              <div class="no-data">No Data Found!!!</div>
+            </ng-container>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
 
-    return roots;
-  }
+    <!-- Records Info and Bottom Pagination -->
+    <div class="table-footer">
+      <div class="records-info">
+        <span class="record-count">{{totalRecords}} records</span>
+      </div>
+      
+      <mat-paginator [length]="totalRecords"
+                     [pageSize]="50"
+                     [pageSizeOptions]="[50,100,150,200]"
+                     showFirstLastButtons="true"
+                     class="table-paginator">
+      </mat-paginator>
+    </div>
+  </div>
+</div>
 
-  private expandAllNodes(Node:ShelfNode[]):void{
-    Node.forEach(node=>{
-      this.treeControl.expand(node);
-      if(node.children&&node.children.length>0){
-        this.expandAllNodes(node.children)
-      }
-    })
-  }
-
-  private findParent(nodes: ShelfNode[], target: ShelfNode): ShelfNode | null {
-    for (const node of nodes) {
-      if (node.children?.some(child => child.Id === target.Id)) {
-        return node;
-      }
-      const parent = node.children ? this.findParent(node.children, target) : null;
-      if (parent) return parent;
-    }
-    return null;
-  }
-
-  canAdd(): boolean {
-  return this.group === 1 && (this.rightClickedNode?.level ?? 0) < 2;
-  }
-
-  canEdit(): boolean {
-    return !!this.rightClickedNode && this.rightClickedNode.level !== 0 &&!this.rightClickedNode.RetiredDate;
-  }
-
-  canDelete(): boolean {
-    return this.rightClickedNode?.IsNewlyAdded === 'N';
-  }
-
-  canRetire(): boolean {
-    return !!this.rightClickedNode && !this.rightClickedNode.RetiredDate;
-  }
-
-  canUnretire(): boolean {
-    return !!this.rightClickedNode && !!this.rightClickedNode.RetiredDate;
-  }
-}
-
-=================
-.shelf-wrapper {
+<div class="mat-spinner-container">
+    <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
+    <div *ngIf="showSpinner" style="position:relative;left: 10px">Loading...</div>
+</div>
+Updated CSS Styles
+css
+/* Dashboard Layout */
+.dashboard-layout {
   display: flex;
-  gap: 24px;
-  align-items: flex-start;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  background: #f5f5f5;
+}
+
+/* Toolbar Styling */
+.mat-toolbar-primary {
+  background: #1976d2;
+  color: white;
+  height: 64px;
+  padding: 0 16px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.toolbar-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 500;
+  margin-left: 16px;
+}
+
+.toolbar-spacer {
+  flex: 1 1 auto;
+}
+
+.nav-menu-btn {
+  color: white;
+}
+
+/* Filter Section - Matching Store Component Theme */
+.filter-topbar {
+  width: 100%;
   padding: 16px;
+  background: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+  transition: all 0.3s ease;
+  overflow: hidden;
 }
 
-.tree-panel {
-  width: 600px;
-  min-width: 600px;
-  max-width: 600px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  background-color: #fafafa;
-  padding: 12px;
-  overflow-y: auto;
-  max-height: 70vh;
-  min-height: 35vh;
+.filter-topbar.expanded {
+  max-height: 200px;
 }
 
-.node-line {
+.filter-topbar.collapsed {
+  max-height: 0;
+  padding: 0 16px;
+}
+
+.filter-container {
+  max-width: 100%;
+}
+
+.filter-row {
+  display: grid;
+  gap: 16px;
+  align-items: end;
+  margin-bottom: 16px;
+  width: 100%;
+  grid-template-columns: 
+    1fr          /* Country */
+    1fr          /* Report Week */
+    1.5fr        /* Report Period */
+    auto;        /* Action Buttons */
+}
+
+.filter-field {
   display: flex;
-  align-items: center;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  transition: background 0.2s ease;
+  flex-direction: column;
+  min-width: 0;
 }
 
-.node-line:hover {
-  background: #e3f2fd;
+.form-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.node-icon {
-  margin-right: 8px;
-  color: #3f51b5;
+.filter-field .mat-form-field {
+  width: 100%;
+  font-size: 14px;
 }
 
-.form-panel {
-  flex: 1;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  padding: 16px;
-  background: #ffffff;
-  max-width: 500px;
+.filter-field .mat-form-field .mat-form-field-wrapper {
+  padding-bottom: 0;
 }
 
-.form-panel h4 {
-  margin-bottom: 12px;
-  color: #1976d2;
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.action-buttons button {
+  min-width: 100px;
+  height: 40px;
+  font-size: 13px;
   font-weight: 500;
 }
 
-.form-section {
+.filter-collapse-toggle {
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 16px;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  color: #1976d2;
+  font-size: 14px;
+  padding: 8px;
+  margin-top: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
 }
 
-.node-line.compact-node{
-  height: 30px;
+.filter-collapse-toggle:hover {
+  background-color: rgba(25, 118, 210, 0.1);
+}
+
+/* Main Content Area */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  overflow: hidden;
+}
+
+/* Table Container - Matching Store Component */
+.table-container {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  min-height: 70vh;
+  max-height: 70vh;
+  overflow: hidden;
+}
+
+.table-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  width: 100%;
+  max-width: none;
+  background: white;
+}
+
+.table-wrapper {
+  flex: 1;
+  overflow: auto;
+  height: calc(70vh - 80px);
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.mat-card-content {
+  display: block;
+  margin-bottom: 0 !important;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Table Styling - Matching Store Component */
+.performance-table {
+  width: 100%;
+  min-width: 1400px;
+  background: white;
+  display: table;
+  table-layout: auto;
+  border-collapse: collapse;
+  margin: 0px;
+}
+
+.performance-table .mat-header-row {
+  height: 40px;
+}
+
+.performance-table .mat-row {
+  max-width: 120%;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  min-height: 40px !important;
+}
+
+.performance-table .mat-row:hover {
+  background-color: mintcream;
+}
+
+.mat-header-style {
+  font-weight: bold !important;
+  font-size: 15px !important;
+  background-color: lightgray !important;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #dee2e6;
+}
+
+/* Cell Styling */
+.mat-cell, .mat-header-cell {
+  padding: 0px 12px;
+  vertical-align: middle;
+  word-wrap: break-word;
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.4;
+}
+
+.mat-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Table Footer Section */
+.table-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: #fafafa;
+  border-top: 1px solid #e0e0e0;
+  margin-top: 8px;
+  border-radius: 0 0 8px 8px;
+}
+
+.records-info {
   display: flex;
   align-items: center;
+  font-size: 14px;
+  color: #666;
 }
 
-.rMenu{
+.record-count {
+  font-weight: 500;
+}
+
+/* Paginator - Bottom positioned as in store component */
+.table-paginator {
+  background: transparent;
+  border: none;
+}
+
+/* No Data Message */
+.no-data {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  font-size: 18px;
+  color: #666;
+  font-style: italic;
+}
+
+/* Spinner Container */
+.mat-spinner-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
   position: fixed;
-  background: white;
-  border: 1px solid black;
-  z-index: 9999;
-  padding: 4px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  z-index: 1000;
 }
 
-.selected { background: #bbdefb; border-radius: 4px; }
-
-mat-form-field {
-  flex: 1 1 120px;
+.mat-spinner {
+  z-index: 111;
 }
 
+/* Responsive Design */
+@media (max-width: 1600px) {
+  .filter-row {
+    grid-template-columns: 
+      0.9fr 0.9fr 1.3fr auto;
+  }
+}
 
+@media (max-width: 1400px) {
+  .filter-row {
+    gap: 12px;
+    grid-template-columns: 
+      0.8fr 0.8fr 1.2fr auto;
+  }
+  
+  .action-buttons button {
+    min-width: 90px;
+    font-size: 12px;
+  }
+}
 
+@media (max-width: 1200px) {
+  .filter-row {
+    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+  
+  .action-buttons {
+    grid-column: 1 / -1;
+    justify-content: center;
+    margin-top: 8px;
+  }
+}
 
+@media (max-width: 768px) {
+  .filter-container {
+    padding: 0 8px;
+  }
+  
+  .filter-row {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .filter-field {
+    width: 100%;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .action-buttons button {
+    width: 100%;
+    min-width: unset;
+  }
+  
+  .performance-table {
+    min-width: 800px;
+  }
+  
+  .table-footer {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+}
 
+/* Hover Effects */
+.filter-field:hover mat-form-field {
+  transform: translateY(-1px);
+  transition: transform 0.2s ease;
+}
 
+.action-buttons button:hover {
+  transform: translateY(-1px);
+  transition: transform 0.2s ease;
+}
+
+/* Focus States */
+.mat-form-field.mat-focused {
+  transform: scale(1.02);
+  transition: transform 0.2s ease;
+}
+
+/* Period Toggle Group Styling */
+.period-toggle-group {
+  display: flex;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.period-toggle-group .mat-button-toggle {
+  font-size: 12px;
+  min-width: 50px;
+}
+Key Changes Made:
+1. Theme Matching:
+Applied the same color scheme as your store component
+
+Used matching mat-header-style class for table headers
+
+Applied same background colors (#fafafa, lightgray for headers)
+
+Matched the mintcream hover effect on table rows
+
+2. Filter Section:
+Set filters to be always expanded by default (removed collapse/expand logic from template)
+
+Added a user-controlled collapse toggle at the bottom of the filter section
+
+Maintained the same filter styling and layout structure as your store component
+
+3. Table Styling:
+Matched table card styling with same box-shadow and border-radius
+
+Applied same header styling with lightgray background
+
+Used same row heights and hover effects
+
+Applied consistent cell padding and text styling
+
+4. Pagination:
+Moved pagination to bottom in a separate footer section
+
+Removed the top pagination completely
+
+Added records count display alongside pagination
+
+Used same paginator styling as store component
+
+5. Layout Structure:
+Maintained toolbar at top with navigation
+
+Filter section with user-controllable collapse
+
+Main content area with table
+
+Footer with records info and pagination at bottom
+
+The component now matches your store component's theme perfectly while maintaining the functionality you requested!
