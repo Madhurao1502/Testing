@@ -1,1716 +1,361 @@
-<div style="padding-left: 1em; padding-right: 1em;padding-bottom:0px">
-    <h6 class="filter-left fw-bold">Store Performance Report</h6>
-    <!--Filter Section-->
-    <div class="filter">
-        <div class="filter-left">
-            <mat-form-field appearance="outline" style="color: #077f99;width:150px">
-                <mat-label>Select Country</mat-label>
-                <mat-select [formControl]="countryctrl" (selectionChange)="onCountryChange($event)">
-                    <mat-option *ngFor="let country of countrylist" [value]="country.countryName">
-                        {{country.countryName}}
-                    </mat-option>
-                </mat-select>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline" style="width:170px" class="required-field">
-                <mat-label>Report Week</mat-label>
-                <input matInput [matDatepicker]="picker1" [formControl]="datetimectrl2" (dateChange)="onDateSelected($event,'iriweekctrl')" hidden>
-                <input matInput [formControl]="iriweekctrl" maxlength="4" (keypress)="allowOnlyNumber($event)">
-                <mat-datepicker-toggle matSuffix [for]="picker1"></mat-datepicker-toggle>
-                <mat-datepicker #picker1></mat-datepicker>
-            </mat-form-field>
-
-            <mat-button-toggle-group [formControl]="reportWeekCtrl" name="fontStyle" class="week-toggle-group" (change)="getStorePerfReport()" style="width:auto;height:40px;margin-top:4px" aria-label="Font Style">
-                <mat-button-toggle value="WEEK">Week</mat-button-toggle>
-                <mat-button-toggle value="4WEEK">4 Week</mat-button-toggle>
-                <mat-button-toggle value="8WEEK">8 Week</mat-button-toggle>
-                <mat-button-toggle value="QTY">QTD</mat-button-toggle>
-                <mat-button-toggle value="YTD">YTD</mat-button-toggle>
-            </mat-button-toggle-group>
-
-        </div>
-        <div class="filter-right">
-            <button mat-raised-button color="primary" style="height: 40px; min-width: 90px" [disabled]="showSpinner" (click)="this.getStorePerfReport()">Search<mat-icon style="font-size: large;padding-top:2px">search</mat-icon></button>
-            <button mat-raised-button color="primary" style="height: 40px; min-width: 90px" matTooltip="Export to Excel" [disabled]="this.totalRecords==0" (click)="exportToExcel()">Export<mat-icon style="font-size: large; padding-top: 2px">description</mat-icon></button>
-        </div>
-    </div>
-
-    <div>
-        <mat-paginator [length]="totalRecords"
-                       [pageSize]="50"
-                       [pageSizeOptions]="[50,100,150,200]"
-                       aria-label="Select page"
-                       showFirstLastButtons="true">
-        </mat-paginator>
-    </div>
-
-    <div class="table-container">
-        <table mat-table [dataSource]="dataSource" matSort (matSortChange)="announceSortChange($event)" [ngClass]="{'fixed-height':totalRecords>=10,'dynamic-height':totalRecords<10}" class="mat-elevation-z8">
-
-            <ng-container matColumnDef="reportWeek">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Report Week</th>
-                <td mat-cell *matCellDef="let element"> {{element.reportWeek}}</td>
-            </ng-container>
-
-            <ng-container matColumnDef="stateCd">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>State CD</th>
-                <td mat-cell *matCellDef="let element"> {{element.stateCd}} </td>
-            </ng-container>
-
-            <ng-container matColumnDef="territory">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Territory</th>
-                <td mat-cell *matCellDef="let element"> {{element.territory}} </td>
-            </ng-container>
-
-            <ng-container matColumnDef="outlet">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Outlet</th>
-                <td mat-cell *matCellDef="let element"> {{element.outlet}} </td>
-            </ng-container>
-
-            <ng-container matColumnDef="storeNumber">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Store Number</th>
-                <td mat-cell *matCellDef="let element"> {{element.storeNumber}} </td>
-            </ng-container>
-
-            <ng-container matColumnDef="storeName">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Store Name</th>
-                <td mat-cell *matCellDef="let element"> {{element.storeName}} </td>
-            </ng-container>
-
-            <ng-container matColumnDef="taskNumber">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Task Number</th>
-                <td mat-cell *matCellDef="let element"> {{element.taskNumber}} </td>
-            </ng-container>
-
-            <ng-container matColumnDef="completionPercent">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Completion %</th>
-                <td mat-cell *matCellDef="let element"> {{element.completionPercent}} </td>
-            </ng-container>
-
-            <ng-container matColumnDef="collectedNotPortalAssigned">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Collected Not Portal Assigned</th>
-                <td mat-cell *matCellDef="let element"> {{element.collectedNotPortalAssigned}} </td>
-            </ng-container>
-
-            <ng-container matColumnDef="qualityApproval">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Quality Approval</th>
-                <td mat-cell *matCellDef="let element"> {{element.qualityApproval}} </td>
-            </ng-container>
-
-            <ng-container matColumnDef="gpsTravelTime">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>GPS Travel Time</th>
-                <td mat-cell *matCellDef="let element"> {{element.gpsTravelTime}} </td>
-            </ng-container>
-
-            <ng-container matColumnDef="gpsDistance">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>GPS Distance</th>
-                <td mat-cell *matCellDef="let element"> {{element.gpsDistance}} </td>
-            </ng-container>
-
-            <ng-container matColumnDef="toll">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Toll</th>
-                <td mat-cell *matCellDef="let element"> {{element.toll}} </td>
-            </ng-container>
-
-            <ng-container matColumnDef="gpsTotalCost">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>GPS Total Cost</th>
-                <td mat-cell *matCellDef="let element"> {{element.gpsTotalCost}} </td>
-            </ng-container>
-
-            <tr mat-header-row *matHeaderRowDef="displayedColumns;sticky:true"></tr>
-            <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-        </table>
-
-        <ng-container *ngIf="this.totalRecords==0">
-            <div class="no-data">No Data Found!!!</div>
-        </ng-container>
-    </div>
-
-    <div class="mat-spinner-container">
-        <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
-        <div *ngIf="showSpinner" style="position:relative;left: 10px">Loading...</div>
-    </div>
-</div>
-
-
-
-
-
-*********************************
-import { Injectable, Inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject, firstValueFrom, of } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
-import { GetGridDataFilter } from './common.model';
-
-@Injectable({
-  providedIn: 'root'
-})
-export class CommonService {
-  
-  // Week type and data subjects for 3-week functionality
-  private weekTypeSubject = new BehaviorSubject<'current' | 'future' | 'previous'>('current');
-  public weekType$ = this.weekTypeSubject.asObservable();
-
-  // Separate data subjects for each week type
-  private currentWeekDataSubject = new BehaviorSubject<any[]>([]);
-  public currentWeekData$ = this.currentWeekDataSubject.asObservable();
-
-  private futureWeekDataSubject = new BehaviorSubject<any[]>([]);
-  public futureWeekData$ = this.futureWeekDataSubject.asObservable();
-
-  private previousWeekDataSubject = new BehaviorSubject<any[]>([]);
-  public previousWeekData$ = this.previousWeekDataSubject.asObservable();
-
-  // Current IRI Week tracking
-  private currentIRIWeekSubject = new BehaviorSubject<string>('2405');
-  
-  // Filter state
-  private filtersSubject = new BehaviorSubject<GetGridDataFilter>(new GetGridDataFilter());
-  public filters$ = this.filtersSubject.asObservable();
-
-  private currentFiltersSubject = new BehaviorSubject<any>({});
-  public currentFilters$ = this.currentFiltersSubject.asObservable();
-
-  private gridDataSubject = new BehaviorSubject<any[]>([]);
-  public gridData$ = this.gridDataSubject.asObservable();
-
-  // Country and user state
-  private countrySubject = new BehaviorSubject<string>('1');
-  public country$ = this.countrySubject.asObservable();
-
-  private groupsStatusSubject = new BehaviorSubject<any>({});
-  public groupsStatus$ = this.groupsStatusSubject.asObservable();
-
-  // Spinner management
-  private loadingTasks = new Set<string>();
-  private spinnerSubject = new BehaviorSubject<boolean>(false);
-  public spinner$ = this.spinnerSubject.asObservable();
-
-  constructor(
-    private http: HttpClient,
-    @Inject('BASE_URL') public baseUrl: string
-  ) {}
-
-  // ENHANCED: Week-based grid data API selection
-  getGridData(payload: GetGridDataFilter): Observable<any[]> {
-    const currentIRIWeek = this.getCurrentIRIWeek();
-    const payloadIRIWeek = payload.iriWeek;
-    
-    let apiEndpoint = '';
-    let weekType: 'current' | 'future' | 'previous' = 'current';
-    
-    if (payloadIRIWeek === currentIRIWeek) {
-      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetcurrentweekGridData`;
-      weekType = 'current';
-    } else if (payloadIRIWeek > currentIRIWeek) {
-      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetfutureweekGridData`;
-      weekType = 'future';
-    } else {
-      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetpreviousweekGridData`;
-      weekType = 'previous';
-    }
-    
-    this.weekTypeSubject.next(weekType);
-    
-    return this.http.post<any[]>(apiEndpoint, payload)
-      .pipe(catchError(this.handleError<any[]>('getGridData', [])));
-  }
-
-  // ENHANCED: Apply filters with specific data stream updates
-  applyFilters(filters: GetGridDataFilter): void {
-    const currentCountry = this.getCurrentCountry();
-    if (!currentCountry) {
-      filters.countryId = '1';
-    } else {
-      filters.countryId = currentCountry;
-    }
-
-    this.filtersSubject.next(filters);
-    this.currentFiltersSubject.next({
-      countryId: filters.countryId,
-      iri_week: filters.iriWeek,
-      territory_id: filters.territoryId,
-      area: filters.area,
-      store_number: filters.storeNumber,
-      store_name: filters.storeName,
-      state: filters.state,
-      city: filters.city,
-      position_number: filters.positionNumber,
-      task_number: filters.taskNumber,
-      emp_id: filters.empId,
-      fsr_hour: filters.fsrHour,
-      fsr_over_25hrs: filters.fsrOver25hrs,
-      fsr_over_6hrs: filters.fsrOver6hrs,
-      assigned_stores: filters.assignedStores,
-      unassigned_stores: filters.unassignedStores,
-      sample: filters.sample,
-      nonsample: filters.nonSample,
-      multi_fsr_store: filters.multiFsrStore,
-      vacation: filters.vacation,
-      temporary: filters.temporary,
-      fsr_hour_operator: filters.fsrHourOperator
-    });
-    
-    this.getGridData(filters).subscribe({
-      next: (data) => {
-        const currentIRIWeek = this.getCurrentIRIWeek();
-        const payloadIRIWeek = filters.iriWeek;
-        
-        const dataWithComments = data.map(row => ({
-          ...row,
-          StoreNumber: row.StoreNumber || row.store_number,
-          StoreName: row.StoreName || row.store_name,
-          City: row.CityName || row.city_name,
-          State: row.StateCd || row.state_cd,
-          Zip: row.ZipCd || row.zip_cd,
-          AddrLine1: row.AddrLine1 || row.addr_line1,
-          // ENHANCED: Support for EmployeeName instead of FirstName/LastName
-          AssignedTo: this.getAssignedToDisplay(row),
-          UserComment: row.UserComment || '',
-          IsCommentEditing: false
-        }));
-        
-        if (payloadIRIWeek === currentIRIWeek) {
-          this.currentWeekDataSubject.next(dataWithComments);
-        } else if (payloadIRIWeek > currentIRIWeek) {
-          this.futureWeekDataSubject.next(dataWithComments);
-        } else {
-          this.previousWeekDataSubject.next(dataWithComments);
-        }
-        
-        this.gridDataSubject.next(dataWithComments);
-      },
-      error: (error) => {
-        console.error('Error applying filters:', error);
-        this.currentWeekDataSubject.next([]);
-        this.futureWeekDataSubject.next([]);
-        this.previousWeekDataSubject.next([]);
-        this.gridDataSubject.next([]);
-      }
-    });
-  }
-
-  // ENHANCED: Support both EmployeeName and FirstName/LastName formats
-  private getAssignedToDisplay(row: any): string {
-    // New format: EmployeeName field (comma-separated full names)
-    if (row.EmployeeName) {
-      return row.EmployeeName.trim() || 'NOT ASSIGNED';
-    }
-    
-    // Legacy format: FirstName and LastName fields
-    if (!row.FirstName || !row.LastName) {
-      return 'NOT ASSIGNED';
-    }
-
-    const hasCommaInFirst = row.FirstName.includes(',');
-    const hasCommaInLast = row.LastName.includes(',');
-
-    if (!hasCommaInFirst && !hasCommaInLast) {
-      return `${row.FirstName.trim()} ${row.LastName.trim()}`.trim();
-    }
-
-    const firstNames = row.FirstName.split(',').map(name => name.trim());
-    const lastNames = row.LastName.split(',').map(name => name.trim());
-
-    if (firstNames.length !== lastNames.length) {
-      return `${row.FirstName} ${row.LastName}`.trim();
-    }
-
-    const fullNames = firstNames.map((firstName, index) => {
-      const lastName = lastNames[index] || '';
-      return `${firstName} ${lastName}`.trim();
-    });
-
-    return fullNames.join(', ');
-  }
-
-  getCurrentWeekType(): 'current' | 'future' | 'previous' {
-    return this.weekTypeSubject.value;
-  }
-
-  // IRI Week management
-  async loadCurrentIRIWeek(): Promise<void> {
-    try {
-      const currentWeek = await firstValueFrom(
-        this.http.get<any>(`${this.baseUrl}api/TaskAssinment/GetCurrentIRIWeek`)
-      );
-      this.currentIRIWeekSubject.next(currentWeek.toString());
-    } catch (error) {
-      console.error('Error loading current IRI week:', error);
-      this.currentIRIWeekSubject.next('2405');
-    }
-  }
-
-  getCurrentIRIWeek(): string {
-    return this.currentIRIWeekSubject.value;
-  }
-
-  // Country management
-  setCountry(countryId: string): void {
-    this.countrySubject.next(countryId);
-  }
-
-  getCurrentCountry(): string {
-    return this.countrySubject.value;
-  }
-
-  // Spinner management
-  show(taskId: string = 'default'): void {
-    this.loadingTasks.add(taskId);
-    this.spinnerSubject.next(true);
-  }
-
-  hide(taskId: string = 'default'): void {
-    this.loadingTasks.delete(taskId);
-    if (this.loadingTasks.size === 0) {
-      this.spinnerSubject.next(false);
-    }
-  }
-
-  hideAll(): void {
-    this.loadingTasks.clear();
-    this.spinnerSubject.next(false);
-  }
-
-  isLoading(): boolean {
-    return this.spinnerSubject.value;
-  }
-
-  // Employee data
-  getEmployee(userId: string): Observable<any> {
-    return this.http.post<any>(`${this.baseUrl}api/TaskAssinment/GetEmployee`, { userId: userId })
-      .pipe(catchError(this.handleError<any>('getEmployee', {})));
-  }
-
-  // Comment management
-  saveUserComment(storeNumber: string, comment: string): Observable<any> {
-    const payload = {
-      StoreNumber: storeNumber,
-      Comment: comment,
-      UserId: localStorage.getItem("loggedUserId") || ''
-    };
-    
-    return this.http.post(`${this.baseUrl}api/TaskAssinment/SaveUserComment`, payload)
-      .pipe(catchError(this.handleError('saveUserComment', {})));
-  }
-
-  // Search methods (keeping existing ones)
-  searchStores(payload: any): Observable<any[]> {
-    return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetStore`, payload)
-      .pipe(catchError(this.handleError<any[]>('searchStores', [])));
-  }
-
-  searchStates(payload: any): Observable<any[]> {
-    return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetState`, payload)
-      .pipe(catchError(this.handleError<any[]>('searchStates', [])));
-  }
-
-  searchCities(payload: any): Observable<any[]> {
-    return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetCity`, payload)
-      .pipe(catchError(this.handleError<any[]>('searchCities', [])));
-  }
-
-  searchClusters(payload: any): Observable<any[]> {
-    return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetCluster`, payload)
-      .pipe(catchError(this.handleError<any[]>('searchClusters', [])));
-  }
-
-  searchTasks(payload: any): Observable<any[]> {
-    return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetTask`, payload)
-      .pipe(catchError(this.handleError<any[]>('searchTasks', [])));
-  }
-
-  // API helper methods
-  getIriWeeks(): Observable<any[]> {
-    return this.http.get<any[]>(`${this.baseUrl}api/TaskAssinment/GetIriWeek`)
-      .pipe(catchError(this.handleError<any[]>('getIriWeeks', [])));
-  }
-
-  getTerritories(): Observable<any[]> {
-    return this.http.get<any[]>(`${this.baseUrl}api/TaskAssinment/GetTerritory`)
-      .pipe(catchError(this.handleError<any[]>('getTerritories', [])));
-  }
-
-  // Clear filters
-  clearFilters(): void {
-    const defaultFilters = new GetGridDataFilter();
-    this.filtersSubject.next(defaultFilters);
-    this.currentWeekDataSubject.next([]);
-    this.futureWeekDataSubject.next([]);
-    this.previousWeekDataSubject.next([]);
-    this.gridDataSubject.next([]);
-  }
-
-  // Error handler
-  private handleError<T>(operation = 'operation', result?: T) {
-    return (error: any): Observable<T> => {
-      console.error(`${operation} failed:`, error);
-      return of(result as T);
-    };
-  }
-}
-2. ENHANCED filter-sidebar.component.ts (Column Visibility Implementation)
-typescript
-import { HttpClient } from '@angular/common/http';
-import { Component, ElementRef, EventEmitter, Inject, OnDestroy, OnInit, Output } from '@angular/core';
-import { FormBuilder, FormControl, FormGroup } from '@angular/forms';
-import { catchError, debounceTime, distinctUntilChanged, firstValueFrom, Observable, of, Subject, switchMap, takeUntil, tap } from 'rxjs';
-import { GetGridDataFilter } from '../shared/common.model';
-import { CommonService } from '../shared/common.service';
-
-@Component({
-  selector: 'app-filter-sidebar',
-  templateUrl: './filter-sidebar.component.html',
-  styleUrls: ['./filter-sidebar.component.css']
-})
-export class FilterSidebarComponent implements OnInit, OnDestroy {
-  @Output() filtersChanged = new EventEmitter<GetGridDataFilter>();
-  @Output() clearFilters = new EventEmitter<void>();
-  @Output() columnsChanged = new EventEmitter<string[]>();
-
-  filterForm!: FormGroup;
-  showAdvancedFilters = false;
-  showSpinner = false;
-  
-  private formInitialized = false;
-  private dataLoaded = {
-    iriWeek: false,
-    territory: false,
-    employee: false
-  };
-
-  // ENHANCED: Dynamic column definitions based on week type
-  private allAvailableColumns = {
-    base: [
-      { key: 'store_number', label: 'Store Number', required: true },
-      { key: 'store_name', label: 'Store Name', required: true },
-      { key: 'addr_line1', label: 'Address', required: false },
-      { key: 'city', label: 'City', required: false },
-      { key: 'state', label: 'State', required: false },
-      { key: 'zip', label: 'Zip', required: false },
-      { key: 'assigned_to', label: 'Assigned To', required: true },
-      { key: 'user_comment', label: 'Comments', required: true }
-    ],
-    current: [
-      { key: 'store_number', label: 'Store Number', required: true },
-      { key: 'store_name', label: 'Store Name', required: true },
-      { key: 'addr_line1', label: 'Address', required: false },
-      { key: 'city', label: 'City', required: false },
-      { key: 'state', label: 'State', required: false },
-      { key: 'assigned_to', label: 'Assigned To', required: true },
-      { key: 'task_completed', label: 'Task Completed', required: false },
-      { key: 'quality', label: 'Quality', required: false },
-      { key: 'cost_over', label: 'Cost Over', required: false },
-      { key: 'guaranteed_miles', label: 'Miles', required: false },
-      { key: 'user_comment', label: 'Comments', required: true }
-    ],
-    future: [
-      { key: 'store_number', label: 'Store Number', required: true },
-      { key: 'store_name', label: 'Store Name', required: true },
-      { key: 'addr_line1', label: 'Address', required: false },
-      { key: 'city', label: 'City', required: false },
-      { key: 'state', label: 'State', required: false },
-      { key: 'assigned_to', label: 'Assigned To', required: true },
-      { key: 'avg_cost', label: 'Avg Cost', required: false },
-      { key: 'guaranteed_miles', label: 'Miles', required: false },
-      { key: 'user_comment', label: 'Comments', required: true }
-    ],
-    previous: [
-      { key: 'store_number', label: 'Store Number', required: true },
-      { key: 'store_name', label: 'Store Name', required: true },
-      { key: 'addr_line1', label: 'Address', required: false },
-      { key: 'city', label: 'City', required: false },
-      { key: 'state', label: 'State', required: false },
-      { key: 'assigned_to', label: 'Assigned To', required: true },
-      { key: 'task_completed', label: 'Task Completed', required: false },
-      { key: 'quality', label: 'Quality', required: false },
-      { key: 'cost_over', label: 'Cost Over', required: false },
-      { key: 'wk1_costs', label: 'WK1 Costs', required: false },
-      { key: 'wk2_costs', label: 'WK2 Costs', required: false },
-      { key: 'user_comment', label: 'Comments', required: true }
-    ]
-  };
-
-  // Current week type tracking
-  currentWeekType: 'current' | 'future' | 'previous' = 'current';
-  availableColumns: any[] = [];
-  selectedColumns: string[] = [];
-
-  // Data arrays
-  employeedata: any[] = [];
-  iriWeeks: any[] = [];
-  territories: any[] = [];
-  filteredStores: any[] = [];
-  filteredState: any[] = [];
-  filteredCity: any[] = [];
-  filteredCluster: any[] = [];
-  filteredTask: any[] = [];
-  filteredFSR: any[] = [];
-
-  fsrHourOperators = [
-    { value: 'NA', label: 'NA' },
-    { value: '>', label: '>' },
-    { value: '=', label: '=' },
-    { value: '<', label: '<' }
-  ];
-
-  // Selected values
-  selectedStoreNumber = '';
-  selectedState = '';
-  selectedCity = '';
-  selectedCluster = '';
-  selectedTask = '';
-  selectedFsrId = '';
-  areaNBRctrl = new FormControl();
-  private unsubscribe$ = new Subject<void>();
-  private loggeduser: string;
-
-  constructor(
-    private fb: FormBuilder,
-    private commonService: CommonService,
-    public http: HttpClient,
-    @Inject('BASE_URL') public baseUrl: string,
-  ) {
-    this.initializeForm();
-    this.loggeduser = localStorage.getItem("loggedUserId") || '';
-  }
-
-  async ngOnInit(): Promise<void> {
-    // ENHANCED: Subscribe to week type changes
-    this.commonService.weekType$
-      .pipe(takeUntil(this.unsubscribe$))
-      .subscribe(weekType => {
-        this.currentWeekType = weekType;
-        this.updateAvailableColumns();
-        this.resetSelectedColumnsForWeekType();
-      });
-
-    try {
-      this.employeedata = await firstValueFrom(this.commonService.getEmployee(this.loggeduser));
-      this.dataLoaded.employee = true;
-      
-      await this.getIriWeek();
-      this.dataLoaded.iriWeek = true;
-      
-      await this.getTerritory();  
-      this.dataLoaded.territory = true;
-      
-      this.setupFormSubscriptions();
-      this.formInitialized = true;
-      this.applyDefaultFilters();
-      
-    } catch (error) {
-      console.error('Error initializing filter component:', error);
-    }
-  }
-
-  // ENHANCED: Update available columns based on week type
-  private updateAvailableColumns(): void {
-    switch (this.currentWeekType) {
-      case 'current':
-        this.availableColumns = this.allAvailableColumns.current;
-        break;
-      case 'future':
-        this.availableColumns = this.allAvailableColumns.future;
-        break;
-      case 'previous':
-        this.availableColumns = this.allAvailableColumns.previous;
-        break;
-      default:
-        this.availableColumns = this.allAvailableColumns.base;
-    }
-  }
-
-  // ENHANCED: Reset selected columns when week type changes
-  private resetSelectedColumnsForWeekType(): void {
-    this.selectedColumns = this.availableColumns
-      .filter(col => col.required || this.getDefaultVisibleColumns().includes(col.key))
-      .map(col => col.key);
-    
-    this.columnsChanged.emit(this.selectedColumns);
-  }
-
-  // ENHANCED: Get default visible columns based on week type
-  private getDefaultVisibleColumns(): string[] {
-    const common = ['addr_line1', 'city', 'state'];
-    
-    switch (this.currentWeekType) {
-      case 'current':
-        return [...common, 'task_completed', 'quality'];
-      case 'future':
-        return [...common, 'avg_cost'];
-      case 'previous':
-        return [...common, 'task_completed', 'wk1_costs'];
-      default:
-        return common;
-    }
-  }
-
-  // ENHANCED: Column selection change with week type awareness
-  onColumnSelectionChange(): void {
-    const requiredColumns = this.availableColumns
-      .filter(col => col.required)
-      .map(col => col.key);
-      
-    this.selectedColumns = [...new Set([...this.selectedColumns, ...requiredColumns])];
-    this.columnsChanged.emit(this.selectedColumns);
-  }
-
-  isColumnRequired(columnKey: string): boolean {
-    return this.availableColumns.find(col => col.key === columnKey)?.required || false;
-  }
-
-  private initializeForm(): void {
-    this.filterForm = this.fb.group({
-      iriWeek: [''],
-      territory: [''],
-      store: [''],
-      state: [''],
-      city: [''],
-      cluster: [''],
-      task: [''],
-      fsr: [''],
-      fsrHour: [''],
-      fsrHourOperator: ['NA'], 
-      storeAssignment: ['all'],
-      sampleType: ['all'],
-      multiFsrStore: [false]
-    });
-  }
-
-  // Keep all your existing methods (getIriWeek, getTerritory, etc.) - they remain the same
-
-  onApplyFilters(): void {
-    this.commonService.show('apply-filters');
-    
-    if (!this.formInitialized) {
-      console.log('Form not initialized yet, skipping filter application');
-      this.commonService.hide('apply-filters');
-      return;
-    }
-
-    const formValue = this.filterForm.value;
-    if (!formValue.iriWeek || !formValue.territory) {
-      this.commonService.hide('apply-filters');
-      return;
-    }
-
-    const currentCountry = this.commonService.getCurrentCountry();
-    const filters = new GetGridDataFilter();
-    filters.countryId = currentCountry || '1';
-    filters.lanId = this.loggeduser;
-    filters.iriWeek = formValue.iriWeek || '';
-    filters.territoryId = formValue.territory || '';
-    filters.area = this.areaNBRctrl.value || '23';
-    filters.storeNumber = this.selectedStoreNumber;
-    filters.storeName = formValue.store || '';
-    filters.state = this.selectedState;
-    filters.city = this.selectedCity;
-    filters.positionNumber = this.selectedCluster;
-    filters.taskNumber = this.selectedTask;
-    filters.empId = this.selectedFsrId;
-    filters.fsrHour = formValue.fsrHour || '';
-    filters.fsrHourOperator = formValue.fsrHourOperator || 'NA'; 
-    filters.fsrOver25hrs = 'false';
-    filters.fsrOver6hrs = 'false';
-    filters.temporary = 'false';
-    filters.vacation = 'false';
-
-    if (formValue.storeAssignment === 'assigned') {
-      filters.assignedStores = 'true';
-      filters.unassignedStores = 'false';
-    } else if (formValue.storeAssignment === 'unassigned') {
-      filters.assignedStores = 'false';
-      filters.unassignedStores = 'true';
-    } else {
-      filters.assignedStores = 'false';
-      filters.unassignedStores = 'false';
-    }
-
-    if (formValue.sampleType === 'sample') {
-      filters.sample = 'true';
-      filters.nonSample = 'false';
-    } else if (formValue.sampleType === 'nonSample') {
-      filters.sample = 'false';
-      filters.nonSample = 'true';
-    } else {
-      filters.sample = 'false';
-      filters.nonSample = 'false';
-    }
-
-    filters.multiFsrStore = formValue.multiFsrStore ? 'true' : 'false';
-    
-    setTimeout(() => this.commonService.hide('apply-filters'), 100);
-    this.filtersChanged.emit(filters);
-  }
-
-  // Keep all your existing methods unchanged...
-  // (getIriWeek, getTerritory, setupFormSubscriptions, getStore, getState, etc.)
-
-  ngOnDestroy(): void {
-    this.unsubscribe$.next();
-    this.unsubscribe$.complete();
-  }
-}
-3. NEW comment-dialog.component.ts
-typescript
-import { Component, Inject, OnInit } from '@angular/core';
-import { FormControl, Validators } from '@angular/forms';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { CommonService } from '../shared/common.service';
-import { firstValueFrom } from 'rxjs';
-
-@Component({
-  selector: 'app-comment-dialog',
-  templateUrl: './comment-dialog.component.html',
-  styleUrls: ['./comment-dialog.component.css']
-})
-export class CommentDialogComponent implements OnInit {
-  
-  commentControl = new FormControl('', [Validators.maxLength(8000)]);
-  maxLength = 8000;
-  canEdit = false;
-  canDelete = false;
-  isLoading = false;
-
-  constructor(
-    public dialogRef: MatDialogRef<CommentDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: {
-      storeNumber: string;
-      storeName: string;
-      comment: string;
-      canEdit: boolean;
-      canDelete: boolean;
-    },
-    private commonService: CommonService
-  ) {}
-
-  ngOnInit(): void {
-    this.commentControl.setValue(this.data.comment || '');
-    this.canEdit = this.data.canEdit;
-    this.canDelete = this.data.canDelete;
-
-    if (!this.canEdit) {
-      this.commentControl.disable();
-    }
-  }
-
-  get remainingChars(): number {
-    const currentLength = this.commentControl.value?.length || 0;
-    return this.maxLength - currentLength;
-  }
-
-  get charCountColor(): string {
-    const remaining = this.remainingChars;
-    if (remaining < 100) return 'warn';
-    if (remaining < 500) return 'accent';
-    return 'primary';
-  }
-
-  async saveComment(): Promise<void> {
-    if (!this.canEdit || this.commentControl.invalid) return;
-
-    this.isLoading = true;
-    try {
-      await firstValueFrom(
-        this.commonService.saveUserComment(
-          this.data.storeNumber, 
-          this.commentControl.value || ''
-        )
-      );
-      
-      this.dialogRef.close({
-        action: 'save',
-        comment: this.commentControl.value || ''
-      });
-    } catch (error) {
-      console.error('Error saving comment:', error);
-      // Handle error (show snackbar, etc.)
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  async deleteComment(): Promise<void> {
-    if (!this.canDelete) return;
-
-    const confirmed = confirm('Are you sure you want to delete this comment? This action cannot be undone.');
-    if (!confirmed) return;
-
-    this.isLoading = true;
-    try {
-      await firstValueFrom(
-        this.commonService.saveUserComment(this.data.storeNumber, '')
-      );
-      
-      this.dialogRef.close({
-        action: 'delete',
-        comment: ''
-      });
-    } catch (error) {
-      console.error('Error deleting comment:', error);
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  cancel(): void {
-    this.dialogRef.close({ action: 'cancel' });
-  }
-
-  onTextareaKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Enter' && event.ctrlKey) {
-      this.saveComment();
-    } else if (event.key === 'Escape') {
-      this.cancel();
-    }
-  }
-}
-4. NEW comment-dialog.component.html
+UPDATED store-table.component.html (With Sortable Columns)
 xml
-<div class="comment-dialog">
-  <h2 mat-dialog-title>
-    <mat-icon>comment</mat-icon>
-    Comment for {{data.storeName}} ({{data.storeNumber}})
-  </h2>
+<mat-card-content>
+  <div class="table-wrapper">
+    <mat-table #table [dataSource]="dataSource" matSort class="store-table mat-elevation-2" [ngClass]="getWeekTypeTableClass()">
+      
+      <!-- Store Number Column - Sortable -->
+      <ng-container matColumnDef="store_number" *ngIf="isColumnVisible('store_number')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="StoreNumber" class="mat-header-style">
+          <button mat-icon-button 
+                  [disabled]="isExpandingAll"
+                  (click)="expandAllRows()" 
+                  [title]="allExpanded ? 'Collapse All' : 'Expand All'"
+                  class="expand-all-btn">
+            <mat-icon>{{allExpanded ? 'unfold_less' : 'unfold_more'}}</mat-icon>
+          </button>
+          Store #
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element" class="store-number-cell">
+          <div style="width: 100%;">
+            <span class="caret" [class.clicked]="isRowExpanded(element)">▼</span>
+            <span class="store-number">{{element.StoreNumber}}</span>
+          </div>
+        </mat-cell>
+      </ng-container>
 
-  <mat-dialog-content>
-    <div class="comment-section">
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Comment</mat-label>
-        <textarea matInput 
-                  [formControl]="commentControl"
-                  [readonly]="!canEdit"
-                  (keydown)="onTextareaKeydown($event)"
-                  placeholder="Enter your comment here..."
-                  rows="8"
-                  maxlength="8000">
-        </textarea>
-        
-        <!-- Character count -->
-        <mat-hint align="end" [ngClass]="charCountColor">
-          {{commentControl.value?.length || 0}} / {{maxLength}}
-          <span *ngIf="remainingChars < 100" class="warning-text">
-            ({{remainingChars}} remaining)
+      <!-- Territory - Sortable -->
+      <ng-container matColumnDef="territory" *ngIf="isColumnVisible('territory')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="FldTerrtyNbr" class="mat-header-style" matTooltip="Territory">
+          Terr
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element">{{element.FldTerrtyNbr}}</mat-cell>
+      </ng-container>
+
+      <!-- Position Number - Sortable -->
+      <ng-container matColumnDef="position_number" *ngIf="isColumnVisible('position_number')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="PositionName" class="mat-header-style">
+          Position #
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element">{{element.PositionName}}</mat-cell>
+      </ng-container>
+
+      <!-- BFD - Sortable -->
+      <ng-container matColumnDef="bdf" *ngIf="isColumnVisible('bdf')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="Bfd" class="mat-header-style">
+          BFD
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element">{{element.Bfd}}</mat-cell>
+      </ng-container>
+
+      <!-- Outlet - Sortable -->
+      <ng-container matColumnDef="outlet" *ngIf="isColumnVisible('outlet')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="OutletType" class="mat-header-style">
+          Outlet
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element">{{element.OutletType}}</mat-cell>
+      </ng-container>
+
+      <!-- Store Name Column - Sortable -->
+      <ng-container matColumnDef="store_name" *ngIf="isColumnVisible('store_name')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="StoreName" class="mat-header-style">
+          Store Name
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element" class="store-name-cell">
+          <div style="width: 100%;">
+            <span class="store-name" (click)="openProximityDataDialog(element); $event.stopPropagation();">
+              {{element.StoreName}}
+            </span>
+          </div>
+        </mat-cell>
+      </ng-container>
+
+      <!-- Address Column - Sortable -->
+      <ng-container matColumnDef="addr_line1" *ngIf="isColumnVisible('addr_line1')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="AddrLine1" class="mat-header-style">
+          Address
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element">{{element.AddrLine1}}</mat-cell>
+      </ng-container>
+
+      <!-- City Column - Sortable -->
+      <ng-container matColumnDef="city" *ngIf="isColumnVisible('city')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="City" class="mat-header-style">
+          City
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element">{{element.City}}</mat-cell>
+      </ng-container>
+
+      <!-- State Column - Sortable -->
+      <ng-container matColumnDef="state" *ngIf="isColumnVisible('state')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="State" class="mat-header-style">
+          State
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element">
+          <div style="width: 100%;">
+            <span class="state-badge">{{element.State}}</span>
+          </div>
+        </mat-cell>
+      </ng-container>
+
+      <!-- Zip Column - Sortable -->
+      <ng-container matColumnDef="zip" *ngIf="isColumnVisible('zip')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="Zip" class="mat-header-style">
+          Zip
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element">{{element.Zip}}</mat-cell>
+      </ng-container>
+
+      <!-- ENHANCED: Assigned To Column - Sortable -->
+      <ng-container matColumnDef="assigned_to" *ngIf="isColumnVisible('assigned_to')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="AssignedTo" class="mat-header-style">
+          Assigned To
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element" class="assigned-cell" 
+                  (click)="openAssignmentDialog(element, 'StoreLevel'); $event.stopPropagation()">
+          <div class="assignment-container">
+            <div class="assignment-names" 
+                [ngClass]="getAssignmentClass(element.AssignedTo)"
+                [matTooltip]="getAssignedToTooltip(element.AssignedTo)"
+                matTooltipClass="multi-line-tooltip">
+              
+              <!-- Single person or NOT ASSIGNED - display normally -->
+              <div *ngIf="!shouldDisplayMultipleLines(element.AssignedTo)" class="single-name">
+                {{element.AssignedTo || 'NOT ASSIGNED'}}
+              </div>
+              
+              <!-- Multiple people - display line by line -->
+              <div *ngIf="shouldDisplayMultipleLines(element.AssignedTo)" class="multiple-names">
+                <div *ngFor="let name of getIndividualNames(element.AssignedTo); let i = index" 
+                    class="name-line"
+                    [class.first-name]="i === 0">
+                  {{name}}
+                </div>
+              </div>
+            </div>
+          </div>
+        </mat-cell>
+      </ng-container>
+
+      <!-- Task Completed Column - Sortable -->
+      <ng-container matColumnDef="task_completed" *ngIf="isColumnVisible('task_completed')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="TaskCompleted" class="mat-header-style" 
+                         matTooltip="Task Completed Status">
+          Completed
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element">
+          <span class="status-badge" [ngClass]="getTaskCompletedClass(element.TaskCompleted)">
+            {{formatTaskCompleted(element.TaskCompleted)}}
           </span>
-        </mat-hint>
-        
-        <!-- Validation errors -->
-        <mat-error *ngIf="commentControl.hasError('maxlength')">
-          Comment cannot exceed {{maxLength}} characters
-        </mat-error>
-      </mat-form-field>
+        </mat-cell>
+      </ng-container>
 
-      <!-- Read-only notice -->
-      <div *ngIf="!canEdit" class="read-only-notice">
-        <mat-icon>visibility</mat-icon>
-        <span>You have read-only access to this comment</span>
-      </div>
+      <!-- Quality Column - Sortable -->
+      <ng-container matColumnDef="quality" *ngIf="isColumnVisible('quality')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="Quality" class="mat-header-style" 
+                         matTooltip="Quality Assessment">
+          Quality
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element">
+          <span class="quality-badge" [ngClass]="getQualityClass(element.Quality)">
+            {{formatQuality(element.Quality)}}
+          </span>
+        </mat-cell>
+      </ng-container>
 
-      <!-- Keyboard shortcuts info -->
-      <div class="shortcuts-info" *ngIf="canEdit">
-        <small>
-          <strong>Shortcuts:</strong> Ctrl+Enter to save, Escape to cancel
-        </small>
-      </div>
-    </div>
-  </mat-dialog-content>
+      <!-- Cost Over Column - Sortable -->
+      <ng-container matColumnDef="cost_over" *ngIf="isColumnVisible('cost_over')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="CostOver" class="mat-header-style">
+          Over Cost
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element">
+          <span class="cost-badge" [ngClass]="getCostOverClass(element.CostOver)">
+            {{formatCostOver(element.CostOver)}}
+          </span>
+        </mat-cell>
+      </ng-container>
 
-  <mat-dialog-actions align="end">
-    <!-- Cancel button -->
-    <button mat-button 
-            (click)="cancel()"
-            [disabled]="isLoading">
-      Cancel
-    </button>
+      <!-- Guaranteed Miles Column - Sortable -->
+      <ng-container matColumnDef="guaranteed_miles" *ngIf="isColumnVisible('guaranteed_miles')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="GuaranteedMiles" class="mat-header-style">
+          Miles
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element">{{formatGuaranteedMiles(element.GuaranteedMiles)}}</mat-cell>
+      </ng-container>
 
-    <!-- Delete button -->
-    <button *ngIf="canDelete && data.comment" 
-            mat-button 
-            color="warn"
-            (click)="deleteComment()"
-            [disabled]="isLoading">
-      <mat-icon>delete</mat-icon>
-      Delete
-    </button>
+      <!-- Average Cost Column - Sortable -->
+      <ng-container matColumnDef="avg_cost" *ngIf="isColumnVisible('avg_cost')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="AvgCost" class="mat-header-style">
+          Avg Cost
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element">{{formatMoney(element.AvgCost)}}</mat-cell>
+      </ng-container>
 
-    <!-- Save button -->
-    <button *ngIf="canEdit" 
-            mat-raised-button 
-            color="primary"
-            (click)="saveComment()"
-            [disabled]="isLoading || commentControl.invalid">
-      <mat-spinner *ngIf="isLoading" diameter="16"></mat-spinner>
-      <mat-icon *ngIf="!isLoading">save</mat-icon>
-      {{isLoading ? 'Saving...' : 'Save'}}
-    </button>
-  </mat-dialog-actions>
-</div>
-5. NEW comment-dialog.component.css
-css
-.comment-dialog {
-  min-width: 500px;
-  max-width: 700px;
-}
+      <!-- WK1 Costs Column - Sortable -->
+      <ng-container matColumnDef="wk1_costs" *ngIf="isColumnVisible('wk1_costs')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="WK1FSRProdCost" class="mat-header-style">
+          WK1 Cost
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element">{{formatMoney(element.WK1FSRProdCost)}}</mat-cell>
+      </ng-container>
 
-.comment-dialog h2 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #333;
-  margin-bottom: 16px;
-}
+      <!-- WK1 Travel Costs Column - Sortable -->
+      <ng-container matColumnDef="wk1_travel" *ngIf="isColumnVisible('wk1_travel')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="WK1StoreTravelCost" class="mat-header-style">
+          WK1 Travel
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element">{{formatMoney(element.WK1StoreTravelCost)}}</mat-cell>
+      </ng-container>
 
-.comment-section {
-  min-height: 200px;
-  padding: 8px 0;
-}
+      <!-- WK1 OVG Travel Column - Sortable -->
+      <ng-container matColumnDef="wk1_ovg_travel" *ngIf="isColumnVisible('wk1_ovg_travel')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="WK1StoreTravelOvgCost" class="mat-header-style">
+          WK1 OVG Travel
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element">{{formatMoney(element.WK1StoreTravelOvgCost)}}</mat-cell>
+      </ng-container>
 
-.full-width {
-  width: 100%;
-}
+      <!-- WK2 Costs Column - Sortable -->
+      <ng-container matColumnDef="wk2_costs" *ngIf="isColumnVisible('wk2_costs')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="WK2FSRProdCost" class="mat-header-style">
+          WK2 Cost
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element">{{formatMoney(element.WK2FSRProdCost)}}</mat-cell>
+      </ng-container>
 
-.read-only-notice {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-  background-color: #f5f5f5;
-  border-radius: 4px;
-  color: #666;
-  margin-top: 16px;
-}
+      <!-- WK2 Travel Costs Column - Sortable -->
+      <ng-container matColumnDef="wk2_travel" *ngIf="isColumnVisible('wk2_travel')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="WK2StoreTravelCost" class="mat-header-style">
+          WK2 Travel
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element">{{formatMoney(element.WK2StoreTravelCost)}}</mat-cell>
+      </ng-container>
 
-.shortcuts-info {
-  margin-top: 8px;
-  color: #666;
-}
+      <!-- WK2 OVG Travel Column - Sortable (Fixed header text) -->
+      <ng-container matColumnDef="wk2_ovg_travel" *ngIf="isColumnVisible('wk2_ovg_travel')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="WK2StoreTravelOvgCost" class="mat-header-style">
+          WK2 OVG Travel
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element">{{formatMoney(element.WK2StoreTravelOvgCost)}}</mat-cell>
+      </ng-container>
 
-.warning-text {
-  color: #f44336;
-  font-weight: 500;
-}
+      <!-- ENHANCED: Comments Column - Sortable -->
+      <ng-container matColumnDef="user_comment" *ngIf="isColumnVisible('user_comment')">
+        <mat-header-cell *matHeaderCellDef mat-sort-header="UserComment" class="mat-header-style">
+          Comments
+        </mat-header-cell>
+        <mat-cell *matCellDef="let element" class="comment-cell">
+          <div class="comment-display"
+               (click)="openCommentDialog(element); $event.stopPropagation();"
+               [title]="element.UserComment || 'Click to add/edit comment'"
+               [class.has-comment]="element.UserComment"
+               [class.clickable]="canEditComments || element.UserComment">
+            
+            <span class="comment-text">
+              {{getCommentDisplay(element.UserComment)}}
+            </span>
+          </div>
+        </mat-cell>
+      </ng-container>
 
-.primary {
-  color: #2196f3;
-}
-
-.accent {
-  color: #ff9800;
-}
-
-.warn {
-  color: #f44336;
-}
-
-mat-dialog-actions {
-  padding-top: 16px;
-}
-
-mat-dialog-actions button {
-  margin-left: 8px;
-}
-
-textarea {
-  font-family: inherit;
-  resize: vertical;
-}
-6. ENHANCED store-table.component.ts (Complete & Clean)
+      <!-- Header and Data Rows -->
+      <mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></mat-header-row>
+      <mat-row *matRowDef="let row; columns: displayedColumns; let i = index"
+              class="table-row"
+              [cdkDetailRow]="row" 
+              [cdkDetailRowTpl]="tpl"
+              (toggleChange)="GetSubgridData($event, row)"
+              (dataLoadRequest)="onDataLoadRequest($event)"
+              matRipple>
+      </mat-row>
+    </mat-table>
+  </div>
+  
+  <mat-paginator [pageSizeOptions]="[50, 100, 150, 200]" 
+                showFirstLastButtons
+                class="table-paginator">
+  </mat-paginator>
+</mat-card-content>
+UPDATED store-table.component.ts (Enhanced Sorting Support)
 typescript
-import { Component, OnInit, OnDestroy, AfterViewInit, ViewChild, ViewChildren, QueryList, ChangeDetectorRef } from '@angular/core';
-import { FormControl } from '@angular/forms';
-import { MatTable, MatTableDataSource } from '@angular/material/table';
-import { MatPaginator } from '@angular/material/paginator';
-import { MatSort } from '@angular/material/sort';
-import { MatDialog } from '@angular/material/dialog';
-import { HttpClient } from '@angular/common/http';
-import { Subject, takeUntil, firstValueFrom } from 'rxjs';
-import { debounceTime, distinctUntilChanged, tap } from 'rxjs/operators';
-
-import { CommonService } from '../shared/common.service';
-import { GetGridDataFilter } from '../shared/common.model';
-import { CdkDetailRowDirective } from '../shared/cdk-detail-row.directive';
-import { AssignmentDialogComponent } from '../dialogs/assignment-dialog/assignment-dialog.component';
-import { ProximityDialogComponent } from '../dialogs/proximity-dialog/proximity-dialog.component';
-import { CommentDialogComponent } from '../dialogs/comment-dialog/comment-dialog.component';
-
-@Component({
-  selector: 'app-store-table',
-  templateUrl: './store-table.component.html',
-  styleUrls: ['./store-table.component.css']
-})
 export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
-  
-  @ViewChild(MatTable, { static: false }) table: MatTable<any>;
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
-  @ViewChild(MatSort) sort!: MatSort;
-  @ViewChildren(CdkDetailRowDirective) detailRows!: QueryList<CdkDetailRowDirective>;
-
-  // Week type tracking
-  currentWeekType: 'current' | 'future' | 'previous' = 'current';
-
-  // Column definitions for different week types
-  baseColumns = ['store_number', 'store_name', 'addr_line1', 'city', 'state', 'assigned_to', 'user_comment'];
-  
-  currentWeekColumns = [
-    'store_number', 'store_name', 'addr_line1', 'city', 'state', 'assigned_to', 
-    'task_completed', 'quality', 'cost_over', 'guaranteed_miles', 'user_comment'
-  ];
-  
-  futureWeekColumns = [
-    'store_number', 'store_name', 'addr_line1', 'city', 'state', 'assigned_to',
-    'avg_cost', 'guaranteed_miles', 'user_comment'
-  ];
-  
-  previousWeekColumns = [
-    'store_number', 'store_name', 'addr_line1', 'city', 'state', 'assigned_to',
-    'task_completed', 'quality', 'cost_over', 'wk1_costs', 'wk2_costs', 'user_comment'
-  ];
-
-  // ENHANCED: Dynamic column management
-  availableColumns: string[] = [];
-  displayedColumns: string[] = [];
-  visibleColumns: string[] = [];
-
-  // Data and state
-  dataSource = new MatTableDataSource<any>([]);
-  originalData: any[] = [];
-  showSpinner = false;
-  
-  // Search functionality
-  searchControl = new FormControl('');
-  isSearching = false;
-
-  // Expansion state
-  isExpandingAll = false;
-  allExpanded = false;
-  expandedRowsData = new Map<string, any[]>();
-  expandedRows = new Set<CdkDetailRowDirective>();
-  selectedRows = new Set<any>();
-
-  // User permissions
-  canEditComments = false;
-  canDeleteComments = false;
-
-  private destroy$ = new Subject<void>();
-  private unsubscribe$ = new Subject<void>();
-  private loggeduser: string;
-
-  constructor(
-    private commonService: CommonService,
-    private http: HttpClient,
-    private dialog: MatDialog,
-    private cdr: ChangeDetectorRef
-  ) {
-    this.loggeduser = localStorage.getItem("loggedUserId") || '';
-  }
-
-  ngOnInit(): void {
-    // Subscribe to spinner state
-    this.commonService.spinner$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(isLoading => {
-        this.showSpinner = isLoading;
-      });
-
-    // Subscribe to user group permissions
-    this.commonService.groupsStatus$.subscribe(userGroups => {
-      this.canEditComments = userGroups['isgTechnologyGroup'];
-      this.canDeleteComments = userGroups['isgTechnologyGroup'];
-    });
-
-    // Subscribe to week type changes
-    this.commonService.weekType$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(weekType => {
-        this.currentWeekType = weekType;
-        this.updateAvailableColumns();
-        this.updateDisplayedColumns();
-        this.cdr.detectChanges();
-      });
-
-    // Subscribe to current week data
-    this.commonService.currentWeekData$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(data => {
-        if (this.currentWeekType === 'current') {
-          this.updateDataSource(data);
-        }
-      });
-
-    // Subscribe to future week data
-    this.commonService.futureWeekData$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(data => {
-        if (this.currentWeekType === 'future') {
-          this.updateDataSource(data);
-        }
-      });
-
-    // Subscribe to previous week data
-    this.commonService.previousWeekData$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(data => {
-        if (this.currentWeekType === 'previous') {
-          this.updateDataSource(data);
-        }
-      });
-
-    this.setupSearch();
-  }
-
-  // ENHANCED: Column visibility management
-  updateVisibleColumns(selectedColumns: string[]): void {
-    this.visibleColumns = selectedColumns;
-    this.updateDisplayedColumns();
-    this.cdr.detectChanges();
-  }
-
-  private updateAvailableColumns(): void {
-    switch (this.currentWeekType) {
-      case 'current':
-        this.availableColumns = this.currentWeekColumns;
-        break;
-      case 'future':
-        this.availableColumns = this.futureWeekColumns;
-        break;
-      case 'previous':
-        this.availableColumns = this.previousWeekColumns;
-        break;
-      default:
-        this.availableColumns = this.baseColumns;
-    }
-  }
-
-  private updateDisplayedColumns(): void {
-    if (this.visibleColumns.length > 0) {
-      this.displayedColumns = this.availableColumns.filter(col => 
-        this.visibleColumns.includes(col)
-      );
-    } else {
-      this.displayedColumns = [...this.availableColumns];
-    }
-  }
-
-  isColumnVisible(columnName: string): boolean {
-    return this.displayedColumns.includes(columnName);
-  }
-
-  // ENHANCED: Multiple names display with line breaks
-  getAssignedToDisplay(assignedTo: string): string {
-    if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
-      return 'NOT ASSIGNED';
-    }
-
-    // Split by comma and return individual names
-    const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
-    return names.join('\\n'); // Line break for display
-  }
-
-  getAssignedToTooltip(assignedTo: string): string {
-    if (!assignedTo || assignedTo === 'NOT ASSIGNED') {
-      return 'No one assigned';
-    }
-    return assignedTo.split(',').map(name => name.trim()).join('\\n');
-  }
-
-  getAssignmentClass(assignedTo: string): string {
-    if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
-      return 'not-assigned';
-    }
-    
-    const nameCount = assignedTo.split(',').length;
-    return nameCount > 1 ? 'multiple-assigned' : 'single-assigned';
-  }
-
-  // ENHANCED: Comment management with popup dialog
-  openCommentDialog(element: any): void {
-    const dialogRef = this.dialog.open(CommentDialogComponent, {
-      width: '600px',
-      maxWidth: '90vw',
-      data: {
-        storeNumber: element.StoreNumber,
-        storeName: element.StoreName,
-        comment: element.UserComment || '',
-        canEdit: this.canEditComments,
-        canDelete: this.canDeleteComments
-      },
-      disableClose: true
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (result && result.action !== 'cancel') {
-        element.UserComment = result.comment;
-        this.cdr.detectChanges();
-      }
-    });
-  }
-
-  // ENHANCED: Comment display with truncation
-  getCommentDisplay(comment: string): string {
-    if (!comment) return this.canEditComments ? 'Add Comment...' : 'No comment';
-    
-    if (comment.length <= 20) return comment;
-    return comment.substring(0, 20) + '...';
-  }
-
-  // Search functionality
-  private setupSearch(): void {
-    this.searchControl.valueChanges.pipe(
-      debounceTime(300),
-      distinctUntilChanged(),
-      tap(() => {
-        this.isSearching = true;
-        this.commonService.show('table-search');
-      }),
-      takeUntil(this.destroy$)
-    ).subscribe(searchTerm => {
-      this.performSearch(searchTerm || '');
-    });
-  }
-
-  private performSearch(searchTerm: string): void {
-    try {
-      if (!searchTerm.trim()) {
-        this.dataSource.data = [...this.originalData];
-      } else {
-        const filtered = this.originalData.filter(row => 
-          this.matchesSearchTerm(row, searchTerm.toLowerCase())
-        );
-        this.dataSource.data = filtered;
-      }
-      
-      if (this.paginator) {
-        this.paginator.firstPage();
-      }
-      this.resetExpansionState();
-      
-    } catch (error) {
-      console.error('Error performing search:', error);
-    } finally {
-      this.isSearching = false;
-      this.commonService.hide('table-search');
-    }
-  }
-
-  private matchesSearchTerm(row: any, searchTerm: string): boolean {
-    const searchableFields = [
-      'StoreNumber', 'StoreName', 'AddrLine1', 'City', 'State', 
-      'Zip', 'AssignedTo', 'TaskCompleted', 'Quality', 'UserComment'
-    ];
-
-    return searchableFields.some(field => {
-      const value = row[field];
-      return value && value.toString().toLowerCase().includes(searchTerm);
-    });
-  }
-
-  clearSearch(): void {
-    this.searchControl.setValue('');
-  }
-
-  // Data management
-  private updateDataSource(data: any[]): void {
-    this.commonService.show('table-update');
-    
-    this.originalData = [...data];
-    
-    const searchTerm = this.searchControl.value;
-    if (searchTerm && searchTerm.trim()) {
-      this.performSearch(searchTerm);
-    } else {
-      this.dataSource.data = data;
-    }
-    
-    this.dataSource.paginator = this.paginator;
-    this.dataSource.sort = this.sort;
-    this.resetExpansionState();
-    
-    this.commonService.hide('table-update');
-  }
-
-  // ENHANCED: Expand all rows with proper spinner management
-  async expandAllRows(): Promise<void> {
-    if (this.isExpandingAll) return;
-    
-    this.isExpandingAll = true;
-    this.commonService.show('expand-all-rows');
-    
-    try {
-      if (this.allExpanded) {
-        this.forceCollapseAllRows();
-        this.allExpanded = false;
-      } else {
-        this.forceCollapseAllRows();
-        await this.expandAllRowsWithData();
-        this.allExpanded = true;
-      }
-    } catch (error) {
-      console.error('Error in expandAllRows:', error);
-    } finally {
-      this.isExpandingAll = false;
-      this.commonService.hide('expand-all-rows');
-    }
-  }
-
-  // ENHANCED: Force collapse with proper spinner management
-  private forceCollapseAllRows(): void {
-    this.commonService.show('collapse-all-rows');
-    
-    const detailRowsArray = this.detailRows?.toArray() || [];
-    
-    detailRowsArray.forEach((detailRow) => {
-      if (detailRow.isExpanded) {
-        detailRow.collapse();
-      }
-    });
-    
-    this.expandedRows.clear();
-    this.selectedRows.clear();
-    
-    setTimeout(() => {
-      const caretIcons = document.querySelectorAll('.caret');
-      caretIcons.forEach(icon => {
-        icon.classList.remove('clicked');
-      });
-    }, 100);
-    
-    this.commonService.hide('collapse-all-rows');
-  }
-
-  // ENHANCED: Expand rows with data with proper spinner management
-  private async expandAllRowsWithData(): Promise<void> {
-    const currentPageData = this.getCurrentPageData();
-    const detailRowsArray = this.detailRows?.toArray() || [];
-    
-    if (detailRowsArray.length === 0) return;
-
-    this.commonService.show('load-all-subgrid-data');
-    
-    const dataLoadPromises = currentPageData.map(rowData => 
-      this.loadSubgridDataForRow(rowData).catch(error => {
-        console.error(`Error loading data for ${rowData.StoreNumber}:`, error);
-        return [];
-      })
-    );
-
-    const allRowData = await Promise.all(dataLoadPromises);
-    this.commonService.hide('load-all-subgrid-data');
-
-    for (let i = 0; i < Math.min(currentPageData.length, detailRowsArray.length); i++) {
-      const detailRowDirective = detailRowsArray[i];
-      const rowData = allRowData[i];
-      
-      if (detailRowDirective && detailRowDirective.canExpand()) {
-        try {
-          detailRowDirective.expandWithData(rowData);
-          this.expandedRows.add(detailRowDirective);
-          this.selectedRows.add(currentPageData[i]);
-          await this.delay(25);
-        } catch (error) {
-          console.error(`Error expanding row ${i}:`, error);
-        }
-      }
-    }
-    
-    setTimeout(() => {
-      const caretIcons = document.querySelectorAll('.caret');
-      caretIcons.forEach(icon => {
-        icon.classList.add('clicked');
-      });
-    }, 100);
-  }
-
-  // ENHANCED: Load subgrid data with proper spinner management
-  private loadSubgridDataForRow(row: any): Promise<any[]> {
-    const storeKey = row.StoreNumber || row.store_number;
-    this.commonService.show(`subgrid-${storeKey}`);
-    
-    return new Promise((resolve, reject) => {
-      if (this.expandedRowsData.has(storeKey)) {
-        this.commonService.hide(`subgrid-${storeKey}`);
-        resolve(this.expandedRowsData.get(storeKey) || []);
-        return;
-      }
-
-      const payload = {
-        IriWeek: row.IriWeek || row.iri_week,
-        StoreNumber: storeKey
-      };
-
-      this.http.post<any[]>(this.commonService.baseUrl + 'api/TaskAssinment/GetSubgridData', payload)
-        .pipe(takeUntil(this.unsubscribe$))
-        .subscribe({
-          next: (response) => {
-            this.expandedRowsData.set(storeKey, response);
-            this.commonService.hide(`subgrid-${storeKey}`);
-            resolve(response);
-          },
-          error: (error) => {
-            this.commonService.hide(`subgrid-${storeKey}`);
-            reject(error);
-          }
-        });
-    });
-  }
-
-  // Individual row expansion
-  GetSubgridData(cdkDetailRow: CdkDetailRowDirective, row: any): void {
-    if (cdkDetailRow.isExpanded) {
-      this.expandedRows.add(cdkDetailRow);
-      this.selectedRows.add(row);
-    } else {
-      this.expandedRows.delete(cdkDetailRow);
-      this.selectedRows.delete(row);
-      
-      if (this.allExpanded && this.expandedRows.size < this.getCurrentPageData().length) {
-        this.allExpanded = false;
-      }
-    }
-    
-    this.updateCaretIcon(cdkDetailRow, cdkDetailRow.isExpanded);
-  }
-
-  // Data load request handler
-  onDataLoadRequest(event: {directive: CdkDetailRowDirective, rowData: any}): void {
-    const { directive, rowData } = event;
-    const storeKey = rowData.StoreNumber || rowData.store_number;
-    
-    if (this.expandedRowsData.has(storeKey)) {
-      directive.setSubgridData(this.expandedRowsData.get(storeKey) || []);
-    } else {
-      this.loadSubgridDataForRow(rowData)
-        .then(data => {
-          directive.setSubgridData(data);
-        })
-        .catch(error => {
-          console.error('Error loading subgrid data:', error);
-          directive.setSubgridData([]);
-        });
-    }
-  }
-
-  // Week type display methods
-  getWeekTypeDisplayName(): string {
-    switch (this.currentWeekType) {
-      case 'current': return 'Current Week Tasks';
-      case 'future': return 'Future Week Planning';
-      case 'previous': return 'Previous Week History';
-      default: return 'Store Assignment Data';
-    }
-  }
-
-  getWeekTypeClass(): string {
-    return `week-${this.currentWeekType}`;
-  }
-
-  // Data formatting methods for different week types
-  formatTaskCompleted(value: any): string {
-    return value?.toLowerCase() === 'yes' ? 'Yes' : 'No';
-  }
-
-  formatQuality(value: any): string {
-    return value || 'N/A';
-  }
-
-  formatCostOver(value: any): string {
-    return value ? `${value}` : 'N/A';
-  }
-
-  formatGuaranteedMiles(value: any): string {
-    return value ? `${value}` : 'N/A';
-  }
-
-  formatAvgCost(value: any): string {
-    return value ? `$${parseFloat(value).toFixed(2)}` : 'TBD';
-  }
-
-  formatWk1Costs(row: any): string {
-    const prod = parseFloat(row.WK1FSRProdCost || 0);
-    const travel = parseFloat(row.WK1StoreTravelCost || 0);
-    const ovg = parseFloat(row.WK1StoreTravelOvgCost || 0);
-    const total = prod + travel + ovg;
-    return total > 0 ? `$${total.toFixed(2)}` : '$0.00';
-  }
-
-  formatWk2Costs(row: any): string {
-    const prod = parseFloat(row.WK2FSRProdCost || 0);
-    const travel = parseFloat(row.WK2StoreTravelCost || 0);
-    const ovg = parseFloat(row.WK2StoreTravelOvgCost || 0);
-    const total = prod + travel + ovg;
-    return total > 0 ? `$${total.toFixed(2)}` : '$0.00';
-  }
-
-  // Status badge classes
-  getTaskCompletedClass(value: any): string {
-    return value?.toLowerCase() === 'yes' ? 'completed' : 'incomplete';
-  }
-
-  getQualityClass(value: any): string {
-    const quality = value?.toLowerCase();
-    if (quality === 'good') return 'quality-good';
-    if (quality === 'average') return 'quality-average';
-    if (quality === 'poor') return 'quality-poor';
-    return 'quality-unknown';
-  }
-
-  getCostOverClass(value: any): string {
-    return value?.toLowerCase() === 'yes' ? 'cost-over' : 'cost-ok';
-  }
-
-  // Dialog methods
-  async openAssignmentDialog(row: any, mode: 'StoreLevel' | 'TaskLevel' = 'StoreLevel'): Promise<void> {
-    try {
-      const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
-      
-      if (!currentFilters || Object.keys(currentFilters).length === 0) {
-        console.warn('No filters applied. Cannot open assignment dialog.');
-        return;
-      }
-      
-      const dialogRef = this.dialog.open(AssignmentDialogComponent, {
-        width: '90vw',
-        maxWidth: '1200px',
-        height: '80vh',
-        data: {
-          storeNumber: row.StoreNumber,
-          storeName: row.StoreName,
-          iriWeek: row.IriWeek,
-          territoryId: currentFilters.territory_id,
-          mode: mode
-        },
-        disableClose: true
-      });
-
-      dialogRef.afterClosed().subscribe(result => {
-        if (result) {
-          this.refreshGridData();
-        }
-      });
-    } catch (error) {
-      console.error('Error opening assignment dialog:', error);
-    }
-  }
-
-  async openTaskAssignmentDialog(taskData: any): Promise<void> {
-    try {
-      const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
-      
-      if (!currentFilters || Object.keys(currentFilters).length === 0) {
-        console.warn('No filters applied. Cannot open assignment dialog.');
-        return;
-      }   
-
-      const dialogRef = this.dialog.open(AssignmentDialogComponent, {
-        width: '90vw',
-        maxWidth: '1200px', 
-        height: '80vh',
-        data: {
-          storeNumber: taskData.StoreNumber,
-          storeName: taskData.StoreName,
-          taskNumber: taskData.TaskNumber,
-          taskName: taskData.TaskName,
-          iriWeek: currentFilters.iri_week,
-          territoryId: currentFilters.territory_id,
-          mode: 'TaskLevel'
-        },
-        disableClose: true
-      });
-
-      dialogRef.afterClosed().subscribe(result => {
-        if (result) {
-          this.refreshGridData();
-        }
-      });
-    } catch (error) {
-      console.error('Error opening task assignment dialog:', error);
-    }
-  }
-
-  openProximityDataDialog(data: any): void {
-    this.dialog.open(ProximityDialogComponent, {
-      width: '40vw',
-      maxWidth: '40vw',
-      minWidth: '600px',
-      maxHeight: '55vh',
-      minHeight: '250px',
-      data: data,
-      disableClose: true,
-    });
-  }
-
-  // Utility methods
-  private resetExpansionState(): void {
-    this.allExpanded = false;
-    this.isExpandingAll = false;
-    this.expandedRows.clear();
-    this.selectedRows.clear();
-    this.expandedRowsData.clear();
-    
-    setTimeout(() => {
-      const caretIcons = document.querySelectorAll('.caret');
-      caretIcons.forEach(icon => {
-        icon.classList.remove('clicked');
-      });
-    }, 50);
-  }
-
-  private updateCaretIcon(cdkDetailRow: CdkDetailRowDirective, isExpanded: boolean): void {
-    [0, 50, 100].forEach(delay => {
-      setTimeout(() => {
-        const rowElement = cdkDetailRow.viewContainerRef.element.nativeElement.parentElement;
-        const caretIcon = rowElement?.querySelector('.caret');
-        
-        if (caretIcon) {
-          if (isExpanded) {
-            caretIcon.classList.add('clicked');
-          } else {
-            caretIcon.classList.remove('clicked');
-          }
-        }
-      }, delay);
-    });
-  }
-
-  private getCurrentPageData(): any[] {
-    if (!this.paginator) {
-      return this.dataSource.data;
-    }
-    
-    const startIndex = this.paginator.pageIndex * this.paginator.pageSize;
-    const endIndex = startIndex + this.paginator.pageSize;
-    return this.dataSource.data.slice(startIndex, endIndex);
-  }
-
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  private refreshGridData(): void {
-    console.log('Refreshing grid data after assignment change');
-  }
-
-  // Template helpers
-  isRowExpanded(row: any): boolean {
-    return this.selectedRows.has(row);
-  }
-
-  getExpandedRowCount(): number {
-    return this.expandedRows.size;
-  }
-
-  formatCollectionTime(time: string): string {
-    return time || 'Not specified';
-  }
-
-  getClusterDisplay(positionName: string): string {
-    return positionName || 'N/A';
-  }
+  // ... existing properties ...
+
+  // ADD: Sorting state properties
+  currentSortColumn: string = '';
+  currentSortDirection: 'asc' | 'desc' | '' = '';
 
   ngAfterViewInit(): void {
     this.dataSource.paginator = this.paginator;
     this.dataSource.sort = this.sort;
+    
+    // ENHANCED: Configure custom sorting for complex columns
+    this.dataSource.sortingDataAccessor = (data: any, sortHeaderId: string) => {
+      switch (sortHeaderId) {
+        // Numeric sorting
+        case 'StoreNumber':
+          return parseInt(data.StoreNumber) || 0;
+        
+        case 'FldTerrtyNbr':
+          return parseInt(data.FldTerrtyNbr) || 0;
+        
+        case 'Zip':
+          return data.Zip ? data.Zip.toString() : '';
+        
+        // Cost columns - convert to numbers for proper sorting
+        case 'AvgCost':
+        case 'WK1FSRProdCost':
+        case 'WK1StoreTravelCost':
+        case 'WK1StoreTravelOvgCost':
+        case 'WK2FSRProdCost':
+        case 'WK2StoreTravelCost':
+        case 'WK2StoreTravelOvgCost':
+        case 'GuaranteedMiles':
+          return parseFloat(data[sortHeaderId]) || 0;
+        
+        // String sorting (case-insensitive)
+        case 'StoreName':
+        case 'AddrLine1':
+        case 'City':
+        case 'State':
+        case 'PositionName':
+        case 'Bfd':
+        case 'OutletType':
+          return data[sortHeaderId] ? data[sortHeaderId].toString().toLowerCase() : '';
+        
+        // Assigned To - sort by first name for multiple assignments
+        case 'AssignedTo':
+          if (!data.AssignedTo || data.AssignedTo === 'NOT ASSIGNED') {
+            return 'zzz'; // Put unassigned at bottom
+          }
+          // Get first name from comma-separated list
+          const firstName = data.AssignedTo.split(',').trim();
+          return firstName.toLowerCase();
+        
+        // Status columns - custom sort order
+        case 'TaskCompleted':
+          return this.getTaskCompletedSortValue(data.TaskCompleted);
+        
+        case 'Quality':
+          return this.getQualitySortValue(data.Quality);
+        
+        case 'CostOver':
+          return this.getCostOverSortValue(data.CostOver);
+        
+        // Comments - sort by existence and then alphabetically
+        case 'UserComment':
+          if (!data.UserComment) return 'zzz'; // Empty comments last
+          return data.UserComment.toLowerCase();
+        
+        default:
+          return data[sortHeaderId] || '';
+      }
+    };
+
+    // Set initial table width
+    setTimeout(() => {
+      this.updateTableWidth();
+    }, 100);
     
     if (this.paginator) {
       this.paginator.page
@@ -1722,632 +367,227 @@ export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    this.unsubscribe$.next();
-    this.unsubscribe$.complete();
+  // ADD: Custom sort value methods
+  private getTaskCompletedSortValue(status: any): number {
+    if (!status) return 3;
+    const statusStr = status.toString().toLowerCase();
+    switch (statusStr) {
+      case 'yes':
+      case 'completed':
+      case 'complete':
+        return 1;
+      case 'no':
+      case 'incomplete':
+      case 'pending':
+        return 2;
+      default:
+        return 3;
+    }
   }
+
+  private getQualitySortValue(quality: any): number {
+    if (!quality) return 4;
+    const qualityStr = quality.toString().toLowerCase();
+    switch (qualityStr) {
+      case 'approved':
+      case 'good':
+        return 1;
+      case 'average':
+        return 2;
+      case 'poor':
+      case 'rejected':
+        return 3;
+      default:
+        return 4;
+    }
+  }
+
+  private getCostOverSortValue(costOver: any): number {
+    if (!costOver) return 2;
+    const costStr = costOver.toString().toLowerCase();
+    switch (costStr) {
+      case 'no':
+      case 'false':
+        return 1;
+      case 'yes':
+      case 'true':
+        return 2;
+      default:
+        return 2;
+    }
+  }
+
+  // ADD: Enhanced money formatting for display
+  formatMoney(value: any): string {
+    if (!value || value === 0 || value === '0') return '$0.00';
+    
+    const num = parseFloat(value);
+    if (isNaN(num)) return '$0.00';
+    
+    return '$' + num.toLocaleString('en-US', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    });
+  }
+
+  // ADD: Sort change handler with logging
+  onSortChange(event: any): void {
+    this.currentSortColumn = event.active;
+    this.currentSortDirection = event.direction;
+    
+    console.log(`Sorting by: ${event.active} (${event.direction})`);
+    
+    // Collapse all expanded rows when sorting
+    this.forceCollapseAllRows();
+    this.resetExpansionState();
+  }
+
+  // ADD: Get current sort info for display
+  getCurrentSortInfo(): { column: string, direction: string } {
+    return {
+      column: this.currentSortColumn || 'None',
+      direction: this.currentSortDirection || 'None'
+    };
+  }
+
+  // ... rest of your existing methods remain unchanged ...
 }
-7. ENHANCED store-table.component.html (Complete with All Features)
-xml
-<div class="table-container">
-  <mat-card class="table-card" [ngClass]="getWeekTypeClass()">
-    <mat-card-header>
-      <!-- Search Bar -->
-      <div class="search-container">
-        <mat-form-field appearance="outline" class="search-field">
-          <mat-label>Search stores...</mat-label>
-          <input matInput [formControl]="searchControl" 
-                placeholder="Search by store number, name, address, city, state, assigned to, etc.">
-          <mat-icon matPrefix>search</mat-icon>
-          <button mat-button *ngIf="searchControl.value" matSuffix mat-icon-button (click)="clearSearch()">
-            <mat-icon>clear</mat-icon>
-          </button>
-        </mat-form-field>
-      </div>
-    </mat-card-header>
-    
-    <mat-card-content>
-      <div class="table-wrapper">
-        <mat-table #table [dataSource]="dataSource" matSort class="store-table mat-elevation-2">
-          
-          <!-- Store Number Column -->
-          <ng-container matColumnDef="store_number" *ngIf="isColumnVisible('store_number')">
-            <mat-header-cell *matHeaderCellDef class="mat-header-style">
-              <button mat-icon-button 
-                      [disabled]="isExpandingAll"
-                      (click)="expandAllRows()" 
-                      [title]="allExpanded ? 'Collapse All' : 'Expand All'"
-                      class="expand-all-btn">
-                <mat-icon>{{allExpanded ? 'unfold_less' : 'unfold_more'}}</mat-icon>
-              </button>
-              Store #
-            </mat-header-cell>
-            <mat-cell *matCellDef="let element" class="store-number-cell">
-              <span class="caret" [class.clicked]="isRowExpanded(element)">▼</span>
-              <span class="store-number">{{element.StoreNumber}}</span>
-            </mat-cell>
-          </ng-container>
-
-          <!-- Store Name Column -->
-          <ng-container matColumnDef="store_name" *ngIf="isColumnVisible('store_name')">
-            <mat-header-cell *matHeaderCellDef class="mat-header-style">Store Name</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="store-name-cell">
-              <span class="store-name" (click)="openProximityDataDialog(element); $event.stopPropagation();">
-                {{element.StoreName}}
-              </span>
-            </mat-cell>
-          </ng-container>
-
-          <!-- Address Column -->
-          <ng-container matColumnDef="addr_line1" *ngIf="isColumnVisible('addr_line1')">
-            <mat-header-cell *matHeaderCellDef class="mat-header-style">Address</mat-header-cell>
-            <mat-cell *matCellDef="let element">{{element.AddrLine1}}</mat-cell>
-          </ng-container>
-
-          <!-- City Column -->
-          <ng-container matColumnDef="city" *ngIf="isColumnVisible('city')">
-            <mat-header-cell *matHeaderCellDef class="mat-header-style">City</mat-header-cell>
-            <mat-cell *matCellDef="let element">{{element.City}}</mat-cell>
-          </ng-container>
-
-          <!-- State Column -->
-          <ng-container matColumnDef="state" *ngIf="isColumnVisible('state')">
-            <mat-header-cell *matHeaderCellDef class="mat-header-style">State</mat-header-cell>
-            <mat-cell *matCellDef="let element">
-              <span class="state-badge">{{element.State}}</span>
-            </mat-cell>
-          </ng-container>
-
-          <!-- Zip Column -->
-          <ng-container matColumnDef="zip" *ngIf="isColumnVisible('zip')">
-            <mat-header-cell *matHeaderCellDef class="mat-header-style">Zip</mat-header-cell>
-            <mat-cell *matCellDef="let element">{{element.Zip}}</mat-cell>
-          </ng-container>
-
-          <!-- ENHANCED: Assigned To Column with line-by-line display -->
-          <ng-container matColumnDef="assigned_to" *ngIf="isColumnVisible('assigned_to')">
-            <mat-header-cell *matHeaderCellDef class="mat-header-style">Assigned To</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="assigned-cell" 
-                      (click)="openAssignmentDialog(element, 'StoreLevel'); $event.stopPropagation()">
-              <div class="assignment-container">
-                <div class="assignment-names" 
-                     [ngClass]="getAssignmentClass(element.AssignedTo)"
-                     [matTooltip]="getAssignedToTooltip(element.AssignedTo)"
-                     matTooltipClass="multi-line-tooltip">
-                  <!-- Display each name on a new line -->
-                  <div *ngFor="let name of element.AssignedTo?.split(','); let i = index" 
-                       class="name-line"
-                       [class.first-name]="i === 0">
-                    {{name?.trim() || 'NOT ASSIGNED'}}
-                  </div>
-                </div>
-              </div>
-            </mat-cell>
-          </ng-container>
-
-          <!-- Task Completed Column -->
-          <ng-container matColumnDef="task_completed" *ngIf="isColumnVisible('task_completed')">
-            <mat-header-cell *matHeaderCellDef class="mat-header-style">Completed</mat-header-cell>
-            <mat-cell *matCellDef="let element">
-              <span class="status-badge" [ngClass]="getTaskCompletedClass(element.TaskCompleted)">
-                {{formatTaskCompleted(element.TaskCompleted)}}
-              </span>
-            </mat-cell>
-          </ng-container>
-
-          <!-- Quality Column -->
-          <ng-container matColumnDef="quality" *ngIf="isColumnVisible('quality')">
-            <mat-header-cell *matHeaderCellDef class="mat-header-style">Quality</mat-header-cell>
-            <mat-cell *matCellDef="let element">
-              <span class="quality-badge" [ngClass]="getQualityClass(element.Quality)">
-                {{formatQuality(element.Quality)}}
-              </span>
-            </mat-cell>
-          </ng-container>
-
-          <!-- Cost Over Column -->
-          <ng-container matColumnDef="cost_over" *ngIf="isColumnVisible('cost_over')">
-            <mat-header-cell *matHeaderCellDef class="mat-header-style">Over Cost</mat-header-cell>
-            <mat-cell *matCellDef="let element">
-              <span class="cost-badge" [ngClass]="getCostOverClass(element.CostOver)">
-                {{formatCostOver(element.CostOver)}}
-              </span>
-            </mat-cell>
-          </ng-container>
-
-          <!-- Guaranteed Miles Column -->
-          <ng-container matColumnDef="guaranteed_miles" *ngIf="isColumnVisible('guaranteed_miles')">
-            <mat-header-cell *matHeaderCellDef class="mat-header-style">Miles</mat-header-cell>
-            <mat-cell *matCellDef="let element">{{formatGuaranteedMiles(element.GuaranteedMiles)}}</mat-cell>
-          </ng-container>
-
-          <!-- Average Cost Column -->
-          <ng-container matColumnDef="avg_cost" *ngIf="isColumnVisible('avg_cost')">
-            <mat-header-cell *matHeaderCellDef class="mat-header-style">Avg Cost</mat-header-cell>
-            <mat-cell *matCellDef="let element">{{formatAvgCost(element.AvgCost)}}</mat-cell>
-          </ng-container>
-
-          <!-- WK1 Costs Column -->
-          <ng-container matColumnDef="wk1_costs" *ngIf="isColumnVisible('wk1_costs')">
-            <mat-header-cell *matHeaderCellDef class="mat-header-style">WK1 Costs</mat-header-cell>
-            <mat-cell *matCellDef="let element">{{formatWk1Costs(element)}}</mat-cell>
-          </ng-container>
-
-          <!-- WK2 Costs Column -->
-          <ng-container matColumnDef="wk2_costs" *ngIf="isColumnVisible('wk2_costs')">
-            <mat-header-cell *matHeaderCellDef class="mat-header-style">WK2 Costs</mat-header-cell>
-            <mat-cell *matCellDef="let element">{{formatWk2Costs(element)}}</mat-cell>
-          </ng-container>
-
-          <!-- ENHANCED: Comments Column with Popup Dialog -->
-          <ng-container matColumnDef="user_comment" *ngIf="isColumnVisible('user_comment')">
-            <mat-header-cell *matHeaderCellDef class="mat-header-style">Comments</mat-header-cell>
-            <mat-cell *matCellDef="let element" class="comment-cell">
-              <div class="comment-display"
-                   (click)="openCommentDialog(element); $event.stopPropagation();"
-                   [title]="element.UserComment || 'Click to add/edit comment'"
-                   [class.has-comment]="element.UserComment"
-                   [class.clickable]="canEditComments || element.UserComment">
-                
-                <span class="comment-text">
-                  {{getCommentDisplay(element.UserComment)}}
-                </span>
-                
-                <!-- Comment icon indicator -->
-                <mat-icon class="comment-icon" 
-                          [class.has-content]="element.UserComment">
-                  {{element.UserComment ? 'comment' : 'add_comment'}}
-                </mat-icon>
-              </div>
-            </mat-cell>
-          </ng-container>
-
-          <!-- Header and Data Rows -->
-          <mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></mat-header-row>
-          <mat-row *matRowDef="let row; columns: displayedColumns; let i = index"
-                  class="table-row"
-                  [cdkDetailRow]="row" 
-                  [cdkDetailRowTpl]="tpl"
-                  (toggleChange)="GetSubgridData($event, row)"
-                  (dataLoadRequest)="onDataLoadRequest($event)"
-                  matRipple>
-          </mat-row>
-        </mat-table>
-      </div>
-      
-      <mat-paginator [pageSizeOptions]="[50, 100, 150, 200]" 
-                    showFirstLastButtons
-                    class="table-paginator">
-      </mat-paginator>
-    </mat-card-content>
-  </mat-card>
-</div>
-
-<!-- Inner Table Template -->
-<ng-template #tpl let-element let-subgridData="subgridData" let-isLoading="isLoading">
-  <div class="mat-row detail-row" style="overflow: hidden;">
-    
-    <!-- Loading indicator for this specific row -->
-    <div *ngIf="isLoading" class="row-loading">
-      <mat-spinner diameter="20"></mat-spinner>
-      <span>Loading data for {{element.StoreName}}...</span>
-    </div>
-    
-    <!-- Data table for this specific row -->
-    <table class="expanded-table" *ngIf="!isLoading"> 
-      <tr> 
-        <th>Task Name</th>
-        <th>Assigned To</th>              
-        <th>CSR Info</th>
-        <th>Wave</th>
-        <th>Avg Coll Time</th>
-      </tr>
-      <tr *ngFor="let item of subgridData;">
-        <td>{{item.TaskName}}</td>
-        <td (click)="openTaskAssignmentDialog(item); $event.stopPropagation()">
-          {{item.AssignedTo}}
-        </td>              
-        <td>{{item.CsrInfo}}</td>
-        <td>{{item.Wave}}</td>
-        <td>{{item.ExpectedCollectionTime}}</td>
-      </tr>       
-    </table>
-  </div>
-</ng-template>
-
-<footer>
-  <div class="mat-spinner-container">
-    <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
-    <div *ngIf="showSpinner" style="position:relative;left: 10px">Loading...</div>
-  </div>
-</footer>
-8. ENHANCED store-table.component.css (Complete Styling)
+ENHANCED store-table.component.css (Sort Styling)
 css
-.table-container {
-  padding: 16px;
-  height: 100%;
-  overflow: hidden;
-}
+/* ... your existing CSS ... */
 
-.table-card {
-  height: 100%;
+/* ENHANCED: Sort header styling */
+.mat-sort-header-button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
   display: flex;
-  flex-direction: column;
-}
-
-.search-container {
-  width: 100%;
-  margin-bottom: 16px;
-}
-
-.search-field {
-  width: 100%;
-  max-width: 500px;
-}
-
-.table-wrapper {
-  flex: 1;
-  overflow: auto;
-  max-height: calc(100vh - 300px);
-}
-
-.store-table {
-  width: 100%;
-  table-layout: fixed;
-}
-
-/* ENHANCED: Assigned To Column with line-by-line display */
-.assignment-container {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  min-height: 40px;
-  padding: 4px;
-}
-
-.assignment-names {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  font-weight: inherit;
+  font-size: inherit;
+  font-family: inherit;
+  text-align: left;
   width: 100%;
 }
 
-.name-line {
-  font-size: 12px;
-  line-height: 1.2;
-  padding: 1px 0;
-  word-break: break-word;
+.mat-sort-header-arrow {
+  opacity: 0.54;
+  transition: opacity 0.3s ease;
 }
 
-.name-line.first-name {
-  font-weight: 500;
+.mat-sort-header-sorted .mat-sort-header-arrow {
+  opacity: 1;
 }
 
-.assignment-names.not-assigned {
-  color: #f44336;
-  font-style: italic;
-}
-
-.assignment-names.single-assigned {
-  color: #4caf50;
-}
-
-.assignment-names.multiple-assigned {
-  color: #2196f3;
-  border-left: 3px solid #2196f3;
-  padding-left: 6px;
-}
-
-/* ENHANCED: Comment Column with Popup Styling */
-.comment-cell {
-  padding: 8px 4px !important;
-}
-
-.comment-display {
+/* Sort indicator positioning */
+.mat-header-cell .mat-sort-header-container {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 32px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: background-color 0.2s ease;
   width: 100%;
 }
 
-.comment-display.clickable {
-  cursor: pointer;
-}
-
-.comment-display.clickable:hover {
-  background-color: #f5f5f5;
-}
-
-.comment-display.has-comment {
-  background-color: #e3f2fd;
-}
-
-.comment-display.has-comment:hover {
-  background-color: #bbdefb;
-}
-
-.comment-text {
-  flex: 1;
-  font-size: 12px;
-  color: #333;
+/* Expand button in sortable header */
+.mat-header-cell .expand-all-btn {
   margin-right: 8px;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.comment-display:not(.has-comment) .comment-text {
-  color: #999;
-  font-style: italic;
+/* Hover effect for sortable headers */
+.mat-sort-header-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
-.comment-icon {
-  font-size: 16px;
-  width: 16px;
-  height: 16px;
-  color: #666;
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
+.mat-sort-header-button:focus {
+  outline: none;
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
-.comment-icon.has-content {
-  color: #2196f3;
+/* Sort arrow custom styling */
+.mat-sort-header-arrow .mat-sort-header-stem {
+  background-color: currentColor;
+  height: 10px;
+  width: 2px;
+  margin: 0 auto;
+  transition: opacity 0.3s ease;
+}
+
+.mat-sort-header-arrow .mat-sort-header-indicator {
+  opacity: 0.54;
+}
+
+.mat-sort-header-sorted .mat-sort-header-indicator {
   opacity: 1;
 }
 
-.comment-display:hover .comment-icon {
-  opacity: 1;
+/* Active sort column highlighting */
+.mat-header-cell.mat-sort-header-sorted {
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Existing column width styles */
-.mat-header-cell, .mat-cell {
-  padding: 8px;
-  text-align: left;
-  border-bottom: 1px solid #e0e0e0;
+/* Sort direction indicators */
+.mat-sort-header[aria-sort="ascending"] .mat-sort-header-arrow {
+  transform: rotate(0deg);
 }
 
-.mat-column-store_number {
-  width: 100px;
-  min-width: 100px;
+.mat-sort-header[aria-sort="descending"] .mat-sort-header-arrow {
+  transform: rotate(180deg);
 }
 
-.mat-column-store_name {
-  width: 180px;
-  min-width: 180px;
-}
-
-.mat-column-addr_line1 {
-  width: 200px;
-  min-width: 200px;
-}
-
-.mat-column-city {
-  width: 120px;
-  min-width: 120px;
-}
-
-.mat-column-state {
-  width: 80px;
-  min-width: 80px;
-}
-
-.mat-column-assigned_to {
-  width: 160px;
-  min-width: 160px;
-}
-
-.mat-column-user_comment {
-  width: 150px;
-  min-width: 150px;
-}
-
-.mat-column-task_completed,
-.mat-column-quality,
-.mat-column-cost_over {
-  width: 100px;
-  min-width: 100px;
-}
-
-.mat-column-guaranteed_miles,
-.mat-column-avg_cost,
-.mat-column-wk1_costs,
-.mat-column-wk2_costs {
-  width: 120px;
-  min-width: 120px;
-}
-
-/* Status badges */
-.status-badge, .quality-badge, .cost-badge {
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 500;
-  text-transform: uppercase;
-}
-
-.completed {
-  background-color: #4caf50;
-  color: white;
-}
-
-.incomplete {
-  background-color: #f44336;
-  color: white;
-}
-
-.quality-good {
-  background-color: #4caf50;
-  color: white;
-}
-
-.quality-average {
-  background-color: #ff9800;
-  color: white;
-}
-
-.quality-poor {
-  background-color: #f44336;
-  color: white;
-}
-
-.quality-unknown {
-  background-color: #9e9e9e;
-  color: white;
-}
-
-.cost-over {
-  background-color: #f44336;
-  color: white;
-}
-
-.cost-ok {
-  background-color: #4caf50;
-  color: white;
-}
-
-/* Expansion styling */
-.expand-all-btn {
-  margin-right: 8px;
-}
-
-.caret {
-  display: inline-block;
-  margin-right: 8px;
-  transition: transform 0.3s ease;
-  cursor: pointer;
-}
-
-.caret.clicked {
-  transform: rotate(90deg);
-}
-
-.detail-row {
-  background-color: #fafafa;
-  border-top: 1px solid #e0e0e0;
-}
-
-.expanded-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 16px 0;
-}
-
-.expanded-table th,
-.expanded-table td {
-  padding: 8px 12px;
-  text-align: left;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.expanded-table th {
-  background-color: #f5f5f5;
-  font-weight: 500;
-}
-
-.row-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  gap: 16px;
-  color: #666;
-}
-
-/* Week type styling */
-.week-current .table-card {
-  border-left: 4px solid #4caf50;
-}
-
-.week-future .table-card {
-  border-left: 4px solid #2196f3;
-}
-
-.week-previous .table-card {
-  border-left: 4px solid #ff9800;
-}
-
-/* Responsive adjustments */
+/* Responsive sort headers */
 @media (max-width: 768px) {
-  .assignment-container {
-    min-height: 60px;
-  }
-  
-  .name-line {
+  .mat-sort-header-button {
     font-size: 11px;
+    padding: 4px;
   }
   
-  .comment-display {
-    flex-direction: column;
-    align-items: flex-start;
-    min-height: 40px;
+  .expand-all-btn {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
   }
   
-  .comment-icon {
-    margin-top: 4px;
+  .expand-all-btn mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
   }
 }
 
-/* Multi-line tooltip styling */
-::ng-deep .multi-line-tooltip {
-  white-space: pre-line;
-  max-width: 300px;
+/* Sort indicator in small columns */
+.mat-column-territory .mat-sort-header-arrow,
+.mat-column-bdf .mat-sort-header-arrow,
+.mat-column-outlet .mat-sort-header-arrow,
+.mat-column-state .mat-sort-header-arrow {
+  margin-left: 4px;
 }
-Summary of All 5 Enhancements:
-✅ 1. Column Hide/Show Implementation
-Dynamic column options based on week type (current/future/previous)
 
-Multi-select dropdown in filter sidebar
+/* Loading state during sort */
+.table-sorting .mat-row {
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+Summary of Sorting Features Added:
+✅ All Columns Now Sortable:
+Text columns: Store Name, Address, City, State, etc.
 
-Real-time show/hide functionality in store table
+Numeric columns: Store Number, Territory, Zip, Miles, etc.
 
-Required columns protection (can't hide Store #, Name, Assigned To, Comments)
+Money columns: All cost fields with proper numeric sorting
 
-✅ 2. Enhanced AssignedTo Display
-Support for both EmployeeName field and legacy FirstName/LastName
+Status columns: Task Completed, Quality, Cost Over
 
-Multiple names displayed line-by-line: "Mark Hendry" on one line, "Super Man" on next line
+Complex columns: Assigned To (sorts by first name)
 
-Visual styling with different colors for single vs multiple assignments
+✅ Smart Sorting Logic:
+typescript
+// Numbers sort numerically (not as strings)
+case 'StoreNumber': return parseInt(data.StoreNumber) || 0;
 
-Full name tooltip on hover
+// Money fields sort as numbers
+case 'AvgCost': return parseFloat(data.AvgCost) || 0;
 
-✅ 3. Complete Spinner Management
-All spinner calls properly managed with show() and hide()
-
-Fixed missing hide() calls in expand/collapse operations
-
-Task-based spinner IDs for different operations
-
-Proper cleanup in all async operations
-
-✅ 4. Comment Popup Dialog
-Professional dialog with 8000 character limit
-
-Real-time character count with color indicators
-
-Role-based permissions (edit/delete buttons only show for authorized users)
-
-Truncated display in table (20 chars + "...")
-
-Delete functionality with confirmation
-
-Keyboard shortcuts (Ctrl+Enter to save, Escape to cancel)
-
-✅ 5. Clean Code Structure
-Removed all unnecessary/duplicate code
-
-Consolidated spinner management
-
-Clean separation of concerns
-
-Proper error handling throughout
-
-Enhanced documentation and comments
-
-This implementation provides a professional, feature-rich data table with all requested enhancements! 🎯
+// Status fields have custom sort order
+case 'TaskCompleted': return this.getTaskCompletedSortValue(data.TaskCompleted);
+// Yes/Complete = 1, No/Incomplete = 2, Other = 3
