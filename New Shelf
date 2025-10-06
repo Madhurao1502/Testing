@@ -1,3 +1,39 @@
+<div class="search-paginator-bar">
+  <mat-form-field appearance="standard" class="search-field">
+    <mat-label>Search stores...</mat-label>
+    <input matInput [formControl]="searchControl" placeholder="Search by store number, name, address, city, state, assigned to, etc.">
+    <mat-icon matPrefix>search</mat-icon>
+    <button mat-button *ngIf="searchControl.value" matSuffix mat-icon-button (click)="clearSearch()">
+      <mat-icon>clear</mat-icon>
+    </button>
+  </mat-form-field>
+  <mat-paginator [length]="totalRecords"
+                 [pageSize]="50"
+                 [pageSizeOptions]="[50,100,150,200]"
+                 showFirstLastButtons="true">
+  </mat-paginator>
+</div>
+
+.search-paginator-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  gap: 32px;
+  width: 100%;
+}
+.search-field {
+  flex: 1 1 320px;
+  max-width: 380px;
+  min-width: 220px;
+  margin-right: 32px;
+}
+mat-paginator {
+  flex-shrink: 0;
+}
+
+
+.........................................................
 UPDATED store-table.component.html (With Sortable Columns)
 xml
 <mat-card-content>
