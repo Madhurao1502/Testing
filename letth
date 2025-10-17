@@ -1,12 +1,113 @@
-For Previous weeks:
-iri_week,	fld_terrty_nbr,	Position_name,	bfd,	outlet_type,	store_number,	store_name,	addr_line1,	city_name,	state_cd,	zip_cd,	emp_id,	first_name,	last_name,	task_number,	task_completed,	quality,	cost_over,	WK1FSRProdCost,	WK1StoreTravelCost,	WK1StoreTravelOvgCost,	WK2FSRProdCost,	WK2StoreTravelCost,	WK2StoreTravelOvgCost
- 
-For Future week:
-iri_week,	fld_terrty_nbr,	Position_name,	bfd,	outlet_type,	store_number,	store_name,	addr_line1,	city_name,	state_cd,	zip_cd,	emp_id,	first_name,	last_name,	task_number,	avg_cost,	guaranteed_miles
- 
-For current week:
-iri_week,	fld_terrty_nbr,	Position_name,	bfd,	outlet_type,	store_number,	store_name,	addr_line1,	city_name,	state_cd,	zip_cd,	emp_id,	first_name,	last_name,	task_number,	task_completed,	quality,	cost_over,	guaranteed_miles
+/* Ensure cells don't have width constraints that affect row background */
+.store-table .mat-cell {
+  box-sizing: border-box;
+  padding: 0px 5px;
+  vertical-align: middle;
+}
 
-exec USP_get_assignments
-exec USP_get_assignments_current_week
-exec USP_get_assignments_previous_weeks
+/* Remove the width: 100% from inner divs or adjust them */
+.store-number-cell > div,
+.store-name-cell > div,
+.state-badge-cell > div {
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+Update Your HTML - Remove Unnecessary Wrapper Divs:
+Change this:
+
+xml
+<mat-cell *matCellDef="let element" class="store-number-cell">
+  <div style="width: 100%;">
+    <span class="caret" [class.clicked]="isRowExpanded(element)">▼</span>
+    <span class="store-number">{{element.StoreNumber}}</span>
+  </div>
+</mat-cell>
+To this:
+
+xml
+<mat-cell *matCellDef="let element" class="store-number-cell">
+  <span class="caret" [class.clicked]="isRowExpanded(element)">▼</span>
+  <span class="store-number">{{element.StoreNumber}}</span>
+</mat-cell>
+Apply the same to other cells:
+
+xml
+<!-- Store Name Column -->
+<mat-cell *matCellDef="let element" class="store-name-cell">
+  <span class="store-name" (click)="openProximityDataDialog(element); $event.stopPropagation();">
+    {{element.StoreName}}
+  </span>
+</mat-cell>
+
+<!-- State Column -->
+<mat-cell *matCellDef="let element">
+  <span class="state-badge">{{element.State}}</span>
+</mat-cell>
+Additional Fix: Adjust Column Widths
+Since you're using table-layout: fixed, each column takes up space even when hidden. Change this:
+
+css
+.store-table {
+  width: 100%;
+  table-layout: auto; /* Change from fixed to auto */
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* Update column definitions to use percentages or let them auto-adjust */
+.mat-column-store_number {
+  width: 110px;
+  /* Remove min-width and max-width, or keep only min-width */
+}
+
+.mat-column-store_name {
+  width: 200px;
+}
+
+/* For columns that should be flexible */
+.mat-column-addr_line1,
+.mat-column-city {
+  width: auto;
+  min-width: 120px;
+}
+Complete CSS Update for Row Backgrounds:
+css
+/* Ensure proper row rendering */
+.store-table {
+  width: 100%;
+  display: table;
+  table-layout: auto;
+  border-collapse: collapse;
+  margin: 0px;
+}
+
+/* Fix row display */
+.store-table .mat-header-row,
+.store-table .mat-row {
+  display: table-row;
+  width: 100%;
+}
+
+/* Cell alignment */
+.store-table .mat-header-cell,
+.store-table .mat-cell {
+  display: table-cell;
+  padding: 8px 5px;
+  font-weight: 400;
+  vertical-align: middle;
+  box-sizing: border-box;
+}
+
+/* Alternating row backgrounds - ensure they cover full width */
+::ng-deep .store-table .mat-row:nth-child(even) {
+  background-color: #f5f5f5 !important;
+}
+
+::ng-deep .store-table .mat-row:nth-child(odd) {
+  background-color: #ffffff !important;
+}
+
+::ng-deep .store-table .mat-row:hover {
+  background-color: mintcream !important;
+}
