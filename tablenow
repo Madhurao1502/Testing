@@ -1,3 +1,360 @@
+<!-- Loading indicator -->
+<div *ngIf="isLoading" class="row-loading" [attr.colspan]="displayedColumns.length">
+  <mat-spinner diameter="20"></mat-spinner>
+  <span>Loading data for {{element.StoreName}}...</span>
+</div>
+
+<!-- Expanded rows using same column structure as parent -->
+<ng-container *ngIf="!isLoading">
+  <div class="expanded-row-container">
+    
+    <!-- Loop through sub-grid data -->
+    <div class="expanded-data-row" *ngFor="let item of subgridData">
+      
+      <!-- Match parent table columns exactly -->
+      
+      <!-- Store Number Column (left aligned with caret space) -->
+      <div class="expanded-cell mat-column-store_number" *ngIf="isColumnVisible('store_number')">
+        <span class="expanded-indent">└─</span>
+      </div>
+
+      <!-- Territory -->
+      <div class="expanded-cell mat-column-territory" *ngIf="isColumnVisible('territory')">
+        {{item.bfd || '-'}}
+      </div>
+
+      <!-- Position Number -->
+      <div class="expanded-cell mat-column-position_number" *ngIf="isColumnVisible('position_number')">
+        {{item.taskName}}
+      </div>
+
+      <!-- BFD -->
+      <div class="expanded-cell mat-column-bdf" *ngIf="isColumnVisible('bdf')">
+        {{item.bfd || '-'}}
+      </div>
+
+      <!-- Outlet -->
+      <div class="expanded-cell mat-column-outlet" *ngIf="isColumnVisible('outlet')">
+        -
+      </div>
+
+      <!-- Store Name -->
+      <div class="expanded-cell mat-column-store_name" *ngIf="isColumnVisible('store_name')">
+        <!-- Empty for sub-rows or show task details -->
+      </div>
+
+      <!-- Address -->
+      <div class="expanded-cell mat-column-addr_line1" *ngIf="isColumnVisible('addr_line1')">
+        -
+      </div>
+
+      <!-- City -->
+      <div class="expanded-cell mat-column-city" *ngIf="isColumnVisible('city')">
+        -
+      </div>
+
+      <!-- State -->
+      <div class="expanded-cell mat-column-state" *ngIf="isColumnVisible('state')">
+        -
+      </div>
+
+      <!-- Zip (if visible) -->
+      <div class="expanded-cell mat-column-zip" *ngIf="isColumnVisible('zip')">
+        -
+      </div>
+
+      <!-- Assigned To -->
+      <div class="expanded-cell mat-column-assigned_to" *ngIf="isColumnVisible('assigned_to')">
+        <span class="clickable-link" (click)="openTaskAssignmentDialog2(item); $event.stopPropagation()">
+          {{item.assignedTo}}
+        </span>
+      </div>
+
+      <!-- Task Completed (for current/previous weeks) -->
+      <div class="expanded-cell mat-column-task_completed" *ngIf="isColumnVisible('task_completed')">
+        <ng-container *ngIf="weekType === 'current' || weekType === 'previous'">
+          {{item.taskCompleted}}
+        </ng-container>
+        <ng-container *ngIf="weekType === 'future'">
+          {{item.expectedCollectionTime}}
+        </ng-container>
+      </div>
+
+      <!-- Guaranteed Miles -->
+      <div class="expanded-cell mat-column-guaranteed_miles" *ngIf="isColumnVisible('guaranteed_miles')">
+        {{formatGuaranteedMiles(item.guaranteedMiles)}}
+      </div>
+
+      <!-- Average Cost -->
+      <div class="expanded-cell mat-column-avg_cost" *ngIf="isColumnVisible('avg_cost')">
+        <ng-container *ngIf="weekType === 'future'">
+          {{formatAvgCost(item.avgCost)}}
+        </ng-container>
+      </div>
+
+      <!-- Cost Over -->
+      <div class="expanded-cell mat-column-cost_over" *ngIf="isColumnVisible('cost_over')">
+        <ng-container *ngIf="weekType === 'current' || weekType === 'previous'">
+          {{formatCostOver(item.costOver)}}
+        </ng-container>
+      </div>
+
+      <!-- WK1 Costs -->
+      <div class="expanded-cell mat-column-wk1_costs" *ngIf="isColumnVisible('wk1_costs')">
+        <span [ngClass]="{'negative': item.wK1FSRProdCost > 0, 'positive': item.wK1FSRProdCost <= 0}">
+          {{item.wK1FSRProdCost | currencyFormat}}
+        </span>
+      </div>
+
+      <!-- WK1 Travel -->
+      <div class="expanded-cell mat-column-wk1_travel" *ngIf="isColumnVisible('wk1_travel')">
+        <span class="travel-column">{{item.wK1StoreTravelCost | currencyFormat}}</span>
+      </div>
+
+      <!-- WK1 Ovg Travel -->
+      <div class="expanded-cell mat-column-wk1_ovg_travel" *ngIf="isColumnVisible('wk1_ovg_travel')">
+        <span [ngClass]="{'negative': item.wK1StoreTravelOvgCost > 0, 'positive': item.wK1StoreTravelOvgCost <= 0}">
+          {{item.wK1StoreTravelOvgCost | currencyFormat}}
+        </span>
+      </div>
+
+      <!-- WK2 Costs -->
+      <div class="expanded-cell mat-column-wk2_costs" *ngIf="isColumnVisible('wk2_costs')">
+        <span [ngClass]="{'negative': item.wK2FSRProdCost > 0, 'positive': item.wK2FSRProdCost <= 0}">
+          {{item.wK2FSRProdCost | currencyFormat}}
+        </span>
+      </div>
+
+      <!-- WK2 Travel -->
+      <div class="expanded-cell mat-column-wk2_travel" *ngIf="isColumnVisible('wk2_travel')">
+        <span class="travel-column">{{item.wK2StoreTravelCost | currencyFormat}}</span>
+      </div>
+
+      <!-- WK2 Ovg Travel -->
+      <div class="expanded-cell mat-column-wk2_ovg_travel" *ngIf="isColumnVisible('wk2_ovg_travel')">
+        <span [ngClass]="{'negative': item.wK2StoreTravelOvgCost > 0, 'positive': item.wK2StoreTravelOvgCost <= 0}">
+          {{item.wK2StoreTravelOvgCost | currencyFormat}}
+        </span>
+      </div>
+
+      <!-- Comments -->
+      <div class="expanded-cell mat-column-user_comment" *ngIf="isColumnVisible('user_comment')">
+        -
+      </div>
+
+    </div>
+  </div>
+</ng-container>
+
+
+
+/* Remove old expanded-table styles and add these */
+
+/* Detail row styling - seamless continuation */
+.detail-row {
+  background: #fafafa;
+  overflow: hidden;
+  display: block;
+  width: 100%;
+}
+
+/* Container for expanded rows */
+.expanded-row-container {
+  width: 100%;
+  display: block;
+  border-left: 3px solid #2196f3;
+  background: #f8f9fa;
+}
+
+/* Individual expanded data row */
+.expanded-data-row {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  border-bottom: 1px solid #e0e0e0;
+  align-items: center;
+  transition: background-color 0.2s;
+}
+
+.expanded-data-row:hover {
+  background-color: #e3f2fd;
+}
+
+.expanded-data-row:last-child {
+  border-bottom: 2px solid #2196f3;
+  margin-bottom: 5px;
+}
+
+/* Expanded cells - must match parent column widths exactly */
+.expanded-cell {
+  padding: 8px 5px;
+  font-size: 13px;
+  color: #555;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+/* Indent indicator for expanded rows */
+.expanded-indent {
+  color: #999;
+  font-size: 14px;
+  margin-right: 5px;
+  font-weight: 300;
+}
+
+/* Match exact column widths from parent table */
+.expanded-cell.mat-column-store_number {
+  width: 110px;
+  min-width: 110px;
+  max-width: 130px;
+}
+
+.expanded-cell.mat-column-territory {
+  width: 70px;
+  min-width: 70px;
+  max-width: 80px;
+}
+
+.expanded-cell.mat-column-position_number {
+  width: 100px;
+  min-width: 100px;
+  max-width: 140px;
+}
+
+.expanded-cell.mat-column-bdf {
+  width: 80px;
+  min-width: 80px;
+  max-width: 90px;
+}
+
+.expanded-cell.mat-column-outlet {
+  width: 80px;
+  min-width: 80px;
+  max-width: 90px;
+}
+
+.expanded-cell.mat-column-store_name {
+  width: 200px;
+  min-width: 180px;
+  max-width: 250px;
+}
+
+.expanded-cell.mat-column-addr_line1 {
+  width: 200px;
+  min-width: 180px;
+  max-width: 250px;
+}
+
+.expanded-cell.mat-column-city {
+  width: 140px;
+  min-width: 120px;
+  max-width: 180px;
+}
+
+.expanded-cell.mat-column-state {
+  width: 80px;
+  min-width: 80px;
+  max-width: 90px;
+}
+
+.expanded-cell.mat-column-zip {
+  width: 80px;
+  min-width: 80px;
+  max-width: 90px;
+}
+
+.expanded-cell.mat-column-assigned_to {
+  width: 180px;
+  min-width: 160px;
+  max-width: 220px;
+}
+
+.expanded-cell.mat-column-task_completed {
+  width: 80px;
+  min-width: 80px;
+  max-width: 95px;
+}
+
+.expanded-cell.mat-column-guaranteed_miles {
+  width: 100px;
+  min-width: 90px;
+  max-width: 120px;
+}
+
+.expanded-cell.mat-column-avg_cost {
+  width: 110px;
+  min-width: 100px;
+  max-width: 130px;
+  text-align: right;
+}
+
+.expanded-cell.mat-column-cost_over,
+.expanded-cell.mat-column-wk1_costs,
+.expanded-cell.mat-column-wk1_travel,
+.expanded-cell.mat-column-wk1_ovg_travel,
+.expanded-cell.mat-column-wk2_costs,
+.expanded-cell.mat-column-wk2_travel,
+.expanded-cell.mat-column-wk2_ovg_travel {
+  width: 120px;
+  min-width: 110px;
+  max-width: 140px;
+  text-align: right;
+  justify-content: flex-end;
+}
+
+.expanded-cell.mat-column-user_comment {
+  width: 150px;
+  min-width: 150px;
+}
+
+/* Week-specific widths for expanded rows */
+.store-table.week-current ~ .detail-row .expanded-row-container,
+.store-table.week-current .detail-row .expanded-row-container {
+  min-width: 1520px;
+}
+
+.store-table.week-future ~ .detail-row .expanded-row-container,
+.store-table.week-future .detail-row .expanded-row-container {
+  min-width: 1320px;
+}
+
+.store-table.week-previous ~ .detail-row .expanded-row-container,
+.store-table.week-previous .detail-row .expanded-row-container {
+  min-width: 2100px;
+}
+
+/* Loading indicator for expanded rows */
+.row-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px;
+  background: #f8f9fa;
+  border: 1px dashed #dee2e6;
+  margin: 5px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #666;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .expanded-row-container {
+    margin-left: 10px;
+    font-size: 12px;
+  }
+  
+  .expanded-cell {
+    padding: 6px 4px;
+  }
+}
+
+********************************************8
 import { Component, OnInit, OnDestroy, AfterViewInit, ViewChild, ViewChildren, QueryList, ChangeDetectorRef } from '@angular/core';
 import { MatTable, MatTableDataSource } from '@angular/material/table';
 import { MatPaginator } from '@angular/material/paginator';
