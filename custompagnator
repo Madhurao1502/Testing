@@ -1,0 +1,316 @@
+import { MatPaginator } from '@angular/material/paginator';
+
+/**
+ * Custom paginator that only counts parent rows, not child rows
+ */
+export class ParentRowPaginator extends MatPaginator {
+  override getRangeLabel = (page: number, pageSize: number, length: number): string => {
+    if (length === 0 || pageSize === 0) {
+      return `0 of ${length}`;
+    }
+    length = Math.max(length, 0);
+    const startIndex = page * pageSize;
+    const endIndex = startIndex < length
+      ? Math.min(startIndex + pageSize, length)
+      : startIndex + pageSize;
+    return `${startIndex + 1} - ${endIndex} of ${length}`;
+  };
+}
+........................................................................
+export class StoreTableComponent implements OnInit, AfterViewInit {
+  @ViewChild(MatPaginator) paginator: MatPaginator;
+  @ViewChild(MatSort) sort: MatSort;
+  @ViewChildren(CdkDetailRowDirective) detailRows: QueryList<CdkDetailRowDirective>;
+
+  dataSource: MatTableDataSource<any>;
+  
+  // Separate tracking of parent rows only
+  private parentRowsData: any[] = [];
+  
+  // ... rest of your existing properties
+
+  ngOnInit(): void {
+    this.dataSource = new MatTableDataSource<any>([]);
+    
+    // CRITICAL: Override the filterPredicate to work with child rows
+    this.dataSource.filterPredicate = (data: any, filter: string) => {
+      // Only filter parent rows, not child rows
+      if (data.isChildRow) {
+        return true; // Always include child rows of visible parents
+      }
+      
+      // Apply filter to parent rows only
+      const searchStr = filter.toLowerCase();
+      return (
+        (data.StoreNumber?.toString().toLowerCase().includes(searchStr) || false) ||
+        (data.StoreName?.toLowerCase().includes(searchStr) || false) ||
+        (data.AddrLine1?.toLowerCase().includes(searchStr) || false) ||
+        (data.City?.toLowerCase().includes(searchStr) || false) ||
+        (data.State?.toLowerCase().includes(searchStr) || false) ||
+        (data.AssignedTo?.toLowerCase().includes(searchStr) || false)
+      );
+    };
+
+    this.loadStoreData();
+  }
+
+  ngAfterViewInit(): void {
+    // CRITICAL: Custom paginator setup
+    this.setupCustomPagination();
+    
+    this.dataSource.sort = this.sort;
+
+    // Reset expansion when page changes
+    if (this.paginator) {
+      this.paginator.page
+        .pipe(takeUntil(this.destroy))
+        .subscribe(() => {
+          this.resetExpansionState();
+        });
+    }
+
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Setup custom pagination that only counts parent rows
+   */
+  private setupCustomPagination(): void {
+    if (!this.paginator) return;
+
+    // Update paginator length based on parent rows only
+    this.updatePaginatorLength();
+
+    // Override page change to handle parent row pagination
+    this.paginator.page.pipe(takeUntil(this.destroy)).subscribe(() => {
+      this.applyParentRowPagination();
+    });
+  }
+
+  /**
+   * Load store data and track parent rows separately
+   */
+  private loadStoreData(): void {
+    this.storeService.getStores(this.currentFilters).subscribe(
+      (response: any) => {
+        if (response && response.data) {
+          // Store original parent rows
+          this.parentRowsData = response.data.map(row => ({ ...row, isChildRow: false }));
+          
+          // Initialize datasource with parent rows only
+          this.dataSource.data = [...this.parentRowsData];
+          
+          // Update paginator to reflect parent row count
+          this.updatePaginatorLength();
+          
+          this.cdr.detectChanges();
+        }
+      },
+      (error) => {
+        console.error('Error loading store data:', error);
+      }
+    );
+  }
+
+  /**
+   * Update paginator length to count only parent rows
+   */
+  private updatePaginatorLength(): void {
+    if (!this.paginator) return;
+    
+    // Count only parent rows in the datasource
+    const parentRowCount = this.dataSource.data.filter(row => !row.isChildRow).length;
+    this.paginator.length = parentRowCount;
+  }
+
+  /**
+   * Apply pagination based on parent rows only
+   */
+  private applyParentRowPagination(): void {
+    if (!this.paginator) return;
+
+    const pageIndex = this.paginator.pageIndex;
+    const pageSize = this.paginator.pageSize;
+
+    // Get parent rows only
+    const parentRows = this.parentRowsData.filter(row => !row.isChildRow);
+    
+    // Calculate start and end index for current page
+    const startIndex = pageIndex * pageSize;
+    const endIndex = startIndex + pageSize;
+    
+    // Get parent rows for current page
+    const currentPageParentRows = parentRows.slice(startIndex, endIndex);
+    
+    // Update datasource with only current page parent rows
+    this.dataSource.data = currentPageParentRows;
+    
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Insert child rows into datasource without affecting pagination
+   */
+  private insertChildRowsIntoDataSource(parentRow: any, childData: any[], weekType: string): void {
+    const currentData = this.dataSource.data;
+    
+    // Find parent row index (must not be a child row itself)
+    const parentIndex = currentData.findIndex(row => 
+      row.StoreNumber === parentRow.StoreNumber && !row.isChildRow
+    );
+    
+    if (parentIndex === -1) {
+      console.warn('Parent row not found in datasource');
+      return;
+    }
+    
+    // Remove any existing child rows for this parent first
+    this.removeChildRowsFromDataSource(parentRow);
+    
+    // If no child data, just return
+    if (!childData || childData.length === 0) {
+      return;
+    }
+    
+    // Map child data to match parent column structure
+    const childRows = childData.map((child, index) => ({
+      ...child,
+      isChildRow: true,
+      isFirstChild: index === 0,
+      isLastChild: index === childData.length - 1,
+      parentStoreNumber: parentRow.StoreNumber,
+      
+      // ... rest of your mapping code (same as before)
+      StoreNumber: '',
+      FldTerrtyNbr: child.bfd || '',
+      PositionName: child.taskName || '',
+      Bfd: child.bfd || '',
+      OutletType: '',
+      StoreName: '',
+      AddrLine1: '',
+      City: '',
+      State: '',
+      Zip: '',
+      AssignedTo: child.assignedTo || '',
+      assignedTo: child.assignedTo || '',
+      UserComment: '',
+      TaskCompleted: child.taskCompleted || child.TaskCompleted,
+      taskCompleted: child.taskCompleted || child.TaskCompleted,
+      GuaranteedMiles: child.guaranteedMiles,
+      guaranteedMiles: child.guaranteedMiles,
+      CostOver: child.costOver,
+      costOver: child.costOver,
+      Quality: child.quality,
+      
+      ...(weekType === 'future' && {
+        AvgCost: child.avgCost,
+        avgCost: child.avgCost,
+        Wave: child.wave,
+        ExpectedCollectionTime: child.expectedCollectionTime
+      }),
+      
+      ...(weekType === 'previous' && {
+        WK1FSRProdCost: child.wK1FSRProdCost,
+        wK1FSRProdCost: child.wK1FSRProdCost,
+        WK1StoreTravelCost: child.wK1StoreTravelCost,
+        wK1StoreTravelCost: child.wK1StoreTravelCost,
+        WK1StoreTravelOvgCost: child.wK1StoreTravelOvgCost,
+        wK1StoreTravelOvgCost: child.wK1StoreTravelOvgCost,
+        WK2FSRProdCost: child.wK2FSRProdCost,
+        wK2FSRProdCost: child.wK2FSRProdCost,
+        WK2StoreTravelCost: child.wK2StoreTravelCost,
+        wK2StoreTravelCost: child.wK2StoreTravelCost,
+        WK2StoreTravelOvgCost: child.wK2StoreTravelOvgCost,
+        wK2StoreTravelOvgCost: child.wK2StoreTravelOvgCost
+      }),
+      
+      storeNumber: child.storeNumber || parentRow.StoreNumber,
+      storeName: child.storeName || parentRow.StoreName,
+      taskNumber: child.taskNumber,
+      taskName: child.taskName
+    }));
+    
+    // Get updated data array and insert child rows after parent
+    const updatedData = [...currentData];
+    updatedData.splice(parentIndex + 1, 0, ...childRows);
+    
+    // Update datasource WITHOUT updating paginator length
+    // Child rows don't count toward pagination
+    this.dataSource.data = updatedData;
+    
+    // DO NOT call updatePaginatorLength() here - this is key!
+    // Paginator length should remain based on parent rows only
+  }
+
+  /**
+   * Remove child rows from datasource
+   */
+  private removeChildRowsFromDataSource(parentRow: any): void {
+    const filteredData = this.dataSource.data.filter(row => 
+      !(row.isChildRow && row.parentStoreNumber === parentRow.StoreNumber)
+    );
+    this.dataSource.data = filteredData;
+  }
+
+  /**
+   * Get current page parent rows only
+   */
+  private getCurrentPageData(): any[] {
+    // Return only parent rows from current datasource
+    return this.dataSource.data.filter(row => !row.isChildRow);
+  }
+
+  /**
+   * Reset expansion state and update pagination
+   */
+  private resetExpansionState(): void {
+    this.allExpanded = false;
+    this.isExpandingAll = false;
+    this.expandedRows.clear();
+    this.selectedRows.clear();
+    
+    // Remove all child rows from datasource
+    const parentRowsOnly = this.dataSource.data.filter(row => !row.isChildRow);
+    this.dataSource.data = parentRowsOnly;
+    
+    // Ensure paginator reflects correct count
+    this.updatePaginatorLength();
+    
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Apply search filter - update paginator after filtering
+   */
+  setupSearch(): void {
+    this.searchControl.valueChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        takeUntil(this.destroy)
+      )
+      .subscribe(value => {
+        // Collapse all before filtering
+        this.resetExpansionState();
+        
+        // Apply filter
+        this.dataSource.filter = value?.trim().toLowerCase() || '';
+        
+        // Update paginator to reflect filtered parent rows
+        this.updatePaginatorLength();
+        
+        // Go to first page after filter
+        if (this.paginator) {
+          this.paginator.firstPage();
+        }
+      });
+  }
+
+  /**
+   * Clear search
+   */
+  clearSearch(): void {
+    this.searchControl.setValue('');
+    this.resetExpansionState();
+  }
+}
