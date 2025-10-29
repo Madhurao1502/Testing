@@ -1,3 +1,31 @@
+ngOnInit(): void {
+  // Add this NEW code right after dataSource initialization
+  this.dataSource = new MatTableDataSource<any>([]);
+  
+  // ✅ ADD THIS: Custom filter predicate to exclude child rows from filtering
+  this.dataSource.filterPredicate = (data: any, filter: string) => {
+    // Only filter parent rows, child rows are always included with their parents
+    if (data.isChildRow) {
+      return true;
+    }
+    
+    // Apply filter to parent rows only
+    const searchStr = filter.toLowerCase();
+    return (
+      (data.StoreNumber?.toString().toLowerCase().includes(searchStr) || false) ||
+      (data.StoreName?.toLowerCase().includes(searchStr) || false) ||
+      (data.AddrLine1?.toLowerCase().includes(searchStr) || false) ||
+      (data.City?.toLowerCase().includes(searchStr) || false) ||
+      (data.State?.toLowerCase().includes(searchStr) || false) ||
+      (data.AssignedTo?.toLowerCase().includes(searchStr) || false)
+    );
+  };
+  
+  // ... rest of your existing ngOnInit code
+}
+
+
+
 import { trigger, state, style, transition, animate } from '@angular/animations';
 import { HttpClient } from '@angular/common/http';
 import { AfterViewInit, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
