@@ -1,3 +1,28 @@
+private updateDataSource(data: any[]): void {
+  this.commonService.show('table-update');
+  
+  // ✅ Store parent rows separately
+  this.parentRowsData = data.map(row => ({ ...row, isChildRow: false }));
+  this.originalData = [...this.parentRowsData];
+  
+  const searchTerm = this.searchControl.value;
+  if (searchTerm && searchTerm.trim()) {
+    this.performSearch(searchTerm);
+  } else {
+    this.dataSource.data = [...this.parentRowsData];
+  }
+  
+  this.dataSource.paginator = this.paginator;
+  this.dataSource.sort = this.sort;
+  
+  // ✅ Update paginator length to count only parent rows
+  this.updatePaginatorLength();
+  
+  this.resetExpansionState();
+  
+  this.commonService.hide('table-update');
+}
+
 ngOnInit(): void {
   // Add this NEW code right after dataSource initialization
   this.dataSource = new MatTableDataSource<any>([]);
