@@ -1,66 +1,154 @@
-/**
- * Handle column visibility changes and preserve expansion state
- */
-updateVisibleColumns(selectedColumns: string[]): void {
-  // 1. Store current expansion state BEFORE column change
-  const expandedStoreNumbers = new Set<string>();
-  this.selectedRows.forEach(row => {
-    if (row.StoreNumber) {
-      expandedStoreNumbers.add(row.StoreNumber);
-    }
-  });
-
-  // 2. Update the visible columns
-  this.visibleColumns = selectedColumns;
-  this.updateDisplayedColumns();
-
-  // 3. Force change detection to re-render table
-  this.cdr.detectChanges();
-
-  // 4. After view update, restore the directive expansion states
-  setTimeout(() => {
-    this.restoreExpansionStates(expandedStoreNumbers);
-  }, 0);
-}
-
-/**
- * Restore expansion states after table re-render
- */
-private restoreExpansionStates(expandedStoreNumbers: Set<string>): void {
-  const detailRowsArray = this.detailRows?.toArray() || [];
-  const currentPageData = this.getCurrentPageData();
-
-  // Loop through current page rows and restore their expansion state
-  currentPageData.forEach((parentRow, index) => {
-    const detailRowDirective = detailRowsArray[index];
-    
-    if (!detailRowDirective || !parentRow.StoreNumber) return;
-
-    // Check if this row should be expanded
-    const shouldBeExpanded = expandedStoreNumbers.has(parentRow.StoreNumber);
-
-    if (shouldBeExpanded) {
-      // Manually set the directive to expanded state WITHOUT triggering toggle
-      detailRowDirective.expended = true; // Note: Check your directive - might be 'expended' or 'isExpanded'
-      
-      // Make sure the directive is in our tracking set
-      this.expandedRows.add(detailRowDirective);
-      this.selectedRows.add(parentRow);
-    }
-  });
-
-  // Final change detection to update icon states
-  this.cdr.detectChanges();
-}
-
-/**
- * Check if a row is expanded (used for caret rotation)
- */
-isRowExpanded(element: any): boolean {
-  if (!element || !element.StoreNumber) return false;
+ngAfterViewInit(): void {
+  // ❌ DON'T do this - it will paginate all rows including children:
+  // this.dataSource.paginator = this.paginator;
   
-  // Check if this specific row is in the expanded set
-  return Array.from(this.selectedRows).some(
-    row => row.StoreNumber === element.StoreNumber
-  );
+  // ✅ DO THIS instead - manual pagination control
+  this.dataSource.sort = this.sort;
+  
+  // Custom sorting accessor (keep your existing one)
+  this.dataSource.sortingDataAccessor = (data: any, sortHeaderId: string) => {
+    // ... your existing sorting logic ...
+  };
+
+  // ✅ Setup custom pagination that only counts parent rows
+  if (this.paginator) {
+    // Update paginator length initially
+    this.updatePaginatorLength();
+    
+    // Listen to page changes and manually update datasource
+    this.paginator.page
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.applyParentRowPagination();
+      });
+  }
+  
+  this.cdr.detectChanges();
 }
+...............
+/**
+ * Apply pagination based on parent rows only
+ * This method manually slices the data to show only parent rows for the current page
+ */
+private applyParentRowPagination(): void {
+  if (!this.paginator) return;
+
+  // Collapse all rows when changing pages
+  this.forceCollapseAllRows();
+  this.resetExpansionState();
+
+  const pageIndex = this.paginator.pageIndex;
+  const pageSize = this.paginator.pageSize;
+
+  // Get only parent rows from original data
+  const allParentRows = this.parentRowsData.filter(row => !row.isChildRow);
+  
+  // Calculate start and end index for current page
+  const startIndex = pageIndex * pageSize;
+  const endIndex = startIndex + pageSize;
+  
+  // Get parent rows for current page
+  const currentPageParentRows = allParentRows.slice(startIndex, endIndex);
+  
+  // Update datasource with ONLY current page parent rows
+  this.dataSource.data = currentPageParentRows;
+  
+  // Update paginator length to reflect total parent rows
+  this.paginator.length = allParentRows.length;
+  
+  this.cdr.detectChanges();
+}
+....................
+private updateDataSource(data: any[]): void {
+  this.commonService.show('table-update');
+  
+  // Store parent rows separately
+  this.parentRowsData = data.map(row => ({ ...row, isChildRow: false }));
+  this.originalData = [...this.parentRowsData];
+  
+  const searchTerm = this.searchControl.value;
+  if (searchTerm && searchTerm.trim()) {
+    this.performSearch(searchTerm);
+  } else {
+    // ✅ Apply pagination instead of showing all data
+    if (this.paginator) {
+      this.paginator.pageIndex = 0; // Reset to first page
+      this.applyParentRowPagination();
+    } else {
+      this.dataSource.data = [...this.parentRowsData];
+    }
+  }
+  
+  // ✅ DON'T assign paginator here - we handle it manually
+  // this.dataSource.paginator = this.paginator;
+  this.dataSource.sort = this.sort;
+  
+  // Update paginator length
+  this.updatePaginatorLength();
+  
+  this.resetExpansionState();
+  
+  this.commonService.hide('table-update');
+}
+........................
+private performSearch(searchTerm: string): void {
+  try {
+    let filtered: any[];
+    
+    if (!searchTerm.trim()) {
+      filtered = [...this.originalData];
+    } else {
+      filtered = this.originalData.filter(row => 
+        this.matchesSearchTerm(row, searchTerm.toLowerCase())
+      );
+    }
+    
+    // ✅ Update parentRowsData with filtered results
+    this.parentRowsData = filtered;
+    
+    // ✅ Apply pagination to filtered results
+    if (this.paginator) {
+      this.paginator.pageIndex = 0; // Reset to first page
+      this.applyParentRowPagination();
+    } else {
+      this.dataSource.data = filtered;
+    }
+    
+    // Update paginator length
+    this.updatePaginatorLength();
+    
+    this.resetExpansionState();
+    
+  } catch (error) {
+    console.error('Error performing search:', error);
+  } finally {
+    this.isSearching = false;
+    this.commonService.hide('table-search');
+  }
+}
+.........................
+private insertChildRowsIntoDataSource(parentRow: any, childData: any[], weekType: string): void {
+  const currentData = this.dataSource.data;
+  const parentIndex = currentData.findIndex(row => 
+    row.StoreNumber === parentRow.StoreNumber && !row.isChildRow
+  );
+  
+  if (parentIndex === -1) return;
+  
+  this.removeChildRowsFromDataSource(parentRow);
+  
+  if (!childData || childData.length === 0) {
+    return;
+  }
+  
+  // ... your existing mapping code ...
+  
+  const updatedData = [...currentData];
+  updatedData.splice(parentIndex + 1, 0, ...childRows);
+  
+  // ✅ Update datasource WITHOUT triggering pagination
+  this.dataSource.data = updatedData;
+  
+  // ✅ DO NOT call updatePaginatorLength() or applyParentRowPagination() here!
+}
+........................
