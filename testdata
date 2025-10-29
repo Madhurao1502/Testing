@@ -1,693 +1,1647 @@
-complete-fixes-all-issues.md
-Generated File
-Complete Solutions for All 3 Issues
-Issue 1: Fix openTaskAssignmentDialog currentFilters$ Subscription
-Problem:
-The this.commonService.currentFilters$ subscription in openTaskAssignmentDialog doesn't wait for completion.
-
-Solution - Use firstValueFrom instead:
-typescript
-// store-table.component.ts - FIXED openTaskAssignmentDialog
-
-async openTaskAssignmentDialog(taskData: any): Promise<void> {
-  try {
-    // Wait for current filters to complete
-    const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
-    
-    if (!currentFilters || Object.keys(currentFilters).length === 0) {
-      console.warn('No filters applied. Cannot open assignment dialog.');
-      return;
-    }
-
-    const dialogRef = this.dialog.open(AssignmentDialogComponent, {
-      width: '90vw',
-      maxWidth: '1200px', 
-      height: '80vh',
-      data: {
-        storeNumber: taskData.StoreNumber,
-        storeName: taskData.store_name,
-        taskNumber: taskData.task_number,
-        taskName: taskData.task_name,
-        iriWeek: currentFilters.iri_week,
-        territoryId: currentFilters.territory_id,
-        mode: 'TaskLevel'
-      },
-      disableClose: true
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        this.refreshGridData();
-      }
-    });
-    
-  } catch (error) {
-    console.error('Error opening task assignment dialog:', error);
-  }
-}
-
-// Also fix openAssignmentDialog method:
-async openAssignmentDialog(row: any, mode: 'StoreLevel' | 'TaskLevel' = 'StoreLevel'): Promise<void> {
-  try {
-    const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
-    
-    if (!currentFilters || Object.keys(currentFilters).length === 0) {
-      console.warn('No filters applied. Cannot open assignment dialog.');
-      return;
-    }
-    
-    const dialogRef = this.dialog.open(AssignmentDialogComponent, {
-      width: '90vw',
-      maxWidth: '1200px',
-      height: '80vh',
-      data: {
-        storeNumber: row.StoreNumber,
-        storeName: row.StoreName,
-        iriWeek: row.IriWeek,
-        territoryId: currentFilters.territory_id,
-        mode: mode
-      },
-      disableClose: true
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        this.refreshGridData();
-      }
-    });
-    
-  } catch (error) {
-    console.error('Error opening assignment dialog:', error);
-  }
-}
-Issue 2: Fix Expand All/Collapse All Problems
-Problem 2.1: Icon mismatch and collapse not working for individual expanded rows
-Problem 2.2: Pagination not properly resetting expansion state
-Solution - Enhanced store-table.component.ts:
-typescript
-// store-table.component.ts - COMPLETE FIX FOR EXPAND/COLLAPSE
-
+import { trigger, state, style, transition, animate } from '@angular/animations';
+import { HttpClient } from '@angular/common/http';
+import { AfterViewInit, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
+import { FormControl } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
+import { MatPaginator } from '@angular/material/paginator';
+import { MatSort } from '@angular/material/sort';
+import { MatTable, MatTableDataSource } from '@angular/material/table';
+import { catchError, debounceTime, distinctUntilChanged, firstValueFrom, of, Subject, takeUntil, tap } from 'rxjs';
+import { AssignmentDialogComponent } from 'src/app/dialog/assignment-dialog/assignment-dialog.component';
+import { ClosestFsrDialogComponent } from 'src/app/dialog/closest-fsr-dialog/closest-fsr-dialog.component';
+import { ProximityDialogComponent } from 'src/app/dialog/proximity-dialog/proximity-dialog.component';
+import { StoreCommentDialogComponent } from 'src/app/dialog/store-comment-dialog/store-comment-dialog.component';
+import { CdkDetailRowDirective } from 'src/app/shared/cdk-detail-row.directive';
+import { CommonService } from 'src/app/shared/common.service';
+@Component({
+  selector: 'app-store-table',
+  templateUrl: './store-table.component.html',
+  styleUrls: ['./store-table.component.css'],
+  animations: [
+    trigger('detailExpand', [
+      state('collapsed', style({height: '0px', minHeight: '0'})),
+      state('expanded', style({height: '*'})),
+      transition('expanded <=> collapsed', animate('225ms cubic-bezier(0.4, 0.0, 0.2, 1)')),
+    ]),
+  ],
+})
 export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
   
-  // Properties remain the same...
-  expandedRows = new Set<CdkDetailRowDirective>();
-  selectedRows = new Set<any>();
-  expandedRowsData = new Map<string, any[]>();
+  @ViewChild(MatTable, { static: false }) table: MatTable<any>;
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
+  @ViewChildren(CdkDetailRowDirective) detailRows!: QueryList<CdkDetailRowDirective>;
+
+  // Week type tracking
+  currentWeekType: 'current' | 'future' | 'previous' = 'current';
+
+  // Column definitions for different week types
+  baseColumns = ['store_number', 'territory','store_name', 'addr_line1', 'city', 'state', 'assigned_to', 'user_comment'];
+  
+  currentWeekColumns = [
+    'store_number', 'territory','position_number','bdf', 'outlet','store_name', 'addr_line1', 'city', 'state', 'assigned_to', 
+    'task_completed', 'cost_over', 'guaranteed_miles', 'user_comment'
+  ];
+  
+  futureWeekColumns = [
+    'store_number','territory', 'position_number','bdf', 'outlet','store_name', 'addr_line1', 'city', 'state', 'assigned_to',
+    'avg_cost', 'guaranteed_miles', 'user_comment'
+  ];
+  
+  previousWeekColumns = [
+    'store_number','territory', 'position_number','bdf','outlet', 'store_name', 'addr_line1', 'city', 'state', 'assigned_to',
+    'task_completed','cost_over', 'wk1_costs','wk1_travel', 'wk1_ovg_travel','wk2_costs', 'wk2_travel','wk2_ovg_travel','user_comment'
+  ];
+
+  //  Dynamic column management
+  availableColumns: string[] = [];
+  displayedColumns: string[] = [];
+  visibleColumns: string[] = [];
+
+  // Data and state
+  dataSource = new MatTableDataSource<any>([]);
+  originalData: any[] = [];
+  showSpinner = false;
+  
+  // Search functionality
+  searchControl = new FormControl('');
+  isSearching = false;
+
+  // Expansion state
   isExpandingAll = false;
   allExpanded = false;
+  expandedRowsData = new Map<string, {data: any[], weekType: string}>();
+  expandedRows = new Set<CdkDetailRowDirective>();
+  selectedRows = new Set<any>();
+
+  // User permissions
+  canEditComments = false;
+  canDeleteComments = false;
+
+  currentSortColumn: string = '';
+  currentSortDirection: 'asc' | 'desc' | '' = '';
+
+  private destroy$ = new Subject<void>();
+  private unsubscribe$ = new Subject<void>();
+  loggeduser: string; 
+  currentFilters;
+  constructor(private commonService: CommonService,
+  public http: HttpClient,
+  @Inject('BASE_URL') public baseUrl: string,
+   private cdr: ChangeDetectorRef,
+  private dialog:MatDialog) {this.loggeduser = localStorage.getItem("loggedUserId"); }
+
+  ngOnInit(): void {
+    this.commonService.spinner$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(isLoading => {
+        this.showSpinner = isLoading;
+      });
+this.commonService.currentFilters$.subscribe(filter=>{
+        this.currentFilters = filter
+    });
+    // Subscribe to user group permissions
+    this.commonService.groupsStatus$.subscribe(userGroups => {
+      this.canEditComments = userGroups['isgTechnologyGroup'];
+      this.canDeleteComments = userGroups['isgTechnologyGroup'];
+    });
+
+    // Subscribe to week type changes
+    this.commonService.weekType$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(weekType => {
+        this.currentWeekType = weekType;
+        this.updateAvailableColumns();
+        this.updateDisplayedColumns();
+        this.forceCollapseAllRows();
+        this.resetExpansionState();
+        this.cdr.detectChanges();
+      });
+
+    // Subscribe to current week data
+    this.commonService.currentWeekData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (this.currentWeekType === 'current') {
+          this.updateDataSource(data);
+        }
+      });
+
+    // Subscribe to future week data
+    this.commonService.futureWeekData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (this.currentWeekType === 'future') {
+          this.updateDataSource(data);
+        }
+      });
+
+    // Subscribe to previous week data
+    this.commonService.previousWeekData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (this.currentWeekType === 'previous') {
+          this.updateDataSource(data);
+        }
+      });
+    this.setupSearch();
+  }
+
+  //Column visibility management
+  updateVisibleColumns(selectedColumns: string[]): void {
+    this.visibleColumns = selectedColumns;
+    this.updateDisplayedColumns();
+    this.forceCollapseAllRows();
+    this.resetExpansionState()
+    this.cdr.detectChanges();
+  }
+
+  private updateAvailableColumns(): void {
+    switch (this.currentWeekType) {
+      case 'current':
+        this.availableColumns = this.currentWeekColumns;
+        break;
+      case 'future':
+        this.availableColumns = this.futureWeekColumns;
+        break;
+      case 'previous':
+        this.availableColumns = this.previousWeekColumns;
+        break;
+      default:
+        this.availableColumns = this.baseColumns;
+    }
+  }
+
+  private updateDisplayedColumns(): void {
+    let availableColumns: string[] = [];
+    
+    // Get available columns based on week type
+    switch (this.currentWeekType) {
+      case 'current':
+        availableColumns = this.currentWeekColumns;
+        break;
+      case 'future':
+        availableColumns = this.futureWeekColumns;
+        break;
+      case 'previous':
+        availableColumns = this.previousWeekColumns;
+        break;
+      default:
+        availableColumns = this.baseColumns;
+    }
+    
+    // Filter by visible columns if specified
+    if (this.visibleColumns.length > 0) {
+      this.displayedColumns = availableColumns.filter(col => 
+        this.visibleColumns.includes(col)
+      );
+    } else {
+      // Show all available columns if no specific selection
+      this.displayedColumns = [...availableColumns];
+    }
+  }
+
+  isColumnVisible(columnName: string): boolean {
+    return this.displayedColumns.includes(columnName);
+  }
+
+  //  Multiple names display with line breaks
+  getAssignedToDisplay(assignedTo: string): string {
+   if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return 'NOT ASSIGNED';
+  }
+
+  // Return as-is (the template will handle the splitting and line display)
+  return assignedTo.trim();
+  }
+
+  getAssignedToTooltip(assignedTo: string): string {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return 'No one assigned';
+  }
+  
+  // Split by comma and return each name on a new line for tooltip
+  const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
+  return names.join('\\n');
+}
+
+  getAssignmentClass(assignedTo: string): string {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return 'not-assigned';
+  }
+  
+  // Check if there are multiple names (contains comma)
+  const hasMultipleNames = assignedTo.includes(',');
+  if (hasMultipleNames) {
+    // Verify it's actually multiple valid names
+    const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
+    return names.length > 1 ? 'multiple-assigned' : 'single-assigned';
+  }
+  
+  return 'single-assigned';
+}
+
+shouldDisplayMultipleLines(assignedTo: string): boolean {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return false;
+  }
+  
+  if (!assignedTo.includes(',')) {
+    return false;
+  }
+  
+  const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
+  return names.length > 1;
+}
+
+getIndividualNames(assignedTo: string): string[] {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return ['NOT ASSIGNED'];
+  }
+  
+  if (!assignedTo.includes(',')) {
+    return [assignedTo.trim()];
+  }
+  
+  return assignedTo.split(',').map(name => name.trim()).filter(name => name);
+}
+  //  Comment management with popup dialog
+  openCommentDialog(element: any): void {
+    const dialogRef = this.dialog.open(StoreCommentDialogComponent, {
+      width: '600px',
+      maxWidth: '90vw',
+      data: {
+        storeNumber: element.StoreNumber,
+        storeName: element.StoreName,
+        comment: element.UserComment || '',
+        canEdit: this.canEditComments,
+        canDelete: this.canDeleteComments
+      },
+      disableClose: true
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result && result.action !== 'cancel') {
+        element.UserComment = result.comment;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  //  Comment display with truncation
+  getCommentDisplay(comment: string): string {
+    if (!comment) return this.canEditComments ? 'Add Comment...' : 'No comment';
+    
+    if (comment.length <= 20) return comment;
+    return comment.substring(0, 20) + '...';
+  }
+
+  // Search functionality
+  private setupSearch(): void {
+    this.searchControl.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      tap(() => {
+        this.isSearching = true;
+        this.commonService.show('table-search');
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe(searchTerm => {
+      this.performSearch(searchTerm || '');
+    });
+  }
+
+  private performSearch(searchTerm: string): void {
+    try {
+      if (!searchTerm.trim()) {
+        this.dataSource.data = [...this.originalData];
+      } else {
+        const filtered = this.originalData.filter(row => 
+          this.matchesSearchTerm(row, searchTerm.toLowerCase())
+        );
+        this.dataSource.data = filtered;
+      }
+      
+      if (this.paginator) {
+        this.paginator.firstPage();
+      }
+      this.resetExpansionState();
+      
+    } catch (error) {
+      console.error('Error performing search:', error);
+    } finally {
+      this.isSearching = false;
+      this.commonService.hide('table-search');
+    }
+  }
+
+  private matchesSearchTerm(row: any, searchTerm: string): boolean {
+    const searchableFields = [
+      'StoreNumber','PositionName','Bfd','StoreName', 'AddrLine1', 'City', 'State', 
+      'Zip', 'AssignedTo', 'TaskCompleted','CostOver','GuaranteedMiles', 'AvgCost', 'WK1FSRProdCost',
+      'WK1StoreTravelCost','WK1StoreTravelOvgCost','WK2FSRProdCost',
+      'WK2StoreTravelCost','WK2StoreTravelOvgCost','UserComment'
+    ];
+
+    return searchableFields.some(field => {
+      const value = row[field];
+      return value && value.toString().toLowerCase().includes(searchTerm);
+    });
+  }
+
+  clearSearch(): void {
+    this.searchControl.setValue('');
+  }
+
+  // Data management
+  private updateDataSource(data: any[]): void {
+    this.commonService.show('table-update');
+    
+    this.originalData = [...data];
+    
+    const searchTerm = this.searchControl.value;
+    if (searchTerm && searchTerm.trim()) {
+      this.performSearch(searchTerm);
+    } else {
+      this.dataSource.data = data;
+    }
+    
+    this.dataSource.paginator = this.paginator;
+    this.dataSource.sort = this.sort;
+    this.resetExpansionState();
+    
+    this.commonService.hide('table-update');
+  }
+
+  //  Expand all rows with proper spinner management
+async expandAllRows(): Promise<void> {
+  if (this.isExpandingAll) return;
+
+  this.isExpandingAll = true;
+  this.commonService.show('expand-all-rows');
+
+  try {
+    if (this.allExpanded) {
+      // Collapse all
+      this.collapseAllRows();
+      this.allExpanded = false;
+    } else {
+      // Expand all
+      await this.expandAllRowsSequentially();
+      this.allExpanded = true;
+    }
+  } catch (error) {
+    console.error('Error in expandAllRows:', error);
+  } finally {
+    this.isExpandingAll = false;
+    this.commonService.hide('expand-all-rows');
+    this.cdr.detectChanges();
+  }
+}
+
+/**
+ * Collapse all expanded rows and remove child rows from datasource
+ */
+private collapseAllRows(): void {
+  this.commonService.show('collapse-all-rows');
+  
+  try {
+    // Get all detail row directives
+    const detailRowsArray = this.detailRows?.toArray() || [];
+    
+    // Collapse each expanded directive
+    detailRowsArray.forEach(detailRow => {
+      if (detailRow.isExpanded) {
+        detailRow.collapse();
+      }
+    });
+
+    // Remove all child rows from datasource
+    const filteredData = this.dataSource.data.filter(row => !row.isChildRow);
+    this.dataSource.data = filteredData;
+
+    // Clear tracking sets
+    this.expandedRows.clear();
+    this.selectedRows.clear();
+
+    // Trigger change detection to update UI (carets, etc.)
+    this.cdr.detectChanges();
+  } catch (error) {
+    console.error('Error collapsing all rows:', error);
+  } finally {
+    this.commonService.hide('collapse-all-rows');
+  }
+}
+
+/**
+ * Expand all rows on current page sequentially
+ */
+private async expandAllRowsSequentially(): Promise<void> {
+  // First, collapse all to ensure clean state
+  this.collapseAllRows();
+
+  const currentPageData = this.getCurrentPageData();
+  const detailRowsArray = this.detailRows?.toArray() || [];
+
+  if (detailRowsArray.length === 0 || currentPageData.length === 0) {
+    console.warn('No rows to expand');
+    return;
+  }
+
+  this.commonService.show('load-all-subgrid-data');
+
+  try {
+    // Process each row sequentially
+    for (let i = 0; i < Math.min(currentPageData.length, detailRowsArray.length); i++) {
+      const parentRow = currentPageData[i];
+      const detailRowDirective = detailRowsArray[i];
+
+      // Skip if row is a child row
+      if (parentRow.isChildRow) continue;
+
+      // Skip if directive is already expanded
+      if (detailRowDirective.isExpanded) continue;
+
+      try {
+        // Load child data for this row
+        const responseData = await this.loadSubgridDataForRow(parentRow);
+
+        // Insert child rows into datasource
+        this.insertChildRowsIntoDataSource(parentRow, responseData.data || [], responseData.weekType || 'current');
+
+        // Mark the directive as expanded
+        detailRowDirective.isExpanded = true;
+        this.expandedRows.add(detailRowDirective);
+        this.selectedRows.add(parentRow);
+
+        // Small delay to prevent overwhelming the UI
+        await this.delay(50);
+      } catch (error) {
+        console.error(`Error expanding row ${i}:`, error);
+        // Continue with next row even if this one fails
+      }
+    }
+
+    // Final change detection
+    this.cdr.detectChanges();
+  } catch (error) {
+    console.error('Error in expandAllRowsSequentially:', error);
+  } finally {
+    this.commonService.hide('load-all-subgrid-data');
+  }
+}
+
+  //  Force collapse with proper spinner management
+  private forceCollapseAllRows(): void {
+    this.commonService.show('collapse-all-rows');
+    
+    const detailRowsArray = this.detailRows?.toArray() || [];
+    
+    detailRowsArray.forEach((detailRow) => {
+      if (detailRow.isExpanded) {
+        detailRow.collapse();
+      }
+    });
+    
+    this.expandedRows.clear();
+    this.selectedRows.clear();
+    
+    // Trigger change detection to update caret icons
+    this.cdr.detectChanges();
+    
+    this.commonService.hide('collapse-all-rows');
+  }
+
+  //  Expand rows with data with proper spinner management
+ 
+
+  //  Load subgrid data with proper spinner management
+  private loadSubgridDataForRow(row: any): Promise<{data: any[], weekType: string}> {
+    const storeKey = row.StoreNumber || row.store_number;
+    this.commonService.show(`subgrid-${storeKey}`);
+    
+    return new Promise((resolve, reject) => {
+      if (this.expandedRowsData.has(storeKey)) {
+        this.commonService.hide(`subgrid-${storeKey}`);
+        const cachedData = this.expandedRowsData.get(storeKey);
+        resolve(cachedData || { data: [], weekType: 'current' });
+        return;
+      }
+
+      const payload = {
+        IriWeek: row.IriWeek || row.iri_week,
+        StoreNumber: storeKey
+      };
+
+      this.http.post<any>(this.baseUrl + 'api/TaskAssinment/GetSubgridData', payload)
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe({
+          next: (response) => {
+            // Store both data and week type
+            const responseData = {
+              data: response.data || response, // Handle both new and old response formats
+              weekType: response.weekType || 'current' // Default to current if not provided
+            };
+            this.expandedRowsData.set(storeKey, responseData);
+            this.commonService.hide(`subgrid-${storeKey}`);
+            resolve(responseData);
+          },
+          error: (error) => {
+            this.commonService.hide(`subgrid-${storeKey}`);
+            reject(error);
+          }
+        });
+    });
+  }
+
+  // Individual row expansion
+  // GetSubgridData(cdkDetailRow: CdkDetailRowDirective, row: any): void {
+  //   if (cdkDetailRow.isExpanded) {
+  //     this.expandedRows.add(cdkDetailRow);
+  //     this.selectedRows.add(row);
+  //   } else {
+  //     this.expandedRows.delete(cdkDetailRow);
+  //     this.selectedRows.delete(row);
+      
+  //     if (this.allExpanded && this.expandedRows.size < this.getCurrentPageData().length) {
+  //       this.allExpanded = false;
+  //     }
+  //   }
+    
+  //   this.updateCaretIcon(cdkDetailRow, cdkDetailRow.isExpanded);
+  // }
+
+  // Check if a specific row is expanded
+  isRowExpanded(element: any): boolean {
+    return this.selectedRows.has(element);
+  }
+
+  // Data load request handler
+  // onDataLoadRequest(event: {directive: CdkDetailRowDirective, rowData: any}): void {
+  //   const { directive, rowData } = event;
+  //   const storeKey = rowData.StoreNumber || rowData.store_number;
+    
+  //   // Track expansion state for caret rotation
+  //   if (directive.isExpanded) {
+  //     this.expandedRows.add(directive);
+  //     this.selectedRows.add(rowData);
+      
+  //     // Load data if expanding
+  //     if (this.expandedRowsData.has(storeKey)) {
+  //       const cachedData = this.expandedRowsData.get(storeKey);
+  //       directive.setSubgridData(cachedData?.data || [], cachedData?.weekType || 'current');
+  //     } else {
+  //       this.loadSubgridDataForRow(rowData)
+  //         .then(responseData => {
+  //           directive.setSubgridData(responseData.data || [], responseData.weekType || 'current');
+  //         })
+  //         .catch(error => {
+  //           console.error('Error loading subgrid data:', error);
+  //           directive.setSubgridData([], 'current');
+  //         });
+  //     }
+  //   } else {
+  //     // Collapsing - remove from tracking
+  //     this.expandedRows.delete(directive);
+  //     this.selectedRows.delete(rowData);
+      
+  //     // Update allExpanded flag if needed
+  //     if (this.allExpanded && this.expandedRows.size < this.getCurrentPageData().length) {
+  //       this.allExpanded = false;
+  //     }
+  //   }
+    
+  //   // Trigger change detection to update caret icons
+  //   this.cdr.detectChanges();
+  // }
+
+  onDataLoadRequest(event: {directive: CdkDetailRowDirective, rowData: any}): void {
+  const { directive, rowData } = event;
+  const storeKey = rowData.StoreNumber || rowData.store_number;
+  
+  if (directive.isExpanded && !rowData.isChildRow) {
+    // Expanding parent row - load and insert child rows
+    this.expandedRows.add(directive);
+    this.selectedRows.add(rowData);
+    
+    if (this.expandedRowsData.has(storeKey)) {
+      const cachedData = this.expandedRowsData.get(storeKey);
+      this.insertChildRowsIntoDataSource(rowData, cachedData?.data || [], cachedData?.weekType || 'current');
+    } else {
+      this.loadSubgridDataForRow(rowData)
+        .then(responseData => {
+          this.insertChildRowsIntoDataSource(rowData, responseData.data || [], responseData.weekType || 'current');
+        })
+        .catch(error => {
+          console.error('Error loading subgrid data:', error);
+        });
+    }
+  } else if (!directive.isExpanded) {
+    // Collapsing - remove child rows
+    this.expandedRows.delete(directive);
+    this.selectedRows.delete(rowData);
+    this.removeChildRowsFromDataSource(rowData);
+    
+    if (this.allExpanded && this.expandedRows.size < this.getCurrentPageData().length) {
+      this.allExpanded = false;
+    }
+  }
+  
+  this.cdr.detectChanges();
+}
+
+/**
+ * Insert child rows directly into the table's datasource
+ */
+private insertChildRowsIntoDataSource(parentRow: any, childData: any[], weekType: string): void {
+  const currentData = this.dataSource.data;
+  const parentIndex = currentData.findIndex(row => 
+    row.StoreNumber === parentRow.StoreNumber && !row.isChildRow
+  );
+  
+  if (parentIndex === -1) return;
+  
+  // Remove any existing child rows for this parent first
+  this.removeChildRowsFromDataSource(parentRow);
+  // If no child data, just return
+  if (!childData || childData.length === 0) {
+    return;
+  }
+  // Map child data to match parent column structure
+  const childRows = childData.map((child, index) => ({
+    ...child,
+    isChildRow: true,
+    isFirstChild: index === 0,
+    isLastChild: index === childData.length - 1,
+    parentStoreNumber: parentRow.StoreNumber,
+    
+    // Map child fields to parent column names
+    StoreNumber: child.storeNumber, 
+    FldTerrtyNbr: child.fldTerrtyNbr || '',
+    PositionName: child.positionName || '',
+    Bfd: child.bfd || '',
+    OutletType: child.outletType,
+    StoreName: child.storeName||'',
+    AddrLine1: child.addrLine1,
+    City: child.city,
+    State: child.state,
+    Zip: child.zip||'',
+    AssignedTo: child.assignedTo || '',
+    assignedTo: child.assignedTo || '',
+    
+    // Task-level data
+    TaskCompleted: child.taskCompleted || child.TaskCompleted,
+    taskCompleted: child.taskCompleted || child.TaskCompleted,
+    GuaranteedMiles: child.guaranteedMiles,
+    guaranteedMiles: child.guaranteedMiles,
+    CostOver: child.costOver,
+    costOver: child.costOver,
+    
+    // Week-specific fields
+    ...(weekType === 'future' && {
+      AvgCost: child.avgCost,
+      avgCost: child.avgCost,
+      Wave: child.wave,
+      ExpectedCollectionTime: child.expectedCollectionTime
+    }),
+    
+    ...(weekType === 'previous' && {
+      WK1FSRProdCost: child.wK1FSRProdCost,
+      wK1FSRProdCost: child.wK1FSRProdCost,
+      WK1StoreTravelCost: child.wK1StoreTravelCost,
+      wK1StoreTravelCost: child.wK1StoreTravelCost,
+      WK1StoreTravelOvgCost: child.wK1StoreTravelOvgCost,
+      wK1StoreTravelOvgCost: child.wK1StoreTravelOvgCost,
+      WK2FSRProdCost: child.wK2FSRProdCost,
+      wK2FSRProdCost: child.wK2FSRProdCost,
+      WK2StoreTravelCost: child.wK2StoreTravelCost,
+      wK2StoreTravelCost: child.wK2StoreTravelCost,
+      WK2StoreTravelOvgCost: child.wK2StoreTravelOvgCost,
+      wK2StoreTravelOvgCost: child.wK2StoreTravelOvgCost,
+      Quality: child.quality
+    }),
+    
+    // Store task-specific data for dialog access
+    storeNumber: child.storeNumber || parentRow.StoreNumber,
+    storeName: child.storeName || parentRow.StoreName,
+    taskNumber: child.taskNumber,
+    taskName: child.taskName
+  }));
+  
+  // Get updated data array
+  const updatedData = [...currentData];
+  updatedData.splice(parentIndex + 1, 0, ...childRows);
+  
+  // Update datasource
+  this.dataSource.data = updatedData;
+}
+
+/**
+ * Remove child rows from datasource
+ */
+private removeChildRowsFromDataSource(parentRow: any): void {
+  const filteredData = this.dataSource.data.filter(row => 
+    !(row.isChildRow && row.parentStoreNumber === parentRow.StoreNumber)
+  );
+  this.dataSource.data = filteredData;
+}
+
+
+  // Week type display methods
+  getWeekTypeDisplayName(): string {
+    switch (this.currentWeekType) {
+      case 'current': return 'Current Week Tasks';
+      case 'future': return 'Future Week Planning';
+      case 'previous': return 'Previous Week History';
+      default: return 'Store Assignment Data';
+    }
+  }
+
+  getWeekTypeClass(): string {
+    return `week-${this.currentWeekType}`;
+  }
+
+  // Data formatting methods for different week types
+  formatTaskCompleted(value: any): string {
+    return value?.toLowerCase() === 'yes' ? 'Yes' : 'No';
+  }
+
+
+
+  formatCostOver(value: any): string {
+    return value ? `${value}` : 'N/A';
+  }
+
+  formatGuaranteedMiles(value: any): string {
+    return value ? `${value}` : 'N/A';
+  }
+
+  formatAvgCost(value: any): string {
+    // Return blank if null or empty
+    if (value === null || value === undefined || value === '') {
+      return '';
+    }
+    
+    // Convert to number
+    const numValue = parseFloat(value);
+    
+    // Return blank if not a valid number
+    if (isNaN(numValue)) {
+      return '';
+    }
+    
+    // Format as currency (including zero)
+    return `$${numValue.toFixed(2)}`;
+  }
+
+  formatWk1Costs(row: any): string {
+    const prod = parseFloat(row.WK1FSRProdCost || 0);
+    const travel = parseFloat(row.WK1StoreTravelCost || 0);
+    const ovg = parseFloat(row.WK1StoreTravelOvgCost || 0);
+    const total = prod + travel + ovg;
+    return total > 0 ? `$${total.toFixed(2)}` : '$0.00';
+  }
+
+  formatWk2Costs(row: any): string {
+    const prod = parseFloat(row.WK2FSRProdCost || 0);
+    const travel = parseFloat(row.WK2StoreTravelCost || 0);
+    const ovg = parseFloat(row.WK2StoreTravelOvgCost || 0);
+    const total = prod + travel + ovg;
+    return total > 0 ? `$${total.toFixed(2)}` : '$0.00';
+  }
+
+  // Status badge classes
+  getTaskCompletedClass(value: any): string {
+    return value?.toLowerCase() === 'yes' ? 'completed' : 'incomplete';
+  }
+
+
+
+  getCostOverClass(value: any): string {
+    return value?.toLowerCase() === 'yes' ? 'cost-over' : 'cost-ok';
+  }
+
+  // Dialog methods
+  async openAssignmentDialog(row: any, mode: 'StoreLevel' | 'TaskLevel' = 'StoreLevel'): Promise<void> {
+    try {
+      const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+      
+      if (!currentFilters || Object.keys(currentFilters).length === 0) {
+        console.warn('No filters applied. Cannot open assignment dialog.');
+        return;
+      }
+      
+      const dialogRef = this.dialog.open(AssignmentDialogComponent, {
+        width: '90vw',
+        maxWidth: '1200px',
+        height: '80vh',
+        data: {
+          storeNumber: row.StoreNumber,
+          storeName: row.StoreName,
+          iriWeek: row.IriWeek,
+          territoryId: currentFilters.territory_id,
+          mode: 'StoreLevel'
+        },
+        disableClose: true
+      });
+
+      dialogRef.afterClosed().subscribe(result => {
+        if (result) {
+          this.refreshGridData();
+        }
+      });
+    } catch (error) {
+      console.error('Error opening assignment dialog:', error);
+    }
+  }
+
+  // Method to check if EmpId matches OptimalCollectorId (handles comma-separated EmpIds)
+  isOptimalCollectorMatch(empId: string | null | undefined, optimalCollectorId: string | null | undefined): boolean {
+    // Check if both values exist and are not empty strings
+    if (!empId || !optimalCollectorId || empId.trim() === '' || optimalCollectorId.trim() === '') {
+      return false;
+    }
+    
+    // Convert to strings and trim
+    const empIdStr = String(empId).trim();
+    const optimalIdStr = String(optimalCollectorId).trim();
+    
+    // Handle comma-separated EmpIds
+    if (empIdStr.includes(',')) {
+      const empIds = empIdStr.split(',').map(id => id.trim());
+      return empIds.includes(optimalIdStr);
+    }
+    
+    // Simple comparison for single EmpId (case-insensitive)
+    return empIdStr.toLowerCase() === optimalIdStr.toLowerCase();
+  }
+  
+  // Helper method to check if OptimalCollectorId exists and is valid
+  hasOptimalCollector(optimalCollectorId: string | null | undefined): boolean {
+    return !!optimalCollectorId && String(optimalCollectorId).trim() !== '';
+  }
+  
+  // Debug helper - call this from console to check values
+  debugCollectorMatch(element: any): void {
+    console.log('Debug Collector Match:', {
+      EmpId: element.EmpId,
+      OptimalCollectorId: element.OptimalCollectorId,
+      hasOptimal: this.hasOptimalCollector(element.OptimalCollectorId),
+      isMatch: this.isOptimalCollectorMatch(element.EmpId, element.OptimalCollectorId),
+      empIdType: typeof element.EmpId,
+      optimalIdType: typeof element.OptimalCollectorId
+    });
+  }
+
+  // Open proximity data dialog
+  async openProximityDataDialog(element: any): Promise<void> {
+    try {
+      const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+      
+      const dialogRef = this.dialog.open(ProximityDialogComponent, {
+        width: '700px',
+        maxWidth: '90vw',
+        maxHeight: '80vh',
+        data: {
+          storeNumber: element.StoreNumber,
+          storeName: element.StoreName,
+          empId: element.EmpId,
+          optimalCollectorId: element.OptimalCollectorId,
+          assignedTo: element.AssignedTo || element.EmployeeName,
+          firstName: element.FirstName,
+          lastName: element.LastName,
+          isActiveFSR: element.IsActiveFSR,
+          terminationDate: element.TerminationDate,
+          countryId: currentFilters?.country_id || '1'
+        },
+        disableClose: false
+      });
+
+      dialogRef.afterClosed().subscribe(result => {
+        if (result) {
+          // Handle any changes when dialog is closed
+          console.log('Proximity dialog closed with result:', result);
+        }
+      });
+    } catch (error) {
+      console.error('Error opening proximity dialog:', error);
+    }
+  }
+
+  // async openTaskAssignmentDialog(taskData: any): Promise<void> {
+  //   try {
+  //     const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+      
+  //     if (!currentFilters || Object.keys(currentFilters).length === 0) {
+  //       console.warn('No filters applied. Cannot open assignment dialog.');
+  //       return;
+  //     }   
+  //     const dialogRef = this.dialog.open(AssignmentDialogComponent, {
+  //       width: '90vw',
+  //       maxWidth: '1200px', 
+  //       height: '80vh',
+  //       data: {
+  //         storeNumber: taskData.StoreNumber,
+  //         storeName: taskData.storeName,
+  //         taskNumber: taskData.TaskNumber,
+  //         taskName: taskData.TaskName,
+  //         iriWeek: currentFilters.iri_week,
+  //         territoryId: currentFilters.territory_id,
+  //         mode: 'TaskLevel'
+  //       },
+  //       disableClose: true
+  //     });
+
+  //     dialogRef.afterClosed().subscribe(result => {
+  //       if (result) {
+  //         this.refreshGridData();
+  //       }
+  //     });
+  //   } catch (error) {
+  //     console.error('Error opening task assignment dialog:', error);
+  //   }
+  // }
+
+    async openTaskAssignmentDialog2(taskData: any): Promise<void> {
+    try {
+      const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+      
+      if (!currentFilters || Object.keys(currentFilters).length === 0) {
+        console.warn('No filters applied. Cannot open assignment dialog.');
+        return;
+      }   
+      const dialogRef = this.dialog.open(AssignmentDialogComponent, {
+        width: '90vw',
+        maxWidth: '1200px', 
+        height: '80vh',
+        data: {
+          storeNumber: taskData.storeNumber,
+          storeName: taskData.storeName,
+          taskNumber: taskData.taskNumber,
+          taskName: taskData.taskName,
+          iriWeek: currentFilters.iri_week,
+          territoryId: currentFilters.territory_id,
+          mode: 'TaskLevel'
+        },
+        disableClose: true
+      });
+
+      dialogRef.afterClosed().subscribe(result => {
+        if (result) {
+          this.refreshGridData();
+        }
+      });
+    } catch (error) {
+      console.error('Error opening task assignment dialog:', error);
+    }
+  }
+
+
+  // Open Closest FSR dialog (when clicking colored circles)
+  async openClosestFsrDataDialog(element: any): Promise<void> {
+    try {
+      const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+      
+      const dialogRef = this.dialog.open(ClosestFsrDialogComponent, {
+        width: '40vw',
+        maxWidth: '40vw',
+        minWidth: '600px',
+        maxHeight: '55vh',
+        minHeight: '250px',
+        data: {
+          StoreNumber: element.StoreNumber,
+          StoreName: element.StoreName,
+          CollectorId: element.EmpId,
+          OptimalCollectorId: element.OptimalCollectorId,
+          FirstName: element.FirstName,
+          LastName: element.LastName,
+          IsActiveFSR: element.IsActiveFSR,
+          TerminationDate: element.TerminationDate,
+          CountryId: currentFilters?.country_id || '1'
+        },
+        disableClose: true,
+      });
+
+      dialogRef.afterClosed().subscribe(result => {
+        if (result) {
+          console.log('Closest FSR dialog closed with result:', result);
+        }
+      });
+    } catch (error) {
+      console.error('Error opening Closest FSR dialog:', error);
+    }
+  }
+
+ 
+  private resetExpansionState(): void {
+    this.allExpanded = false;
+    this.isExpandingAll = false;
+    this.expandedRows.clear();
+    this.selectedRows.clear();
+    const parentRowsOnly = this.dataSource.data.filter(row => !row.isChildRow);
+    this.dataSource.data = parentRowsOnly;
+    this.cdr.detectChanges(); // Ensure caret icons are updated
+  }
+
+
+  // private getCurrentPageData(): any[] {
+  //   if (!this.paginator) {
+  //     return this.dataSource.data;
+  //   }
+    
+  //   const startIndex = this.paginator.pageIndex * this.paginator.pageSize;
+  //   const endIndex = startIndex + this.paginator.pageSize;
+  //   return this.dataSource.data.slice(startIndex, endIndex);
+  // }
+
+  private getCurrentPageData(): any[] {
+  if (!this.paginator) {
+    return this.dataSource.data.filter(row => !row.isChildRow);
+  }
+  
+  const startIndex = this.paginator.pageIndex * this.paginator.pageSize;
+  const endIndex = startIndex + this.paginator.pageSize;
+  
+  // Filter to only get parent rows on current page
+  return this.dataSource.data
+    .filter(row => !row.isChildRow)
+    .slice(startIndex, endIndex);
+}
+
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  private refreshGridData(): void {
+    console.log('Refreshing grid data after assignment change');
+  }
+
+  //  helpers
+
+  getExpandedRowCount(): number {
+    return this.expandedRows.size;
+  }
+
+  formatCollectionTime(time: string): string {
+    return time || 'Not specified';
+  }
+
+  getClusterDisplay(positionName: string): string {
+    return positionName || 'N/A';
+  }
 
   ngAfterViewInit(): void {
     this.dataSource.paginator = this.paginator;
     this.dataSource.sort = this.sort;
     
-    // FIXED: Listen to pagination changes with proper cleanup
-    if (this.paginator) {
+  
+     this.dataSource.sortingDataAccessor = (data: any, sortHeaderId: string) => {
+      switch (sortHeaderId) {
+        // Numeric sorting
+        case 'StoreNumber':
+          return parseInt(data.StoreNumber) || 0;
+        
+        case 'FldTerrtyNbr':
+          return parseInt(data.FldTerrtyNbr) || 0;
+        
+        case 'Zip':
+          return data.Zip ? data.Zip.toString() : '';
+        
+        // Cost columns - convert to numbers for proper sorting
+        case 'AvgCost':
+        case 'WK1FSRProdCost':
+        case 'WK1StoreTravelCost':
+        case 'WK1StoreTravelOvgCost':
+        case 'WK2FSRProdCost':
+        case 'WK2StoreTravelCost':
+        case 'WK2StoreTravelOvgCost':
+        case 'GuaranteedMiles':
+          return parseFloat(data[sortHeaderId]) || 0;
+        
+        // String sorting (case-insensitive)
+        case 'StoreName':
+        case 'AddrLine1':
+        case 'City':
+        case 'State':
+        case 'PositionName':
+        case 'Bfd':
+        case 'OutletType':
+          return data[sortHeaderId] ? data[sortHeaderId].toString().toLowerCase() : '';
+        
+        // Assigned To - sort by first name for multiple assignments
+        case 'AssignedTo':
+          if (!data.AssignedTo || data.AssignedTo === 'NOT ASSIGNED') {
+            return 'zzz'; 
+          }
+          // Get first name from comma-separated list
+          const name = data.AssignedTo.split(',');          
+          const firstName = name[0]?.trim().toLowerCase()||'';
+          return firstName.toLowerCase();
+        
+        // Status columns - custom sort order
+        case 'TaskCompleted':
+          return this.getTaskCompletedSortValue(data.TaskCompleted);
+        
+        // case 'Quality':
+        //   return this.getQualitySortValue(data.Quality);
+        
+        case 'CostOver':
+          return this.getCostOverSortValue(data.CostOver);
+        
+        // Comments - sort by existence and then alphabetically
+        case 'UserComment':
+          if (!data.UserComment) return 'zzz'; // Empty comments last
+          return data.UserComment.toLowerCase();
+        
+        default:
+          return data[sortHeaderId] || '';
+      }
+    };
+
+     if (this.paginator) {
       this.paginator.page
         .pipe(takeUntil(this.destroy$))
         .subscribe(() => {
-          console.log('Page changed - resetting expansion state');
-          this.forceCollapseAllRows(); // Use forced collapse
+          this.forceCollapseAllRows();
           this.resetExpansionState();
         });
     }
+     this.cdr.detectChanges();
   }
 
-  // FIXED: Individual row expansion with proper icon sync
-  GetSubgridData(cdkDetailRow: CdkDetailRowDirective, row: any): void {
-    console.log('Row toggle:', row.StoreNumber, 'Current state:', cdkDetailRow.isExpanded);
-    
-    if (cdkDetailRow.isExpanded) {
-      this.expandedRows.add(cdkDetailRow);
-      this.selectedRows.add(row);
-    } else {
-      this.expandedRows.delete(cdkDetailRow);
-      this.selectedRows.delete(row);
-      
-      // If this was manually collapsed, update allExpanded state
-      if (this.allExpanded && this.expandedRows.size < this.getCurrentPageData().length) {
-        this.allExpanded = false;
-      }
-    }
-    
-    // Always update caret icon after state change
-    this.updateCaretIcon(cdkDetailRow, cdkDetailRow.isExpanded);
-    
-    console.log(`Individual expansion: ${this.expandedRows.size} rows expanded`);
+
+  // Week type class specifically for table min-width
+  getWeekTypeTableClass(): string {
+    return `week-${this.currentWeekType}`;
   }
 
-  // FIXED: Expand all with proper state management
-  async expandAllRows(): Promise<void> {
-    if (this.isExpandingAll) {
-      return;
-    }
-    
-    this.isExpandingAll = true;
-    
-    try {
-      if (this.allExpanded) {
-        // Collapse all
-        this.forceCollapseAllRows();
-        this.allExpanded = false;
-      } else {
-        // First collapse any individually expanded rows
-        this.forceCollapseAllRows();
-        
-        // Then expand all
-        await this.expandAllRowsWithData();
-        this.allExpanded = true;
-      }
-      
-    } catch (error) {
-      console.error('Error in expandAllRows:', error);
-    } finally {
-      this.isExpandingAll = false;
+  // Get current table min-width for debugging/info
+  getCurrentTableMinWidth(): number {
+    switch (this.currentWeekType) {
+      case 'current':
+        return 1520;
+      case 'future':
+        return 1320;
+      case 'previous':
+        return 2100;
+      default:
+        return 1200;
     }
   }
 
-  // FIXED: Force collapse all rows (works for individual and expand-all)
-  private forceCollapseAllRows(): void {
-    console.log('Force collapsing all rows...');
-    
-    const detailRowsArray = this.detailRows?.toArray() || [];
-    
-    // Collapse all directive rows
-    detailRowsArray.forEach((detailRow) => {
-      if (detailRow.isExpanded) {
-        detailRow.collapse();
-        console.log('Collapsed directive row');
-      }
-    });
-    
-    // Clear tracking sets
-    this.expandedRows.clear();
-    this.selectedRows.clear();
-    
-    // Force update all caret icons to collapsed state
-    setTimeout(() => {
-      const caretIcons = document.querySelectorAll('.caret');
-      caretIcons.forEach(icon => {
-        icon.classList.remove('clicked');
-      });
-      console.log('Updated all caret icons to collapsed state');
-    }, 100);
-    
-    console.log('All rows force collapsed');
-  }
-
-  // FIXED: Expand all with data loading
-  private async expandAllRowsWithData(): Promise<void> {
-    console.log('Starting to expand all rows with data...');
-    
-    const currentPageData = this.getCurrentPageData();
-    const detailRowsArray = this.detailRows?.toArray() || [];
-    
-    if (detailRowsArray.length === 0) {
-      console.warn('No detail row directives found');
-      return;
+  // Get week type display info
+  getWeekTypeInfo(): { name: string, minWidth: number, columns: number } {
+    switch (this.currentWeekType) {
+      case 'current':
+        return { 
+          name: 'Current Week Tasks', 
+          minWidth: 1520, 
+          columns: this.currentWeekColumns.length 
+        };
+      case 'future':
+        return { 
+          name: 'Future Week Planning', 
+          minWidth: 1320, 
+          columns: this.futureWeekColumns.length 
+        };
+      case 'previous':
+        return { 
+          name: 'Previous Week History', 
+          minWidth: 2100, 
+          columns: this.previousWeekColumns.length 
+        };
+      default:
+        return { 
+          name: 'Store Data', 
+          minWidth: 1200, 
+          columns: this.baseColumns.length 
+        };
     }
+  }
 
-    // Load all data first
-    console.log('Loading data for all rows...');
-    const dataLoadPromises = currentPageData.map(rowData => 
-      this.loadSubgridDataForRow(rowData).catch(error => {
-        console.error(`Error loading data for ${rowData.StoreNumber}:`, error);
-        return [];
-      })
-    );
+//   formatQuality(value: any): string {
+//   if (!value) return 'N/A';
+//   const quality = value.toString().toLowerCase();
+//   return quality === 'approved' ? 'Approved' : 'Not Approved';
+// }
 
-    const allRowData = await Promise.all(dataLoadPromises);
-    console.log('All data loaded, expanding rows...');
+// getQualityClass(value: any): string {
+//   if (!value) return 'quality-unknown';
+//   const quality = value.toString().toLowerCase();
+//   return quality === 'approved' ? 'quality-approved' : 'quality-not-approved';
+// }
 
-    // Now expand each row with its specific data
-    for (let i = 0; i < Math.min(currentPageData.length, detailRowsArray.length); i++) {
-      const detailRowDirective = detailRowsArray[i];
-      const rowData = allRowData[i];
-      
-      if (detailRowDirective && detailRowDirective.canExpand()) {
-        try {
-          // Expand with specific data for this row
-          detailRowDirective.expandWithData(rowData);
-          
-          // Add to tracking sets
-          this.expandedRows.add(detailRowDirective);
-          this.selectedRows.add(currentPageData[i]);
-          
-          console.log(`Expanded row ${i + 1} with ${rowData.length} detail records`);
-          
-          // Small delay for UI smoothness
-          await this.delay(25);
-          
-        } catch (error) {
-          console.error(`Error expanding row ${i}:`, error);
-        }
-      }
+
+  private getTaskCompletedSortValue(status: any): number {
+    if (!status) return 3;
+    const statusStr = status.toString().toLowerCase();
+    switch (statusStr) {
+      case 'yes':
+      case 'completed':
+      case 'complete':
+        return 1;
+      case 'no':
+      case 'incomplete':
+      case 'pending':
+        return 2;
+      default:
+        return 3;
     }
-    
-    // Update all caret icons to expanded state
-    setTimeout(() => {
-      const caretIcons = document.querySelectorAll('.caret');
-      caretIcons.forEach(icon => {
-        icon.classList.add('clicked');
-      });
-      console.log('Updated all caret icons to expanded state');
-    }, 100);
-    
-    console.log('Finished expanding all rows');
   }
 
-  // ENHANCED: Reset expansion state with forced cleanup
-  private resetExpansionState(): void {
-    console.log('Resetting expansion state');
-    this.allExpanded = false;
-    this.isExpandingAll = false;
-    this.expandedRows.clear();
-    this.selectedRows.clear();
-    this.expandedRowsData.clear();
-    
-    // Force update all caret icons immediately
-    setTimeout(() => {
-      const caretIcons = document.querySelectorAll('.caret');
-      caretIcons.forEach(icon => {
-        icon.classList.remove('clicked');
-      });
-      console.log('Reset all caret icons');
-    }, 50);
-  }
-
-  // ENHANCED: Update caret icon with better timing
-  updateCaretIcon(cdkDetailRow: CdkDetailRowDirective, isExpanded: boolean): void {
-    // Use multiple setTimeout attempts to ensure icon updates
-    [0, 50, 100].forEach(delay => {
-      setTimeout(() => {
-        const rowElement = cdkDetailRow.viewContainerRef.element.nativeElement.parentElement;
-        const caretIcon = rowElement?.querySelector('.caret');
-        
-        if (caretIcon) {
-          if (isExpanded) {
-            caretIcon.classList.add('clicked');
-          } else {
-            caretIcon.classList.remove('clicked');
-          }
-        }
-      }, delay);
-    });
-  }
-
-  // Rest of existing methods remain the same...
-}
-Enhanced cdk-detail-row.directive.ts:
-typescript
-// cdk-detail-row.directive.ts - ENHANCED WITH BETTER STATE MANAGEMENT
-
-@Directive({
-  selector: '[cdkDetailRow]'
-})
-export class CdkDetailRowDirective {
   
-  // Existing properties...
-  public rowData: any;
-  private templateRef: TemplateRef<any>;
-  public isExpanded: boolean = false; 
-  public subgridData: any[] = [];
-  public isLoading: boolean = false;
 
-  // ENHANCED: Better expand method
-  expand(): void {
-    if (!this.isExpanded && this.canExpand()) {
-      this.isExpanded = true;
-      
-      // Request data loading if we don't have data yet
-      if (this.subgridData.length === 0 && !this.isLoading) {
-        this.isLoading = true;
-        this.dataLoadRequest.emit({ directive: this, rowData: this.rowData });
-      }
-      
-      this.render();
+  private getCostOverSortValue(costOver: any): number {
+    if (!costOver) return 2;
+    const costStr = costOver.toString().toLowerCase();
+    switch (costStr) {
+      case 'no':
+      case 'false':
+        return 1;
+      case 'yes':
+      case 'true':
+        return 2;
+      default:
+        return 2;
     }
   }
 
-  // ENHANCED: Expand with data (for expand all functionality)
-  expandWithData(data: any[]): void {
-    if (!this.isExpanded && this.canExpand()) {
-      this.subgridData = data;
-      this.isLoading = false;
-      this.isExpanded = true;
-      this.render();
-    }
-  }
-
-  // ENHANCED: Better collapse with cleanup
-  collapse(): void {
-    if (this.isExpanded) {
-      this.viewContainerRef.clear();
-      this.isExpanded = false;
-      this.isLoading = false;
-      
-      // Don't clear subgridData - keep it cached for faster re-expansion
-    }
-  }
-
-  // ENHANCED: Force collapse (for pagination/reset)
-  forceCollapse(): void {
-    this.viewContainerRef.clear();
-    this.isExpanded = false;
-    this.isLoading = false;
-    this.subgridData = []; // Clear data on force collapse
-  }
-
-  // Rest remains the same...
-}
-Issue 3: Dynamic API Selection Based on IRI Week + Comment Column
-Enhanced CommonService with Dynamic API Selection:
-typescript
-// common.service.ts - ENHANCED WITH DYNAMIC API SELECTION
-
-export class CommonService {
-  
-  // Add current IRI week tracking
-  private currentIRIWeekSubject = new BehaviorSubject<string>('');
-  public currentIRIWeek$ = this.currentIRIWeekSubject.asObservable();
-
-  // Load current IRI week on service init
-  async loadCurrentIRIWeek(): Promise<void> {
-    try {
-      const currentWeek = await firstValueFrom(
-        this.http.get<any>(`${this.baseUrl}api/TaskAssinment/GetCurrentIRIWeek`)
-      );
-      this.currentIRIWeekSubject.next(currentWeek.toString());
-      console.log('Current IRI Week loaded:', currentWeek);
-    } catch (error) {
-      console.error('Error loading current IRI week:', error);
-    }
-  }
-
-  getCurrentIRIWeek(): string {
-    return this.currentIRIWeekSubject.value;
-  }
-
-  // UPDATED: Dynamic getGridData with IRI week comparison
-  getGridData(payload: GetGridDataFilter): Observable<any[]> {
-    const currentIRIWeek = this.getCurrentIRIWeek();
-    const payloadIRIWeek = payload.iriWeek;
+  // ADD: Enhanced money formatting for display
+  formatMoney(value: any): string {
+    if (!value || value === 0 || value === '0') return '$0.00';
     
-    let apiEndpoint = '';
+    const num = parseFloat(value);
+    if (isNaN(num)) return '$0.00';
     
-    // Determine which API to call based on IRI week comparison
-    if (payloadIRIWeek === currentIRIWeek) {
-      // Current week
-      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetcurrentweekGridData`;
-      console.log('Using current week API');
-    } else if (payloadIRIWeek > currentIRIWeek) {
-      // Future week
-      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetfutureweekGridData`;
-      console.log('Using future week API');
-    } else {
-      // Previous week
-      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetpreviousweekGridData`;
-      console.log('Using previous week API');
-    }
-    
-    console.log(`API Selection: Payload(${payloadIRIWeek}) vs Current(${currentIRIWeek}) -> ${apiEndpoint}`);
-    
-    return this.http.post<any[]>(apiEndpoint, payload)
-      .pipe(catchError(this.handleError<any[]>('getGridData', [])));
-  }
-
-  // UPDATED: Apply filters with current IRI week check
-  applyFilters(filters: GetGridDataFilter): void {
-    const currentCountry = this.getCurrentCountry();
-    
-    if (!currentCountry) {
-      filters.countryId = '1';
-      filters.iriWeek = '2405';
-      filters.territoryId = '52';
-    } else {
-      filters.countryId = currentCountry;
-    }
-
-    this.filtersSubject.next(filters);
-    this.currentFiltersSubject.next({
-      countryId: filters.countryId,
-      iri_week: filters.iriWeek,
-      territory_id: filters.territoryId,
-      area: filters.area,
-      store_number: filters.storeNumber,
-      store_name: filters.storeName,
-      state: filters.state,
-      city: filters.city,
-      position_number: filters.positionNumber,
-      task_number: filters.taskNumber,
-      emp_id: filters.empId,
-      fsr_hour: filters.fsrHour,
-      fsr_over_25hrs: filters.fsrOver25hrs,
-      fsr_over_6hrs: filters.fsrOver6hrs,
-      assigned_stores: filters.assignedStores,
-      unassigned_stores: filters.unassignedStores,
-      sample: filters.sample,
-      nonsample: filters.nonSample,
-      multi_fsr_store: filters.multiFsrStore,
-      vacation: filters.vacation,
-      temporary: filters.temporary,
-      fsr_hour_operator: filters.fsrHourOperator
-    });
-    
-    // Call dynamic getGridData API
-    this.getGridData(filters).subscribe({
-      next: (data) => {
-        // Add empty comment field to each row for editing
-        const dataWithComments = data.map(row => ({
-          ...row,
-          UserComment: row.UserComment || '', // Existing comment or empty
-          IsCommentEditing: false // Track edit state
-        }));
-        this.gridDataSubject.next(dataWithComments);
-      },
-      error: (error) => {
-        console.error('Error applying filters:', error);
-        this.gridDataSubject.next([]);
-      }
+    return '$' + num.toLocaleString('en-US', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
     });
   }
 
-  // ADD: Save user comment for a row
-  saveUserComment(storeNumber: string, comment: string): Observable<any> {
-    const payload = {
-      storeNumber: storeNumber,
-      comment: comment,
-      userId: localStorage.getItem("loggedUserId") || ''
+  // ADD: Sort change handler with logging
+  onSortChange(event: any): void {
+    this.currentSortColumn = event.active;
+    this.currentSortDirection = event.direction;    
+    // Collapse all expanded rows when sorting
+    this.forceCollapseAllRows();
+    this.resetExpansionState();
+  }
+
+  // ADD: Get current sort info for display
+  getCurrentSortInfo(): { column: string, direction: string } {
+    return {
+      column: this.currentSortColumn || 'None',
+      direction: this.currentSortDirection || 'None'
     };
+  }
+
     
-    return this.http.post(`${this.baseUrl}api/TaskAssinment/SaveUserComment`, payload)
-      .pipe(catchError(this.handleError('saveUserComment', {})));
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.unsubscribe$.next();
+    this.unsubscribe$.complete();
   }
 }
-Update Dashboard to Load Current IRI Week:
-typescript
-// dashboard-layout.component.ts - LOAD CURRENT IRI WEEK
 
-async ngOnInit(): Promise<void> {
-  // Load current IRI week first
-  await this.commonService.loadCurrentIRIWeek();
-  
-  // Existing initialization code...
-  this.commonService.groupsStatus$.subscribe(userGroups => {    
-    if(userGroups['isgTechnologyGroup']) { 
-      this.countryctrl.enable();
-    } else { 
-      this.countryctrl.disable();
-    }   
-  });
-
-  // Rest of existing code...
-}
-Add Comment Column to Store Table:
-typescript
-// store-table.component.ts - ADD COMMENT FUNCTIONALITY
-
-export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
-  
-  // ADD: Comment column to displayed columns
-  displayedColumns: string[] = [
-    'store_number', 'store_name', 'addr_line1', 'city', 'state', 'zip', 
-    'assigned_to', 'expected_collection_time', 'position_name', 'user_comment'
-  ];
-
-  // ADD: Comment editing methods
-  startCommentEdit(row: any): void {
-    row.IsCommentEditing = true;
-  }
-
-  cancelCommentEdit(row: any): void {
-    row.IsCommentEditing = false;
-    // Reset to original comment if cancelled
-    // You might want to store original value before editing
-  }
-
-  async saveComment(row: any, newComment: string): Promise<void> {
-    try {
-      await firstValueFrom(
-        this.commonService.saveUserComment(row.StoreNumber, newComment)
-      );
-      
-      row.UserComment = newComment;
-      row.IsCommentEditing = false;
-      
-      console.log('Comment saved successfully');
-      // Optional: Show success message
-      
-    } catch (error) {
-      console.error('Error saving comment:', error);
-      // Optional: Show error message
-    }
-  }
-
-  // ADD: Handle comment input events
-  onCommentKeydown(event: KeyboardEvent, row: any): void {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      const target = event.target as HTMLTextAreaElement;
-      this.saveComment(row, target.value);
-    } else if (event.key === 'Escape') {
-      this.cancelCommentEdit(row);
-    }
-  }
-}
-Update Store Table HTML with Comment Column:
-xml
-<!-- store-table.component.html - ADD COMMENT COLUMN -->
-
-<!-- Add after position_name column -->
-<ng-container matColumnDef="user_comment">
-  <mat-header-cell *matHeaderCellDef class="mat-header-style">Comments</mat-header-cell>
-  <mat-cell *matCellDef="let element" class="comment-cell">
-    <!-- View mode -->
-    <div *ngIf="!element.IsCommentEditing" class="comment-view">
-      <span class="comment-text" 
-            [title]="element.UserComment"
-            (click)="startCommentEdit(element); $event.stopPropagation();">
-        {{element.UserComment || 'Add comment...'}}
-      </span>
-      <button mat-icon-button 
-              (click)="startCommentEdit(element); $event.stopPropagation();"
-              class="comment-edit-btn">
-        <mat-icon>edit</mat-icon>
-      </button>
-    </div>
+<div class="table-container">
+  <mat-card class="table-card" [ngClass]="getWeekTypeClass()">
     
-    <!-- Edit mode -->
-    <div *ngIf="element.IsCommentEditing" class="comment-edit">
-      <mat-form-field appearance="outline" class="comment-field">
-        <textarea matInput
-                  [value]="element.UserComment"
-                  placeholder="Enter comment..."
-                  (keydown)="onCommentKeydown($event, element)"
-                  #commentInput
-                  rows="2"
-                  maxlength="500">
-        </textarea>
-      </mat-form-field>
-      <div class="comment-actions">
-        <button mat-icon-button 
-                color="primary"
-                (click)="saveComment(element, commentInput.value); $event.stopPropagation();">
-          <mat-icon>check</mat-icon>
-        </button>
-        <button mat-icon-button 
-                (click)="cancelCommentEdit(element); $event.stopPropagation();">
-          <mat-icon>close</mat-icon>
-        </button>
+    <mat-card-content>
+      <div class="table-wrapper">
+        <mat-table #table [dataSource]="dataSource" matSort class="store-table mat-elevation-2" [ngClass]="getWeekTypeTableClass()">
+          
+          <!-- ==================== ALL COLUMN DEFINITIONS ==================== -->
+          
+          <!-- Store Number Column -->
+          <ng-container matColumnDef="store_number" *ngIf="isColumnVisible('store_number')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="StoreNumber" class="mat-header-style">
+              <button mat-icon-button 
+                      [disabled]="isExpandingAll"
+                      (click)="expandAllRows(); $event.stopPropagation()" 
+                      [title]="allExpanded ? 'Collapse All' : 'Expand All'"
+                      class="expand-all-btn">
+                <mat-icon>{{allExpanded ? 'unfold_less' : 'unfold_more'}}</mat-icon>
+              </button>
+              Store #
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="store-number-cell">
+              <span class="caret" [class.clicked]="isRowExpanded(element)">▼</span>
+              <span class="store-number">{{element.StoreNumber}}</span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Territory -->
+          <ng-container matColumnDef="territory" *ngIf="isColumnVisible('territory')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="FldTerrtyNbr" class="mat-header-style" matTooltip="Territory">
+              Terr
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.FldTerrtyNbr || element.fldTerrtyNbr}}</mat-cell>
+          </ng-container>
+
+          <!-- Position Number -->
+          <ng-container matColumnDef="position_number" *ngIf="isColumnVisible('position_number')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="PositionName" class="mat-header-style">
+              Position #
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.PositionName || element.positionName}}</mat-cell>
+          </ng-container>
+
+          <!-- BFD -->
+          <ng-container matColumnDef="bdf" *ngIf="isColumnVisible('bdf')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="Bfd" class="mat-header-style">BFD</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.Bfd || element.bfd}}</mat-cell>
+          </ng-container>
+
+          <!-- Outlet -->
+          <ng-container matColumnDef="outlet" *ngIf="isColumnVisible('outlet')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="OutletType" class="mat-header-style">
+              Outlet
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.OutletType|| element.outletType}}</mat-cell>
+          </ng-container>
+
+          <!-- Store Name -->
+          <ng-container matColumnDef="store_name" *ngIf="isColumnVisible('store_name')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="StoreName" class="mat-header-style">
+              Store Name
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="store-name-cell">
+              <span class="store-name" 
+                    *ngIf="!element.isChildRow"
+                    (click)="openProximityDataDialog(element); $event.stopPropagation();">
+                {{element.StoreName }}
+              </span>
+
+              <span  *ngIf="element.isChildRow">
+                {{element.storeName}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Address -->
+          <ng-container matColumnDef="addr_line1" *ngIf="isColumnVisible('addr_line1')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="AddrLine1" class="mat-header-style">
+              Address
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.AddrLine1}}</mat-cell>
+          </ng-container>
+
+          <!-- City -->
+          <ng-container matColumnDef="city" *ngIf="isColumnVisible('city')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="City" class="mat-header-style">City</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.City}}</mat-cell>
+          </ng-container>
+
+          <!-- State -->
+          <ng-container matColumnDef="state" *ngIf="isColumnVisible('state')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="State" class="mat-header-style">State</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.State}}</mat-cell>
+          </ng-container>
+
+          <!-- Zip -->
+          <ng-container matColumnDef="zip" *ngIf="isColumnVisible('zip')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="Zip" class="mat-header-style">Zip</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.Zip}}</mat-cell>
+          </ng-container>
+
+          <!-- Assigned To -->
+          <ng-container matColumnDef="assigned_to" *ngIf="isColumnVisible('assigned_to')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="AssignedTo" class="mat-header-style">
+              Assigned To
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="assigned-cell" 
+                      [class.child-assigned]="element.isChildRow"
+                      (click)="element.isChildRow ? openTaskAssignmentDialog2(element) : openAssignmentDialog(element, 'StoreLevel'); $event.stopPropagation()">
+              
+              <!-- Parent Row Assigned To -->
+              <div *ngIf="!element.isChildRow" class="assignment-container">
+                <div class="assignment-names" 
+                     [ngClass]="getAssignmentClass(element.AssignedTo)"
+                     [matTooltip]="getAssignedToTooltip(element.AssignedTo)"
+                     matTooltipClass="multi-line-tooltip">
+                  
+                  <div *ngIf="!shouldDisplayMultipleLines(element.AssignedTo)" class="single-name">
+                    {{element.AssignedTo || 'NOT ASSIGNED'}}
+                  </div>
+                  
+                  <div *ngIf="shouldDisplayMultipleLines(element.AssignedTo)" class="multiple-names">
+                    <div *ngFor="let name of getIndividualNames(element.AssignedTo); let i = index" 
+                         class="name-line" [class.first-name]="i === 0">
+                      {{name}}
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Optimal Collector Indicator -->
+                <div class="optimal-collector-indicator">
+                  <div class="circle-green" 
+                       *ngIf="hasOptimalCollector(element.OptimalCollectorId) && isOptimalCollectorMatch(element.EmpId, element.OptimalCollectorId)" 
+                       (click)="openClosestFsrDataDialog(element); $event.stopPropagation()"
+                       matTooltip="Optimal collector assigned">
+                    <span class="checkmark"></span>
+                  </div>
+                  
+                  <div class="circle-red" 
+                       *ngIf="hasOptimalCollector(element.OptimalCollectorId) && !isOptimalCollectorMatch(element.EmpId, element.OptimalCollectorId)" 
+                       (click)="openClosestFsrDataDialog(element); $event.stopPropagation()"
+                       matTooltip="Non-optimal collector assigned">
+                    <span class="crossmark"></span>
+                  </div>
+                  
+                  <div class="circle-gray" 
+                       *ngIf="!hasOptimalCollector(element.OptimalCollectorId) && element.EmpId" 
+                       (click)="openClosestFsrDataDialog(element); $event.stopPropagation()"
+                       matTooltip="No optimal collector data">
+                    <span class="checkmark"></span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Child Row Assigned To -->
+              <span *ngIf="element.isChildRow" class="clickable-link">
+                {{element.assignedTo || element.AssignedTo}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Task Completed -->
+          <ng-container matColumnDef="task_completed" *ngIf="isColumnVisible('task_completed')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="TaskCompleted" class="mat-header-style" matTooltip="Completed">
+              Completed
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              <span class="status-badge" [ngClass]="getTaskCompletedClass(element.TaskCompleted || element.taskCompleted)">
+                {{formatTaskCompleted(element.TaskCompleted || element.taskCompleted)}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Cost Over -->
+          <ng-container matColumnDef="cost_over" *ngIf="isColumnVisible('cost_over')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="CostOver" class="mat-header-style">
+              Over Cost
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              <span class="cost-badge" [ngClass]="getCostOverClass(element.CostOver || element.costOver)">
+                {{(element.CostOver || element.costOver) | currencyFormat}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Guaranteed Miles -->
+          <ng-container matColumnDef="guaranteed_miles" *ngIf="isColumnVisible('guaranteed_miles')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="GuaranteedMiles" class="mat-header-style">
+              Miles
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              {{formatGuaranteedMiles(element.GuaranteedMiles || element.guaranteedMiles)}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- Average Cost (Future Week) -->
+          <ng-container matColumnDef="avg_cost" *ngIf="isColumnVisible('avg_cost')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="AvgCost" class="mat-header-style">
+              Avg Cost
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              {{formatAvgCost(element.AvgCost || element.avgCost)}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK1 Costs -->
+          <ng-container matColumnDef="wk1_costs" *ngIf="isColumnVisible('wk1_costs')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK1FSRProdCost" class="mat-header-style">
+              W{{this.currentFilters?.iri_week}} Cost
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" 
+                      [ngClass]="{'negative': (element.WK1FSRProdCost || element.wK1FSRProdCost) > 0, 
+                                  'positive': (element.WK1FSRProdCost || element.wK1FSRProdCost) <= 0}">
+              {{(element.WK1FSRProdCost || element.wK1FSRProdCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK1 Travel -->
+          <ng-container matColumnDef="wk1_travel" *ngIf="isColumnVisible('wk1_travel')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK1StoreTravelCost" class="mat-header-style">
+              W{{this.currentFilters?.iri_week}} Travel
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="travel-column">
+              {{(element.WK1StoreTravelCost || element.wK1StoreTravelCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK1 Ovg Travel -->
+          <ng-container matColumnDef="wk1_ovg_travel" *ngIf="isColumnVisible('wk1_ovg_travel')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK1StoreTravelOvgCost" class="mat-header-style">
+              W{{this.currentFilters?.iri_week}} Ovg Travel
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element"
+                      [ngClass]="{'negative': (element.WK1StoreTravelOvgCost || element.wK1StoreTravelOvgCost) > 0, 
+                                  'positive': (element.WK1StoreTravelOvgCost || element.wK1StoreTravelOvgCost) <= 0}">
+              {{(element.WK1StoreTravelOvgCost || element.wK1StoreTravelOvgCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK2 Costs -->
+          <ng-container matColumnDef="wk2_costs" *ngIf="isColumnVisible('wk2_costs')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK2FSRProdCost" class="mat-header-style">
+              WK2 Cost
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element"
+                      [ngClass]="{'negative': (element.WK2FSRProdCost || element.wK2FSRProdCost) > 0, 
+                                  'positive': (element.WK2FSRProdCost || element.wK2FSRProdCost) <= 0}">
+              {{(element.WK2FSRProdCost || element.wK2FSRProdCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK2 Travel -->
+          <ng-container matColumnDef="wk2_travel" *ngIf="isColumnVisible('wk2_travel')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK2StoreTravelCost" class="mat-header-style">
+              WK2 Travel
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="travel-column">
+              {{(element.WK2StoreTravelCost || element.wK2StoreTravelCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK2 Ovg Travel -->
+          <ng-container matColumnDef="wk2_ovg_travel" *ngIf="isColumnVisible('wk2_ovg_travel')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK2StoreTravelOvgCost" class="mat-header-style">
+              WK2 Ovg Travel
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element"
+                      [ngClass]="{'negative': (element.WK2StoreTravelOvgCost || element.wK2StoreTravelOvgCost) > 0, 
+                                  'positive': (element.WK2StoreTravelOvgCost || element.wK2StoreTravelOvgCost) <= 0}">
+              {{(element.WK2StoreTravelOvgCost || element.wK2StoreTravelOvgCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- Comments -->
+          <ng-container matColumnDef="user_comment" *ngIf="isColumnVisible('user_comment')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="UserComment" class="mat-header-style">
+              Comments
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="comment-cell">
+              <div *ngIf="!element.isChildRow"
+                   class="comment-display"
+                   (click)="openCommentDialog(element); $event.stopPropagation();"
+                   [title]="element.UserComment || 'Click to add/edit comment'"
+                   [class.has-comment]="element.UserComment"
+                   [class.clickable]="canEditComments || element.UserComment">
+                <span class="comment-text">{{getCommentDisplay(element.UserComment)}}</span>
+              </div>
+            </mat-cell>
+          </ng-container>
+
+          <!-- ==================== HEADER AND DATA ROWS ==================== -->
+          
+          <mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></mat-header-row>
+          
+          <!-- Regular rows (both parent and child) -->
+          <mat-row *matRowDef="let row; columns: displayedColumns;"
+                   class="table-row"
+                   [class.parent-row]="!row.isChildRow"
+                   [class.child-row]="row.isChildRow"
+                   [class.child-row-first]="row.isChildRow && row.isFirstChild"
+                   [class.child-row-last]="row.isChildRow && row.isLastChild"
+                   [cdkDetailRow]="row" 
+                   [cdkDetailRowTpl]="tpl"                  
+                   (toggleChange)="onDataLoadRequest({directive: $event, rowData: row})"
+                   matRipple>
+          </mat-row>
+        </mat-table>
       </div>
-    </div>
-  </mat-cell>
-</ng-container>
-Add Comment Column CSS:
-css
-/* store-table.component.css - ADD COMMENT STYLES */
+      
+      <!-- Search and Paginator -->
+      <div class="search-paginator-bar">
+        <mat-form-field appearance="standard" class="search-field">
+          <mat-label>Search...</mat-label>
+          <input matInput [formControl]="searchControl" 
+                 placeholder="Search by store number, name, address, city, state, assigned to, etc.">
+          <mat-icon matPrefix>search</mat-icon>
+          <button mat-button *ngIf="searchControl.value" matSuffix mat-icon-button (click)="clearSearch()">
+            <mat-icon>clear</mat-icon>
+          </button>
+        </mat-form-field>
+        
+        <mat-paginator [pageSizeOptions]="[50,100,150,200]"
+                       showFirstLastButtons="true">
+        </mat-paginator>
+      </div>
 
-.comment-cell {
-  min-width: 200px;
-  max-width: 300px;
-}
+    </mat-card-content>
+  </mat-card>
+</div>
 
-.comment-view {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+<!-- Empty template - child rows are rendered directly in the table -->
+<ng-template #tpl let-element></ng-template>
 
-.comment-text {
-  flex: 1;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  color: #666;
-  font-style: italic;
-}
-
-.comment-text:hover {
-  background-color: #f5f5f5;
-}
-
-.comment-text:not(:empty) {
-  color: #333;
-  font-style: normal;
-}
-
-.comment-edit-btn {
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.comment-view:hover .comment-edit-btn {
-  opacity: 1;
-}
-
-.comment-edit {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.comment-field {
-  width: 100%;
-}
-
-.comment-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 4px;
-}
-Summary of All Fixes:
-✅ Issue 1 Fixed: openTaskAssignmentDialog now uses firstValueFrom to properly wait for currentFilters$
-✅ Issue 2.1 Fixed: Expand/collapse icons now sync properly with individual and bulk operations
-✅ Issue 2.2 Fixed: Pagination properly resets expansion state with forced cleanup
-✅ Issue 3 Fixed: Dynamic API selection based on IRI week comparison
-✅ Bonus: Added inline comment editing functionality for each row
-
-C# Controller Methods Needed:
-csharp
-[HttpPost("[action]")]
-public ActionResult<List<StoreGridData>> GetcurrentweekGridData([FromBody] GetGridDataFilter filter)
-{
-    // Implementation for current week data
-}
-
-[HttpPost("[action]")]
-public ActionResult<List<StoreGridData>> GetfutureweekGridData([FromBody] GetGridDataFilter filter) 
-{
-    // Implementation for future week data
-}
-
-[HttpPost("[action]")]
-public ActionResult<List<StoreGridData>> GetpreviousweekGridData([FromBody] GetGridDataFilter filter)
-{
-    // Implementation for previous week data
-}
-
-[HttpPost("[action]")]
-public ActionResult SaveUserComment([FromBody] SaveCommentRequest request)
-{
-    // Save user comment to database
-    return Ok(new { success = true });
-}
-These fixes address all your issues comprehensively!
+<footer>
+  <div class="mat-spinner-container">
+    <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
+    <div *ngIf="showSpinner" style="position:relative;left: 10px">Loading...</div>
+  </div>
+</footer>
