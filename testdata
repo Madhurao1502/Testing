@@ -1,3 +1,15 @@
+/**
+ * Update paginator length to count only parent rows
+ */
+private updatePaginatorLength(): void {
+  if (!this.paginator) return;
+  
+  // Count only parent rows in the datasource
+  const parentRowCount = this.dataSource.data.filter(row => !row.isChildRow).length;
+  this.paginator.length = parentRowCount;
+}
+
+
 private updateDataSource(data: any[]): void {
   this.commonService.show('table-update');
   
