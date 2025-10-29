@@ -1,3 +1,40 @@
+private insertChildRowsIntoDataSource(parentRow: any, childData: any[], weekType: string): void {
+  const currentData = this.dataSource.data;
+  const parentIndex = currentData.findIndex(row => 
+    row.StoreNumber === parentRow.StoreNumber && !row.isChildRow
+  );
+  
+  if (parentIndex === -1) return;
+  
+  this.removeChildRowsFromDataSource(parentRow);
+  
+  if (!childData || childData.length === 0) {
+    return;
+  }
+  
+  // ... your existing mapping code ...
+  const childRows = childData.map((child, index) => ({
+    ...child,
+    isChildRow: true,
+    isFirstChild: index === 0,
+    isLastChild: index === childData.length - 1,
+    parentStoreNumber: parentRow.StoreNumber,
+    
+    // ... rest of your existing mapping ...
+  }));
+  
+  const updatedData = [...currentData];
+  updatedData.splice(parentIndex + 1, 0, ...childRows);
+  
+  // ✅ Update datasource WITHOUT updating paginator length
+  this.dataSource.data = updatedData;
+  
+  // ✅ DO NOT call updatePaginatorLength() here!
+  // Paginator length should remain based on parent rows only
+}
+
+
+
 /**
  * Update paginator length to count only parent rows
  */
