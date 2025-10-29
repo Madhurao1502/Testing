@@ -1,105 +1,3 @@
-private insertChildRowsIntoDataSource(parentRow: any, childData: any[], weekType: string): void {
-  const currentData = this.dataSource.data;
-  const parentIndex = currentData.findIndex(row => 
-    row.StoreNumber === parentRow.StoreNumber && !row.isChildRow
-  );
-  
-  if (parentIndex === -1) return;
-  
-  this.removeChildRowsFromDataSource(parentRow);
-  
-  if (!childData || childData.length === 0) {
-    return;
-  }
-  
-  // ... your existing mapping code ...
-  const childRows = childData.map((child, index) => ({
-    ...child,
-    isChildRow: true,
-    isFirstChild: index === 0,
-    isLastChild: index === childData.length - 1,
-    parentStoreNumber: parentRow.StoreNumber,
-    
-    // ... rest of your existing mapping ...
-  }));
-  
-  const updatedData = [...currentData];
-  updatedData.splice(parentIndex + 1, 0, ...childRows);
-  
-  // ✅ Update datasource WITHOUT updating paginator length
-  this.dataSource.data = updatedData;
-  
-  // ✅ DO NOT call updatePaginatorLength() here!
-  // Paginator length should remain based on parent rows only
-}
-
-
-
-/**
- * Update paginator length to count only parent rows
- */
-private updatePaginatorLength(): void {
-  if (!this.paginator) return;
-  
-  // Count only parent rows in the datasource
-  const parentRowCount = this.dataSource.data.filter(row => !row.isChildRow).length;
-  this.paginator.length = parentRowCount;
-}
-
-
-private updateDataSource(data: any[]): void {
-  this.commonService.show('table-update');
-  
-  // ✅ Store parent rows separately
-  this.parentRowsData = data.map(row => ({ ...row, isChildRow: false }));
-  this.originalData = [...this.parentRowsData];
-  
-  const searchTerm = this.searchControl.value;
-  if (searchTerm && searchTerm.trim()) {
-    this.performSearch(searchTerm);
-  } else {
-    this.dataSource.data = [...this.parentRowsData];
-  }
-  
-  this.dataSource.paginator = this.paginator;
-  this.dataSource.sort = this.sort;
-  
-  // ✅ Update paginator length to count only parent rows
-  this.updatePaginatorLength();
-  
-  this.resetExpansionState();
-  
-  this.commonService.hide('table-update');
-}
-
-ngOnInit(): void {
-  // Add this NEW code right after dataSource initialization
-  this.dataSource = new MatTableDataSource<any>([]);
-  
-  // ✅ ADD THIS: Custom filter predicate to exclude child rows from filtering
-  this.dataSource.filterPredicate = (data: any, filter: string) => {
-    // Only filter parent rows, child rows are always included with their parents
-    if (data.isChildRow) {
-      return true;
-    }
-    
-    // Apply filter to parent rows only
-    const searchStr = filter.toLowerCase();
-    return (
-      (data.StoreNumber?.toString().toLowerCase().includes(searchStr) || false) ||
-      (data.StoreName?.toLowerCase().includes(searchStr) || false) ||
-      (data.AddrLine1?.toLowerCase().includes(searchStr) || false) ||
-      (data.City?.toLowerCase().includes(searchStr) || false) ||
-      (data.State?.toLowerCase().includes(searchStr) || false) ||
-      (data.AssignedTo?.toLowerCase().includes(searchStr) || false)
-    );
-  };
-  
-  // ... rest of your existing ngOnInit code
-}
-
-
-
 import { trigger, state, style, transition, animate } from '@angular/animations';
 import { HttpClient } from '@angular/common/http';
 import { AfterViewInit, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
@@ -159,7 +57,7 @@ export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
   availableColumns: string[] = [];
   displayedColumns: string[] = [];
   visibleColumns: string[] = [];
-
+  private parentRowsData:any[]=[] 
   // Data and state
   dataSource = new MatTableDataSource<any>([]);
   originalData: any[] = [];
@@ -246,6 +144,25 @@ this.commonService.currentFilters$.subscribe(filter=>{
           this.updateDataSource(data);
         }
       });
+
+      this.dataSource = new MatTableDataSource<any>([]);
+      this.dataSource.filterPredicate = (data: any, filter: string) => {
+        // Only filter parent rows, child rows are always included with their parents
+        if (data.isChildRow) {
+          return true;
+        }
+        
+        // Apply filter to parent rows only
+        const searchStr = filter.toLowerCase();
+        return (
+          (data.StoreNumber?.toString().toLowerCase().includes(searchStr) || false) ||
+          (data.StoreName?.toLowerCase().includes(searchStr) || false) ||
+          (data.AddrLine1?.toLowerCase().includes(searchStr) || false) ||
+          (data.City?.toLowerCase().includes(searchStr) || false) ||
+          (data.State?.toLowerCase().includes(searchStr) || false) ||
+          (data.AssignedTo?.toLowerCase().includes(searchStr) || false)
+        );
+      };
     this.setupSearch();
   }
 
@@ -423,7 +340,7 @@ getIndividualNames(assignedTo: string): string[] {
         );
         this.dataSource.data = filtered;
       }
-      
+      this.updatePaginatorLength();
       if (this.paginator) {
         this.paginator.firstPage();
       }
@@ -459,21 +376,34 @@ getIndividualNames(assignedTo: string): string[] {
   private updateDataSource(data: any[]): void {
     this.commonService.show('table-update');
     
-    this.originalData = [...data];
+    this.parentRowsData = data.map(row => ({ ...row, isChildRow: false }));
+  this.originalData = [...this.parentRowsData];
     
-    const searchTerm = this.searchControl.value;
-    if (searchTerm && searchTerm.trim()) {
-      this.performSearch(searchTerm);
-    } else {
-      this.dataSource.data = data;
-    }
-    
-    this.dataSource.paginator = this.paginator;
-    this.dataSource.sort = this.sort;
-    this.resetExpansionState();
-    
-    this.commonService.hide('table-update');
+   const searchTerm = this.searchControl.value;
+  if (searchTerm && searchTerm.trim()) {
+    this.performSearch(searchTerm);
+  } else {
+    this.dataSource.data = [...this.parentRowsData];
   }
+  
+  this.dataSource.paginator = this.paginator;
+  this.dataSource.sort = this.sort;
+  
+  // Update paginator length to count only parent rows
+  this.updatePaginatorLength();
+  
+  this.resetExpansionState();
+  
+  this.commonService.hide('table-update');
+  }
+
+  private updatePaginatorLength(): void {
+  if (!this.paginator) return;
+  
+  // Count only parent rows in the datasource
+  const parentRowCount = this.dataSource.data.filter(row => !row.isChildRow).length;
+  this.paginator.length = parentRowCount;
+}
 
   //  Expand all rows with proper spinner management
 async expandAllRows(): Promise<void> {
@@ -1142,6 +1072,7 @@ private removeChildRowsFromDataSource(parentRow: any): void {
     this.selectedRows.clear();
     const parentRowsOnly = this.dataSource.data.filter(row => !row.isChildRow);
     this.dataSource.data = parentRowsOnly;
+    this.updatePaginatorLength();
     this.cdr.detectChanges(); // Ensure caret icons are updated
   }
 
