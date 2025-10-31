@@ -1,3 +1,640 @@
+<div class="dashboard-layout">
+  <!-- Toolbar -->
+  <mat-toolbar class="mat-toolbar-primary">
+  
+
+      <button mat-icon-button [matMenuTriggerFor]="navMenu" class="nav-menu-btn" matTooltip="Navigate" >
+         <mat-icon>more_vert</mat-icon>
+      <!-- <mat-icon>apps</mat-icon> -->
+       <!-- Reports -->
+    </button>
+    
+
+      <mat-menu #navMenu="matMenu" class="nav-menu">
+          <button mat-menu-item (click)="navigateToComponent('fsrperf')">
+              <!-- <mat-icon>assessment</mat-icon> -->
+              <mat-icon>article</mat-icon>
+              <span>FSR Performance Report</span>
+          </button>
+          <button mat-menu-item (click)="navigateToComponent('storeperf')">
+              <!-- <mat-icon>assessment</mat-icon> -->
+              <mat-icon>article</mat-icon>
+              <span>Store Performance Report</span>
+          </button>
+          <button mat-menu-item (click)="navigateToComponent('taskcollrollup')">
+              <!-- <mat-icon>assessment</mat-icon> -->
+              <mat-icon>article</mat-icon>
+              <span>Task Collection Roll Up Report</span>
+          </button>
+      </mat-menu>
+    
+    <h1 class="toolbar-title">Assignments Dashboard</h1>
+    <span class="toolbar-spacer"></span>
+    
+    <!-- Country Selector -->
+    <div class="country-field">
+      <mat-form-field appearance="standard">
+        <mat-select [formControl]="countryctrl" placeholder="Select country">
+          <mat-option *ngFor="let country of countrylist" 
+                      [value]="country.countryID" 
+                      (onSelectionChange)="selectedcountry($event)">
+            {{country.countryName}}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>        
+    </div>
+    
+    <button mat-icon-button aria-label="Edit" matTooltip="Generate Work Order" 
+          [disabled]="isGeneratingWorkOrder"
+          (click)="onGenerateWorkOrder()"> 
+      <mat-icon>edit_square</mat-icon>
+    </button>
+    <button mat-icon-button aria-label="Send" matTooltip="Email Work Order" 
+          [disabled]="isSendingWorkOrder || isWoEmailed"
+          (click)="onEmailWorkOrder()">
+      <mat-icon>send</mat-icon>
+    </button>
+    <button mat-icon-button aria-label="Download" matTooltip="Export Grid Data" (click)=" ExportFetaDetailsToCSV();$event.stopPropagation()">
+      <mat-icon>download</mat-icon>
+    </button>
+
+      <button mat-icon-button (click)="toggleFilters()" aria-label="Toggle filters" [matTooltip]="isFiltersExpanded ? ' Collapse Filter list' : 'Expand Filter list'">
+      <mat-icon>filter_list</mat-icon>
+    </button>
+  </mat-toolbar>
+
+  <!-- TOP HORIZONTAL FILTER BAR -->
+  <section class="filter-top-bar" [class.expanded]="isFiltersExpanded">
+    <app-filter-sidebar 
+      (filtersChanged)="onFiltersChanged($event)"
+      (columnsChanged)="onColumnsChanged($event)"
+      (clearFilters)="onClearFilters()"
+      (filtersApplied)="collapseFilterBar()"
+      >
+    </app-filter-sidebar>
+  </section>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <div class="content-wrapper">
+      <app-store-table #storeTableComponent></app-store-table>
+    </div>
+  </div>
+</div>
+
+<footer>
+    <div class="mat-spinner-container">
+        <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
+        <div *ngIf="showSpinner" style="position:relative;left: 10px">Loading...</div>
+    </div>
+</footer>
+
+import { SnackbarService } from './../../shared/snackbar.service';
+import { HttpClient } from '@angular/common/http';
+import { Component, OnInit, OnDestroy, Inject, ViewChild } from '@angular/core';
+import { FormControl } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
+import { firstValueFrom, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+import { WorkOrderCommentDialogComponent } from 'src/app/dialog/work-order-comment-dialog/work-order-comment-dialog.component';
+import { countryModel, GetGridDataFilter, StoreFilter } from 'src/app/shared/common.model';
+import { CommonService } from 'src/app/shared/common.service';
+import * as XLSX from "xlsx";
+import { StoreTableComponent } from '../store-table/store-table.component';
+import { Router } from '@angular/router';
+import { StorePerfReportComponent } from 'src/app/store-perf-report/store-perf-report.component';
+import { MatMenuTrigger } from '@angular/material/menu';
+@Component({
+  selector: 'app-dashbord-layout',
+  templateUrl: './dashbord-layout.component.html',
+  styleUrls: ['./dashbord-layout.component.css']
+})
+export class DashbordLayoutComponent implements OnInit, OnDestroy {
+
+  private destroy$ = new Subject<void>();
+  countrylist: countryModel[] = [];
+  employeedata: any[] = [];
+  countryctrl = new FormControl();
+  isFiltersExpanded = false;
+  currentIRIWeek: any;
+  loggeduser: string;
+  isGeneratingWorkOrder = false;
+  isSendingWorkOrder = false;
+  isWoEmailed = true;          
+  pdfSessionId: string = '';    
+  territoryList: any[] = [];
+  showSpinner:boolean=false;
+   @ViewChild('storeTableComponent') storeTableComponent!: StoreTableComponent;
+  constructor(
+    private commonService: CommonService,
+    private snackbar: SnackbarService,
+    public http: HttpClient,
+    @Inject('BASE_URL') public baseUrl: string,
+     private router: Router,
+    private dialog:MatDialog
+  ) { 
+    this.loggeduser = localStorage.getItem("loggedUserId");
+  }
+
+  async ngOnInit(): Promise<void> {
+
+     await this.commonService.loadCurrentIRIWeek();
+     
+    // Remove sidebar state subscription since we're using top filters
+    this.commonService.groupsStatus$.subscribe(userGroups => {    
+      if(userGroups['isgTechnologyGroup']) { 
+        this.countryctrl.enable();
+      } else { 
+        this.countryctrl.disable();
+      }   
+    }); 
+    
+    try {
+      this.employeedata = await firstValueFrom(this.commonService.getEmployee(this.loggeduser));
+       if (this.employeedata.length > 0) {
+        const defaultCountryId = '1';
+        this.countryctrl.setValue(defaultCountryId);
+        this.commonService.setCountry(defaultCountryId);
+      }
+    } catch(error) {
+      console.error('Error fetching employee data:', error);
+    }
+
+    try {
+      this.countrylist = await this.commonService.getcountry();
+    } catch {
+      console.error('Error fetching country data');
+    }      
+    
+    this.employeedata.filter((x) => {
+      this.countryctrl.setValue(x.countryId,{emitEvent:false});
+      this.commonService.setCountry(x.countryId);
+    });
+    this.countryctrl.valueChanges
+          .pipe(takeUntil(this.destroy$))
+          .subscribe(countryId => {
+            if (countryId) {
+              this.commonService.setCountry(countryId);
+            }
+          });
+
+  await this.loadTerritoryList();
+    // Initialize default filters
+    this.initializeDefaultFilters();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  // Changed from toggleSidebar to toggleFilters
+  toggleFilters(): void {
+    this.isFiltersExpanded = !this.isFiltersExpanded;
+  }
+
+  onFiltersChanged(filters: any): void {
+     
+    this.commonService.applyFilters(filters);
+  }
+
+  onClearFilters(): void {
+     this.commonService.clearFilters();
+  }
+
+  onColumnsChanged(selectedColumns: string[]): void {    // Pass to store table component
+    if (this.storeTableComponent) {
+      this.storeTableComponent.updateVisibleColumns(selectedColumns);
+    }
+  }
+  selectedcountry(event: any) {
+    if (event.isUserInput && event.source.value) {
+      this.commonService.setCountry(event.source.value);
+    }
+  }
+
+  private initializeDefaultFilters(): void {
+    const defaultFilters = new GetGridDataFilter();
+    // Set default values based on employee data
+    if (this.employeedata.length > 0) {
+      defaultFilters.countryId = this.employeedata['countryId'] || '1';
+      defaultFilters.territoryId = this.employeedata['fieldTerritoryNumber']?.toString() || '52';
+    }
+    
+    // this.commonService.initializeDefaultFilters(defaultFilters);
+  }
+
+  collapseFilterBar(){
+    this.isFiltersExpanded=false
+  }
+
+  // ExportFetaDetailsToCSV(){
+  //   const payLoad:GetGridDataFilter ={
+  //     countryId: "1",
+  //     countryName: '',
+  //     lanId: this.loggeduser,
+  //     iriWeek: '2404',
+  //     iriWeekViewOnly: '',
+  //     area: '23',
+  //     territoryId: '52',
+  //     territoryName: '',
+  //     fromDate: '',
+  //     toDate: '',
+  //     storeNumber: '',
+  //     storeName: '',
+  //     state: '',
+  //     city: '',
+  //     taskNumber: '',
+  //     taskName: '',
+  //     positionNumber: '',
+  //     positionName: '',
+  //     empId: '',
+  //     firstName: '',
+  //     lastName: '',
+  //     empName: '',
+  //     fsrOver25hrs: 'false',
+  //     fsrOver6hrs: 'false',
+  //     fsrHour: '',
+  //     fsrHourOperator: 'NA',
+  //     assignedStores: 'false',
+  //     unassignedStores: 'false',
+  //     sample: 'false',
+  //     nonSample: 'false',
+  //     multiFsrStore: 'false',
+  //     vacation: 'false',
+  //     action: '',
+  //     comment: '',
+  //     fmEmail: '',
+  //     fmEmpId: '',
+  //     assignmentMode: '',
+  //     temporary: 'false'
+  //   }
+
+    
+  //   this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/ExportFetaDetailsToCSV',payLoad).pipe(takeUntil(this.destroy$)).subscribe( { 
+  //         next: 
+  //         (response) => {  
+  //           if(!response){
+  //             this.snackbar.openSnackBar("No Data Found","error")
+  //           }
+            
+
+  //             const now = new Date();
+
+  //             const year = now.getFullYear();
+  //             const month = String(now.getMonth() + 1).padStart(2, '0');
+  //             const day = String(now.getDate()).padStart(2, '0');
+
+  //             let hours = now.getHours();
+  //             const minutes = String(now.getMinutes()).padStart(2, '0');
+  //             const seconds = String(now.getSeconds()).padStart(2, '0');
+  //             hours = hours % 12 || 12;
+  //             const formattedHours = String(hours).padStart(2, '0');
+
+  //             const formattedDateTime = `${year}-${month}-${day}_${formattedHours}_${minutes}_${seconds}`;
+
+
+  //           const columnNames = response.map(item => ({
+  //             ['Store Number']:item.StoreNumber,
+  //             ['Store Name']:item.StoreName,
+  //             ['Store Address']:item.AddrLine1,
+  //             ['Store City']:item.City,
+  //             ['Store State']:item.State,
+  //             ['Store Zip']:item.Zip,
+  //             ['Task Name']:item.TaskName,
+  //             ['Assigned To']:item.AssignedTo,
+  //             ['Csr Info']:item.CsrInfo,
+  //               Wave:item.Wave,
+  //             ['Expected Collection Time']:item.ExpectedCollectionTime,
+  //         }))
+
+  //         const worksheet = XLSX.utils.json_to_sheet(columnNames);
+
+  //         const headerRow = Object.keys(columnNames[0]); for (let colIndex = 0; colIndex < headerRow.length; colIndex++) {
+  //             const cellAddress = XLSX.utils.encode_cell({ r: 0, c: colIndex });
+  //             if (!worksheet[cellAddress]) continue;
+  //             worksheet[cellAddress].s = {
+  //                 font: { bold: true }
+  //             };
+  //         }
+
+  //         const colWidths = headerRow.map(header => {
+  //             const maxLength = Math.max(header.length, ...columnNames.map(row => (row[header] ? row[header].toString().length : 0)));
+  //             return { wch: maxLength + 2 };
+  //         });
+  //         worksheet['!cols'] = colWidths;
+
+  //         const workbook = XLSX.utils.book_new()
+  //         XLSX.utils.book_append_sheet(workbook, worksheet, `Task_Assignment_Details`)
+  //         XLSX.writeFile(workbook, `Task_Assignment_Details_${formattedDateTime}.xlsx`)
+  //           },
+  //           error: 
+  //           (error) => { console.error(error); },
+  //           });   
+
+  // }
+
+   ExportFetaDetailsToCSV(): void {
+     let currentFilters;
+    // Get current filter values from CommonService
+    this.commonService.currentFilters$.subscribe(filter=>{
+        currentFilters = filter
+    });
+    
+    if (!currentFilters || Object.keys(currentFilters).length === 0) {
+      this.snackbar.openSnackBar("No filters applied. Please apply filters first.", "error");
+      return;
+    }
+
+    // Use current filters instead of hardcoded values
+    const payLoad: GetGridDataFilter = {
+      countryId: currentFilters.countryId || "1",
+      countryName: '',
+      lanId: this.loggeduser,
+      iriWeek: currentFilters.iri_week || '',
+      iriWeekViewOnly: '',
+      area: currentFilters.area || '23',
+      territoryId: currentFilters.territory_id || '',
+      territoryName: '',
+      fromDate: '',
+      toDate: '',
+      storeNumber: currentFilters.store_number || '',
+      storeName: currentFilters.store_name || '',
+      state: currentFilters.state || '',
+      city: currentFilters.city || '',
+      taskNumber: currentFilters.task_number || '',
+      taskName: '',
+      positionNumber: currentFilters.position_number || '',
+      positionName: '',
+      empId: currentFilters.emp_id || '',
+      firstName: '',
+      lastName: '',
+      empName: '',
+      fsrOver25hrs: currentFilters.fsr_over_25hrs || 'false',
+      fsrOver6hrs: currentFilters.fsr_over_6hrs || 'false',
+      fsrHour: currentFilters.fsr_hour || '',
+      fsrHourOperator: currentFilters.fsr_hour_operator || 'NA', // ADD: Use current operator
+      assignedStores: currentFilters.assigned_stores || 'false',
+      unassignedStores: currentFilters.unassigned_stores || 'false',
+      sample: currentFilters.sample || 'false',
+      nonSample: currentFilters.nonsample || 'false',
+      multiFsrStore: currentFilters.multi_fsr_store || 'false',
+      vacation: currentFilters.vacation || 'false',
+      action: '',
+      comment: '',
+      fmEmail: '',
+      fmEmpId: '',
+      assignmentMode: '',
+      temporary: currentFilters.temporary || 'false'
+    };
+
+    this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/ExportFetaDetailsToCSV', payLoad)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response) => {
+          if (!response || response.length === 0) {
+            this.snackbar.openSnackBar("No Data Found", "error");
+            return;
+          }
+
+          // Generate filename with current timestamp
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          let hours = now.getHours();
+          const minutes = String(now.getMinutes()).padStart(2, '0');
+          const seconds = String(now.getSeconds()).padStart(2, '0');
+          hours = hours % 12 || 12;
+          const formattedHours = String(hours).padStart(2, '0');
+          const formattedDateTime = `${year}-${month}-${day}_${formattedHours}_${minutes}_${seconds}`;
+
+          // Create Excel file
+          const columnNames = response.map(item => ({
+            ['Store Number']: item.StoreNumber,
+            ['Store Name']: item.StoreName,
+            ['Store Address']: item.AddrLine1,
+            ['Store City']: item.City,
+            ['Store State']: item.State,
+            ['Store Zip']: item.Zip,
+            ['Task Name']: item.TaskName,
+            ['Assigned To']: item.AssignedTo,
+            ['Csr Info']: item.CsrInfo,
+            Wave: item.Wave,
+            ['Expected Collection Time']: item.ExpectedCollectionTime,
+          }));
+
+          const worksheet = XLSX.utils.json_to_sheet(columnNames);
+
+          // Style header row
+          const headerRow = Object.keys(columnNames);
+          for (let colIndex = 0; colIndex < headerRow.length; colIndex++) {
+            const cellAddress = XLSX.utils.encode_cell({ r: 0, c: colIndex });
+            if (!worksheet[cellAddress]) continue;
+            worksheet[cellAddress].s = {
+              font: { bold: true }
+            };
+          }
+
+          // Auto-size columns
+          const colWidths = headerRow.map(header => {
+            const maxLength = Math.max(header.length, ...columnNames.map(row => (row[header] ? row[header].toString().length : 0)));
+            return { wch: maxLength + 2 };
+          });
+          worksheet['!cols'] = colWidths;
+
+          // Create and download file
+          const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, worksheet, `Task_Assignment_Details`);
+          XLSX.writeFile(workbook, `Task_Assignment_Details_${formattedDateTime}.xlsx`);
+
+          this.snackbar.openSnackBar("Export completed successfully", "success");
+        },
+        error: (error) => {
+          console.error('Export error:', error);
+          this.snackbar.openSnackBar("Error during export", "error");
+        },
+      });
+  }
+
+
+   private async loadTerritoryList(): Promise<void> {
+    try {
+      this.territoryList = await firstValueFrom(
+        this.http.get<any[]>(
+          this.baseUrl + 'api/TaskAssinment/GetTerritory'
+        )
+      );
+    } catch (error) {
+      console.error('Error loading territory list:', error);
+      this.snackbar.openSnackBar('Error loading territory information','error');
+    }
+  }
+
+    navigateToComponent(component: string): void {
+
+        this.router.navigate([`${component}`]);
+        //this.router.navigate(['/fsrperf']);
+        //this.router.navigate([`/storeperf`]);
+        //this.router.navigate(['/taskcollrollup']);
+     
+    }
+
+  // Generate Work Order
+  async onGenerateWorkOrder(): Promise<void> {
+    if (!this.isWoEmailed) {
+      this.snackbar.openSnackBar('Previously created work order is not emailed to employees yet.','error');
+      return;
+    }
+
+    const comment = await this.getWorkOrderComment();
+    if (comment === null) return; 
+
+    this.isGeneratingWorkOrder = true;
+
+    // ✅ ENHANCED VALIDATION: Territory and filter validation
+    const currentFilters = this.getCurrentFilters();
+    
+    if (!currentFilters.territoryId || !currentFilters.iriWeek) {
+      this.snackbar.openSnackBar('Please apply territory and IRI week filters first.','error');
+      this.isGeneratingWorkOrder = false;
+      return;
+    }
+    
+    const currentTerritory = this.territoryList.find(
+      t => t.territory_id === currentFilters.territoryId
+    );
+
+    if (!currentTerritory) {
+      this.snackbar.openSnackBar('Please select a valid territory first.','error');
+      this.isGeneratingWorkOrder = false;
+      return;
+    }
+
+    if (!currentTerritory.fm_email) {
+      this.snackbar.openSnackBar('Territory manager email is missing. Cannot generate work order.','error');
+      this.isGeneratingWorkOrder = false;
+      return;
+    }
+
+    try {
+
+      const params = {
+        ...currentFilters,
+        comment: comment,
+        fmEmpId: currentTerritory.fm_emp_id || '',
+        fmEmail: currentTerritory.fm_email || ''
+      };
+
+      this.snackbar.openSnackBar('Work orders for FM and FSRs are being generated, it may take few minutes.','success');
+
+      const response = await firstValueFrom(
+        this.commonService.createWorkOrder(params)
+      );
+      
+      if (response.success) {
+        this.pdfSessionId = response.pdfSessionId;
+        this.isWoEmailed = false;
+        this.snackbar.openSnackBar('Work order generated successfully.','success');
+      } else {
+        throw new Error(response.message || 'Failed to create work order');
+      }
+
+    } catch (error) {
+      console.error('Error generating work order:', error);
+      this.snackbar.openSnackBar('Error while generating work order.','error');
+    } finally {
+      this.isGeneratingWorkOrder = false;
+    }
+  }
+
+  // Email Work Order
+  async onEmailWorkOrder(): Promise<void> {
+    if (this.isWoEmailed) {
+      this.snackbar.openSnackBar('There are no work orders to be emailed, please generate a new one.','error');
+      return;
+    }
+
+    if (!this.pdfSessionId) {
+      this.snackbar.openSnackBar('No work order session found. Please generate a work order first.','error');
+      return;
+    }
+
+    this.isSendingWorkOrder = true;
+
+    try {
+      const response = await firstValueFrom(
+        this.commonService.sendWorkOrderEmail(this.pdfSessionId)
+      );
+
+      if (response.success) {
+        this.isWoEmailed = true;
+        this.snackbar.openSnackBar('Work order emails have been queued.','success');
+      } else {
+        throw new Error(response.message || 'Failed to send work order emails');
+      }
+
+    } catch (error) {
+      console.error('Error sending work order emails:', error);
+      this.snackbar.openSnackBar('Error while sending work order emails.','error');
+    } finally {
+      this.isSendingWorkOrder = false;
+    }
+  }
+
+  // Get current filter values from filter service
+  private getCurrentFilters(): any {
+    let currentFilters: any = {};
+    
+    // Get current filters from CommonService
+    this.commonService.currentFilters$.subscribe(filters => {
+      currentFilters = filters;
+    }).unsubscribe();
+    
+    const currentCountry = this.commonService.getCurrentCountry();
+    const currentIRIWeek = this.commonService.getCurrentIRIWeek();
+    
+    return {
+      countryId: currentCountry || '1',
+      iriWeek: currentFilters.iri_week || currentIRIWeek || '',
+      territoryId: currentFilters.territory_id || '',
+      area: currentFilters.area || '23',
+      storeNumber: currentFilters.store_number || '',
+      state: currentFilters.state || '',
+      city: currentFilters.city || '',
+      positionNumber: currentFilters.position_number || '',
+      taskNumber: currentFilters.task_number || '',
+      empId: currentFilters.emp_id || '',
+      fsrOver25hrs: currentFilters.fsr_over_25hrs || 'false',
+      fsrOver6hrs: currentFilters.fsr_over_6hrs || 'false',
+      assignedStores: currentFilters.assigned_stores || 'false',
+      unassignedStores: currentFilters.unassigned_stores || 'false',
+      sample: currentFilters.sample || 'false',
+      nonSample: currentFilters.nonsample || 'false',
+      multiFsrStore: currentFilters.multi_fsr_store || 'false',
+      vacation: currentFilters.vacation || 'false',
+      temporary: currentFilters.temporary || 'false',
+      fsrHour: currentFilters.fsr_hour || '',
+      fsrHourOperator: currentFilters.fsr_hour_operator || 'NA'
+    };
+  }
+
+  
+  private getWorkOrderComment(): Promise<string | null> {
+    return new Promise((resolve) => {
+      const dialogRef = this.dialog.open(WorkOrderCommentDialogComponent, {
+        width: '400px',
+        disableClose: true
+      });
+
+      dialogRef.afterClosed().subscribe(result => {
+        resolve(result);
+      });
+    });
+  }
+
+}
+
 store-table.component.css
 
 .table-container {
