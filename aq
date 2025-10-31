@@ -1,3 +1,1310 @@
+import { trigger, state, style, transition, animate } from '@angular/animations';
+import { HttpClient } from '@angular/common/http';
+import { AfterViewInit, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren, Pipe } from '@angular/core';
+import { FormControl } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
+import { MatPaginator } from '@angular/material/paginator';
+import { MatSort } from '@angular/material/sort';
+import { MatTable, MatTableDataSource } from '@angular/material/table';
+import { catchError, debounceTime, distinctUntilChanged, firstValueFrom, of, Subject, takeUntil, tap } from 'rxjs';
+import { AssignmentDialogComponent } from 'src/app/dialog/assignment-dialog/assignment-dialog.component';
+import { ClosestFsrDialogComponent } from 'src/app/dialog/closest-fsr-dialog/closest-fsr-dialog.component';
+import { ProximityDialogComponent } from 'src/app/dialog/proximity-dialog/proximity-dialog.component';
+import { StoreCommentDialogComponent } from 'src/app/dialog/store-comment-dialog/store-comment-dialog.component';
+import { CdkDetailRowDirective } from 'src/app/shared/cdk-detail-row.directive';
+import { CommonService } from 'src/app/shared/common.service';
+import { SnackbarService } from 'src/app/shared/snackbar.service';
+@Component({
+  selector: 'app-store-table',
+  templateUrl: './store-table.component.html',
+  styleUrls: ['./store-table.component.css'],
+  animations: [
+    trigger('detailExpand', [
+      state('collapsed', style({height: '0px', minHeight: '0'})),
+      state('expanded', style({height: '*'})),
+      transition('expanded <=> collapsed', animate('225ms cubic-bezier(0.4, 0.0, 0.2, 1)')),
+    ]),
+  ],
+})
+export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
+  
+  @ViewChild(MatTable, { static: false }) table: MatTable<any>;
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
+  @ViewChildren(CdkDetailRowDirective) detailRows!: QueryList<CdkDetailRowDirective>;
+
+  // Week type tracking
+  currentWeekType: 'current' | 'future' | 'previous' = 'current';
+
+  // Column definitions for different week types
+  baseColumns = ['store_number', 'territory','store_name','task', 'addr_line1', 'city', 'state', 'assigned_to', 'user_comment'];
+  
+  currentWeekColumns = [
+    'store_number', 'territory','position_number','bdf', 'outlet','task','store_name', 'addr_line1', 'city', 'state', 'assigned_to', 
+    'task_completed', 'cost_over', 'guaranteed_miles', 'user_comment'
+  ];
+  
+  futureWeekColumns = [
+    'store_number','territory', 'position_number','bdf', 'outlet','task','store_name', 'addr_line1', 'city', 'state', 'assigned_to',
+    'avg_cost', 'guaranteed_miles', 'user_comment'
+  ];
+  
+  previousWeekColumns = [
+    'store_number','territory', 'position_number','bdf','outlet', 'task','store_name', 'addr_line1', 'city', 'state', 'assigned_to',
+    'task_completed','cost_over', 'wk1_costs','wk1_travel', 'wk1_ovg_travel','wk2_costs', 'wk2_travel','wk2_ovg_travel','user_comment'
+  ];
+
+  //  Dynamic column management
+  availableColumns: string[] = [];
+  displayedColumns: string[] = [];
+  visibleColumns: string[] = [];
+  private parentRowsData:any[]=[] 
+  // Data and state
+  dataSource = new MatTableDataSource<any>([]);
+  originalData: any[] = [];
+  showSpinner = false;
+  
+  // Search functionality
+  searchControl = new FormControl('');
+  isSearching = false;
+
+  // Expansion state
+  isExpandingAll = false;
+  allExpanded = false;
+  expandedRowsData = new Map<string, {data: any[], weekType: string}>();
+  expandedRows = new Set<CdkDetailRowDirective>();
+  selectedRows = new Set<any>();
+
+  // User permissions
+  canEditComments = false;
+  canDeleteComments = false;
+
+  currentSortColumn: string = '';
+  currentSortDirection: 'asc' | 'desc' | '' = '';
+  private childRowMap = new Map<string,any[]>();
+  private destroy$ = new Subject<void>();
+  private unsubscribe$ = new Subject<void>();
+  loggeduser: string; 
+  currentFilters;
+  constructor(private commonService: CommonService,
+  private snackbar: SnackbarService,
+  public http: HttpClient,
+  @Inject('BASE_URL') public baseUrl: string,
+   private cdr: ChangeDetectorRef,
+  private dialog:MatDialog) {this.loggeduser = localStorage.getItem("loggedUserId"); }
+
+  ngOnInit(): void {
+    this.commonService.spinner$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(isLoading => {
+        this.showSpinner = isLoading;
+      });
+this.commonService.currentFilters$.subscribe(filter=>{
+        this.currentFilters = filter
+    });
+    // Subscribe to user group permissions
+    this.commonService.groupsStatus$.subscribe(userGroups => {
+      this.canEditComments = userGroups['isgTechnologyGroup'];
+      this.canDeleteComments = userGroups['isgTechnologyGroup'];
+    });
+
+    // Subscribe to week type changes
+    this.commonService.weekType$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(weekType => {
+        this.currentWeekType = weekType;
+        this.updateAvailableColumns();
+        this.updateDisplayedColumns();
+        this.forceCollapseAllRows();
+        this.resetExpansionState();
+        this.cdr.detectChanges();
+      });
+
+    // Subscribe to current week data
+    this.commonService.currentWeekData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (this.currentWeekType === 'current') {
+          this.updateDataSource(data);
+        }
+      });
+
+    // Subscribe to future week data
+    this.commonService.futureWeekData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (this.currentWeekType === 'future') {
+          this.updateDataSource(data);
+        }
+      });
+
+    // Subscribe to previous week data
+    this.commonService.previousWeekData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (this.currentWeekType === 'previous') {
+          this.updateDataSource(data);
+        }
+      });
+
+      this.dataSource = new MatTableDataSource<any>([]);
+      this.dataSource.filterPredicate = (data: any, filter: string) => {
+        // Only filter parent rows, child rows are always included with their parents
+        if (data.isChildRow) {
+          return true;
+        }
+        
+        // Apply filter to parent rows only
+        const searchStr = filter.toLowerCase();
+        return (
+          (data.StoreNumber?.toString().toLowerCase().includes(searchStr) || false) ||
+          (data.StoreName?.toLowerCase().includes(searchStr) || false) ||
+          (data.AddrLine1?.toLowerCase().includes(searchStr) || false) ||
+          (data.City?.toLowerCase().includes(searchStr) || false) ||
+          (data.State?.toLowerCase().includes(searchStr) || false) ||
+          (data.AssignedTo?.toLowerCase().includes(searchStr) || false)
+        );
+      };
+    this.setupSearch();
+  }
+
+  //Column visibility management
+  updateVisibleColumns(selectedColumns: string[]): void {
+    this.visibleColumns = selectedColumns;
+    this.updateDisplayedColumns();
+    this.forceCollapseAllRows();
+    this.resetExpansionState()
+    this.cdr.detectChanges();
+  }
+
+  private updateAvailableColumns(): void {
+    switch (this.currentWeekType) {
+      case 'current':
+        this.availableColumns = this.currentWeekColumns;
+        break;
+      case 'future':
+        this.availableColumns = this.futureWeekColumns;
+        break;
+      case 'previous':
+        this.availableColumns = this.previousWeekColumns;
+        break;
+      default:
+        this.availableColumns = this.baseColumns;
+    }
+  }
+
+  private updateDisplayedColumns(): void {
+    let availableColumns: string[] = [];
+    
+    // Get available columns based on week type
+    switch (this.currentWeekType) {
+      case 'current':
+        availableColumns = this.currentWeekColumns;
+        break;
+      case 'future':
+        availableColumns = this.futureWeekColumns;
+        break;
+      case 'previous':
+        availableColumns = this.previousWeekColumns;
+        break;
+      default:
+        availableColumns = this.baseColumns;
+    }
+    
+    // Filter by visible columns if specified
+    if (this.visibleColumns.length > 0) {
+      this.displayedColumns = availableColumns.filter(col => 
+        this.visibleColumns.includes(col)
+      );
+    } else {
+      // Show all available columns if no specific selection
+      this.displayedColumns = [...availableColumns];
+    }
+  }
+
+  isColumnVisible(columnName: string): boolean {
+    return this.displayedColumns.includes(columnName);
+  }
+
+  //  Multiple names display with line breaks
+  getAssignedToDisplay(assignedTo: string): string {
+   if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return 'NOT ASSIGNED';
+  }
+
+  // Return as-is (the template will handle the splitting and line display)
+  return assignedTo.trim();
+  }
+
+  getAssignedToTooltip(assignedTo: string): string {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return 'No one assigned';
+  }
+  
+  // Split by comma and return each name on a new line for tooltip
+  const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
+  return names.join('\\n');
+}
+
+  getAssignmentClass(assignedTo: string): string {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return 'not-assigned';
+  }
+  
+  // Check if there are multiple names (contains comma)
+  const hasMultipleNames = assignedTo.includes(',');
+  if (hasMultipleNames) {
+    // Verify it's actually multiple valid names
+    const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
+    return names.length > 1 ? 'multiple-assigned' : 'single-assigned';
+  }
+  
+  return 'single-assigned';
+}
+
+shouldDisplayMultipleLines(assignedTo: string): boolean {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return false;
+  }
+  
+  if (!assignedTo.includes(',')) {
+    return false;
+  }
+  
+  const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
+  return names.length > 1;
+}
+
+getIndividualNames(assignedTo: string): string[] {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return ['NOT ASSIGNED'];
+  }
+  
+  if (!assignedTo.includes(',')) {
+    return [assignedTo.trim()];
+  }
+  
+  return assignedTo.split(',').map(name => name.trim()).filter(name => name);
+}
+  //  Comment management with popup dialog
+  openCommentDialog(element: any): void {
+    const dialogRef = this.dialog.open(StoreCommentDialogComponent, {
+      width: '600px',
+      maxWidth: '90vw',
+      data: {
+        storeNumber: element.StoreNumber,
+        storeName: element.StoreName,
+        comment: element.UserComment || '',
+        canEdit: this.canEditComments,
+        canDelete: this.canDeleteComments
+      },
+      disableClose: true
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result && result.action !== 'cancel') {
+        element.UserComment = result.comment;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  //  Comment display with truncation
+  getCommentDisplay(comment: string): string {
+    if (!comment) return this.canEditComments ? 'Add Comment...' : 'No comment';
+    
+    if (comment.length <= 20) return comment;
+    return comment.substring(0, 20) + '...';
+  }
+
+  returnWeekminustwo(week:string){    
+    return week === null || week === undefined || week ==="" ? week : isNaN(Number(week))?week:Number(week)-1
+  }
+
+  // Search functionality
+  private setupSearch(): void {
+    this.searchControl.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      tap(() => {
+        this.isSearching = true;
+        this.commonService.show('table-search');
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe(searchTerm => {
+      this.performSearch(searchTerm || '');
+    });
+  }
+
+  // private performSearch(searchTerm: string): void {
+  //   try {
+  //     if (!searchTerm.trim()) {
+  //       this.dataSource.data = [...this.originalData];
+  //     } else {
+  //       const filtered = this.originalData.filter(row => 
+  //         this.matchesSearchTerm(row, searchTerm.toLowerCase())
+  //       );
+  //       this.dataSource.data = filtered;
+  //     }
+  //     this.updatePaginatorLength();
+  //     if (this.paginator) {
+  //       this.paginator.firstPage();
+  //     }
+  //     this.resetExpansionState();
+      
+  //   } catch (error) {
+  //     console.error('Error performing search:', error);
+  //   } finally {
+  //     this.isSearching = false;
+  //     this.commonService.hide('table-search');
+  //   }
+  // }
+private performSearch(searchTerm: string): void {
+  try {
+    let filtered: any[];
+    
+    if (!searchTerm.trim()) {
+      filtered = [...this.originalData];
+    } else {
+      filtered = this.originalData.filter(row => 
+        this.matchesSearchTerm(row, searchTerm.toLowerCase())
+      );
+    }
+    
+    // Update parentRowsData with filtered results
+    this.parentRowsData = filtered;
+    
+    // Apply pagination to filtered results
+    if (this.paginator) {
+      this.paginator.pageIndex = 0; // Reset to first page
+      this.applyParentRowPagination();
+    } else {
+      this.dataSource.data = filtered;
+    }
+    
+    // Update paginator length
+    this.updatePaginatorLength();
+    
+    this.resetExpansionState();
+    
+  } catch (error) {
+    console.error('Error performing search:', error);
+  } finally {
+    this.isSearching = false;
+    this.commonService.hide('table-search');
+  }
+}
+  private matchesSearchTerm(row: any, searchTerm: string): boolean {
+    const searchableFields = [
+      'StoreNumber','PositionName','Bfd','StoreName', 'AddrLine1', 'City', 'State', 
+      'Zip', 'AssignedTo', 'TaskCompleted','CostOver','GuaranteedMiles', 'AvgCost', 'WK1FSRProdCost',
+      'WK1StoreTravelCost','WK1StoreTravelOvgCost','WK2FSRProdCost',
+      'WK2StoreTravelCost','WK2StoreTravelOvgCost','UserComment'
+    ];
+
+    return searchableFields.some(field => {
+      const value = row[field];
+      return value && value.toString().toLowerCase().includes(searchTerm);
+    });
+  }
+
+  clearSearch(): void {
+    this.searchControl.setValue('');
+  }
+
+  // Data management
+//   private updateDataSource(data: any[]): void {
+//     this.commonService.show('table-update');
+    
+//     this.parentRowsData = data.map(row => ({ ...row, isChildRow: false }));
+//   this.originalData = [...this.parentRowsData];
+    
+//    const searchTerm = this.searchControl.value;
+//   if (searchTerm && searchTerm.trim()) {
+//     this.performSearch(searchTerm);
+//   } else {
+//       if (this.paginator) {
+//       this.paginator.pageIndex = 0; 
+//       this.applyParentRowPagination();
+//     } else {
+//       this.dataSource.data = [...this.parentRowsData];
+//     }
+//   }
+  
+//  // this.dataSource.paginator = this.paginator;
+//   this.dataSource.sort = this.sort;
+  
+//   // Update paginator length to count only parent rows
+//   this.updatePaginatorLength();
+  
+//   this.resetExpansionState();
+  
+//   this.commonService.hide('table-update');
+//   }
+
+private updateDataSource(data: any[]): void {
+  this.commonService.show('table-update');
+  
+  try {
+    // ✅ STEP 1: Clear ALL old data FIRST
+    this.forceCollapseAllRows();
+    this.resetExpansionState();
+    this.expandedRowsData.clear();  // ← CLEAR CACHED CHILD ROWS
+    
+    // ✅ STEP 2: Clear search
+    this.searchControl.setValue('', { emitEvent: false });
+    
+    // ✅ STEP 3: Map new data as parent rows only
+    this.parentRowsData = data.map(row => ({ ...row, isChildRow: false }));
+    this.originalData = [...this.parentRowsData];
+    
+    // ✅ STEP 4: Reset paginator to first page
+    if (this.paginator) {
+      this.paginator.pageIndex = 0;
+      this.applyParentRowPagination();
+    } else {
+      this.dataSource.data = [...this.parentRowsData];
+    }
+    
+    // ✅ STEP 5: Reset sort state
+    this.currentSortColumn = '';
+    this.currentSortDirection = '';
+    this.dataSource.sort = this.sort;
+    
+    // ✅ STEP 6: Update paginator length
+    this.updatePaginatorLength();
+    
+    // ✅ STEP 7: Force change detection
+    this.cdr.markForCheck();
+    this.cdr.detectChanges();
+    
+  } finally {
+    this.commonService.hide('table-update');
+  }
+}
+
+private updatePaginatorLength(): void {
+  if (!this.paginator) return;
+  
+  // ✅ Count ONLY parent rows - NEVER include child rows
+  const parentRowCount = this.parentRowsData.filter(row => !row.isChildRow).length;
+  this.paginator.length = parentRowCount;
+  
+  console.log('Paginator length updated to:', parentRowCount);
+}
+
+  //  Expand all rows with proper spinner management
+async expandAllRows(): Promise<void> {
+  if (this.isExpandingAll) return;
+
+  this.isExpandingAll = true;
+  this.commonService.show('expand-all-rows');
+
+  try {
+    if (this.allExpanded) {
+      // Collapse all
+      this.collapseAllRows();
+      this.allExpanded = false;
+    } else {
+      // Expand all
+      await this.expandAllRowsSequentially();
+      this.allExpanded = true;
+    }
+  } catch (error) {
+    console.error('Error in expandAllRows:', error);
+  } finally {
+    this.isExpandingAll = false;
+    this.commonService.hide('expand-all-rows');
+    this.cdr.detectChanges();
+  }
+}
+
+/**
+ * Collapse all expanded rows and remove child rows from datasource
+ */
+private collapseAllRows(): void {
+  this.commonService.show('collapse-all-rows');
+  
+  try {
+    // Get all detail row directives
+    const detailRowsArray = this.detailRows?.toArray() || [];
+    
+    // Collapse each expanded directive
+    detailRowsArray.forEach(detailRow => {
+      if (detailRow.isExpanded) {
+        detailRow.collapse();
+      }
+    });
+
+    // Remove all child rows from datasource
+    const filteredData = this.dataSource.data.filter(row => !row.isChildRow);
+    this.dataSource.data = filteredData;
+
+    // Clear tracking sets
+    this.expandedRows.clear();
+    this.selectedRows.clear();
+
+    // Trigger change detection to update UI (carets, etc.)
+    this.cdr.detectChanges();
+  } catch (error) {
+    console.error('Error collapsing all rows:', error);
+  } finally {
+    this.commonService.hide('collapse-all-rows');
+  }
+}
+
+/**
+ * Expand all rows on current page sequentially
+ */
+private async expandAllRowsSequentially(): Promise<void> {
+  // First, collapse all to ensure clean state
+  this.collapseAllRows();
+
+  const currentPageData = this.getCurrentPageData();
+  const detailRowsArray = this.detailRows?.toArray() || [];
+
+  if (detailRowsArray.length === 0 || currentPageData.length === 0) {
+    console.warn('No rows to expand');
+    return;
+  }
+
+  this.commonService.show('load-all-subgrid-data');
+
+  try {
+    // Process each row sequentially
+    for (let i = 0; i < Math.min(currentPageData.length, detailRowsArray.length); i++) {
+      const parentRow = currentPageData[i];
+      const detailRowDirective = detailRowsArray[i];
+
+      // Skip if row is a child row
+      if (parentRow.isChildRow) continue;
+
+      // Skip if directive is already expanded
+      if (detailRowDirective.isExpanded) continue;
+
+      try {
+        // Load child data for this row
+        const responseData = await this.loadSubgridDataForRow(parentRow);
+
+        // Insert child rows into datasource
+        this.insertChildRowsIntoDataSource(parentRow, responseData.data || [], responseData.weekType || 'current');
+
+        // Mark the directive as expanded
+        detailRowDirective.isExpanded = true;
+        this.expandedRows.add(detailRowDirective);
+        this.selectedRows.add(parentRow);
+
+        // Small delay to prevent overwhelming the UI
+        await this.delay(50);
+      } catch (error) {
+        console.error(`Error expanding row ${i}:`, error);
+        // Continue with next row even if this one fails
+      }
+    }
+
+    // Final change detection
+    this.cdr.detectChanges();
+  } catch (error) {
+    console.error('Error in expandAllRowsSequentially:', error);
+  } finally {
+    this.commonService.hide('load-all-subgrid-data');
+  }
+}
+
+  //  Force collapse with proper spinner management
+  private forceCollapseAllRows(): void {
+    this.commonService.show('collapse-all-rows');
+    
+    const detailRowsArray = this.detailRows?.toArray() || [];
+    
+    detailRowsArray.forEach((detailRow) => {
+      if (detailRow.isExpanded) {
+        detailRow.collapse();
+      }
+    });
+    
+    this.expandedRows.clear();
+    this.selectedRows.clear();
+    
+    // Trigger change detection to update caret icons
+    this.cdr.detectChanges();
+    
+    this.commonService.hide('collapse-all-rows');
+  }
+
+  //  Expand rows with data with proper spinner management
+ 
+
+  //  Load subgrid data with proper spinner management
+  private loadSubgridDataForRow(row: any): Promise<{data: any[], weekType: string}> {
+    const storeKey = row.StoreNumber || row.store_number;
+    this.commonService.show(`subgrid-${storeKey}`);
+    
+    return new Promise((resolve, reject) => {
+      if (this.expandedRowsData.has(storeKey)) {
+        this.commonService.hide(`subgrid-${storeKey}`);
+        const cachedData = this.expandedRowsData.get(storeKey);
+        resolve(cachedData || { data: [], weekType: 'current' });
+        return;
+      }
+
+      const payload = {
+        IriWeek: row.IriWeek || row.iri_week,
+        StoreNumber: storeKey
+      };
+
+      this.http.post<any>(this.baseUrl + 'api/TaskAssinment/GetSubgridData', payload)
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe({
+          next: (response) => {
+            
+            const responseData = {
+              data: response.data || response, // Handle both new and old response formats
+              weekType: response.weekType || 'current' // Default to current if not provided
+            };
+            this.expandedRowsData.set(storeKey, responseData);
+            this.commonService.hide(`subgrid-${storeKey}`);
+            resolve(responseData);
+          },
+          error: (error) => {
+            this.commonService.hide(`subgrid-${storeKey}`);
+            reject(error);
+          }
+        });
+    });
+  }
+
+  // Individual row expansion
+  // GetSubgridData(cdkDetailRow: CdkDetailRowDirective, row: any): void {
+  //   if (cdkDetailRow.isExpanded) {
+  //     this.expandedRows.add(cdkDetailRow);
+  //     this.selectedRows.add(row);
+  //   } else {
+  //     this.expandedRows.delete(cdkDetailRow);
+  //     this.selectedRows.delete(row);
+      
+  //     if (this.allExpanded && this.expandedRows.size < this.getCurrentPageData().length) {
+  //       this.allExpanded = false;
+  //     }
+  //   }
+    
+  //   this.updateCaretIcon(cdkDetailRow, cdkDetailRow.isExpanded);
+  // }
+
+  // Check if a specific row is expanded
+  isRowExpanded(element: any): boolean {
+    return this.selectedRows.has(element);
+  }
+
+  // Data load request handler
+  // onDataLoadRequest(event: {directive: CdkDetailRowDirective, rowData: any}): void {
+  //   const { directive, rowData } = event;
+  //   const storeKey = rowData.StoreNumber || rowData.store_number;
+    
+  //   // Track expansion state for caret rotation
+  //   if (directive.isExpanded) {
+  //     this.expandedRows.add(directive);
+  //     this.selectedRows.add(rowData);
+      
+  //     // Load data if expanding
+  //     if (this.expandedRowsData.has(storeKey)) {
+  //       const cachedData = this.expandedRowsData.get(storeKey);
+  //       directive.setSubgridData(cachedData?.data || [], cachedData?.weekType || 'current');
+  //     } else {
+  //       this.loadSubgridDataForRow(rowData)
+  //         .then(responseData => {
+  //           directive.setSubgridData(responseData.data || [], responseData.weekType || 'current');
+  //         })
+  //         .catch(error => {
+  //           console.error('Error loading subgrid data:', error);
+  //           directive.setSubgridData([], 'current');
+  //         });
+  //     }
+  //   } else {
+  //     // Collapsing - remove from tracking
+  //     this.expandedRows.delete(directive);
+  //     this.selectedRows.delete(rowData);
+      
+  //     // Update allExpanded flag if needed
+  //     if (this.allExpanded && this.expandedRows.size < this.getCurrentPageData().length) {
+  //       this.allExpanded = false;
+  //     }
+  //   }
+    
+  //   // Trigger change detection to update caret icons
+  //   this.cdr.detectChanges();
+  // }
+
+  onDataLoadRequest(event: {directive: CdkDetailRowDirective, rowData: any}): void {
+  const { directive, rowData } = event;
+  const storeKey = rowData.StoreNumber || rowData.store_number;
+  
+  if (directive.isExpanded && !rowData.isChildRow) {
+    // Expanding parent row - load and insert child rows
+    this.expandedRows.add(directive);
+    this.selectedRows.add(rowData);
+    
+    if (this.expandedRowsData.has(storeKey)) {
+      const cachedData = this.expandedRowsData.get(storeKey);
+      this.insertChildRowsIntoDataSource(rowData, cachedData?.data || [], cachedData?.weekType || 'current');
+    } else {
+      this.loadSubgridDataForRow(rowData)
+        .then(responseData => {
+          this.expandedRowsData.set(storeKey,responseData);
+          this.cdr.detectChanges()
+        })
+        .catch(error => {
+          console.error('Error loading subgrid data:', error);
+        });
+    }
+  } else if (!directive.isExpanded) {
+    // Collapsing - remove child rows
+    this.expandedRows.delete(directive);
+    this.selectedRows.delete(rowData);
+    // this.removeChildRowsFromDataSource(rowData);
+    
+    // if (this.allExpanded && this.expandedRows.size < this.getCurrentPageData().length) {
+    //   this.allExpanded = false;
+    // }
+  }
+  
+  this.cdr.detectChanges();
+}
+
+/**
+ * Insert child rows directly into the table's datasource
+ */
+private insertChildRowsIntoDataSource(parentRow: any, childData: any[], weekType: string): void {
+    const parentStoreKey = parentRow.StoreNumber || parentRow.store_number;
+  
+  try {
+    if (!childData || childData.length === 0) {
+      // If no child data, remove any existing children for this parent
+      this.childRowMap.delete(parentStoreKey);
+      return;
+    }
+  
+  // Map child data to match parent column structure
+  const childRows = childData.map((child, index) => ({
+    ...child,
+    isChildRow: true,
+    isFirstChild: index === 0,
+    isLastChild: index === childData.length - 1,
+    parentStoreNumber: parentRow.StoreNumber,
+    
+    // Map child fields to parent column names
+    StoreNumber: child.storeNumber, 
+    FldTerrtyNbr: parentRow.FldTerrtyNbr || '',
+    PositionName: child.positionName || '',
+    Bfd: child.bfd || '',
+    OutletType: child.outletType,
+    StoreName: child.storeName||'',
+    AddrLine1: child.addrLine1,
+    City: child.city,
+    State: child.state,
+    Zip: child.zip||'',
+    AssignedTo: child.assignedTo || '',
+    assignedTo: child.assignedTo || '',
+    Task:child.taskName,
+    // Task-level data
+    TaskCompleted: child.taskCompleted || child.TaskCompleted,
+    taskCompleted: child.taskCompleted || child.TaskCompleted,
+    GuaranteedMiles: child.guaranteedMiles,
+    guaranteedMiles: child.guaranteedMiles,
+    CostOver: child.costOver,
+    costOver: child.costOver,
+   
+    // Week-specific fields
+    ...(weekType === 'future' && {
+      AvgCost: child.avgCost,
+      avgCost: child.avgCost,
+      Wave: child.wave,
+      ExpectedCollectionTime: child.expectedCollectionTime
+    }),
+    
+    ...(weekType === 'previous' && {
+      WK1FSRProdCost: child.wK1FSRProdCost,
+      wK1FSRProdCost: child.wK1FSRProdCost,
+      WK1StoreTravelCost: child.wK1StoreTravelCost,
+      wK1StoreTravelCost: child.wK1StoreTravelCost,
+      WK1StoreTravelOvgCost: child.wK1StoreTravelOvgCost,
+      wK1StoreTravelOvgCost: child.wK1StoreTravelOvgCost,
+      WK2FSRProdCost: child.wK2FSRProdCost,
+      wK2FSRProdCost: child.wK2FSRProdCost,
+      WK2StoreTravelCost: child.wK2StoreTravelCost,
+      wK2StoreTravelCost: child.wK2StoreTravelCost,
+      WK2StoreTravelOvgCost: child.wK2StoreTravelOvgCost,
+      wK2StoreTravelOvgCost: child.wK2StoreTravelOvgCost,
+      Quality: child.quality
+    }),
+    
+    // Store task-specific data for dialog access
+    UserComment:"",
+    storeNumber: child.storeNumber || parentRow.StoreNumber,
+    storeName: child.storeName || parentRow.StoreName,
+    taskNumber: child.taskNumber,
+    taskName: child.taskName
+     
+  }));
+  
+  // Get updated data array
+  this.childRowMap.set(parentStoreKey,childRows)
+  this.cdr.markForCheck();
+  this.cdr.detectChanges()
+}catch(error){
+    console.error(error)
+  }
+}
+
+/**
+ * Remove child rows from datasource
+ */
+private removeChildRowsFromDataSource(parentRow: any): void {
+  const parentStoreKey = parentRow.StoreNumber || parentRow.store_number;
+  this.childRowMap.delete(parentStoreKey);
+  
+  // Remove from visual display if needed
+  const filteredData = this.dataSource.data.filter(row => 
+    !(row.isChildRow && row.parentStoreNumber === parentRow.StoreNumber)
+  );
+  this.dataSource.data = filteredData;
+}
+
+
+  // Week type display methods
+  getWeekTypeDisplayName(): string {
+    switch (this.currentWeekType) {
+      case 'current': return 'Current Week Tasks';
+      case 'future': return 'Future Week Planning';
+      case 'previous': return 'Previous Week History';
+      default: return 'Store Assignment Data';
+    }
+  }
+
+  getWeekTypeClass(): string {
+    return `week-${this.currentWeekType}`;
+  }
+
+  // Data formatting methods for different week types
+  formatTaskCompleted(value: any): string {
+    return value?.toLowerCase() == 'y' ? 'Yes' : 'No';
+  }
+
+
+
+  formatCostOver(value: any): string {
+    return value ? `${value}` : 'N/A';
+  }
+
+  formatGuaranteedMiles(value: any): string {
+    return value ? `${value}` : 'N/A';
+  }
+
+  formatAvgCost(value: any): string {
+    // Return blank if null or empty
+    if (value === null || value === undefined || value === '') {
+      return '';
+    }
+    
+    // Convert to number
+    const numValue = parseFloat(value);
+    
+    // Return blank if not a valid number
+    if (isNaN(numValue)) {
+      return '';
+    }
+    
+    // Format as currency (including zero)
+    return `$${numValue.toFixed(2)}`;
+  }
+
+  formatWk1Costs(row: any): string {
+    const prod = parseFloat(row.WK1FSRProdCost || 0);
+    const travel = parseFloat(row.WK1StoreTravelCost || 0);
+    const ovg = parseFloat(row.WK1StoreTravelOvgCost || 0);
+    const total = prod + travel + ovg;
+    return total > 0 ? `$${total.toFixed(2)}` : '$0.00';
+  }
+
+  formatWk2Costs(row: any): string {
+    const prod = parseFloat(row.WK2FSRProdCost || 0);
+    const travel = parseFloat(row.WK2StoreTravelCost || 0);
+    const ovg = parseFloat(row.WK2StoreTravelOvgCost || 0);
+    const total = prod + travel + ovg;
+    return total > 0 ? `$${total.toFixed(2)}` : '$0.00';
+  }
+
+  // Status badge classes
+  getTaskCompletedClass(value: any): string {
+    return value?.toLowerCase() === 'yes' ? 'completed' : 'incomplete';
+  }
+
+
+
+  getCostOverClass(value: any): string {
+    return value?.toLowerCase() === 'yes' ? 'cost-over' : 'cost-ok';
+  }
+
+  // Dialog methods
+  async openAssignmentDialog(row: any, mode: 'StoreLevel' | 'TaskLevel' = 'StoreLevel'): Promise<void> {
+    try {
+      const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+      
+      if (!currentFilters || Object.keys(currentFilters).length === 0) {
+        console.warn('No filters applied. Cannot open assignment dialog.');
+        return;
+      }
+      
+      const dialogRef = this.dialog.open(AssignmentDialogComponent, {
+        width: '90vw',
+        maxWidth: '1200px',
+        height: '80vh',
+        data: {
+          storeNumber: row.StoreNumber,
+          storeName: row.StoreName,
+          iriWeek: row.IriWeek,
+          territoryId: currentFilters.territory_id,
+          mode: 'StoreLevel'
+        },
+        disableClose: true
+      });
+
+      dialogRef.afterClosed().subscribe(result => {
+        if (result?.hasChanges) {
+          this.refreshGridData();
+        }
+      });
+    } catch (error) {
+      console.error('Error opening assignment dialog:', error);
+    }
+  }
+
+  // Method to check if EmpId matches OptimalCollectorId (handles comma-separated EmpIds)
+  isOptimalCollectorMatch(empId: string | null | undefined, optimalCollectorId: string | null | undefined): boolean {
+    // Check if both values exist and are not empty strings
+    if (!empId || !optimalCollectorId || empId.trim() === '' || optimalCollectorId.trim() === '') {
+      return false;
+    }
+    
+    // Convert to strings and trim
+    const empIdStr = String(empId).trim();
+    const optimalIdStr = String(optimalCollectorId).trim();
+    
+    // Handle comma-separated EmpIds
+    if (empIdStr.includes(',')) {
+      const empIds = empIdStr.split(',').map(id => id.trim());
+      return empIds.includes(optimalIdStr);
+    }
+    
+    // Simple comparison for single EmpId (case-insensitive)
+    return empIdStr.toLowerCase() === optimalIdStr.toLowerCase();
+  }
+  
+  // Helper method to check if OptimalCollectorId exists and is valid
+  hasOptimalCollector(optimalCollectorId: string | null | undefined): boolean {
+    return !!optimalCollectorId && String(optimalCollectorId).trim() !== '';
+  }
+  
+  // Debug helper - call this from console to check values
+  // debugCollectorMatch(element: any): void {
+  //   console.log('Debug Collector Match:', {
+  //     EmpId: element.EmpId,
+  //     OptimalCollectorId: element.OptimalCollectorId,
+  //     hasOptimal: this.hasOptimalCollector(element.OptimalCollectorId),
+  //     isMatch: this.isOptimalCollectorMatch(element.EmpId, element.OptimalCollectorId),
+  //     empIdType: typeof element.EmpId,
+  //     optimalIdType: typeof element.OptimalCollectorId
+  //   });
+  // }
+
+  // Open proximity data dialog
+  async openProximityDataDialog(element: any): Promise<void> {
+    try {
+      const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+      
+      const dialogRef = this.dialog.open(ProximityDialogComponent, {
+        width: '700px',
+        maxWidth: '90vw',
+        maxHeight: '80vh',
+        data: {
+          storeNumber: element.StoreNumber,
+          storeName: element.StoreName,
+          empId: element.EmpId,
+          optimalCollectorId: element.OptimalCollectorId,
+          assignedTo: element.AssignedTo || element.EmployeeName,
+          firstName: element.FirstName,
+          lastName: element.LastName,
+          isActiveFSR: element.IsActiveFSR,
+          terminationDate: element.TerminationDate,
+          countryId: currentFilters?.country_id || '1'
+        },
+        disableClose: false
+      });
+
+      dialogRef.afterClosed().subscribe(result => {
+        if (result) {
+          // Handle any changes when dialog is closed
+          // console.log('Proximity dialog closed with result:', result);
+        }
+      });
+    } catch (error) {
+      this.snackbar.openSnackBar(error,'error');
+      console.error('Error opening proximity dialog:', error);
+    }
+  }
+
+  // async openTaskAssignmentDialog(taskData: any): Promise<void> {
+  //   try {
+  //     const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+      
+  //     if (!currentFilters || Object.keys(currentFilters).length === 0) {
+  //       console.warn('No filters applied. Cannot open assignment dialog.');
+  //       return;
+  //     }   
+  //     const dialogRef = this.dialog.open(AssignmentDialogComponent, {
+  //       width: '90vw',
+  //       maxWidth: '1200px', 
+  //       height: '80vh',
+  //       data: {
+  //         storeNumber: taskData.StoreNumber,
+  //         storeName: taskData.storeName,
+  //         taskNumber: taskData.TaskNumber,
+  //         taskName: taskData.TaskName,
+  //         iriWeek: currentFilters.iri_week,
+  //         territoryId: currentFilters.territory_id,
+  //         mode: 'TaskLevel'
+  //       },
+  //       disableClose: true
+  //     });
+
+  //     dialogRef.afterClosed().subscribe(result => {
+  //       if (result) {
+  //         this.refreshGridData();
+  //       }
+  //     });
+  //   } catch (error) {
+  //     console.error('Error opening task assignment dialog:', error);
+  //   }
+  // }
+
+    async openTaskAssignmentDialog2(taskData: any): Promise<void> {
+    try {
+      const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+      
+      if (!currentFilters || Object.keys(currentFilters).length === 0) {
+        console.warn('No filters applied. Cannot open assignment dialog.');
+        return;
+      }   
+      const dialogRef = this.dialog.open(AssignmentDialogComponent, {
+        width: '90vw',
+        maxWidth: '1200px', 
+        height: '80vh',
+        data: {
+          storeNumber: taskData.storeNumber,
+          storeName: taskData.storeName,
+          taskNumber: taskData.taskNumber,
+          taskName: taskData.taskName,
+          iriWeek: currentFilters.iri_week,
+          territoryId: currentFilters.territory_id,
+          mode: 'TaskLevel'
+        },
+        disableClose: true
+      });
+
+      dialogRef.afterClosed().subscribe(result => {
+        if (result?.hasChanges) {
+          console.log(result)
+          this.refreshGridData();
+        }
+      });
+    } catch (error) {
+      console.error('Error opening task assignment dialog:', error);
+    }
+  }
+
+
+  // Open Closest FSR dialog (when clicking colored circles)
+  async openClosestFsrDataDialog(element: any): Promise<void> {
+    try {
+      const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+      
+      const dialogRef = this.dialog.open(ClosestFsrDialogComponent, {
+        width: '40vw',
+        maxWidth: '40vw',
+        minWidth: '600px',
+        maxHeight: '55vh',
+        minHeight: '250px',
+        data: {
+          StoreNumber: element.StoreNumber,
+          StoreName: element.StoreName,
+          CollectorId: element.EmpId,
+          OptimalCollectorId: element.OptimalCollectorId,
+          FirstName: element.FirstName,
+          LastName: element.LastName,
+          IsActiveFSR: element.IsActiveFSR,
+          TerminationDate: element.TerminationDate,
+          CountryId: currentFilters?.country_id || '1'
+        },
+        disableClose: true,
+      });
+
+      dialogRef.afterClosed().subscribe(result => {
+        if (result) {
+          // console.log('Closest FSR dialog closed with result:', result);
+        }
+      });
+    } catch (error) {
+      this.snackbar.openSnackBar(error,"error")
+      console.error('Error opening Closest FSR dialog:', error);
+    }
+  }
+
+ 
+  private resetExpansionState(): void {
+    this.allExpanded = false;
+    this.isExpandingAll = false;
+    this.expandedRows.clear();
+    this.selectedRows.clear();
+    this.childRowMap.clear();
+    const parentRowsOnly = this.dataSource.data.filter(row => !row.isChildRow);
+    this.dataSource.data = parentRowsOnly;
+    this.updatePaginatorLength();
+    this.cdr.detectChanges(); // Ensure caret icons are updated
+  }
+
+
+  // private getCurrentPageData(): any[] {
+  //   if (!this.paginator) {
+  //     return this.dataSource.data;
+  //   }
+    
+  //   const startIndex = this.paginator.pageIndex * this.paginator.pageSize;
+  //   const endIndex = startIndex + this.paginator.pageSize;
+  //   return this.dataSource.data.slice(startIndex, endIndex);
+  // }
+
+  private getCurrentPageData(): any[] {
+  if (!this.paginator) {
+    return this.dataSource.data.filter(row => !row.isChildRow);
+  }
+  
+  const startIndex = this.paginator.pageIndex * this.paginator.pageSize;
+  const endIndex = startIndex + this.paginator.pageSize;
+  
+  // Filter to only get parent rows on current page
+  return this.dataSource.data
+    .filter(row => !row.isChildRow)
+    .slice(startIndex, endIndex);
+}
+
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  private async refreshGridData(): Promise<void> {
+    this.snackbar.openSnackBar("Refreshing grid data after assignment change","success")
+    const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+    if(!currentFilters){
+      this.snackbar.openSnackBar("Refreshing grid data failed","error")
+      return;
+    }
+    this.commonService.applyFilters(currentFilters)
+    // console.log('Refreshing grid data after assignment change');
+  }
+
+  //  helpers
+
+  getExpandedRowCount(): number {
+    return this.expandedRows.size;
+  }
+
+  formatCollectionTime(time: string): string {
+    return time || 'Not specified';
+  }
+
+  getClusterDisplay(positionName: string): string {
+    return positionName || 'N/A';
+  }
+
+  ngAfterViewInit(): void {
+    // this.dataSource.paginator = this.paginator;
+    this.dataSource.sort = this.sort;
+    
+  
+     this.dataSource.sortingDataAccessor = (data: any, sortHeaderId: string) => {
+      switch (sortHeaderId) {
+        // Numeric sorting
+        case 'StoreNumber':
+          return parseInt(data.StoreNumber) || 0;
+        
+        case 'FldTerrtyNbr':
+          return parseInt(data.FldTerrtyNbr) || 0;
+        
+        case 'Zip':
+          return data.Zip ? data.Zip.toString() : '';
+        
+        // Cost columns - convert to numbers for proper sorting
+        case 'AvgCost':
+        case 'WK1FSRProdCost':
+        case 'WK1StoreTravelCost':
+        case 'WK1StoreTravelOvgCost':
+        case 'WK2FSRProdCost':
+        case 'WK2StoreTravelCost':
+        case 'WK2StoreTravelOvgCost':
+        case 'GuaranteedMiles':
+          return parseFloat(data[sortHeaderId]) || 0;
+        
+        // String sorting (case-insensitive)
+        case 'StoreName':
+        case 'AddrLine1':
+        case 'City':
+        case 'State':
+        case 'PositionName':
+        case 'Bfd':
+        case 'OutletType':
+          return data[sortHeaderId] ? data[sortHeaderId].toString().toLowerCase() : '';
+        
+        // Assigned To - sort by first name for multiple assignments
+        case 'AssignedTo':
+          if (!data.AssignedTo || data.AssignedTo === 'NOT ASSIGNED') {
+            return 'zzz'; 
+          }
+          // Get first name from comma-separated list
+          const name = data.AssignedTo.split(',');          
+          const firstName = name[0]?.trim().toLowerCase()||'';
+          return firstName.toLowerCase();
+        
+        // Status columns - custom sort order
+        case 'TaskCompleted':
+          return this.getTaskCompletedSortValue(data.TaskCompleted);
+        
+        // case 'Quality':
+        //   return this.getQualitySortValue(data.Quality);
+        
+        case 'CostOver':
+          return this.getCostOverSortValue(data.CostOver);
+        
+        // Comments - sort by existence and then alphabetically
+        case 'UserComment':
+          if (!data.UserComment) return 'zzz'; // Empty comments last
+          return data.UserComment.toLowerCase();
+        
+        default:
+          return data[sortHeaderId] || '';
+      }
+    };
+
+     if (this.paginator) {
+      this.paginator.page
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(() => {
+          this.forceCollapseAllRows();
+          this.resetExpansionState();
+        });
+    }
+     this.cdr.detectChanges();
+  }
+
 private applyParentRowPagination(): void {
   if (!this.paginator) return;
 
@@ -20,33 +1327,511 @@ private applyParentRowPagination(): void {
   // Update datasource with ONLY parent rows for current page
   this.dataSource.data = currentPageParentRows;
   
-  // ✅ CRITICAL: Set paginator length to ONLY parent rows count
+  // CRITICAL: Set paginator length to ONLY parent rows count
   this.paginator.length = allParentRows.length;  // Should be 5000, not 50!
   
   this.cdr.detectChanges();
 }
 
-private updatePaginatorLength(): void {
-  if (!this.paginator) return;
-  
-  // ✅ Count ONLY parent rows - NEVER include child rows
-  const parentRowCount = this.parentRowsData.filter(row => !row.isChildRow).length;
-  this.paginator.length = parentRowCount;
-  
-  console.log('Paginator length updated to:', parentRowCount);
-}
+
+  // Week type class specifically for table min-width
+  getWeekTypeTableClass(): string {
+    return `week-${this.currentWeekType}`;
+  }
+
+  // Get current table min-width for debugging/info
+  getCurrentTableMinWidth(): number {
+    switch (this.currentWeekType) {
+      case 'current':
+        return 1520;
+      case 'future':
+        return 1320;
+      case 'previous':
+        return 2100;
+      default:
+        return 1200;
+    }
+  }
+
+  // Get week type display info
+  getWeekTypeInfo(): { name: string, minWidth: number, columns: number } {
+    switch (this.currentWeekType) {
+      case 'current':
+        return { 
+          name: 'Current Week Tasks', 
+          minWidth: 1520, 
+          columns: this.currentWeekColumns.length 
+        };
+      case 'future':
+        return { 
+          name: 'Future Week Planning', 
+          minWidth: 1320, 
+          columns: this.futureWeekColumns.length 
+        };
+      case 'previous':
+        return { 
+          name: 'Previous Week History', 
+          minWidth: 2100, 
+          columns: this.previousWeekColumns.length 
+        };
+      default:
+        return { 
+          name: 'Store Data', 
+          minWidth: 1200, 
+          columns: this.baseColumns.length 
+        };
+    }
+  }
+
+//   formatQuality(value: any): string {
+//   if (!value) return 'N/A';
+//   const quality = value.toString().toLowerCase();
+//   return quality === 'approved' ? 'Approved' : 'Not Approved';
+// }
+
+// getQualityClass(value: any): string {
+//   if (!value) return 'quality-unknown';
+//   const quality = value.toString().toLowerCase();
+//   return quality === 'approved' ? 'quality-approved' : 'quality-not-approved';
+// }
 
 
-private resetExpansionState(): void {
-  this.allExpanded = false;
-  this.isExpandingAll = false;
-  this.expandedRows.clear();
-  this.selectedRows.clear();
-  this.childRowsMap.clear();  // ← Also clear child rows map
+  private getTaskCompletedSortValue(status: any): number {
+    if (!status) return 3;
+    const statusStr = status.toString().toLowerCase();
+    switch (statusStr) {
+      case 'yes':
+      case 'completed':
+      case 'complete':
+        return 1;
+      case 'no':
+      case 'incomplete':
+      case 'pending':
+        return 2;
+      default:
+        return 3;
+    }
+  }
+
   
-  // Keep ONLY parent rows in datasource
-  const parentRowsOnly = this.dataSource.data.filter(row => !row.isChildRow);
-  this.dataSource.data = parentRowsOnly;
-  this.updatePaginatorLength();
-  this.cdr.detectChanges();
+
+  private getCostOverSortValue(costOver: any): number {
+    if (!costOver) return 2;
+    const costStr = costOver.toString().toLowerCase();
+    switch (costStr) {
+      case 'no':
+      case 'false':
+        return 1;
+      case 'yes':
+      case 'true':
+        return 2;
+      default:
+        return 2;
+    }
+  }
+
+  // ADD: Enhanced money formatting for display
+  formatMoney(value: any): string {
+    if (!value || value === 0 || value === '0') return '$0.00';
+    
+    const num = parseFloat(value);
+    if (isNaN(num)) return '$0.00';
+    
+    return '$' + num.toLocaleString('en-US', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    });
+  }
+
+  // ADD: Sort change handler with logging
+  onSortChange(event: any): void {
+    this.currentSortColumn = event.active;
+    this.currentSortDirection = event.direction;    
+    // Collapse all expanded rows when sorting
+    this.forceCollapseAllRows();
+    this.resetExpansionState();
+  }
+
+  // ADD: Get current sort info for display
+  getCurrentSortInfo(): { column: string, direction: string } {
+    return {
+      column: this.currentSortColumn || 'None',
+      direction: this.currentSortDirection || 'None'
+    };
+  }
+
+    
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.unsubscribe$.next();
+    this.unsubscribe$.complete();
+  }
+
+<div class="table-container">
+  <mat-card class="table-card" [ngClass]="getWeekTypeClass()">
+    
+    <mat-card-content>
+      <div class="table-wrapper">
+        <mat-table #table [dataSource]="dataSource" matSort class="store-table mat-elevation-2" [ngClass]="getWeekTypeTableClass()">
+          
+          <!-- ==================== ALL COLUMN DEFINITIONS ==================== -->
+          
+          <!-- Store Number Column -->
+          <ng-container matColumnDef="store_number" *ngIf="isColumnVisible('store_number')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="StoreNumber" class="mat-header-style">
+              <button mat-icon-button 
+                      [disabled]="isExpandingAll"
+                      (click)="expandAllRows(); $event.stopPropagation()" 
+                      [title]="allExpanded ? 'Collapse All' : 'Expand All'"
+                      class="expand-all-btn">
+                <mat-icon>{{allExpanded ? 'unfold_less' : 'unfold_more'}}</mat-icon>
+              </button>
+              Store #
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="store-number-cell">
+              <span class="caret" [class.clicked]="isRowExpanded(element)">▼</span>
+              <span class="store-number">{{element.StoreNumber}}</span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Territory -->
+          <ng-container matColumnDef="territory" *ngIf="isColumnVisible('territory')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="FldTerrtyNbr" class="mat-header-style" matTooltip="Territory">
+              Terr
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.FldTerrtyNbr }}</mat-cell>
+          </ng-container>
+
+          <!-- Position Number -->
+          <ng-container matColumnDef="position_number" *ngIf="isColumnVisible('position_number')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="PositionName" class="mat-header-style">
+              Position #
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.PositionName || element.positionName}}</mat-cell>
+          </ng-container>
+
+            <!--Task-->
+          <ng-container matColumnDef="task" *ngIf="isColumnVisible('task')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="task" class="mat-header-style">
+              Task
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">
+
+              <span *ngIf="!element.isChildRow">
+                ALL
+              </span>
+
+              <span  *ngIf="element.isChildRow">
+                {{element.taskName}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- BFD -->
+          <ng-container matColumnDef="bdf" *ngIf="isColumnVisible('bdf')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="Bfd" class="mat-header-style">BFD</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.Bfd || element.bfd}}</mat-cell>
+          </ng-container>
+
+          <!-- Outlet -->
+          <ng-container matColumnDef="outlet" *ngIf="isColumnVisible('outlet')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="OutletType" class="mat-header-style">
+              Outlet
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.OutletType|| element.outletType}}</mat-cell>
+          </ng-container>
+
+          <!-- Store Name -->
+          <ng-container matColumnDef="store_name" *ngIf="isColumnVisible('store_name')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="StoreName" class="mat-header-style">
+              Store Name
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="store-name-cell">
+              <span class="store-name" 
+                    *ngIf="!element.isChildRow"
+                    (click)="openProximityDataDialog(element); $event.stopPropagation();">
+                {{element.StoreName }}
+              </span>
+
+              <span  *ngIf="element.isChildRow">
+                {{element.storeName}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Address -->
+          <ng-container matColumnDef="addr_line1" *ngIf="isColumnVisible('addr_line1')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="AddrLine1" class="mat-header-style">
+              Address
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.AddrLine1}}</mat-cell>
+          </ng-container>
+
+          <!-- City -->
+          <ng-container matColumnDef="city" *ngIf="isColumnVisible('city')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="City" class="mat-header-style">City</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.City}}</mat-cell>
+          </ng-container>
+
+          <!-- State -->
+          <ng-container matColumnDef="state" *ngIf="isColumnVisible('state')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="State" class="mat-header-style">State</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.State}}</mat-cell>
+          </ng-container>
+
+          <!-- Zip -->
+          <ng-container matColumnDef="zip" *ngIf="isColumnVisible('zip')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="Zip" class="mat-header-style">Zip</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.Zip}}</mat-cell>
+          </ng-container>
+
+          <!-- Assigned To -->
+          <ng-container matColumnDef="assigned_to" *ngIf="isColumnVisible('assigned_to')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="AssignedTo" class="mat-header-style">
+              Assigned To
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="assigned-cell" 
+                      [class.child-assigned]="element.isChildRow"
+                      (click)="element.isChildRow ? openTaskAssignmentDialog2(element) : openAssignmentDialog(element, 'StoreLevel'); $event.stopPropagation()">
+              
+              <!-- Parent Row Assigned To -->
+              <div *ngIf="!element.isChildRow" class="assignment-container">
+                <div class="assignment-names" 
+                     [ngClass]="getAssignmentClass(element.AssignedTo)"
+                     [matTooltip]="getAssignedToTooltip(element.AssignedTo)"
+                     matTooltipClass="multi-line-tooltip">
+                  
+                  <div *ngIf="!shouldDisplayMultipleLines(element.AssignedTo)" class="single-name">
+                    {{element.AssignedTo || 'NOT ASSIGNED'}}
+                  </div>
+                  
+                  <div *ngIf="shouldDisplayMultipleLines(element.AssignedTo)" class="multiple-names">
+                    <div *ngFor="let name of getIndividualNames(element.AssignedTo); let i = index" 
+                         class="name-line" [class.first-name]="i === 0">
+                      {{name}}
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Optimal Collector Indicator -->
+                <div class="optimal-collector-indicator">
+                  <div class="circle-green" 
+                       *ngIf="hasOptimalCollector(element.OptimalCollectorId) && isOptimalCollectorMatch(element.EmpId, element.OptimalCollectorId)" 
+                       (click)="openClosestFsrDataDialog(element); $event.stopPropagation()"
+                       matTooltip="Optimal collector assigned">
+                    <span class="checkmark"></span>
+                  </div>
+                  
+                  <div class="circle-red" 
+                       *ngIf="hasOptimalCollector(element.OptimalCollectorId) && !isOptimalCollectorMatch(element.EmpId, element.OptimalCollectorId)" 
+                       (click)="openClosestFsrDataDialog(element); $event.stopPropagation()"
+                       matTooltip="Non-optimal collector assigned">
+                    <span class="crossmark"></span>
+                  </div>
+                  
+                  <div class="circle-gray" 
+                       *ngIf="!hasOptimalCollector(element.OptimalCollectorId) && element.EmpId" 
+                       (click)="openClosestFsrDataDialog(element); $event.stopPropagation()"
+                       matTooltip="No optimal collector data">
+                    <span class="checkmark"></span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Child Row Assigned To -->
+              <span *ngIf="element.isChildRow" class="clickable-link">
+                {{element.assignedTo || element.AssignedTo}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Task Completed -->
+          <ng-container matColumnDef="task_completed" *ngIf="isColumnVisible('task_completed')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="TaskCompleted" class="mat-header-style" matTooltip="Completed">
+              Completed
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              <span *ngIf="!element.isChildRow" class="status-badge" [ngClass]="getTaskCompletedClass(element.TaskCompleted)">
+                {{formatTaskCompleted(element.TaskCompleted)}}
+              </span>
+                 <span *ngIf="element.isChildRow" class="status-badge">
+                {{ element.taskCompleted}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Cost Over -->
+          <ng-container matColumnDef="cost_over" *ngIf="isColumnVisible('cost_over')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="CostOver" class="mat-header-style">
+              Over Cost
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              <span class="cost-badge" [ngClass]="getCostOverClass(element.CostOver || element.costOver)">
+                {{(element.CostOver || element.costOver) | currencyFormat}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Guaranteed Miles -->
+          <ng-container matColumnDef="guaranteed_miles" *ngIf="isColumnVisible('guaranteed_miles')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="GuaranteedMiles" class="mat-header-style">
+              Miles
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              {{formatGuaranteedMiles(element.GuaranteedMiles || element.guaranteedMiles)}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- Average Cost (Future Week) -->
+          <ng-container matColumnDef="avg_cost" *ngIf="isColumnVisible('avg_cost')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="AvgCost" class="mat-header-style">
+              Avg Cost
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              {{formatAvgCost(element.AvgCost || element.avgCost)}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK1 Costs -->
+          <ng-container matColumnDef="wk1_costs" *ngIf="isColumnVisible('wk1_costs')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK1FSRProdCost" class="mat-header-style">
+              W{{this.currentFilters?.iri_week}} Cost
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" 
+                      [ngClass]="{'negative': (element.WK1FSRProdCost || element.wK1FSRProdCost) > 0, 
+                                  'positive': (element.WK1FSRProdCost || element.wK1FSRProdCost) <= 0}">
+              {{(element.WK1FSRProdCost || element.wK1FSRProdCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK1 Travel -->
+          <ng-container matColumnDef="wk1_travel" *ngIf="isColumnVisible('wk1_travel')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK1StoreTravelCost" class="mat-header-style">
+              W{{this.currentFilters?.iri_week}} Travel
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="travel-column">
+              {{(element.WK1StoreTravelCost || element.wK1StoreTravelCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+        
+
+          <!-- WK1 Ovg Travel -->
+          <ng-container matColumnDef="wk1_ovg_travel" *ngIf="isColumnVisible('wk1_ovg_travel')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK1StoreTravelOvgCost" class="mat-header-style">
+              W{{this.currentFilters?.iri_week}} Ovg Travel
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element"
+                      [ngClass]="{'negative': (element.WK1StoreTravelOvgCost || element.wK1StoreTravelOvgCost) > 0, 
+                                  'positive': (element.WK1StoreTravelOvgCost || element.wK1StoreTravelOvgCost) <= 0}">
+              {{(element.WK1StoreTravelOvgCost || element.wK1StoreTravelOvgCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK2 Costs -->
+          <ng-container matColumnDef="wk2_costs" *ngIf="isColumnVisible('wk2_costs')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK2FSRProdCost" class="mat-header-style">
+              W{{returnWeekminustwo(this.currentFilters.iri_week)}} Cost
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element"
+                      [ngClass]="{'negative': (element.WK2FSRProdCost || element.wK2FSRProdCost) > 0, 
+                                  'positive': (element.WK2FSRProdCost || element.wK2FSRProdCost) <= 0}">
+              {{(element.WK2FSRProdCost || element.wK2FSRProdCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK2 Travel -->
+          <ng-container matColumnDef="wk2_travel" *ngIf="isColumnVisible('wk2_travel')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK2StoreTravelCost" class="mat-header-style">
+              W{{returnWeekminustwo(this.currentFilters.iri_week)}} Travel
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="travel-column">
+              {{(element.WK2StoreTravelCost || element.wK2StoreTravelCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK2 Ovg Travel -->
+          <ng-container matColumnDef="wk2_ovg_travel" *ngIf="isColumnVisible('wk2_ovg_travel')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK2StoreTravelOvgCost" class="mat-header-style">
+              W{{returnWeekminustwo(this.currentFilters.iri_week)}} Ovg Travel
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element"
+                      [ngClass]="{'negative': (element.WK2StoreTravelOvgCost || element.wK2StoreTravelOvgCost) > 0, 
+                                  'positive': (element.WK2StoreTravelOvgCost || element.wK2StoreTravelOvgCost) <= 0}">
+              {{(element.WK2StoreTravelOvgCost || element.wK2StoreTravelOvgCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- Comments -->
+          <ng-container matColumnDef="user_comment" *ngIf="isColumnVisible('user_comment')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="UserComment" class="mat-header-style">
+              Comments
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="comment-cell">
+              <div *ngIf="!element.isChildRow"
+                   class="comment-display"
+                   (click)="openCommentDialog(element); $event.stopPropagation();"
+                   [title]="element.UserComment || 'Click to add/edit comment'"
+                   [class.has-comment]="element.UserComment"
+                   [class.clickable]="canEditComments || element.UserComment">
+                <span class="comment-text">{{getCommentDisplay(element.UserComment)}}</span>
+              </div>
+              <div *ngIf="element.isChildRow">
+                {{element.UserComment}}
+              </div>
+            </mat-cell>
+          </ng-container>
+
+          <!-- ==================== HEADER AND DATA ROWS ==================== -->
+          
+          <mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></mat-header-row>
+          
+          <!-- Regular rows (both parent and child) -->
+          <mat-row *matRowDef="let row; columns: displayedColumns;"
+                   class="table-row"
+                   [class.parent-row]="!row.isChildRow"
+                   [class.child-row]="row.isChildRow"
+                   [class.child-row-first]="row.isChildRow && row.isFirstChild"
+                   [class.child-row-last]="row.isChildRow && row.isLastChild"
+                   [cdkDetailRow]="row" 
+                   [cdkDetailRowTpl]="tpl"                  
+                   (toggleChange)="onDataLoadRequest({directive: $event, rowData: row})"
+                   matRipple>
+          </mat-row>
+        </mat-table>
+      </div>
+      
+      <!-- Search and Paginator -->
+      <div class="search-paginator-bar">
+        <mat-form-field appearance="standard" class="search-field">
+          <mat-label>Search...</mat-label>
+          <input matInput [formControl]="searchControl" 
+                 placeholder="Search by store number, name, address, city, state, assigned to, etc.">
+          <mat-icon matPrefix>search</mat-icon>
+          <button mat-button *ngIf="searchControl.value" matSuffix mat-icon-button (click)="clearSearch()">
+            <mat-icon>clear</mat-icon>
+          </button>
+        </mat-form-field>
+        
+        <mat-paginator [pageSizeOptions]="[50,100,150,200]"
+                       showFirstLastButtons="true">
+        </mat-paginator>
+      </div>
+
+    </mat-card-content>
+  </mat-card>
+</div>
+
+<!-- Empty template - child rows are rendered directly in the table -->
+<ng-template #tpl let-element></ng-template>
+
+<footer>
+  <div class="mat-spinner-container">
+    <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
+    <div *ngIf="showSpinner" style="position:relative;left: 10px">Loading...</div>
+  </div>
+</footer>
+
 }
