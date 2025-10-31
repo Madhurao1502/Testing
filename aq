@@ -1,3 +1,39 @@
+
+private insertChildRowsIntoDataSource(parentRow: any, childData: any[], weekType: string): void {
+  const parentStoreKey = parentRow.StoreNumber || parentRow.store_number;
+  
+  try {
+    if (!childData || childData.length === 0) {
+      // If no child data, remove any existing children for this parent
+      this.childRowsMap.delete(parentStoreKey);
+      return;
+    }
+    
+    // Map child data to match parent column structure
+    const childRows = childData.map((child, index) => ({
+      ...child,
+      isChildRow: true,
+      isFirstChild: index === 0,
+      isLastChild: index === childData.length - 1,
+      parentStoreNumber: parentRow.StoreNumber,
+      
+      // Map all the fields...
+      StoreNumber: child.storeNumber,
+      FldTerrtyNbr: parentRow.FldTerrtyNbr || '',
+      // ... rest of your field mappings
+    }));
+    
+    // Store child rows in the map (NOT in datasource)
+    this.childRowsMap.set(parentStoreKey, childRows);
+    
+    console.log(`Child rows stored for ${parentStoreKey}: ${childRows.length} rows`);
+    this.cdr.detectChanges();
+    
+  } catch (error) {
+    console.error('Error inserting child rows:', error);
+  }
+}
+
 private updateDataSource(data: any[]): void {
   this.commonService.show('table-update');
   
