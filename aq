@@ -1,3 +1,18 @@
+/**
+ * Remove child rows from map
+ */
+private removeChildRowsFromDataSource(parentRow: any): void {
+  const parentStoreKey = parentRow.StoreNumber || parentRow.store_number;
+  this.childRowsMap.delete(parentStoreKey);
+  
+  // Remove from visual display if needed
+  const filteredData = this.dataSource.data.filter(row => 
+    !(row.isChildRow && row.parentStoreNumber === parentRow.StoreNumber)
+  );
+  this.dataSource.data = filteredData;
+}
+
+
 
 private insertChildRowsIntoDataSource(parentRow: any, childData: any[], weekType: string): void {
   const parentStoreKey = parentRow.StoreNumber || parentRow.store_number;
