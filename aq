@@ -1,3 +1,14 @@
+const currentData = [...this.dataSource.data];
+    const parentIndex = currentData.findIndex(row => 
+      row.StoreNumber === parentRow.StoreNumber && !row.isChildRow
+    );
+    
+    if (parentIndex !== -1) {
+      // Insert child rows right after parent row
+      currentData.splice(parentIndex + 1, 0, ...childRows);
+      this.dataSource.data = currentData;
+    }
+
 import { trigger, state, style, transition, animate } from '@angular/animations';
 import { HttpClient } from '@angular/common/http';
 import { AfterViewInit, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren, Pipe } from '@angular/core';
