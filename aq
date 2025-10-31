@@ -1,3 +1,45 @@
+private updateDataSource(data: any[]): void {
+  this.commonService.show('table-update');
+  
+  try {
+    // ✅ STEP 1: Clear ALL old data FIRST
+    this.forceCollapseAllRows();
+    this.resetExpansionState();
+    this.expandedRowsData.clear();  // ← CLEAR CACHED CHILD ROWS
+    
+    // ✅ STEP 2: Clear search
+    this.searchControl.setValue('', { emitEvent: false });
+    
+    // ✅ STEP 3: Map new data as parent rows only
+    this.parentRowsData = data.map(row => ({ ...row, isChildRow: false }));
+    this.originalData = [...this.parentRowsData];
+    
+    // ✅ STEP 4: Reset paginator to first page
+    if (this.paginator) {
+      this.paginator.pageIndex = 0;
+      this.applyParentRowPagination();
+    } else {
+      this.dataSource.data = [...this.parentRowsData];
+    }
+    
+    // ✅ STEP 5: Reset sort state
+    this.currentSortColumn = '';
+    this.currentSortDirection = '';
+    this.dataSource.sort = this.sort;
+    
+    // ✅ STEP 6: Update paginator length
+    this.updatePaginatorLength();
+    
+    // ✅ STEP 7: Force change detection
+    this.cdr.markForCheck();
+    this.cdr.detectChanges();
+    
+  } finally {
+    this.commonService.hide('table-update');
+  }
+}
+
+
 <h2 mat-dialog-title class="title-style" cdkDrag cdkDragRootElement=".cdk-overlay-pane" cdkDragHandle>
   <span>{{ getDialogTitle() }}</span>
 </h2>
