@@ -1,154 +1,891 @@
-ngAfterViewInit(): void {
-  // ❌ DON'T do this - it will paginate all rows including children:
-  // this.dataSource.paginator = this.paginator;
-  
-  // ✅ DO THIS instead - manual pagination control
-  this.dataSource.sort = this.sort;
-  
-  // Custom sorting accessor (keep your existing one)
-  this.dataSource.sortingDataAccessor = (data: any, sortHeaderId: string) => {
-    // ... your existing sorting logic ...
-  };
+/* Dialog Title Styling */
+.mat-dialog-title {
+  margin: 0;
+  margin-bottom: 10px;
+  font-size: medium;
+  background-color: lightgray;
+  padding-left: 1em;
+  padding-right: 1em;
+  cursor: grab;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+}
 
-  // ✅ Setup custom pagination that only counts parent rows
-  if (this.paginator) {
-    // Update paginator length initially
-    this.updatePaginatorLength();
-    
-    // Listen to page changes and manually update datasource
-    this.paginator.page
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(() => {
-        this.applyParentRowPagination();
-      });
+/* Close Button */
+.close-btn {
+  float: right;
+  color: #4e6a87;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.close-btn-icon {
+  color: rgb(87, 135, 187);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.close-btn:hover {
+  color: rgb(87, 135, 187);
+  background: #ccd6df;
+}
+
+.close-btn-icon:hover {
+  color: black;
+}
+
+/* Dialog Content Container */
+.assignment-dialog-content {
+  max-height: 70vh;
+  overflow-y: auto;
+  width: 100%;
+  padding: 0;
+}
+
+/* Filter Section */
+.filter-section {
+  margin-bottom: 20px;
+  padding: 16px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  border-left: 4px solid #2196F3;
+}
+
+.filter-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-row:last-child {
+  margin-bottom: 0;
+}
+
+.filter-row mat-form-field {
+  flex: 1;
+  min-width: 200px;
+}
+
+/* Loading Container */
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 40px;
+  min-height: 200px;
+}
+
+/* Table Container with Sticky Header */
+.table-wrapper {
+  position: relative;
+  margin: 0 16px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.table-container {
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: auto;
+  width: 100%;
+}
+
+/* Sticky table header */
+.fsr-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+}
+
+.fsr-table mat-header-row {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: #f5f5f5;
+  border-bottom: 2px solid #ddd;
+}
+
+.fsr-table mat-header-cell {
+  background-color: #f5f5f5 !important;
+  font-weight: 600;
+  color: #333;
+  border-right: 1px solid #e0e0e0;
+  padding: 12px 16px !important;
+}
+
+.fsr-table mat-header-cell:last-child {
+  border-right: none;
+}
+
+.fsr-table mat-cell {
+  padding: 12px 16px !important;
+  border-right: 1px solid #f0f0f0;
+}
+
+.fsr-table mat-cell:last-child {
+  border-right: none;
+}
+
+.fsr-table mat-row {
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s ease;
+}
+
+.fsr-table mat-row:hover {
+  background-color: #fafafa;
+}
+
+.fsr-table mat-row:nth-child(even) {
+  background-color: #fafafa;
+}
+
+/* No Data Message */
+.no-data {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+  font-size: 14px;
+  background-color: #fafafa;
+}
+
+/* Button Styling */
+.action-button {
+  font-size: 12px;
+  padding: 4px 8px;
+  min-width: 80px;
+}
+
+/* Form Field Styling */
+.mat-form-field {
+  width: 100%;
+}
+
+/* Autocomplete */
+.mat-autocomplete-panel {
+  max-height: 200px !important;
+}
+
+.mat-option {
+  padding: 12px 16px;
+  line-height: 1.2;
+}
+
+/* Dialog Actions Footer */
+.dialog-actions {
+  padding: 16px;
+  border-top: 1px solid #ddd;
+  text-align: right;
+  background-color: #fafafa;
+}
+
+.dialog-actions button {
+  margin-left: 8px;
+}
+
+/* Footer Spinner */
+footer {
+  padding: 8px 16px;
+  background-color: #fff3cd;
+  border-top: 1px solid #ffc107;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  font-size: 13px;
+  color: #856404;
+}
+
+.mat-spinner-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .filter-row {
+    flex-direction: column;
   }
-  
-  this.cdr.detectChanges();
+
+  .filter-row mat-form-field {
+    width: 100%;
+  }
+
+  .table-container {
+    max-height: 400px;
+  }
+
+  .assignment-dialog-content {
+    max-height: 80vh;
+  }
 }
-...............
-/**
- * Apply pagination based on parent rows only
- * This method manually slices the data to show only parent rows for the current page
- */
-private applyParentRowPagination(): void {
-  if (!this.paginator) return;
 
-  // Collapse all rows when changing pages
-  this.forceCollapseAllRows();
-  this.resetExpansionState();
+import { CommonService } from './../../shared/common.service';
+import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
+import { FormBuilder, FormGroup } from '@angular/forms';
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { HttpClient } from '@angular/common/http';
+import { MatTableDataSource } from '@angular/material/table';
+import {
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  firstValueFrom,
+  map,
+  Observable,
+  of,
+  Subject,
+  switchMap,
+  takeUntil,
+} from 'rxjs';
 
-  const pageIndex = this.paginator.pageIndex;
-  const pageSize = this.paginator.pageSize;
-
-  // Get only parent rows from original data
-  const allParentRows = this.parentRowsData.filter(row => !row.isChildRow);
-  
-  // Calculate start and end index for current page
-  const startIndex = pageIndex * pageSize;
-  const endIndex = startIndex + pageSize;
-  
-  // Get parent rows for current page
-  const currentPageParentRows = allParentRows.slice(startIndex, endIndex);
-  
-  // Update datasource with ONLY current page parent rows
-  this.dataSource.data = currentPageParentRows;
-  
-  // Update paginator length to reflect total parent rows
-  this.paginator.length = allParentRows.length;
-  
-  this.cdr.detectChanges();
+export interface AssignmentDialogData {
+  storeNumber: string;
+  storeName: string;
+  taskNumber?: string;
+  taskName?: string;
+  iriWeek: string;
+  territoryId: string;
+  positionNumber?: string;
+  mode: 'StoreLevel' | 'TaskLevel' | 'ClusterLevel';
 }
-....................
-private updateDataSource(data: any[]): void {
-  this.commonService.show('table-update');
-  
-  // Store parent rows separately
-  this.parentRowsData = data.map(row => ({ ...row, isChildRow: false }));
-  this.originalData = [...this.parentRowsData];
-  
-  const searchTerm = this.searchControl.value;
-  if (searchTerm && searchTerm.trim()) {
-    this.performSearch(searchTerm);
-  } else {
-    // ✅ Apply pagination instead of showing all data
-    if (this.paginator) {
-      this.paginator.pageIndex = 0; // Reset to first page
-      this.applyParentRowPagination();
-    } else {
-      this.dataSource.data = [...this.parentRowsData];
+
+interface NameOption {
+  emp_name: string;
+  emp_id: string;
+  FirstName: string;
+  LastName: string;
+  value: string;
+  id: string;
+}
+
+interface DialogResult {
+  hasChanges: boolean;
+  data?: any;
+}
+
+@Component({
+  selector: 'app-assignment-dialog',
+  templateUrl: './assignment-dialog.component.html',
+  styleUrls: ['./assignment-dialog.component.css'],
+})
+export class AssignmentDialogComponent implements OnInit, OnDestroy {
+  // Form & Data Management
+  filterForm: FormGroup;
+  territories: any[] = [];
+  fsrDataSource = new MatTableDataSource<any>([]);
+
+  // UI State Management
+  isLoading = false;
+  showSpinner = false;
+
+  // Autocomplete
+  filteredFirstNames: Observable<NameOption[]>;
+  filteredLastNames: Observable<NameOption[]>;
+
+  // Track Changes
+  private hasChanges = false;
+  private destroy$ = new Subject<void>();
+  selectedFirstNameId: string = '';
+  selectedLastNameId: string = '';
+
+  // Display Columns
+  displayedColumns: string[] = [];
+
+  constructor(
+    private dialogRef: MatDialogRef<AssignmentDialogComponent>,
+    @Inject(MAT_DIALOG_DATA) public data: AssignmentDialogData,
+    private fb: FormBuilder,
+    private http: HttpClient,
+    private commonService: CommonService,
+    @Inject('BASE_URL') private baseUrl: string
+  ) {
+    this.filterForm = this.fb.group({
+      territory: [data.territoryId],
+      firstName: [''],
+      lastName: [''],
+    });
+  }
+
+  async ngOnInit(): Promise<void> {
+    await this.loadTerritories();
+    this.setupAutocomplete();
+    await this.loadCurrentAssignment();
+    this.initializeDisplayedColumns();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  /**
+   * Get the dialog title based on mode
+   */
+  getDialogTitle(): string {
+    const location =
+      this.data.mode === 'ClusterLevel'
+        ? `Cluster: ${this.data.positionNumber} | Store: ALL`
+        : `Store: ${this.data.storeName} (${this.data.storeNumber})`;
+
+    const task = this.data.taskName
+      ? ` | Task: ${this.data.taskName}`
+      : ' | Task: ALL';
+
+    return `Assignment for ${location}${task}`;
+  }
+
+  /**
+   * Initialize displayed columns based on mode
+   */
+  private initializeDisplayedColumns(): void {
+    this.displayedColumns = this.getDisplayedColumns();
+  }
+
+  /**
+   * Get columns to display based on dialog mode
+   */
+  private getDisplayedColumns(): string[] {
+    const columns = [];
+
+    // Add action columns based on mode
+    if (this.data.mode === 'StoreLevel') {
+      columns.push('assign_all', 'unassign_all');
+    } else if (this.data.mode === 'TaskLevel') {
+      columns.push('assign', 'unassign');
+    } else if (this.data.mode === 'ClusterLevel') {
+      columns.push('assign_to_cluster', 'unassign_from_cluster');
     }
+
+    // Add info columns
+    columns.push('name', 'address', 'assigned_hrs', 'max_hrs', 'cluster', 'contact');
+
+    return columns;
   }
-  
-  // ✅ DON'T assign paginator here - we handle it manually
-  // this.dataSource.paginator = this.paginator;
-  this.dataSource.sort = this.sort;
-  
-  // Update paginator length
-  this.updatePaginatorLength();
-  
-  this.resetExpansionState();
-  
-  this.commonService.hide('table-update');
-}
-........................
-private performSearch(searchTerm: string): void {
-  try {
-    let filtered: any[];
-    
-    if (!searchTerm.trim()) {
-      filtered = [...this.originalData];
-    } else {
-      filtered = this.originalData.filter(row => 
-        this.matchesSearchTerm(row, searchTerm.toLowerCase())
+
+  /**
+   * Check if a column should be displayed
+   */
+  showColumn(columnName: string): boolean {
+    return this.displayedColumns.includes(columnName);
+  }
+
+  /**
+   * Load territories from API
+   */
+  private async loadTerritories(): Promise<void> {
+    try {
+      this.territories = await firstValueFrom(
+        this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetTerritory')
       );
+    } catch (error) {
+      console.error('Error loading territories:', error);
+      this.showSpinner = true;
     }
-    
-    // ✅ Update parentRowsData with filtered results
-    this.parentRowsData = filtered;
-    
-    // ✅ Apply pagination to filtered results
-    if (this.paginator) {
-      this.paginator.pageIndex = 0; // Reset to first page
-      this.applyParentRowPagination();
-    } else {
-      this.dataSource.data = filtered;
+  }
+
+  /**
+   * Load current assignment data
+   */
+  private async loadCurrentAssignment(): Promise<void> {
+    this.isLoading = true;
+    try {
+      const params = {
+        IriWeek: this.data.iriWeek,
+        StoreNumber: this.data.storeNumber,
+        TaskNumber: this.data.taskNumber || '',
+        AssignmentMode: this.data.mode,
+        PositionNumber: this.data.positionNumber || '',
+        CountryId: this.commonService.getCurrentCountry(),
+      };
+
+      const response = await firstValueFrom(
+        this.http.post<any[]>(
+          this.baseUrl + 'api/TaskAssinment/GetCurrentAssignment',
+          params
+        )
+      );
+
+      this.fsrDataSource.data = response;
+    } catch (error) {
+      console.error('Error loading current assignment:', error);
+      this.fsrDataSource.data = [];
+    } finally {
+      this.isLoading = false;
     }
-    
-    // Update paginator length
-    this.updatePaginatorLength();
-    
-    this.resetExpansionState();
-    
-  } catch (error) {
-    console.error('Error performing search:', error);
-  } finally {
-    this.isSearching = false;
-    this.commonService.hide('table-search');
+  }
+
+  /**
+   * Search for FSRs based on filter criteria
+   */
+  async searchFsrs(): Promise<void> {
+    this.isLoading = true;
+    try {
+      const formValue = this.filterForm.value;
+
+      // Validate that a name is selected
+      if (!formValue.firstName && !formValue.lastName) {
+        alert('Please select a First Name or Last Name');
+        this.isLoading = false;
+        return;
+      }
+
+      const params = {
+        IriWeek: this.data.iriWeek,
+        TerritoryId: formValue.territory,
+        FirstName: formValue.firstName?.FirstName || '',
+        LastName: formValue.lastName?.FirstName || '',
+        PositionNumber: this.data.positionNumber || '',
+        countryId: this.commonService.getCurrentCountry(),
+        Area: '23',
+      };
+
+      const response = await firstValueFrom(
+        this.http.post<any[]>(
+          this.baseUrl + 'api/TaskAssinment/GetFsrForAssignment',
+          params
+        )
+      );
+
+      this.fsrDataSource.data = response;
+    } catch (error) {
+      console.error('Error searching FSRs:', error);
+      this.fsrDataSource.data = [];
+      alert('Error searching for FSRs. Please try again.');
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  /**
+   * Assign or unassign tasks for an FSR
+   */
+  async assignTask(fsr: any, action: number): Promise<void> {
+    const actionNames: { [key: number]: string } = {
+      1: 'assign current task to',
+      2: 'assign all tasks to',
+      3: 'unassign current task from',
+      4: 'unassign all tasks from',
+      5: 'assign to cluster',
+      6: 'unassign from cluster',
+    };
+
+    const message = `Are you sure you want to ${actionNames[action]} ${fsr.FirstName} ${fsr.LastName}?`;
+
+    if (!confirm(message)) return;
+
+    this.showSpinner = true;
+    try {
+      const params = {
+        iri_week: this.data.iriWeek,
+        territory_id: this.filterForm.get('territory')?.value,
+        store_number: this.data.storeNumber,
+        emp_id: fsr.emp_id,
+        task_number: this.data.taskNumber || '',
+        position_number: this.data.positionNumber || '',
+        action: action,
+        assignment_mode: this.data.mode,
+        countryId: this.commonService.getCurrentCountry(),
+      };
+
+      await firstValueFrom(
+        this.http.post(this.baseUrl + 'api/TaskAssinment/SaveAssignment', params)
+      );
+
+      // Mark that changes have been made
+      this.hasChanges = true;
+
+      // Refresh the assignment list
+      await this.loadCurrentAssignment();
+
+      // Clear search fields
+      this.filterForm.patchValue({ firstName: '', lastName: '' });
+
+      alert('New Assignment saved successfully.');
+    } catch (error) {
+      console.error('Error saving assignment:', error);
+      alert('Error while saving assignments.');
+    } finally {
+      this.showSpinner = false;
+    }
+  }
+
+  /**
+   * Setup autocomplete for name fields
+   */
+  private setupAutocomplete(): void {
+    // Setup First Name Autocomplete
+    this.filteredFirstNames = this.filterForm
+      .get('firstName')!
+      .valueChanges.pipe(
+        debounceTime(300),
+        distinctUntilChanged((prev, curr) => {
+          // Compare by id if objects, otherwise by string value
+          if (typeof prev === 'object' && typeof curr === 'object') {
+            return prev?.id === curr?.id;
+          }
+          return prev === curr;
+        }),
+        switchMap((value) => {
+          if (typeof value === 'string' && value.length >= 2) {
+            return this.searchFirstNames(value);
+          } else {
+            return of([]);
+          }
+        }),
+        takeUntil(this.destroy$)
+      );
+
+    // Setup Last Name Autocomplete
+    this.filteredLastNames = this.filterForm
+      .get('lastName')!
+      .valueChanges.pipe(
+        debounceTime(300),
+        distinctUntilChanged((prev, curr) => {
+          // Compare by id if objects, otherwise by string value
+          if (typeof prev === 'object' && typeof curr === 'object') {
+            return prev?.id === curr?.id;
+          }
+          return prev === curr;
+        }),
+        switchMap((value) => {
+          if (typeof value === 'string' && value.length >= 2) {
+            return this.searchLastNames(value);
+          } else {
+            return of([]);
+          }
+        }),
+        takeUntil(this.destroy$)
+      );
+  }
+
+  /**
+   * Search First Names via API
+   */
+  private searchFirstNames(searchText: string): Observable<NameOption[]> {
+    const params = {
+      IriWeek: this.data.iriWeek,
+      TerritoryId: this.filterForm.get('territory')?.value || this.data.territoryId,
+      SearchText: searchText,
+      NameType: 'first_name',
+    };
+
+    return this.http
+      .post<any[]>(this.baseUrl + 'api/TaskAssinment/GetName', params)
+      .pipe(
+        map((response) =>
+          response.map((item) => ({
+            emp_name: item.emp_name,
+            emp_id: item.emp_id,
+            FirstName: item.FirstName,
+            LastName: item.LastName,
+            value: item.emp_name,
+            id: item.emp_id,
+          }))
+        ),
+        catchError((error) => {
+          console.error('Error fetching first names:', error);
+          return of([]);
+        })
+      );
+  }
+
+  /**
+   * Search Last Names via API
+   */
+  private searchLastNames(searchText: string): Observable<NameOption[]> {
+    const params = {
+      IriWeek: this.data.iriWeek,
+      TerritoryId: this.filterForm.get('territory')?.value || this.data.territoryId,
+      SearchText: searchText,
+      NameType: 'last_name',
+    };
+
+    return this.http
+      .post<any[]>(this.baseUrl + 'api/TaskAssinment/GetName', params)
+      .pipe(
+        map((response) =>
+          response.map((item) => ({
+            emp_name: item.emp_name,
+            emp_id: item.emp_id,
+            FirstName: item.FirstName,
+            LastName: item.LastName,
+            value: item.emp_name,
+            id: item.emp_id,
+          }))
+        ),
+        catchError((error) => {
+          console.error('Error fetching last names:', error);
+          return of([]);
+        })
+      );
+  }
+
+  /**
+   * Handle First Name Selection
+   */
+  onFirstNameSelected(event: any): void {
+    const selectedOption = event.option.value as NameOption;
+    this.selectedFirstNameId = selectedOption.id;
+    // Auto-search when name is selected
+    setTimeout(() => {
+      this.searchFsrs();
+    }, 100);
+  }
+
+  /**
+   * Handle Last Name Selection
+   */
+  onLastNameSelected(event: any): void {
+    const selectedOption = event.option.value as NameOption;
+    this.selectedLastNameId = selectedOption.id;
+    // Auto-search when name is selected
+    setTimeout(() => {
+      this.searchFsrs();
+    }, 100);
+  }
+
+  /**
+   * Display function for autocomplete - shows the name
+   */
+  displayFn(option: NameOption): string {
+    return option && option.FirstName ? option.FirstName : '';
+  }
+
+  /**
+   * Handle territory change
+   */
+  onTerritoryChange(): void {
+    this.filterForm.patchValue({
+      firstName: '',
+      lastName: '',
+    });
+    this.selectedFirstNameId = '';
+    this.selectedLastNameId = '';
+    this.fsrDataSource.data = [];
+  }
+
+  /**
+   * Close dialog and return change status
+   */
+  onClose(): void {
+    const result: DialogResult = {
+      hasChanges: this.hasChanges,
+    };
+    this.dialogRef.close(result);
+  }
+
+  /**
+   * Get displayed columns for template
+   */
+  getDisplayedColumns(): string[] {
+    return this.displayedColumns;
   }
 }
-.........................
-private insertChildRowsIntoDataSource(parentRow: any, childData: any[], weekType: string): void {
-  const currentData = this.dataSource.data;
-  const parentIndex = currentData.findIndex(row => 
-    row.StoreNumber === parentRow.StoreNumber && !row.isChildRow
-  );
-  
-  if (parentIndex === -1) return;
-  
-  this.removeChildRowsFromDataSource(parentRow);
-  
-  if (!childData || childData.length === 0) {
-    return;
-  }
-  
-  // ... your existing mapping code ...
-  
-  const updatedData = [...currentData];
-  updatedData.splice(parentIndex + 1, 0, ...childRows);
-  
-  // ✅ Update datasource WITHOUT triggering pagination
-  this.dataSource.data = updatedData;
-  
-  // ✅ DO NOT call updatePaginatorLength() or applyParentRowPagination() here!
-}
-........................
+
+<h2 mat-dialog-title class="title-style" cdkDrag cdkDragRootElement=".cdk-overlay-pane" cdkDragHandle>
+  <span>{{ getDialogTitle() }}</span>
+  <span class="close-btn" title="Close" [mat-dialog-close]="{ hasChanges: false }">
+    <mat-icon class="close-btn-icon">cancel_presentation</mat-icon>
+  </span>
+</h2>
+
+<mat-dialog-content class="assignment-dialog-content">
+  <!-- Filter Section -->
+  <div class="filter-section" [formGroup]="filterForm">
+    <div class="filter-row">
+      <mat-form-field appearance="outline">
+        <mat-label>IRI Week</mat-label>
+        <input matInput [value]="data.iriWeek" readonly />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Territory</mat-label>
+        <mat-select formControlName="territory" (selectionChange)="onTerritoryChange()">
+          <mat-option *ngFor="let territory of territories" [value]="territory.territory_id">
+            {{ territory.territory_name }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <div class="filter-row">
+      <!-- First Name Autocomplete -->
+      <mat-form-field appearance="outline">
+        <mat-label>First Name</mat-label>
+        <input
+          matInput
+          formControlName="firstName"
+          placeholder="Search by first name..."
+          [matAutocomplete]="firstNameAuto"
+        />
+        <mat-autocomplete
+          #firstNameAuto="matAutocomplete"
+          (optionSelected)="onFirstNameSelected($event)"
+          [displayWith]="displayFn"
+        >
+          <mat-option *ngFor="let option of filteredFirstNames | async" [value]="option">
+            {{ option.FirstName }} {{ option.LastName }}
+          </mat-option>
+        </mat-autocomplete>
+      </mat-form-field>
+
+      <!-- Last Name Autocomplete -->
+      <mat-form-field appearance="outline">
+        <mat-label>Last Name</mat-label>
+        <input
+          matInput
+          formControlName="lastName"
+          placeholder="Search by last name..."
+          [matAutocomplete]="lastNameAuto"
+        />
+        <mat-autocomplete
+          #lastNameAuto="matAutocomplete"
+          (optionSelected)="onLastNameSelected($event)"
+          [displayWith]="displayFn"
+        >
+          <mat-option *ngFor="let option of filteredLastNames | async" [value]="option">
+            {{ option.FirstName }} {{ option.LastName }}
+          </mat-option>
+        </mat-autocomplete>
+      </mat-form-field>
+
+      <!-- Search Button -->
+      <button mat-raised-button color="primary" (click)="searchFsrs()" [disabled]="isLoading">
+        <mat-icon>search</mat-icon>
+        Search
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading Indicator -->
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner diameter="30"></mat-spinner>
+    <span>Loading FSRs...</span>
+  </div>
+
+  <!-- FSR Table with Sticky Header -->
+  <div class="table-wrapper" *ngIf="!isLoading">
+    <div class="table-container">
+      <table mat-table [dataSource]="fsrDataSource" class="fsr-table">
+        <!-- Action Columns (conditional based on mode) -->
+        <ng-container matColumnDef="assign_all" *ngIf="showColumn('assign_all')">
+          <mat-header-cell *matHeaderCellDef>Assign All</mat-header-cell>
+          <mat-cell *matCellDef="let fsr">
+            <button
+              mat-stroked-button
+              color="primary"
+              (click)="assignTask(fsr, 2)"
+              class="action-button"
+            >
+              Assign All
+            </button>
+          </mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="unassign_all" *ngIf="showColumn('unassign_all')">
+          <mat-header-cell *matHeaderCellDef>Unassign All</mat-header-cell>
+          <mat-cell *matCellDef="let fsr">
+            <button
+              mat-stroked-button
+              color="warn"
+              (click)="assignTask(fsr, 4)"
+              class="action-button"
+            >
+              Unassign All
+            </button>
+          </mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="assign" *ngIf="showColumn('assign')">
+          <mat-header-cell *matHeaderCellDef>Assign</mat-header-cell>
+          <mat-cell *matCellDef="let fsr">
+            <button
+              mat-stroked-button
+              color="primary"
+              (click)="assignTask(fsr, 1)"
+              class="action-button"
+            >
+              Assign
+            </button>
+          </mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="unassign" *ngIf="showColumn('unassign')">
+          <mat-header-cell *matHeaderCellDef>Unassign</mat-header-cell>
+          <mat-cell *matCellDef="let fsr">
+            <button
+              mat-stroked-button
+              color="warn"
+              (click)="assignTask(fsr, 3)"
+              class="action-button"
+            >
+              Unassign
+            </button>
+          </mat-cell>
+        </ng-container>
+
+        <!-- FSR Information Columns -->
+        <ng-container matColumnDef="name">
+          <mat-header-cell *matHeaderCellDef>Name</mat-header-cell>
+          <mat-cell *matCellDef="let fsr">{{ fsr.LastName }}, {{ fsr.FirstName }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="address">
+          <mat-header-cell *matHeaderCellDef>Address</mat-header-cell>
+          <mat-cell *matCellDef="let fsr">{{ fsr.AddrLine1 }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="assigned_hrs">
+          <mat-header-cell *matHeaderCellDef>Assigned Hrs</mat-header-cell>
+          <mat-cell *matCellDef="let fsr">{{ fsr.AssignedHrs }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="max_hrs">
+          <mat-header-cell *matHeaderCellDef>Max Hours</mat-header-cell>
+          <mat-cell *matCellDef="let fsr">{{ fsr.MaxHrs }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="cluster">
+          <mat-header-cell *matHeaderCellDef>Cluster</mat-header-cell>
+          <mat-cell *matCellDef="let fsr">{{ fsr.PositionName }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="contact">
+          <mat-header-cell *matHeaderCellDef>Contact</mat-header-cell>
+          <mat-cell *matCellDef="let fsr">
+            <div>{{ fsr.phone }}</div>
+            <div><a href="mailto:{{ fsr.Email }}">{{ fsr.Email }}</a></div>
+          </mat-cell>
+        </ng-container>
+
+        <mat-header-row *matHeaderRowDef="getDisplayedColumns(); sticky: true"></mat-header-row>
+        <mat-row *matRowDef="let row; columns: getDisplayedColumns()"></mat-row>
+      </table>
+
+      <div *ngIf="fsrDataSource.data.length === 0 && !isLoading" class="no-data">
+        No FSRs found. Please adjust your search criteria.
+      </div>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end" class="dialog-actions">
+  <button mat-button (click)="onClose()">Close</button>
+</mat-dialog-actions>
+
+<footer *ngIf="showSpinner">
+  <div class="mat-spinner-container">
+    <mat-spinner diameter="20"></mat-spinner>
+    <span>Saving assignment...</span>
+  </div>
+</footer>
+
