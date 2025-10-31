@@ -1,3 +1,50 @@
+<!-- Add this toggle button before secondary row -->
+<div class="filter-actions">
+  <button mat-button (click)="toggleAdvancedFilters()" class="advanced-toggle-btn">
+    <mat-icon>{{showAdvancedFilters ? 'expand_less' : 'expand_more'}}</mat-icon>
+    <span>{{expandedAdvancedLabel}}</span>
+  </button>
+</div>
+
+<!-- Hide secondary row by default -->
+<div class="filter-row secondary-row" 
+     *ngIf="showAdvancedFilters"
+     [@slideDown]>
+  <!-- All your State, City, Cluster, Task fields here -->
+</div>
+
+
+// In component decorator
+animations: [
+  trigger('slideDown', [
+    transition(':enter', [
+      style({ height: '0', opacity: '0', overflow: 'hidden' }),
+      animate('300ms ease-in', style({ height: '*', opacity: '1' }))
+    ]),
+    transition(':leave', [
+      animate('300ms ease-out', style({ height: '0', opacity: '0', overflow: 'hidden' }))
+    ])
+  ])
+]
+
+
+/* In CSS file */
+.advanced-toggle-btn {
+  color: #1976d2;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  text-transform: uppercase;
+}
+
+.advanced-toggle-btn:hover {
+  background-color: rgba(25, 118, 210, 0.08);
+}
+
+
+
 <div class="dashboard-layout">
   <!-- Toolbar -->
   <mat-toolbar class="mat-toolbar-primary">
