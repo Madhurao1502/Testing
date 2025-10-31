@@ -1,701 +1,5 @@
-/* Dialog Title Styling */
-.mat-dialog-title {
-  margin: 0;
-  margin-bottom: 10px;
-  font-size: medium;
-  background-color: lightgray;
-  padding-left: 1em;
-  padding-right: 1em;
-  cursor: grab;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  user-select: none;
-}
-
-/* Close Button */
-.close-btn {
-  float: right;
-  color: #4e6a87;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
-.close-btn-icon {
-  color: rgb(87, 135, 187);
-  font-size: 20px;
-  line-height: 1;
-}
-
-.close-btn:hover {
-  color: rgb(87, 135, 187);
-  background: #ccd6df;
-}
-
-.close-btn-icon:hover {
-  color: black;
-}
-
-/* Dialog Content Container */
-.assignment-dialog-content {
-  max-height: 70vh;
-  overflow-y: auto;
-  width: 100%;
-  padding: 0;
-}
-
-/* Filter Section */
-.filter-section {
-  margin-bottom: 20px;
-  padding: 16px;
-  background-color: #f5f5f5;
-  border-radius: 4px;
-  border-left: 4px solid #2196F3;
-}
-
-.filter-row {
-  display: flex;
-  gap: 16px;
-  align-items: flex-end;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-
-.filter-row:last-child {
-  margin-bottom: 0;
-}
-
-.filter-row mat-form-field {
-  flex: 1;
-  min-width: 200px;
-}
-
-/* Loading Container */
-.loading-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 40px;
-  min-height: 200px;
-}
-
-/* Table Container with Sticky Header */
-.table-wrapper {
-  position: relative;
-  margin: 0 16px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.table-container {
-  max-height: 300px;
-  overflow-y: auto;
-  overflow-x: auto;
-  width: 100%;
-}
-
-/* Sticky table header */
-.fsr-table {
-  width: 100%;
-  border-collapse: collapse;
-  background-color: white;
-}
-
-.fsr-table mat-header-row {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background-color: #f5f5f5;
-  border-bottom: 2px solid #ddd;
-}
-
-.fsr-table mat-header-cell {
-  background-color: #f5f5f5 !important;
-  font-weight: 600;
-  color: #333;
-  border-right: 1px solid #e0e0e0;
-  padding: 12px 16px !important;
-}
-
-.fsr-table mat-header-cell:last-child {
-  border-right: none;
-}
-
-.fsr-table mat-cell {
-  padding: 12px 16px !important;
-  border-right: 1px solid #f0f0f0;
-}
-
-.fsr-table mat-cell:last-child {
-  border-right: none;
-}
-
-.fsr-table mat-row {
-  border-bottom: 1px solid #f0f0f0;
-  transition: background-color 0.2s ease;
-}
-
-.fsr-table mat-row:hover {
-  background-color: #fafafa;
-}
-
-.fsr-table mat-row:nth-child(even) {
-  background-color: #fafafa;
-}
-
-/* No Data Message */
-.no-data {
-  text-align: center;
-  padding: 40px;
-  color: #999;
-  font-size: 14px;
-  background-color: #fafafa;
-}
-
-/* Button Styling */
-.action-button {
-  font-size: 12px;
-  padding: 4px 8px;
-  min-width: 80px;
-}
-
-/* Form Field Styling */
-.mat-form-field {
-  width: 100%;
-}
-
-/* Autocomplete */
-.mat-autocomplete-panel {
-  max-height: 200px !important;
-}
-
-.mat-option {
-  padding: 12px 16px;
-  line-height: 1.2;
-}
-
-/* Dialog Actions Footer */
-.dialog-actions {
-  padding: 16px;
-  border-top: 1px solid #ddd;
-  text-align: right;
-  background-color: #fafafa;
-}
-
-.dialog-actions button {
-  margin-left: 8px;
-}
-
-/* Footer Spinner */
-footer {
-  padding: 8px 16px;
-  background-color: #fff3cd;
-  border-top: 1px solid #ffc107;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  font-size: 13px;
-  color: #856404;
-}
-
-.mat-spinner-container {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .filter-row {
-    flex-direction: column;
-  }
-
-  .filter-row mat-form-field {
-    width: 100%;
-  }
-
-  .table-container {
-    max-height: 400px;
-  }
-
-  .assignment-dialog-content {
-    max-height: 80vh;
-  }
-}
-
-import { CommonService } from './../../shared/common.service';
-import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
-import { FormBuilder, FormGroup } from '@angular/forms';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { HttpClient } from '@angular/common/http';
-import { MatTableDataSource } from '@angular/material/table';
-import {
-  catchError,
-  debounceTime,
-  distinctUntilChanged,
-  firstValueFrom,
-  map,
-  Observable,
-  of,
-  Subject,
-  switchMap,
-  takeUntil,
-} from 'rxjs';
-
-export interface AssignmentDialogData {
-  storeNumber: string;
-  storeName: string;
-  taskNumber?: string;
-  taskName?: string;
-  iriWeek: string;
-  territoryId: string;
-  positionNumber?: string;
-  mode: 'StoreLevel' | 'TaskLevel' | 'ClusterLevel';
-}
-
-interface NameOption {
-  emp_name: string;
-  emp_id: string;
-  FirstName: string;
-  LastName: string;
-  value: string;
-  id: string;
-}
-
-interface DialogResult {
-  hasChanges: boolean;
-  data?: any;
-}
-
-@Component({
-  selector: 'app-assignment-dialog',
-  templateUrl: './assignment-dialog.component.html',
-  styleUrls: ['./assignment-dialog.component.css'],
-})
-export class AssignmentDialogComponent implements OnInit, OnDestroy {
-  // Form & Data Management
-  filterForm: FormGroup;
-  territories: any[] = [];
-  fsrDataSource = new MatTableDataSource<any>([]);
-
-  // UI State Management
-  isLoading = false;
-  showSpinner = false;
-
-  // Autocomplete
-  filteredFirstNames: Observable<NameOption[]>;
-  filteredLastNames: Observable<NameOption[]>;
-
-  // Track Changes
-  private hasChanges = false;
-  private destroy$ = new Subject<void>();
-  selectedFirstNameId: string = '';
-  selectedLastNameId: string = '';
-
-  // Display Columns
-  displayedColumns: string[] = [];
-
-  constructor(
-    private dialogRef: MatDialogRef<AssignmentDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: AssignmentDialogData,
-    private fb: FormBuilder,
-    private http: HttpClient,
-    private commonService: CommonService,
-    @Inject('BASE_URL') private baseUrl: string
-  ) {
-    this.filterForm = this.fb.group({
-      territory: [data.territoryId],
-      firstName: [''],
-      lastName: [''],
-    });
-  }
-
-  async ngOnInit(): Promise<void> {
-    await this.loadTerritories();
-    this.setupAutocomplete();
-    await this.loadCurrentAssignment();
-    this.initializeDisplayedColumns();
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
-  /**
-   * Get the dialog title based on mode
-   */
-  getDialogTitle(): string {
-    const location =
-      this.data.mode === 'ClusterLevel'
-        ? `Cluster: ${this.data.positionNumber} | Store: ALL`
-        : `Store: ${this.data.storeName} (${this.data.storeNumber})`;
-
-    const task = this.data.taskName
-      ? ` | Task: ${this.data.taskName}`
-      : ' | Task: ALL';
-
-    return `Assignment for ${location}${task}`;
-  }
-
-  /**
-   * Initialize displayed columns based on mode
-   */
-  private initializeDisplayedColumns(): void {
-    this.displayedColumns = this.getDisplayedColumns();
-  }
-
-  /**
-   * Get columns to display based on dialog mode
-   */
-  private getDisplayedColumns(): string[] {
-    const columns = [];
-
-    // Add action columns based on mode
-    if (this.data.mode === 'StoreLevel') {
-      columns.push('assign_all', 'unassign_all');
-    } else if (this.data.mode === 'TaskLevel') {
-      columns.push('assign', 'unassign');
-    } else if (this.data.mode === 'ClusterLevel') {
-      columns.push('assign_to_cluster', 'unassign_from_cluster');
-    }
-
-    // Add info columns
-    columns.push('name', 'address', 'assigned_hrs', 'max_hrs', 'cluster', 'contact');
-
-    return columns;
-  }
-
-  /**
-   * Check if a column should be displayed
-   */
-  showColumn(columnName: string): boolean {
-    return this.displayedColumns.includes(columnName);
-  }
-
-  /**
-   * Load territories from API
-   */
-  private async loadTerritories(): Promise<void> {
-    try {
-      this.territories = await firstValueFrom(
-        this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetTerritory')
-      );
-    } catch (error) {
-      console.error('Error loading territories:', error);
-      this.showSpinner = true;
-    }
-  }
-
-  /**
-   * Load current assignment data
-   */
-  private async loadCurrentAssignment(): Promise<void> {
-    this.isLoading = true;
-    try {
-      const params = {
-        IriWeek: this.data.iriWeek,
-        StoreNumber: this.data.storeNumber,
-        TaskNumber: this.data.taskNumber || '',
-        AssignmentMode: this.data.mode,
-        PositionNumber: this.data.positionNumber || '',
-        CountryId: this.commonService.getCurrentCountry(),
-      };
-
-      const response = await firstValueFrom(
-        this.http.post<any[]>(
-          this.baseUrl + 'api/TaskAssinment/GetCurrentAssignment',
-          params
-        )
-      );
-
-      this.fsrDataSource.data = response;
-    } catch (error) {
-      console.error('Error loading current assignment:', error);
-      this.fsrDataSource.data = [];
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  /**
-   * Search for FSRs based on filter criteria
-   */
-  async searchFsrs(): Promise<void> {
-    this.isLoading = true;
-    try {
-      const formValue = this.filterForm.value;
-
-      // Validate that a name is selected
-      if (!formValue.firstName && !formValue.lastName) {
-        alert('Please select a First Name or Last Name');
-        this.isLoading = false;
-        return;
-      }
-
-      const params = {
-        IriWeek: this.data.iriWeek,
-        TerritoryId: formValue.territory,
-        FirstName: formValue.firstName?.FirstName || '',
-        LastName: formValue.lastName?.FirstName || '',
-        PositionNumber: this.data.positionNumber || '',
-        countryId: this.commonService.getCurrentCountry(),
-        Area: '23',
-      };
-
-      const response = await firstValueFrom(
-        this.http.post<any[]>(
-          this.baseUrl + 'api/TaskAssinment/GetFsrForAssignment',
-          params
-        )
-      );
-
-      this.fsrDataSource.data = response;
-    } catch (error) {
-      console.error('Error searching FSRs:', error);
-      this.fsrDataSource.data = [];
-      alert('Error searching for FSRs. Please try again.');
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  /**
-   * Assign or unassign tasks for an FSR
-   */
-  async assignTask(fsr: any, action: number): Promise<void> {
-    const actionNames: { [key: number]: string } = {
-      1: 'assign current task to',
-      2: 'assign all tasks to',
-      3: 'unassign current task from',
-      4: 'unassign all tasks from',
-      5: 'assign to cluster',
-      6: 'unassign from cluster',
-    };
-
-    const message = `Are you sure you want to ${actionNames[action]} ${fsr.FirstName} ${fsr.LastName}?`;
-
-    if (!confirm(message)) return;
-
-    this.showSpinner = true;
-    try {
-      const params = {
-        iri_week: this.data.iriWeek,
-        territory_id: this.filterForm.get('territory')?.value,
-        store_number: this.data.storeNumber,
-        emp_id: fsr.emp_id,
-        task_number: this.data.taskNumber || '',
-        position_number: this.data.positionNumber || '',
-        action: action,
-        assignment_mode: this.data.mode,
-        countryId: this.commonService.getCurrentCountry(),
-      };
-
-      await firstValueFrom(
-        this.http.post(this.baseUrl + 'api/TaskAssinment/SaveAssignment', params)
-      );
-
-      // Mark that changes have been made
-      this.hasChanges = true;
-
-      // Refresh the assignment list
-      await this.loadCurrentAssignment();
-
-      // Clear search fields
-      this.filterForm.patchValue({ firstName: '', lastName: '' });
-
-      alert('New Assignment saved successfully.');
-    } catch (error) {
-      console.error('Error saving assignment:', error);
-      alert('Error while saving assignments.');
-    } finally {
-      this.showSpinner = false;
-    }
-  }
-
-  /**
-   * Setup autocomplete for name fields
-   */
-  private setupAutocomplete(): void {
-    // Setup First Name Autocomplete
-    this.filteredFirstNames = this.filterForm
-      .get('firstName')!
-      .valueChanges.pipe(
-        debounceTime(300),
-        distinctUntilChanged((prev, curr) => {
-          // Compare by id if objects, otherwise by string value
-          if (typeof prev === 'object' && typeof curr === 'object') {
-            return prev?.id === curr?.id;
-          }
-          return prev === curr;
-        }),
-        switchMap((value) => {
-          if (typeof value === 'string' && value.length >= 2) {
-            return this.searchFirstNames(value);
-          } else {
-            return of([]);
-          }
-        }),
-        takeUntil(this.destroy$)
-      );
-
-    // Setup Last Name Autocomplete
-    this.filteredLastNames = this.filterForm
-      .get('lastName')!
-      .valueChanges.pipe(
-        debounceTime(300),
-        distinctUntilChanged((prev, curr) => {
-          // Compare by id if objects, otherwise by string value
-          if (typeof prev === 'object' && typeof curr === 'object') {
-            return prev?.id === curr?.id;
-          }
-          return prev === curr;
-        }),
-        switchMap((value) => {
-          if (typeof value === 'string' && value.length >= 2) {
-            return this.searchLastNames(value);
-          } else {
-            return of([]);
-          }
-        }),
-        takeUntil(this.destroy$)
-      );
-  }
-
-  /**
-   * Search First Names via API
-   */
-  private searchFirstNames(searchText: string): Observable<NameOption[]> {
-    const params = {
-      IriWeek: this.data.iriWeek,
-      TerritoryId: this.filterForm.get('territory')?.value || this.data.territoryId,
-      SearchText: searchText,
-      NameType: 'first_name',
-    };
-
-    return this.http
-      .post<any[]>(this.baseUrl + 'api/TaskAssinment/GetName', params)
-      .pipe(
-        map((response) =>
-          response.map((item) => ({
-            emp_name: item.emp_name,
-            emp_id: item.emp_id,
-            FirstName: item.FirstName,
-            LastName: item.LastName,
-            value: item.emp_name,
-            id: item.emp_id,
-          }))
-        ),
-        catchError((error) => {
-          console.error('Error fetching first names:', error);
-          return of([]);
-        })
-      );
-  }
-
-  /**
-   * Search Last Names via API
-   */
-  private searchLastNames(searchText: string): Observable<NameOption[]> {
-    const params = {
-      IriWeek: this.data.iriWeek,
-      TerritoryId: this.filterForm.get('territory')?.value || this.data.territoryId,
-      SearchText: searchText,
-      NameType: 'last_name',
-    };
-
-    return this.http
-      .post<any[]>(this.baseUrl + 'api/TaskAssinment/GetName', params)
-      .pipe(
-        map((response) =>
-          response.map((item) => ({
-            emp_name: item.emp_name,
-            emp_id: item.emp_id,
-            FirstName: item.FirstName,
-            LastName: item.LastName,
-            value: item.emp_name,
-            id: item.emp_id,
-          }))
-        ),
-        catchError((error) => {
-          console.error('Error fetching last names:', error);
-          return of([]);
-        })
-      );
-  }
-
-  /**
-   * Handle First Name Selection
-   */
-  onFirstNameSelected(event: any): void {
-    const selectedOption = event.option.value as NameOption;
-    this.selectedFirstNameId = selectedOption.id;
-    // Auto-search when name is selected
-    setTimeout(() => {
-      this.searchFsrs();
-    }, 100);
-  }
-
-  /**
-   * Handle Last Name Selection
-   */
-  onLastNameSelected(event: any): void {
-    const selectedOption = event.option.value as NameOption;
-    this.selectedLastNameId = selectedOption.id;
-    // Auto-search when name is selected
-    setTimeout(() => {
-      this.searchFsrs();
-    }, 100);
-  }
-
-  /**
-   * Display function for autocomplete - shows the name
-   */
-  displayFn(option: NameOption): string {
-    return option && option.FirstName ? option.FirstName : '';
-  }
-
-  /**
-   * Handle territory change
-   */
-  onTerritoryChange(): void {
-    this.filterForm.patchValue({
-      firstName: '',
-      lastName: '',
-    });
-    this.selectedFirstNameId = '';
-    this.selectedLastNameId = '';
-    this.fsrDataSource.data = [];
-  }
-
-  /**
-   * Close dialog and return change status
-   */
-  onClose(): void {
-    const result: DialogResult = {
-      hasChanges: this.hasChanges,
-    };
-    this.dialogRef.close(result);
-  }
-
-  /**
-   * Get displayed columns for template
-   */
-  getDisplayedColumns(): string[] {
-    return this.displayedColumns;
-  }
-}
-
 <h2 mat-dialog-title class="title-style" cdkDrag cdkDragRootElement=".cdk-overlay-pane" cdkDragHandle>
   <span>{{ getDialogTitle() }}</span>
-  <span class="close-btn" title="Close" [mat-dialog-close]="{ hasChanges: false }">
-    <mat-icon class="close-btn-icon">cancel_presentation</mat-icon>
-  </span>
 </h2>
 
 <mat-dialog-content class="assignment-dialog-content">
@@ -835,40 +139,40 @@ export class AssignmentDialogComponent implements OnInit, OnDestroy {
 
         <!-- FSR Information Columns -->
         <ng-container matColumnDef="name">
-          <mat-header-cell *matHeaderCellDef>Name</mat-header-cell>
-          <mat-cell *matCellDef="let fsr">{{ fsr.LastName }}, {{ fsr.FirstName }}</mat-cell>
+          <mat-header-cell *matHeaderCellDef class="col-name">Name</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-name">{{ fsr.LastName }}, {{ fsr.FirstName }}</mat-cell>
         </ng-container>
 
         <ng-container matColumnDef="address">
-          <mat-header-cell *matHeaderCellDef>Address</mat-header-cell>
-          <mat-cell *matCellDef="let fsr">{{ fsr.AddrLine1 }}</mat-cell>
+          <mat-header-cell *matHeaderCellDef class="col-address">Address</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-address">{{ fsr.AddrLine1 }}</mat-cell>
         </ng-container>
 
         <ng-container matColumnDef="assigned_hrs">
-          <mat-header-cell *matHeaderCellDef>Assigned Hrs</mat-header-cell>
-          <mat-cell *matCellDef="let fsr">{{ fsr.AssignedHrs }}</mat-cell>
+          <mat-header-cell *matHeaderCellDef class="col-assigned-hrs">Assigned Hrs</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-assigned-hrs">{{ fsr.AssignedHrs }}</mat-cell>
         </ng-container>
 
         <ng-container matColumnDef="max_hrs">
-          <mat-header-cell *matHeaderCellDef>Max Hours</mat-header-cell>
-          <mat-cell *matCellDef="let fsr">{{ fsr.MaxHrs }}</mat-cell>
+          <mat-header-cell *matHeaderCellDef class="col-max-hrs">Max Hours</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-max-hrs">{{ fsr.MaxHrs }}</mat-cell>
         </ng-container>
 
         <ng-container matColumnDef="cluster">
-          <mat-header-cell *matHeaderCellDef>Cluster</mat-header-cell>
-          <mat-cell *matCellDef="let fsr">{{ fsr.PositionName }}</mat-cell>
+          <mat-header-cell *matHeaderCellDef class="col-cluster">Cluster</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-cluster">{{ fsr.PositionName }}</mat-cell>
         </ng-container>
 
         <ng-container matColumnDef="contact">
-          <mat-header-cell *matHeaderCellDef>Contact</mat-header-cell>
-          <mat-cell *matCellDef="let fsr">
-            <div>{{ fsr.phone }}</div>
-            <div><a href="mailto:{{ fsr.Email }}">{{ fsr.Email }}</a></div>
+          <mat-header-cell *matHeaderCellDef class="col-contact">Contact</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-contact">
+            <div class="contact-item">{{ fsr.phone }}</div>
+            <div class="contact-item"><a href="mailto:{{ fsr.Email }}" class="contact-link">{{ fsr.Email }}</a></div>
           </mat-cell>
         </ng-container>
 
-        <mat-header-row *matHeaderRowDef="getDisplayedColumns(); sticky: true"></mat-header-row>
-        <mat-row *matRowDef="let row; columns: getDisplayedColumns()"></mat-row>
+        <mat-header-row *matHeaderRowDef="getDisplayedColumns2(); sticky: true"></mat-header-row>
+        <mat-row *matRowDef="let row; columns: getDisplayedColumns2()"></mat-row>
       </table>
 
       <div *ngIf="fsrDataSource.data.length === 0 && !isLoading" class="no-data">
@@ -882,10 +186,501 @@ export class AssignmentDialogComponent implements OnInit, OnDestroy {
   <button mat-button (click)="onClose()">Close</button>
 </mat-dialog-actions>
 
-<footer *ngIf="showSpinner">
+<!-- Fixed Close Button in Bottom Right Corner -->
+<button class="fixed-close-btn" title="Close" [mat-dialog-close]="{ hasChanges: false }">
+  <mat-icon class="close-btn-icon">close</mat-icon>
+</button>
+
+<footer>
   <div class="mat-spinner-container">
-    <mat-spinner diameter="20"></mat-spinner>
-    <span>Saving assignment...</span>
+      <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
+      <div *ngIf="showSpinner" style="position:relative;left: 10px">Loading...</div>
   </div>
 </footer>
+/* Dialog Title Styling */
+/* .mat-dialog-title {
+  margin: 0;
+  margin-bottom: 16px;
+  font-size: 16px;
+  font-weight: 500;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 20px;
+  cursor: grab;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+  border-radius: 4px 4px 0 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.mat-dialog-title:active {
+  cursor: grabbing;
+} */
+
+.mat-dialog-title {
+  margin: 0px;
+  margin-bottom: 10px;
+  font-size: medium;
+  background-color: lightgray;
+  padding-left: 1em;
+  padding-right: 1em;
+  cursor: move !important;
+  user-select: none;
+}
+
+.mat-dialog-title:active {
+  cursor: grabbing !important;
+}
+
+/* Fixed Close Button - Bottom Right Corner */
+.fixed-close-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1001;
+  padding: 0;
+  outline: none;
+}
+
+/* Ensure button is positioned relative to dialog overlay */
+::ng-deep .cdk-overlay-pane {
+  position: relative;
+}
+
+.fixed-close-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.6);
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+.fixed-close-btn:active {
+  transform: scale(0.95);
+}
+
+.fixed-close-btn .close-btn-icon {
+  color: white;
+  font-size: 24px;
+  line-height: 1;
+}
+
+/* Dialog Content Container */
+.assignment-dialog-content {
+  max-height: 70vh;
+  overflow-y: auto;
+  width: 100%;
+  padding: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f7fafc;
+}
+
+.assignment-dialog-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.assignment-dialog-content::-webkit-scrollbar-track {
+  background: #f7fafc;
+  border-radius: 4px;
+}
+
+.assignment-dialog-content::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 4px;
+}
+
+.assignment-dialog-content::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+/* Filter Section */
+.filter-section {
+  margin-bottom: 24px;
+  padding: 20px;
+  background: linear-gradient(to bottom, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.3s ease;
+}
+
+.filter-section:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.filter-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-row:last-child {
+  margin-bottom: 0;
+}
+
+.filter-row mat-form-field {
+  flex: 1;
+  min-width: 200px;
+}
+
+/* Loading Container */
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 60px;
+  min-height: 200px;
+  background-color: #fafbfc;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+.loading-container span {
+  color: #64748b;
+  font-weight: 500;
+  font-size: 15px;
+}
+
+/* Table Container with Sticky Header */
+.table-wrapper {
+  position: relative;
+  margin: 0 16px 16px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: white;
+}
+
+.table-container {
+  max-height: 250px;
+  overflow-y: auto;
+  overflow-x: auto;
+  width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f7fafc;
+}
+
+.table-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+  background: #f7fafc;
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+/* Sticky table header */
+.fsr-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+}
+
+.fsr-table mat-header-row {
+  position: sticky; 
+  top: 0;
+  z-index: 10;
+  background: linear-gradient(to bottom, #f8f9fa 0%, #e9ecef 100%);
+  border-bottom: 2px solid #dee2e6;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.fsr-table mat-header-cell {
+  background: linear-gradient(to bottom, #f8f9fa 0%, #e9ecef 100%) !important;
+  font-weight: 600;
+  font-size: 13px;
+  color: #495057;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-right: 1px solid #dee2e6;
+  padding: 5px 10px !important;
+  white-space: nowrap;
+}
+
+.fsr-table mat-header-cell:last-child {
+  border-right: none;
+}
+
+.fsr-table mat-cell {
+  padding: 0 13px !important;
+  border-right: 1px solid #e9ecef;
+  font-size: 14px;
+  color: #495057;
+  vertical-align: middle;
+}
+
+.fsr-table mat-cell:last-child {
+  border-right: none;
+}
+
+.fsr-table mat-row {
+  border-bottom: 1px solid #e9ecef;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background-color: white;
+}
+
+/* .fsr-table mat-row:hover {
+  background-color: #f8f9fa !important;
+  transform: translateX(2px);
+  box-shadow: -2px 0 8px rgba(102, 126, 234, 0.15);
+} */
+
+.fsr-table mat-row:nth-child(even) {
+  background-color: #fafbfc;
+}
+
+.fsr-table mat-row:nth-child(even):hover {
+  background-color: #f1f3f5 !important;
+}
+
+/* Column Width Specifications */
+.fsr-table mat-header-cell.col-assigned-hrs,
+.fsr-table mat-cell.col-assigned-hrs {
+  width: 125px;
+  min-width: 125px;
+  max-width: 125px;
+  text-align: center;
+}
+
+.fsr-table mat-header-cell.col-max-hrs,
+.fsr-table mat-cell.col-max-hrs {
+  width: 105px;
+  min-width: 105px;
+  max-width: 105px;
+  text-align: center;
+}
+
+.fsr-table mat-header-cell.col-contact,
+.fsr-table mat-cell.col-contact {
+  width: 220px;
+  min-width: 220px;
+  max-width: 220px;
+}
+
+.fsr-table mat-header-cell.col-name,
+.fsr-table mat-cell.col-name {
+  width: 180px;
+  min-width: 180px;
+}
+
+.fsr-table mat-header-cell.col-address,
+.fsr-table mat-cell.col-address {
+  width: 200px;
+  min-width: 200px;
+}
+
+.fsr-table mat-header-cell.col-cluster,
+.fsr-table mat-cell.col-cluster {
+  width: 150px;
+  min-width: 150px;
+}
+
+/* Contact Column Styling */
+.contact-item {
+  margin-bottom: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #495057;
+}
+
+.contact-item:last-child {
+  margin-bottom: 0;
+}
+
+.contact-link {
+  color: #667eea;
+  text-decoration: none;
+  transition: color 0.2s ease;
+  word-break: break-all;
+}
+
+.contact-link:hover {
+  color: #764ba2;
+  text-decoration: underline;
+}
+
+/* No Data Message */
+.no-data {
+  text-align: center;
+  padding: 60px 40px;
+  color: #94a3b8;
+  font-size: 15px;
+  background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+/* Button Styling */
+.action-button {
+  font-size: 12px;
+  padding: 6px 12px;
+  min-width: 90px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 4px;
+}
+
+.action-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Form Field Styling */
+.mat-form-field {
+  width: 100%;
+}
+
+::ng-deep .mat-form-field-appearance-outline .mat-form-field-outline {
+  color: #cbd5e0;
+  transition: color 0.2s ease;
+}
+
+::ng-deep .mat-form-field-appearance-outline.mat-focused .mat-form-field-outline {
+  color: #667eea;
+}
+
+::ng-deep .mat-form-field-appearance-outline .mat-form-field-label {
+  color: #64748b;
+}
+
+::ng-deep .mat-form-field-appearance-outline.mat-focused .mat-form-field-label {
+  color: #667eea;
+}
+
+/* Autocomplete */
+::ng-deep .mat-autocomplete-panel {
+  max-height: 200px !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid #e2e8f0;
+  margin-top: 4px;
+}
+
+::ng-deep .mat-option {
+  padding: 12px 16px;
+  line-height: 1.5;
+  transition: background-color 0.2s ease;
+  font-size: 14px;
+}
+
+::ng-deep .mat-option:hover:not(.mat-option-disabled),
+::ng-deep .mat-option:focus:not(.mat-option-disabled) {
+  background-color: #f8f9fa;
+}
+
+/* Dialog Actions Footer */
+.dialog-actions {
+  padding: 16px 20px;
+  border-top: 1px solid #e2e8f0;
+  text-align: right;
+  background: linear-gradient(to bottom, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 0 0 8px 8px;
+}
+
+.dialog-actions button {
+  margin-left: 8px;
+  font-weight: 500;
+  padding: 8px 20px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.dialog-actions button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+}
+
+.fsr-table mat-header-row {
+  height: 35px !important;
+  min-height: 35px;
+  max-height: 35px;
+}
+
+/* Action Column Styling */
+.fsr-table mat-header-cell[matColumnDef="assign_all"],
+.fsr-table mat-cell[matColumnDef="assign_all"],
+.fsr-table mat-header-cell[matColumnDef="unassign_all"],
+.fsr-table mat-cell[matColumnDef="unassign_all"],
+.fsr-table mat-header-cell[matColumnDef="assign"],
+.fsr-table mat-cell[matColumnDef="assign"],
+.fsr-table mat-header-cell[matColumnDef="unassign"],
+.fsr-table mat-cell[matColumnDef="unassign"] {
+  width: 110px;
+  min-width: 110px;
+  text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .filter-row {
+    flex-direction: column;
+  }
+
+  .filter-row mat-form-field {
+    width: 100%;
+  }
+
+  .table-container {
+    max-height: 400px;
+  }
+
+  .assignment-dialog-content {
+    max-height: 80vh;
+  }
+
+  .fixed-close-btn {
+    bottom: 15px;
+    right: 15px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .fixed-close-btn .close-btn-icon {
+    font-size: 22px;
+  }
+
+  /* Adjust column widths on mobile */
+  .fsr-table mat-header-cell.col-assigned-hrs,
+  .fsr-table mat-cell.col-assigned-hrs,
+  .fsr-table mat-header-cell.col-max-hrs,
+  .fsr-table mat-cell.col-max-hrs {
+    width: 80px;
+    min-width: 80px;
+    max-width: 80px;
+  }
+
+  .fsr-table mat-header-cell.col-contact,
+  .fsr-table mat-cell.col-contact {
+    width: 180px;
+    min-width: 180px;
+    max-width: 180px;
+  }
+}
 
