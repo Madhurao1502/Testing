@@ -1,3 +1,202 @@
+Use NuGet Package (Easier - Recommended)
+Install the platform-specific runtime package:
+
+bash
+# For Windows
+dotnet add package DinkToPdf.NativeLibraries.Win64
+
+# For Linux
+dotnet add package DinkToPdf.NativeLibraries.Linux
+
+# For macOS  
+dotnet add package DinkToPdf.NativeLibraries.macOS
+This automatically copies the correct DLL/SO files to your bin folder.
+
+Step 4: Update Startup.cs / Program.cs Configuration
+For .NET 6+ (Program.cs)
+csharp
+using DinkToPdf;
+using DinkToPdf.Contracts;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container
+builder.Services.AddControllers();
+
+// CRITICAL: Register DinkToPdf converter as singleton
+builder.Services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new PdfTools()));
+
+// Optional: Configure custom architecture context
+var context = new CustomAssemblyLoadContext();
+context.LoadUnmanagedLibrary(Path.Combine(Directory.GetCurrentDirectory(), "libwkhtmltox.dll")); // Windows
+// context.LoadUnmanagedLibrary(Path.Combine(Directory.GetCurrentDirectory(), "libwkhtmltox.so")); // Linux
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline
+app.UseHttpsRedirection();
+app.UseAuthorization();
+app.MapControllers();
+app.Run();
+For .NET Core 3.1 / .NET 5 (Startup.cs)
+csharp
+using DinkToPdf;
+using DinkToPdf.Contracts;
+
+public class Startup
+{
+    public void ConfigureServices(IServiceCollection services)
+    {
+        services.AddControllers();
+        
+        // Register DinkToPdf
+        services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new PdfTools()));
+    }
+
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+    {
+        // Your existing middleware configuration
+        app.UseHttpsRedirection();
+        app.UseRouting();
+        app.UseAuthorization();
+        app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapControllers();
+        });
+    }
+}
+Step 5: Create CustomAssemblyLoadContext (Optional - For Advanced Control)
+This helps explicitly load the native library:
+
+csharp
+using System.Runtime.Loader;
+using System.Reflection;
+
+namespace YourNamespace
+{
+    internal class CustomAssemblyLoadContext : AssemblyLoadContext
+    {
+        public IntPtr LoadUnmanagedLibrary(string absolutePath)
+        {
+            return LoadUnmanagedDll(absolutePath);
+        }
+
+        protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
+        {
+            return LoadUnmanagedDllFromPath(unmanagedDllName);
+        }
+
+        protected override Assembly? Load(AssemblyName assemblyName)
+        {
+            return null;
+        }
+    }
+}
+Step 6: Update Your Controller
+csharp
+using DinkToPdf;
+using DinkToPdf.Contracts;
+using Microsoft.AspNetCore.Mvc;
+
+namespace YourNamespace.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class TaskAssignmentController : ControllerBase
+    {
+        private readonly IConfiguration _configuration;
+        private readonly ILogger<TaskAssignmentController> _logger;
+        private readonly IConverter _pdfConverter;
+        private readonly string _sqlConnString;
+
+        public TaskAssignmentController(
+            IConfiguration configuration, 
+            ILogger<TaskAssignmentController> logger, 
+            IConverter pdfConverter)
+        {
+            _configuration = configuration;
+            _logger = logger;
+            _pdfConverter = pdfConverter;
+            _sqlConnString = _configuration.GetConnectionString("DefaultConnection") ?? "";
+        }
+
+        [HttpPost("generate-pdf")]
+        public IActionResult GeneratePdf([FromBody] PdfGenerationRequest request)
+        {
+            try
+            {
+                var globalSettings = new GlobalSettings
+                {
+                    ColorMode = ColorMode.Color,
+                    Orientation = Orientation.Portrait,
+                    PaperSize = PaperKind.A4,
+                    Margins = new MarginSettings { Top = 10, Bottom = 10, Left = 10, Right = 10 },
+                    DocumentTitle = "Work Order"
+                };
+
+                var objectSettings = new ObjectSettings
+                {
+                    PagesCount = true,
+                    HtmlContent = request.HtmlContent,
+                    WebSettings = { DefaultEncoding = "utf-8" },
+                    HeaderSettings = { FontName = "Arial", FontSize = 9, Right = "Page [page] of [toPage]", Line = true },
+                    FooterSettings = { FontName = "Arial", FontSize = 9, Line = true, Center = "Generated Work Order" }
+                };
+
+                var pdf = new HtmlToPdfDocument()
+                {
+                    GlobalSettings = globalSettings,
+                    Objects = { objectSettings }
+                };
+
+                byte[] pdfBytes = _pdfConverter.Convert(pdf);
+
+                return File(pdfBytes, "application/pdf", "WorkOrder.pdf");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating PDF");
+                return StatusCode(500, new { error = "Failed to generate PDF", message = ex.Message });
+            }
+        }
+    }
+
+    public class PdfGenerationRequest
+    {
+        public string HtmlContent { get; set; } = string.Empty;
+    }
+}
+Step 7: Verify Deployment
+For IIS Deployment:
+Ensure libwkhtmltox.dll is in the bin folder of your deployed application
+
+Check IIS Application Pool is set to 64-bit (if using 64-bit DLL)
+
+IIS Manager → Application Pools → Select your pool → Advanced Settings → Enable 32-Bit Applications = False
+
+For Azure App Service:
+Upload libwkhtmltox.dll to the wwwroot or bin folder
+
+Make sure your App Service Plan is Windows (64-bit)
+
+For Docker:
+Add to your Dockerfile:
+
+text
+# Install dependencies for wkhtmltopdf
+RUN apt-get update && apt-get install -y \
+    libgdiplus \
+    libc6-dev \
+    wget \
+    fontconfig \
+    libfreetype6 \
+    libx11-6 \
+    libxext6 \
+    libxrender1
+
+# Copy native library
+COPY NativeLibraries/Linux/libwkhtmltox.so /app/libwkhtmltox.so
+
 import { trigger, state, style, transition, animate } from '@angular/animations';
 import { HttpClient } from '@angular/common/http';
 import { AfterViewInit, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren, Pipe } from '@angular/core';
