@@ -1,157 +1,72 @@
-Now You Can Use This Code Directly
-csharp
-using MigraDoc.DocumentObjectModel;
-using MigraDoc.Rendering;
-using System.IO;
+using Microsoft.AspNetCore.SpaServices.AngularCli;
+using Reports.Data;
+using TaskAssignment.Services;
 
-public class PdfSharpGeneratorService : IPdfGeneratorService
+
+
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddCors(p => p.AddPolicy("MyPolicy", builder =>
 {
-    private readonly ILogger<PdfSharpGeneratorService> _logger;
+    builder.AllowAnyOrigin()
+           .AllowAnyMethod()
+           .AllowAnyHeader();
+}));
+builder.Services.AddHttpClient();
+builder.Services.AddControllersWithViews();
+builder.Services.AddScoped<IPdfGeneratorService, PdfSharpGeneratorService>();
+builder.Services.AddSpaStaticFiles(configuration =>
+{
+    configuration.RootPath = "ClientApp/dist";
+});
+builder.Services.AddScoped<DataContext>();
+var app = builder.Build();
 
-    public PdfSharpGeneratorService(ILogger<PdfSharpGeneratorService> logger)
-    {
-        _logger = logger;
-    }
+// Configure the HTTP request pipeline
+app.UseCors("MyPolicy");
 
-    public async Task<byte[]> GenerateWorkOrderPdfAsync(WorkOrderRequest request)
-    {
-        return await Task.Run(() =>
-        {
-            try
-            {
-                // Create MigraDoc document
-                Document doc = new Document();
-                Section section = doc.AddSection();
-                section.PageSetup.TopMargin = "2cm";
-                section.PageSetup.BottomMargin = "2cm";
-
-                // Add title
-                Paragraph title = section.AddParagraph("WORK ORDER");
-                title.Format.Font.Size = 24;
-                title.Format.Font.Bold = true;
-                title.Format.Alignment = ParagraphAlignment.Center;
-
-                // Add FSR info
-                Paragraph fsr = section.AddParagraph($"FSR: {request.FsrName}");
-                fsr.Format.Font.Size = 12;
-
-                Paragraph id = section.AddParagraph($"ID: {request.FsrId}");
-                id.Format.Font.Size = 12;
-
-                section.AddParagraph("");
-
-                // Add table
-                Table table = section.AddTable();
-                table.AddColumn("1cm");
-                table.AddColumn("3cm");
-                table.AddColumn("4cm");
-
-                Row row = table.AddRow();
-                row.Cells[0].AddParagraph("No.");
-                row.Cells[1].AddParagraph("Task");
-                row.Cells[2].AddParagraph("Store");
-
-                // Add task rows
-                int num = 1;
-                if (request.Tasks != null)
-                {
-                    foreach (var task in request.Tasks)
-                    {
-                        row = table.AddRow();
-                        row.Cells[0].AddParagraph(num.ToString());
-                        row.Cells[1].AddParagraph(task.TaskName);
-                        row.Cells[2].AddParagraph($"{task.StoreNumber} - {task.StoreName}");
-                        num++;
-                    }
-                }
-
-                // Convert to PDF
-                PdfDocumentRenderer renderer = new PdfDocumentRenderer();
-                renderer.Document = doc;
-                renderer.RenderDocument();
-
-                using (var memoryStream = new MemoryStream())
-                {
-                    renderer.PdfDocument.Save(memoryStream, false);
-                    byte[] pdfBytes = memoryStream.ToArray();
-                    
-                    _logger.LogInformation($"PDF generated: {pdfBytes.Length} bytes");
-                    return pdfBytes;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error generating PDF");
-                throw;
-            }
-        });
-    }
-
-    public async Task<byte[]> GenerateTaskAssignmentPdfAsync(TaskAssignmentRequest request)
-    {
-        return await Task.Run(() =>
-        {
-            try
-            {
-                Document doc = new Document();
-                Section section = doc.AddSection();
-
-                Paragraph title = section.AddParagraph("TASK ASSIGNMENT");
-                title.Format.Font.Size = 20;
-                title.Format.Font.Bold = true;
-
-                Paragraph task = section.AddParagraph($"Task: {request.TaskName}");
-                Paragraph store = section.AddParagraph($"Store: {request.StoreName}");
-                Paragraph assigned = section.AddParagraph($"Assigned To: {request.AssignedTo}");
-
-                PdfDocumentRenderer renderer = new PdfDocumentRenderer();
-                renderer.Document = doc;
-                renderer.RenderDocument();
-
-                using (var memoryStream = new MemoryStream())
-                {
-                    renderer.PdfDocument.Save(memoryStream, false);
-                    return memoryStream.ToArray();
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error generating task assignment");
-                throw;
-            }
-        });
-    }
-
-    public async Task<byte[]> GenerateMultiplePdfsAsZipAsync(List<WorkOrderRequest> requests)
-    {
-        return await Task.Run(async () =>
-        {
-            using (var memoryStream = new MemoryStream())
-            {
-                using (var archive = new System.IO.Compression.ZipArchive(memoryStream, System.IO.Compression.ZipArchiveMode.Create, true))
-                {
-                    int count = 1;
-                    foreach (var request in requests)
-                    {
-                        var pdfBytes = await GenerateWorkOrderPdfAsync(request);
-                        var entry = archive.CreateEntry($"WorkOrder_{request.FsrId}_{count}.pdf");
-                        
-                        using (var entryStream = entry.Open())
-                        {
-                            entryStream.Write(pdfBytes, 0, pdfBytes.Length);
-                        }
-                        count++;
-                    }
-                }
-                return memoryStream.ToArray();
-            }
-        });
-    }
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
 }
-✅ Next Steps (Copy-Paste Ready)
-1. Create Service Interface: Services/IPdfGeneratorService.cs
-csharp
-namespace YourNamespace.Services
+else
+{
+    app.UseExceptionHandler("/Error");
+}
+
+app.UseStaticFiles();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSpaStaticFiles();
+}
+
+app.UseRouting();
+
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapControllerRoute(
+        name: "default",
+        pattern: "{controller}/{action=Index}/{id?}");
+
+});
+
+// Serve Angular app
+app.UseSpa(spa =>
+{
+    spa.Options.SourcePath = "ClientApp";
+
+    if (app.Environment.IsDevelopment())
+    {
+        spa.UseAngularCliServer(npmScript: "start");
+    }
+});
+
+app.Run();
+
+Program.cs
+namespace TaskAssignment.Services
 {
     public interface IPdfGeneratorService
     {
@@ -191,99 +106,3873 @@ namespace YourNamespace.Services
         public string Notes { get; set; }
     }
 }
-2. Create Service Implementation: Services/PdfSharpGeneratorService.cs
-Copy the code above from "Now You Can Use This Code Directly"
+IPdfGeneratorService.cs
+using MigraDoc.DocumentObjectModel;
+using MigraDoc.DocumentObjectModel.Tables;
+using MigraDoc.Rendering;
+using System.IO;
 
-3. Register in Program.cs
-csharp
-builder.Services.AddScoped<IPdfGeneratorService, PdfSharpGeneratorService>();
-4. Create Controller: Controllers/PdfController.cs
-csharp
-using Microsoft.AspNetCore.Mvc;
-using YourNamespace.Services;
-
-namespace YourNamespace.Controllers
-{
-    [ApiController]
-    [Route("api/[controller]")]
-    public class PdfController : ControllerBase
+    public class PdfSharpGeneratorService : IPdfGeneratorService
     {
-        private readonly IPdfGeneratorService _pdfService;
-        private readonly ILogger<PdfController> _logger;
+        private readonly ILogger<PdfSharpGeneratorService> _logger;
 
-        public PdfController(IPdfGeneratorService pdfService, ILogger<PdfController> logger)
+        public PdfSharpGeneratorService(ILogger<PdfSharpGeneratorService> logger)
         {
-            _pdfService = pdfService;
             _logger = logger;
         }
 
-        [HttpPost("generate-workorder")]
-        public async Task<IActionResult> GenerateWorkOrder([FromBody] WorkOrderRequest request)
+        public async Task<byte[]> GenerateWorkOrderPdfAsync(WorkOrderRequest request)
         {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    // Create MigraDoc document
+                    Document doc = new Document();
+                    Section section = doc.AddSection();
+                    section.PageSetup.TopMargin = "2cm";
+                    section.PageSetup.BottomMargin = "2cm";
+
+                    // Add title
+                    Paragraph title = section.AddParagraph("WORK ORDER");
+                    title.Format.Font.Size = 24;
+                    title.Format.Font.Bold = true;
+                    title.Format.Alignment = ParagraphAlignment.Center;
+
+                    // Add FSR info
+                    Paragraph fsr = section.AddParagraph($"FSR: {request.FsrName}");
+                    fsr.Format.Font.Size = 12;
+
+                    Paragraph id = section.AddParagraph($"ID: {request.FsrId}");
+                    id.Format.Font.Size = 12;
+
+                    section.AddParagraph("");
+
+                    // Add table
+                    Table table = section.AddTable();
+                    table.AddColumn("1cm");
+                    table.AddColumn("3cm");
+                    table.AddColumn("4cm");
+
+                    Row row = table.AddRow();
+                    row.Cells[0].AddParagraph("No.");
+                    row.Cells[1].AddParagraph("Task");
+                    row.Cells[2].AddParagraph("Store");
+
+                    // Add task rows
+                    int num = 1;
+                    if (request.Tasks != null)
+                    {
+                        foreach (var task in request.Tasks)
+                        {
+                            row = table.AddRow();
+                            row.Cells[0].AddParagraph(num.ToString());
+                            row.Cells[1].AddParagraph(task.TaskName);
+                            row.Cells[2].AddParagraph($"{task.StoreNumber} - {task.StoreName}");
+                            num++;
+                        }
+                    }
+
+                    // Convert to PDF
+                    PdfDocumentRenderer renderer = new PdfDocumentRenderer();
+                    renderer.Document = doc;
+                    renderer.RenderDocument();
+
+                    using (var memoryStream = new MemoryStream())
+                    {
+                        renderer.PdfDocument.Save(memoryStream, false);
+                        byte[] pdfBytes = memoryStream.ToArray();
+
+                        _logger.LogInformation($"PDF generated: {pdfBytes.Length} bytes");
+                        return pdfBytes;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error generating PDF");
+                    throw;
+                }
+            });
+        }
+
+        public async Task<byte[]> GenerateTaskAssignmentPdfAsync(TaskAssignmentRequest request)
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    Document doc = new Document();
+                    Section section = doc.AddSection();
+
+                    Paragraph title = section.AddParagraph("TASK ASSIGNMENT");
+                    title.Format.Font.Size = 20;
+                    title.Format.Font.Bold = true;
+
+                    Paragraph task = section.AddParagraph($"Task: {request.TaskName}");
+                    Paragraph store = section.AddParagraph($"Store: {request.StoreName}");
+                    Paragraph assigned = section.AddParagraph($"Assigned To: {request.AssignedTo}");
+
+                    PdfDocumentRenderer renderer = new PdfDocumentRenderer();
+                    renderer.Document = doc;
+                    renderer.RenderDocument();
+
+                    using (var memoryStream = new MemoryStream())
+                    {
+                        renderer.PdfDocument.Save(memoryStream, false);
+                        return memoryStream.ToArray();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error generating task assignment");
+                    throw;
+                }
+            });
+        }
+
+        public async Task<byte[]> GenerateMultiplePdfsAsZipAsync(List<WorkOrderRequest> requests)
+        {
+            return await Task.Run(async () =>
+            {
+                using (var memoryStream = new MemoryStream())
+                {
+                    using (var archive = new System.IO.Compression.ZipArchive(memoryStream, System.IO.Compression.ZipArchiveMode.Create, true))
+                    {
+                        int count = 1;
+                        foreach (var request in requests)
+                        {
+                            var pdfBytes = await GenerateWorkOrderPdfAsync(request);
+                            var entry = archive.CreateEntry($"WorkOrder_{request.FsrId}_{count}.pdf");
+
+                            using (var entryStream = entry.Open())
+                            {
+                                entryStream.Write(pdfBytes, 0, pdfBytes.Length);
+                            }
+                            count++;
+                        }
+                    }
+                    return memoryStream.ToArray();
+                }
+            });
+        }
+    }
+
+PdfSharpGeneratorService.cs
+
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
+using Newtonsoft.Json;
+using Reports.Data;
+using System.Data;
+using System.Text;
+using static Reports.Models.CommonDataModels;
+
+namespace TaskAssignment.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    public class TaskAssinmentController : Controller
+    {
+        private readonly ILogger<TaskAssinmentController> _logger;
+        private readonly DataContext _context;
+        private readonly IConfiguration _configuration;
+        private readonly string _sqlConnString;
+
+        public TaskAssinmentController(ILogger<TaskAssinmentController> logger, DataContext db, IConfiguration configuration, IConverter pdfConverter)
+        {
+            _configuration = configuration;
+            _logger = logger;
+            _context = db;
+            _pdfConverter = pdfConverter;
+            _sqlConnString = _configuration.GetConnectionString("SqlConnString") ?? "";
+        }
+
+        [HttpGet("[action]")]
+        public string GetCurrentIRIWeek()
+        {
+            return _context.GetCurrentIRIWeek();
+
+        }
+
+        [HttpGet("[action]")]
+        public string GetIriWeek()
+        {
+            string rst = "";
             try
             {
-                var pdfBytes = await _pdfService.GenerateWorkOrderPdfAsync(request);
-                return File(pdfBytes, "application/pdf", $"WorkOrder_{request.FsrId}_{DateTime.Now:yyyyMMddHHmmss}.pdf");
+                rst = _context.GetIriWeek();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error generating PDF");
-                return StatusCode(500, new { error = ex.Message });
+                throw ex;
+            }
+
+            return rst;
+        }
+
+        [HttpGet("[action]")]
+        public string GetTerritory()
+        {
+            string rst = "";
+            try
+            {
+                rst = _context.GetTerritory();
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+
+            return rst;
+        }
+
+        [HttpPost("[action]")]
+        public string GetStore(GetDataForFilter gdf)
+        {
+            string rst = "";
+            try
+            {
+                rst = _context.GetStoreDetails(gdf.IriWeek, gdf.TerritoryId, gdf.SearchText);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+
+            return rst;
+        }
+
+        [HttpPost("[action]")]
+        public string GetState(GetDataForFilter gdf)
+        {
+            string rst = "";
+            try
+            {
+                rst = _context.GetState(gdf.IriWeek, gdf.TerritoryId, gdf.SearchText);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+
+            return rst;
+        }
+        [HttpPost("[action]")]
+        public string GetCity(GetDataForFilter gdf)
+        {
+            string rst = "";
+            try
+            {
+                rst = _context.GetCity(gdf.IriWeek, gdf.TerritoryId, gdf.SearchText);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+
+            return rst;
+        }
+        [HttpPost("[action]")]
+        public string GetCluster(GetDataForFilter gdf)
+        {
+            string rst = "";
+            try
+            {
+                rst = _context.GetCluster(gdf.IriWeek, gdf.TerritoryId, gdf.SearchText);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+
+            return rst;
+        }
+        [HttpPost("[action]")]
+        public string GetTask(GetDataForFilter gdf)
+        {
+            string rst = "";
+            try
+            {
+                rst = _context.GetTask(gdf.IriWeek, gdf.TerritoryId, gdf.SearchText);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+
+            return rst;
+        }
+        [HttpPost("[action]")]
+        public string GetFsr(GetDataForFilter gdf)
+        {
+            string rst = "";
+            try
+            {
+                rst = _context.GetFSR(gdf.IriWeek, gdf.TerritoryId, gdf.SearchText);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+
+            return rst;
+        }
+
+        [HttpPost("[action]")]
+        public string GetGridData(GetGridDataFilter ggdf)
+        {
+            string rst = "";
+            try
+            {
+                rst = _context.GetGridData(ggdf);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+
+            return rst;
+        }
+
+        [HttpPost("[action]")]
+        public List<ClosestFsr> GetClosestFsr(GetClosestFsrFilterDataModel filter)
+        {
+            return _context.GetClosestFsr(filter);
+
+        }
+
+        [HttpPost("[action]")]
+        public string ExportFetaDetailsToCSV(GetGridDataFilter ggdf)
+        {
+            string rst = "";
+            try
+            {
+                rst = _context.ExportFetaDetailsToCSV(ggdf);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+
+            return rst;
+        }
+
+        [HttpPost("[action]")]
+        public string GetCurrentAssignment(CurrentAssignmentFilterModel param)
+        {
+            string rst = "";
+            try
+            {
+                rst = _context.GetCurrentAssignment(param);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+
+            return rst;
+        }
+
+        [HttpPost("[action]")]
+        public string GetFsrForAssignment(GetGridDataFilter param)
+        {
+            string rst = "";          
+            try
+            {
+                rst = _context.GetFsrForAssignment(param);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+
+            return rst;
+        }
+
+        [HttpPost("[action]")]
+        public string SaveAssignment(GetGridDataFilter filter)
+        {
+            string rst = "";
+          
+            try
+            {
+                rst = _context.SaveAssignment(filter);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+            return JsonConvert.SerializeObject(rst);
+        }
+
+        [HttpPost("[action]")]
+        public string GetName(GetNameFilterModel filter)
+        {
+            string rst = "";
+            try
+            {
+                rst = _context.GetName(filter.IriWeek, filter.TerritoryId, filter.SearchText, filter.NameType);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+
+            return rst;
+        }
+
+        [HttpPost("[action]")]
+        public string SaveUserComment(SaveCommentRequest request)
+        {
+            string rst = "";
+            try
+            {
+                rst = _context.SaveUserComment(request);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+
+            return rst;
+        }
+
+
+        [HttpPost("[action]")]
+        public string GetcurrentweekGridData(GetGridDataFilter ggdf)
+        {
+            string rst = "";
+            try
+            {
+                rst = _context.GetcurrentweekGridData(ggdf);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+
+            return rst;
+        }
+
+        [HttpPost("[action]")]
+        public string GetfutureweekGridData(GetGridDataFilter ggdf)
+        {
+            string rst = "";
+            try
+            {
+                rst = _context.GetfutureweekGridData(ggdf);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+
+            return rst;
+        }
+
+        [HttpPost("[action]")]
+        public string GetpreviousweekGridData(GetGridDataFilter ggdf)
+        {
+            string rst = "";
+            try
+            {
+                rst = _context.GetpreviousweekGridData(ggdf);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+
+            return rst;
+        }
+
+        [HttpPost("[action]")]
+        public async Task<ActionResult<object>> GetSubgridData(SubGridFilterDataModel filter)
+        {
+            try
+            {
+                _logger.LogInformation($"GetSubgridData called with IriWeek: '{filter?.IriWeek}', StoreNumber: '{filter?.StoreNumber}'");
+
+                if (filter == null)
+                {
+                    _logger.LogError("GetSubgridData: filter is null");
+                    return BadRequest("Filter cannot be null");
+                }
+
+                if (string.IsNullOrEmpty(filter.IriWeek) || string.IsNullOrEmpty(filter.StoreNumber))
+                {
+                    _logger.LogError($"GetSubgridData: Missing required parameters - IriWeek: '{filter.IriWeek}', StoreNumber: '{filter.StoreNumber}'");
+                    return BadRequest("IriWeek and StoreNumber are required");
+                }
+
+                // Determine week type and call appropriate stored procedure
+                var weekType = DetermineWeekType(filter.IriWeek);
+
+                _logger.LogInformation($"GetSubgridData: WeekType={weekType}, IriWeek={filter.IriWeek}, StoreNumber={filter.StoreNumber}");
+
+                switch (weekType)
+                {
+                    case "future":
+                        _logger.LogInformation("Calling GetFutureWeekSubgridDataAsync");
+                        var futureData = await GetFutureWeekSubgridDataAsync(filter);
+                        _logger.LogInformation($"GetFutureWeekSubgridDataAsync returned {futureData.Count} records");
+                        return Ok(new { data = futureData, weekType = "future" });
+
+                    case "current":
+                        _logger.LogInformation("Calling GetCurrentWeekSubgridDataAsync");
+                        var currentData = await GetCurrentWeekSubgridDataAsync(filter);
+                        _logger.LogInformation($"GetCurrentWeekSubgridDataAsync returned {currentData.Count} records");
+                        return Ok(new { data = currentData, weekType = "current" });
+
+                    case "previous":
+                        _logger.LogInformation("Calling GetPreviousWeekSubgridDataAsync");
+                        var previousData = await GetPreviousWeekSubgridDataAsync(filter);
+                        _logger.LogInformation($"GetPreviousWeekSubgridDataAsync returned {previousData.Count} records");
+                        return Ok(new { data = previousData, weekType = "previous" });
+
+                    default:
+                        _logger.LogError($"Unable to determine week type for IriWeek: {filter.IriWeek}");
+                        return BadRequest($"Unable to determine week type for IriWeek: {filter.IriWeek}");
+                }
+            }
+            catch (SqlException sqlEx)
+            {
+                _logger.LogError(sqlEx, "SQL Error in GetSubgridData. Message: {Message}, Number: {Number}, State: {State}, Severity: {Severity}", 
+                    sqlEx.Message, sqlEx.Number, sqlEx.State, sqlEx.Class);
+                
+                if (sqlEx.Message.Contains("Could not find stored procedure"))
+                {
+                    return StatusCode(500, "Required stored procedures are missing from the database. Please contact your administrator.");
+                }
+                
+                return StatusCode(500, $"Database error: {sqlEx.Message}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetSubgridData for IriWeek: {IriWeek}, StoreNumber: {StoreNumber}", 
+                    filter?.IriWeek ?? "Unknown", filter?.StoreNumber ?? "Unknown");
+                return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
 
-        [HttpPost("generate-task-assignment")]
-        public async Task<IActionResult> GenerateTaskAssignment([FromBody] TaskAssignmentRequest request)
+        [HttpPost("[action]")]
+        public async Task<ActionResult<WorkOrderResponse>> CreateWorkOrder(WorkOrderFilter filter)
         {
             try
             {
-                var pdfBytes = await _pdfService.GenerateTaskAssignmentPdfAsync(request);
-                return File(pdfBytes, "application/pdf", $"TaskAssignment_{request.TaskId}_{DateTime.Now:yyyyMMddHHmmss}.pdf");
+                
+                if (string.IsNullOrEmpty(filter.TerritoryId) || string.IsNullOrEmpty(filter.IriWeek))
+                {
+                    return BadRequest(new WorkOrderResponse
+                    {
+                        Success = false,
+                        Message = "Territory ID and IRI Week are required"
+                    });
+                }
+
+                if (string.IsNullOrEmpty(filter.FmEmail))
+                {
+                    return BadRequest(new WorkOrderResponse
+                    {
+                        Success = false,
+                        Message = "Field Manager email is required for work order generation"
+                    });
+                }
+
+                if (string.IsNullOrEmpty(filter.CountryId))
+                {
+                    filter.CountryId = "1"; // Default country ID
+                }
+
+                _logger.LogInformation($"Creating work order for Territory: {filter.TerritoryId}, Week: {filter.IriWeek}");
+
+                string pdfSessionId = Guid.NewGuid().ToString().Replace("-", "");
+
+                bool result = await CreateFmWorkOrderAsync(filter, true, pdfSessionId);
+
+                if (result)
+                {
+                    return Ok(new WorkOrderResponse
+                    {
+                        PdfSessionId = pdfSessionId,
+                        Success = true,
+                        Message = "Work order created successfully"
+                    });
+                }
+                else
+                {
+                    return BadRequest(new WorkOrderResponse
+                    {
+                        Success = false,
+                        Message = "Failed to create work order - no data found or PDF generation failed"
+                    });
+                }
+            }
+        catch (SqlException sqlEx) when (sqlEx.Message.Contains("Column header is empty"))
+        {
+            _logger.LogError(sqlEx, "Column header is empty error for Territory: {TerritoryId}, Week: {IriWeek}", 
+                filter?.TerritoryId ?? "Unknown", filter?.IriWeek ?? "Unknown");
+            return BadRequest(new WorkOrderResponse
+            {
+                Success = false,
+                Message = "No employees found for the selected territory and time period. Please verify that there are active FSR employees assigned to this territory, or contact your administrator."
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating work order for Territory: {TerritoryId}, Week: {IriWeek}", 
+                filter?.TerritoryId ?? "Unknown", filter?.IriWeek ?? "Unknown");
+            return StatusCode(500, new WorkOrderResponse
+            {
+                Success = false,
+                Message = $"Internal server error: {ex.Message}"
+            });
+        }
+        }
+
+        [HttpPost("[action]")]
+        public async Task<ActionResult<WorkOrderResponse>> SendWorkOrderEmail(WorkOrderEmailRequest request)
+        {
+            try
+            {
+                _logger.LogInformation($"Sending work order emails for session: {request.PdfSessionId}");
+
+                if (string.IsNullOrEmpty(request.PdfSessionId))
+                {
+                    return BadRequest(new WorkOrderResponse
+                    {
+                        Success = false,
+                        Message = "PDF Session ID is required"
+                    });
+                }
+
+                int result = await SendWorkOrderEmailAsync(request.PdfSessionId);
+
+                if (result > 0)
+                {
+                    return Ok(new WorkOrderResponse
+                    {
+                        Success = true,
+                        Message = "Work order emails sent successfully"
+                    });
+                }
+                else
+                {
+                    return BadRequest(new WorkOrderResponse
+                    {
+                        Success = false,
+                        Message = "Failed to send work order emails"
+                    });
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error generating PDF");
-                return StatusCode(500, new { error = ex.Message });
+                _logger.LogError(ex, "Error sending work order emails");
+                return StatusCode(500, new WorkOrderResponse
+                {
+                    Success = false,
+                    Message = $"Internal server error: {ex.Message}"
+                });
             }
         }
 
-        [HttpPost("generate-workorders-zip")]
-        public async Task<IActionResult> GenerateWorkOrdersZip([FromBody] List<WorkOrderRequest> requests)
+        // Private helper methods
+        private async Task<bool> CreateFmWorkOrderAsync(WorkOrderFilter filter, bool generatePdfForSubs, string sessionId)
         {
+            bool retVal = false;
+            string strFullFilePath = "";
+
             try
             {
-                var zipBytes = await _pdfService.GenerateMultiplePdfsAsZipAsync(requests);
-                return File(zipBytes, "application/zip", $"WorkOrders_{DateTime.Now:yyyyMMddHHmmss}.zip");
+                DataTable dt = await GetWorkOrderTasksListAsync(filter, "", true);
+
+                if (dt.Rows.Count == 0)
+                {
+                    _logger.LogWarning("No work order data found for Territory: {TerritoryId}, Week: {IriWeek}", 
+                        filter.TerritoryId, filter.IriWeek);
+                    return false;
+                }
+
+                string strHtml = GenerateHtmlFromDataTable(dt, filter.Comment, true);
+
+                if (string.IsNullOrEmpty(strHtml) || strHtml.Length < 100)
+                {
+                    _logger.LogWarning("Generated HTML content is too short or empty for Territory: {TerritoryId}", 
+                        filter.TerritoryId);
+                    return false;
+                }
+
+                string pdfTempPath = _configuration["PDFTempPath"] ?? Path.GetTempPath();
+                strFullFilePath = Path.Combine(pdfTempPath, $"Territory{filter.TerritoryId}_Week{filter.IriWeek}.pdf");
+
+                if (await CreatePdfAsync(strFullFilePath, strHtml))
+                {
+                    retVal = true;
+                    await InsertWorkOrderEmailAsync(sessionId, strFullFilePath,
+                        $"Work Orders for Week {filter.IriWeek}", filter.FmEmail, filter.FmEmpId);
+                }
+
+                if (generatePdfForSubs && retVal)
+                {
+                    await CreateFsrWorkOrderAsync(dt, sessionId, filter);
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error generating ZIP");
-                return StatusCode(500, new { error = ex.Message });
+                _logger.LogError(ex, "Error in CreateFmWorkOrderAsync");
+                throw;
             }
+
+            return retVal;
+        }
+
+        private async Task<bool> CreatePdfAsync(string filePath, string htmlContent)
+        {
+            try
+            {
+                var doc = new HtmlToPdfDocument()
+                {
+                    GlobalSettings = new GlobalSettings
+                    {
+                        ColorMode = ColorMode.Color,
+                        Orientation = Orientation.Portrait,
+                        PaperSize = PaperKind.A4,
+                        Out = filePath
+                    },
+                    Objects = {
+                        new ObjectSettings()
+                        {
+                            PagesCount = true,
+                            HtmlContent = htmlContent,
+                            WebSettings = { DefaultEncoding = "utf-8" }
+                        }
+                    }
+                };
+
+                await Task.Run(() => _pdfConverter.Convert(doc));
+                _logger.LogInformation($"PDF generated at {filePath}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error creating PDF: {filePath}");
+                return false;
+            }
+        }
+
+        private async Task CreateFsrWorkOrderAsync(DataTable dt, string sessionId, WorkOrderFilter filter)
+        {
+            try
+            {
+                if (dt.Rows.Count > 0)
+                {
+                    var distinctFsrs = dt.AsEnumerable()
+                        .Select(row => new
+                        {
+                            IriWeek = row.Field<object>("iri_week")?.ToString()?.Trim() ?? "",
+                            EmpId = row.Field<object>("emp_id")?.ToString()?.Trim() ?? "",
+                            FirstName = row.Field<object>("first_name")?.ToString()?.Trim() ?? "",
+                            LastName = row.Field<object>("last_name")?.ToString()?.Trim() ?? "",
+                            Email = row.Field<object>("email_addr")?.ToString()?.Trim() ?? ""
+                        })
+                        .Distinct()
+                        .ToList();
+
+                    foreach (var fsr in distinctFsrs)
+                    {
+                        if (!string.IsNullOrEmpty(fsr.EmpId))
+                        {
+                            DataTable dtEmployee = await GetWorkOrderTasksListAsync(filter, fsr.EmpId, false);
+                            string strHtml = GenerateHtmlFromDataTable(dtEmployee, filter.Comment, false);
+
+                            string pdfTempPath = _configuration["PDFTempPath"] ?? Path.GetTempPath();
+                            string strEmpPdfPath = Path.Combine(pdfTempPath, $"{fsr.EmpId}_Week{fsr.IriWeek}_Tasks.pdf");
+
+                            if (await CreatePdfAsync(strEmpPdfPath, strHtml))
+                            {
+                                if (!string.IsNullOrEmpty(fsr.Email))
+                                {
+                                    await InsertWorkOrderEmailAsync(sessionId, strEmpPdfPath,
+                                        $"{fsr.LastName},{fsr.FirstName}'s Work Orders, Week {fsr.IriWeek}",
+                                        fsr.Email, filter.FmEmail);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in CreateFsrWorkOrderAsync");
+                throw new Exception($"Error occurred in CreateFSRWorkOrder - {ex.Message}");
+            }
+        }
+
+        private async Task<DataTable> GetWorkOrderTasksListAsync(WorkOrderFilter filter, string empId = "", bool isFmReport = true)
+        {
+            DataTable dt = new DataTable();
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(_sqlConnString))
+                {
+                    await conn.OpenAsync();
+
+                    using (SqlCommand cmd = new SqlCommand("usp_FETA_getFM_Sub_Tasks", conn))
+                    {
+                        cmd.CommandType = CommandType.StoredProcedure;
+                        
+                        // Debug the actual filter values
+                        _logger.LogInformation($"=== FILTER VALUES DEBUG ===");
+                        _logger.LogInformation($"filter.IriWeek: '{filter.IriWeek}'");
+                        _logger.LogInformation($"filter.CountryId: '{filter.CountryId}'");
+                        _logger.LogInformation($"filter.TerritoryId: '{filter.TerritoryId}'");
+                        _logger.LogInformation($"filter.FmEmail: '{filter.FmEmail}'");
+                        _logger.LogInformation($"filter.Comment: '{filter.Comment}'");
+                        _logger.LogInformation($"empId: '{empId}'");
+                        _logger.LogInformation($"=== END FILTER DEBUG ===");
+                        
+                        // Add parameters in the exact order as defined in the stored procedure
+                        cmd.Parameters.Add(new SqlParameter("IsFilterON", 1));
+                        cmd.Parameters.Add(new SqlParameter("@IRIWeek", filter.IriWeek));
+                        cmd.Parameters.Add(new SqlParameter("@country_id", filter.CountryId));
+                        cmd.Parameters.Add(new SqlParameter("@Territory", filter.TerritoryId));
+                        cmd.Parameters.Add(new SqlParameter("@EmployeeID", string.IsNullOrEmpty(empId) ? "" : empId));
+                        cmd.Parameters.Add(new SqlParameter("@FSRInTraining", DBNull.Value));
+                        cmd.Parameters.Add(new SqlParameter("@CigOnlyStore", DBNull.Value));
+                        cmd.Parameters.Add(new SqlParameter("@SampleOrNonSampleStore", DBNull.Value));
+                        cmd.Parameters.Add(new SqlParameter("@SearchStr", ""));
+                        cmd.Parameters.Add(new SqlParameter("@AssignedStoreOrTasks", DBNull.Value));
+                        cmd.Parameters.Add(new SqlParameter("@StoreOrTasksAssigned", DBNull.Value));
+                        cmd.Parameters.Add(new SqlParameter("@FSRUnder6Hrs", DBNull.Value));
+                        cmd.Parameters.Add(new SqlParameter("@FSROver25Hrs", DBNull.Value));
+                        cmd.Parameters.Add(new SqlParameter("@NewHire8WeeksOut", DBNull.Value));
+                        cmd.Parameters.Add(new SqlParameter("@UnassignedStoreOrTasks", DBNull.Value));
+                        cmd.Parameters.Add(new SqlParameter("@NonSampleStore", DBNull.Value));
+
+
+                        using (SqlDataAdapter sda = new SqlDataAdapter(cmd))
+                        {
+                            sda.Fill(dt);
+                        }
+                    }
+                }
+            }
+            catch (SqlException sqlEx)
+            {
+                _logger.LogError(sqlEx, "SQL Error in GetWorkOrderTasksListAsync. Message: {Message}, Number: {Number}, State: {State}, Severity: {Severity}", 
+                    sqlEx.Message, sqlEx.Number, sqlEx.State, sqlEx.Class);
+                
+                if (sqlEx.Message.Contains("Column header is empty"))
+                {
+                    // Log the exact parameters that caused this issue
+                    _logger.LogError("Column header is empty error occurred with parameters: IRIWeek={IriWeek}, Territory={Territory}, Country={Country}, EmployeeID={EmployeeID}",
+                        filter.IriWeek, filter.TerritoryId, filter.CountryId, empId);
+                    
+                    // Check if this is due to no employees found
+                    await LogEmployeeCheckAsync(int.TryParse(filter.CountryId, out int countryCheck) ? countryCheck : 1,
+                                             int.TryParse(filter.TerritoryId, out int territoryCheck) ? territoryCheck : 0);
+                }
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetWorkOrderTasksListAsync");
+                throw;
+            }
+
+            return dt;
+        }
+
+        private async Task LogEmployeeCheckAsync(int countryId, int territoryId)
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(_sqlConnString))
+                {
+                    await conn.OpenAsync();
+
+                    // First, check what area_nbr corresponds to this country
+                    string areaQuery = "SELECT area_nbr FROM area_name WHERE country_id = @country_id";
+                    int areaNbr = 0;
+                    
+                    using (SqlCommand areaCmd = new SqlCommand(areaQuery, conn))
+                    {
+                        areaCmd.Parameters.Add(new SqlParameter("@country_id", countryId));
+                        var areaResult = await areaCmd.ExecuteScalarAsync();
+                        if (areaResult != null && int.TryParse(areaResult.ToString(), out areaNbr))
+                        {
+                            _logger.LogInformation("Found area_nbr={AreaNbr} for country_id={CountryId}", areaNbr, countryId);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("No area_nbr found for country_id={CountryId}", countryId);
+                            return;
+                        }
+                    }
+
+                    // Now check for employees in this area and territory
+                    string empQuery = @"
+                        SELECT COUNT(*) as TotalEmployees,
+                               COUNT(CASE WHEN job_type_cd = 'fsr' THEN 1 END) as FSREmployees,
+                               COUNT(CASE WHEN termination_dte IS NULL THEN 1 END) as ActiveEmployees,
+                               COUNT(CASE WHEN job_type_cd = 'fsr' AND termination_dte IS NULL THEN 1 END) as ActiveFSREmployees
+                        FROM dbo.employees 
+                        WHERE area_nbr = @area_nbr AND fld_terrty_nbr = @territory_id";
+                    
+                    using (SqlCommand empCmd = new SqlCommand(empQuery, conn))
+                    {
+                        empCmd.Parameters.Add(new SqlParameter("@area_nbr", areaNbr));
+                        empCmd.Parameters.Add(new SqlParameter("@territory_id", territoryId));
+                        
+                        using (SqlDataReader reader = await empCmd.ExecuteReaderAsync())
+                        {
+                            if (reader.Read())
+                            {
+                                _logger.LogInformation("Employee counts for area_nbr={AreaNbr}, territory_id={TerritoryId}: Total={Total}, FSR={FSR}, Active={Active}, ActiveFSR={ActiveFSR}",
+                                    areaNbr, territoryId,
+                                    reader["TotalEmployees"],
+                                    reader["FSREmployees"], 
+                                    reader["ActiveEmployees"],
+                                    reader["ActiveFSREmployees"]);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in LogEmployeeCheckAsync");
+            }
+        }
+
+        private string GenerateHtmlFromDataTable(DataTable dt, string additionalCom, bool isFmPdf)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append("<html><head><style>body{font-family:Arial,sans-serif;font-size:8pt;}table{border-collapse:collapse;}th,td{padding:4px;}</style></head><body>");
+
+            if (dt.Rows.Count == 0)
+            {
+                sb.Append("<p>No work order data available.</p>");
+                sb.Append("</body></html>");
+                return sb.ToString();
+            }
+
+            try
+            {
+                // Debug: Log column information
+                _logger.LogInformation($"DataTable has {dt.Columns.Count} columns:");
+                for (int i = 0; i < dt.Columns.Count; i++)
+                {
+                    string columnName = string.IsNullOrEmpty(dt.Columns[i].ColumnName) ? $"Column{i}" : dt.Columns[i].ColumnName;
+                    _logger.LogInformation($"Column {i}: '{columnName}' (Type: {dt.Columns[i].DataType})");
+                }
+
+                var distinctEmployees = dt.AsEnumerable()
+                    .Select(row => new
+                    {
+                        IriWeek = GetSafeColumnValue(row, "iri_week"),
+                        EmpId = GetSafeColumnValue(row, "emp_id"),
+                        FirstName = GetSafeColumnValue(row, "first_name"),
+                        LastName = GetSafeColumnValue(row, "last_name"),
+                        AreaName = GetSafeColumnValue(row, "area_name"),
+                        AreaNumber = GetSafeColumnValue(row, "area_number"),
+                        TerritoryName = GetSafeColumnValue(row, "territory_name"),
+                        TerritoryNumber = GetSafeColumnValue(row, "terrty_number")
+                    })
+                    .Distinct()
+                    .ToList();
+
+                foreach (var emp in distinctEmployees)
+                {
+                    sb.Append($"<br><table border='0' width='100%'>");
+                    sb.Append($"<tr><td><strong>Employee: {emp.LastName}, {emp.FirstName} ({emp.EmpId})</strong></td></tr>");
+                    sb.Append($"<tr><td>{emp.AreaName} ({emp.AreaNumber}) / {emp.TerritoryName} ({emp.TerritoryNumber}), IRI Week: {emp.IriWeek}</td></tr>");
+
+                    if (!isFmPdf)
+                    {
+                        sb.Append("<tr><td><strong>Additional Communication:</strong></td></tr>");
+                        sb.Append($"<tr><td>{additionalCom}<br><br></td></tr>");
+                    }
+
+                    var distinctStores = dt.AsEnumerable()
+                        .Where(row => GetSafeColumnValue(row, "emp_id") == emp.EmpId)
+                        .Select(row => new
+                        {
+                            StoreNumber = GetSafeColumnValue(row, "store_number"),
+                            StoreName = GetSafeColumnValue(row, "store_name"),
+                            StoreAddress = GetSafeColumnValue(row, "store_address"),
+                            CityName = GetSafeColumnValue(row, "city_name"),
+                            StateCd = GetSafeColumnValue(row, "state_cd"),
+                            ZipCd = GetSafeColumnValue(row, "zip_cd")
+                        })
+                        .Distinct()
+                        .ToList();
+
+                    foreach (var store in distinctStores)
+                    {
+                        long totalEstimatedTime = 0;
+
+                        sb.Append($"<tr><td><strong>Store: {store.StoreNumber}: ({store.StoreName}, {store.StoreAddress}, {store.CityName}, {store.StateCd}, {store.ZipCd})</strong></td></tr>");
+                        sb.Append("<tr><td>");
+                        sb.Append("<table border='1' width='100%'>");
+                        sb.Append("<tr><th>Task #</th><th>Task Name</th><th>Collection Period</th><th>Est. Time</th></tr>");
+
+                        var tasks = dt.AsEnumerable()
+                            .Where(row => GetSafeColumnValue(row, "emp_id") == emp.EmpId &&
+                                         GetSafeColumnValue(row, "store_number") == store.StoreNumber)
+                            .Select(row => new
+                            {
+                                TaskNumber = GetSafeColumnValue(row, "task_number"),
+                                TaskName = GetSafeColumnValue(row, "task_name"),
+                                EstimatedTime = GetSafeColumnValue(row, "estimated_collection_time"),
+                                Wave = GetSafeColumnValue(row, "wave")
+                            })
+                            .Distinct()
+                            .ToList();
+
+                        foreach (var task in tasks)
+                        {
+                            long estTime = long.TryParse(task.EstimatedTime, out long parsedTime) ? parsedTime : 0;
+                            totalEstimatedTime += estTime;
+
+                            sb.Append($"<tr>");
+                            sb.Append($"<td align='center'>{task.TaskNumber}</td>");
+                            sb.Append($"<td>{task.TaskName}</td>");
+                            sb.Append($"<td align='center'>{task.Wave}</td>");
+                            sb.Append($"<td align='center'>{FormatTime(estTime)}</td>");
+                            sb.Append($"</tr>");
+                        }
+
+                        sb.Append($"<tr><td colspan='3' align='right'><strong>Store {store.StoreNumber} Total:</strong></td>");
+                        sb.Append($"<td align='center'><strong>{FormatTime(totalEstimatedTime)}</strong></td></tr>");
+                        sb.Append("</table>");
+                        sb.Append("</td></tr>");
+                    }
+
+                    sb.Append("</table>");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating HTML from DataTable");
+                sb.Append($"<p>Error generating work order: {ex.Message}</p>");
+            }
+
+            sb.Append("</body></html>");
+            return sb.ToString();
+        }
+
+        private async Task<bool> InsertWorkOrderEmailAsync(string sessionId, string pdfFileLocation, string subject, string toEmail, string userName)
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(_sqlConnString))
+                {
+                    await conn.OpenAsync();
+
+                    using (SqlCommand cmd = new SqlCommand("usp_FETA_Insert_TempEmailTable", conn))
+                    {
+                        cmd.CommandType = CommandType.StoredProcedure;
+
+                        cmd.Parameters.Add(new SqlParameter("@SessionID", sessionId));
+                        cmd.Parameters.Add(new SqlParameter("@MailSubject", subject));
+                        cmd.Parameters.Add(new SqlParameter("@ToAddress", toEmail));
+                        cmd.Parameters.Add(new SqlParameter("@MailBody", "Hello, <br> Please find your Work Order task list"));
+                        cmd.Parameters.Add(new SqlParameter("@MailAttachment", pdfFileLocation));
+
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error inserting work order email");
+                throw;
+            }
+        }
+
+        private async Task<int> SendWorkOrderEmailAsync(string pdfSessionId)
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(_sqlConnString))
+                {
+                    await conn.OpenAsync();
+
+                    using (SqlCommand cmd = new SqlCommand("usp_FETA_InsertEmailNotification", conn))
+                    {
+                        cmd.CommandType = CommandType.StoredProcedure;
+
+                        cmd.Parameters.Add(new SqlParameter("@SessionID", pdfSessionId));
+                        cmd.Parameters.Add(new SqlParameter("@From", _configuration["EmailSettings:From"] ?? ""));
+                        cmd.Parameters.Add(new SqlParameter("@CC", _configuration["EmailSettings:CC"] ?? ""));
+                        cmd.Parameters.Add(new SqlParameter("@BCC", _configuration["EmailSettings:BCC"] ?? ""));
+                        cmd.Parameters.Add(new SqlParameter("@Priority", _configuration["EmailSettings:Priority"] ?? "Normal"));
+                        cmd.Parameters.Add(new SqlParameter("@Createdby", "system"));
+
+                        var result = await cmd.ExecuteNonQueryAsync();
+                        return result;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending work order email");
+                throw;
+            }
+        }
+
+        private string FormatTime(long minutes)
+        {
+            if (minutes <= 0) return "0:00";
+
+            int hours = (int)(minutes / 60);
+            int mins = (int)(minutes % 60);
+            return $"{hours}:{mins:00}";
+        }
+
+        private string GetSafeColumnValue(DataRow row, string columnName)
+        {
+            try
+            {
+                if (row.Table.Columns.Contains(columnName))
+                {
+                    return row.Field<object>(columnName)?.ToString()?.Trim() ?? "";
+                }
+                else
+                {
+                    _logger.LogWarning($"Column '{columnName}' not found in DataTable");
+                    return "";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error accessing column '{columnName}'");
+                return "";
+            }
+        }
+
+        // Week type determination method
+        private string DetermineWeekType(string iriWeek)
+        {
+            try
+            {
+                // Get current IRI week from database or configuration
+                var currentIriWeek = GetCurrentIriWeek();
+                
+                if (int.TryParse(iriWeek, out int week) && int.TryParse(currentIriWeek, out int currentWeek))
+                {
+                    if (week > currentWeek)
+                        return "future";
+                    else if (week == currentWeek)
+                        return "current";
+                    else
+                        return "previous";
+                }
+                
+                // Default to current if unable to determine
+                return "current";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error determining week type for IriWeek: {iriWeek}");
+                return "current";
+            }
+        }
+
+        // Get current IRI week using the SQL function fniri_week(GETDATE())
+        private string GetCurrentIriWeek()
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(_sqlConnString))
+                {
+                    conn.Open();
+                    using (SqlCommand cmd = new SqlCommand("SELECT dbo.fniri_week(GETDATE())", conn))
+                    {
+                        cmd.CommandType = CommandType.Text;
+                        var result = cmd.ExecuteScalar();
+                        
+                        if (result != null)
+                        {
+                            return result.ToString();
+                        }
+                        else
+                        {
+                            _logger.LogWarning("fniri_week returned null, using fallback");
+                            return DateTime.Now.ToString("yyMM"); // Fallback to current year/month
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting current IRI week from fniri_week function");
+                return DateTime.Now.ToString("yyMM"); // Fallback
+            }
+        }
+
+        // Future week subgrid data retrieval
+        private async Task<List<FutureWeekSubGridDataModel>> GetFutureWeekSubgridDataAsync(SubGridFilterDataModel filter)
+        {
+            var result = new List<FutureWeekSubGridDataModel>();
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(_sqlConnString))
+                {
+                    await conn.OpenAsync();
+                    using (SqlCommand cmd = new SqlCommand("usp_get_assignments_sub", conn))
+                    {
+                        cmd.CommandType = CommandType.StoredProcedure;
+                        cmd.Parameters.Add(new SqlParameter("@iri_week", filter.IriWeek));
+                        cmd.Parameters.Add(new SqlParameter("@store_number", filter.StoreNumber));
+
+                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (reader.Read())
+                            {
+                                result.Add(new FutureWeekSubGridDataModel
+                                {
+                                    IriWeek = reader["iri_week"]?.ToString(),
+                                    //FldTerrtyNbr = reader["fld_terrty_nbr"]?.ToString(),
+                                    PositionName = reader["Position_name"]?.ToString(),
+                                    Bfd = reader["bfd"]?.ToString(),
+                                    OutletType = reader["outlet_type"]?.ToString(),
+                                    StoreNumber = reader["store_number"]?.ToString(),
+                                    StoreName = reader["store_name"]?.ToString(),
+                                    AddrLine1 = reader["addr_line1"]?.ToString(),
+                                    City = reader["city_name"]?.ToString(),
+                                    State = reader["state_cd"]?.ToString(),
+                                    Zip = reader["zip_cd"]?.ToString(),
+                                    //EmpId = reader["emp_id"]?.ToString(),
+                                    AssignedTo = reader["assigned_to"]?.ToString(),
+                                    TaskNumber = reader["task_number"]?.ToString(),
+                                    TaskName = reader["task_name"]?.ToString(), 
+                                    AvgCost = reader["avg_cost"]?.ToString(),
+                                    GuaranteedMiles = reader["guaranteed_miles"]?.ToString(),
+                                    AssignmentNotes = reader["assignment_notes"]?.ToString(),
+                                    TaskCompleted = reader["task_completed"]?.ToString(),
+                                    // CsrInfo = reader["csr_information"]?.ToString(),
+                                    Wave = reader["wave"]?.ToString(),
+                                    ExpectedCollectionTime = reader["expected_collection_time"]?.ToString(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (SqlException sqlEx)
+            {
+                _logger.LogError(sqlEx, "SQL Error in GetFutureWeekSubgridDataAsync for Store: {StoreNumber}, Week: {IriWeek}. Message: {Message}, Number: {Number}", 
+                    filter.StoreNumber, filter.IriWeek, sqlEx.Message, sqlEx.Number);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error in GetFutureWeekSubgridDataAsync for Store: {filter.StoreNumber}, Week: {filter.IriWeek}");
+                throw;
+            }
+
+            return result;
+        }
+
+        // Current week subgrid data retrieval
+        private async Task<List<CurrentWeekSubGridDataModel>> GetCurrentWeekSubgridDataAsync(SubGridFilterDataModel filter)
+        {
+            var result = new List<CurrentWeekSubGridDataModel>();
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(_sqlConnString))
+                {
+                    await conn.OpenAsync();
+                    using (SqlCommand cmd = new SqlCommand("usp_get_assignments_current_week_sub", conn))
+                    {
+                        cmd.CommandType = CommandType.StoredProcedure;
+                        cmd.Parameters.Add(new SqlParameter("@iri_week", filter.IriWeek));
+                        cmd.Parameters.Add(new SqlParameter("@store_number", filter.StoreNumber));
+
+                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (reader.Read())
+                            {
+                                result.Add(new CurrentWeekSubGridDataModel
+                                {
+                                    IriWeek = reader["iri_week"]?.ToString(),
+                                    //FldTerrtyNbr = reader["fld_terrty_nbr"]?.ToString(),
+                                    PositionName = reader["Position_name"]?.ToString(),
+                                    Bfd = reader["bfd"]?.ToString(),
+                                    OutletType = reader["outlet_type"]?.ToString(),
+                                    StoreNumber = reader["store_number"]?.ToString(),
+                                    StoreName = reader["store_name"]?.ToString(),
+                                    AddrLine1 = reader["addr_line1"]?.ToString(),
+                                    City = reader["city_name"]?.ToString(),
+                                    State = reader["state_cd"]?.ToString(),
+                                    Zip = reader["zip_cd"]?.ToString(),
+                                    //EmpId = reader["emp_id"]?.ToString(),
+                                    AssignedTo = reader["assigned_to"]?.ToString(),
+                                    TaskNumber = reader["task_number"]?.ToString(),
+                                    TaskName = reader["task_name"]?.ToString(), 
+                                    TaskCompleted = reader["task_completed"]?.ToString(),
+                                    Quality = reader["quality_approval"]?.ToString(),
+                                    CostOver = reader["cost_over"]?.ToString(),
+                                    GuaranteedMiles = reader["guaranteed_miles"]?.ToString(),
+                                    AssignmentNotes = reader["assignment_notes"]?.ToString(),
+                                    //CsrInfo = reader["csr_information"]?.ToString(),
+                                    //Wave = reader["wave"]?.ToString(),
+                                    //ExpectedCollectionTime = reader["expected_collection_time"]?.ToString(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (SqlException sqlEx)
+            {
+                _logger.LogError(sqlEx, "SQL Error in GetCurrentWeekSubgridDataAsync for Store: {StoreNumber}, Week: {IriWeek}. Message: {Message}, Number: {Number}", 
+                    filter.StoreNumber, filter.IriWeek, sqlEx.Message, sqlEx.Number);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error in GetCurrentWeekSubgridDataAsync for Store: {filter.StoreNumber}, Week: {filter.IriWeek}");
+                throw;
+            }
+
+            return result;
+        }
+
+        // Previous week subgrid data retrieval
+        private async Task<List<PreviousWeekSubGridDataModel>> GetPreviousWeekSubgridDataAsync(SubGridFilterDataModel filter)
+        {
+            var result = new List<PreviousWeekSubGridDataModel>();
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(_sqlConnString))
+                {
+                    await conn.OpenAsync();
+                    using (SqlCommand cmd = new SqlCommand("usp_get_assignments_previous_weeks_sub", conn))
+                    {
+                        cmd.CommandType = CommandType.StoredProcedure;
+                        cmd.Parameters.Add(new SqlParameter("@iri_week", filter.IriWeek));
+                        cmd.Parameters.Add(new SqlParameter("@store_number", filter.StoreNumber));
+
+                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (reader.Read())
+                            {
+                                result.Add(new PreviousWeekSubGridDataModel
+                                {
+                                    IriWeek = reader["iri_week"]?.ToString(),
+                                    //FldTerrtyNbr = reader["fld_terrty_nbr"]?.ToString(),
+                                    PositionName = reader["Position_name"]?.ToString(),
+                                    Bfd = reader["bfd"]?.ToString(),
+                                    OutletType = reader["outlet_type"]?.ToString(),
+                                    StoreNumber = reader["store_number"]?.ToString(),
+                                    StoreName = reader["store_name"]?.ToString(),
+                                    AddrLine1 = reader["addr_line1"]?.ToString(),
+                                    City = reader["city_name"]?.ToString(),
+                                    State = reader["state_cd"]?.ToString(),
+                                    Zip = reader["zip_cd"]?.ToString(),
+                                    //EmpId = reader["emp_id"]?.ToString(),
+                                    AssignedTo = reader["assigned_to"]?.ToString(),
+                                    TaskNumber = reader["task_number"]?.ToString(),
+                                    TaskName = reader["task_name"]?.ToString(), 
+                                    TaskCompleted = reader["task_completed"]?.ToString(),
+                                    Quality = reader["quality_approval"]?.ToString(),
+                                    CostOver = reader["cost_over"]?.ToString(),
+                                    WK1FSRProdCost = reader["WK1FSRProdCost"]?.ToString(),
+                                    //WK1StoreTravelCost = reader["WK1StoreTravelCost"]?.ToString(),
+                                   // WK1StoreTravelOvgCost = reader["WK1StoreTravelOvgCost"]?.ToString(),
+                                    WK2FSRProdCost = reader["WK2FSRProdCost"]?.ToString(),
+                                   // WK2StoreTravelCost = reader["WK2StoreTravelCost"]?.ToString(),
+                                   // WK2StoreTravelOvgCost = reader["WK2StoreTravelOvgCost"]?.ToString(),
+                                    AssignmentNotes = reader["assignment_notes"]?.ToString(),
+                                    //CsrInfo = reader["csr_information"]?.ToString(),
+                                    //Wave = reader["wave"]?.ToString(),
+                                    //ExpectedCollectionTime = reader["expected_collection_time"]?.ToString(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (SqlException sqlEx)
+            {
+                _logger.LogError(sqlEx, "SQL Error in GetPreviousWeekSubgridDataAsync for Store: {StoreNumber}, Week: {IriWeek}. Message: {Message}, Number: {Number}", 
+                    filter.StoreNumber, filter.IriWeek, sqlEx.Message, sqlEx.Number);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error in GetPreviousWeekSubgridDataAsync for Store: {filter.StoreNumber}, Week: {filter.IriWeek}");
+                throw;
+            }
+
+            return result;
+        }
+
+        [HttpPost("[action]")]
+        public List<ProximityData> GetProximityData(ProximityDataFilter filter)
+        {
+            return _context.GetProximityData(filter);
+
         }
     }
 }
-5. Build & Test
-bash
-dotnet clean
-dotnet build
-dotnet run
-6. Test Endpoint
-bash
-curl -X POST http://localhost:5000/api/pdf/generate-workorder \
-  -H "Content-Type: application/json" \
-  -d '{
-    "fsrName": "John Doe",
-    "fsrId": "EMP001",
-    "fsrEmail": "john@example.com",
-    "territory": "North",
-    "assignedDate": "2025-11-04",
-    "tasks": [{
-      "taskId": 1,
-      "taskName": "Inventory Check",
-      "taskNumber": "TASK001",
-      "storeNumber": "12345",
-      "storeName": "Main Store",
-      "status": "Pending"
-    }]
-  }' > WorkOrder.pdf
+TaskAssinmentController.cs
+
+<h2 mat-dialog-title class="title-style" cdkDrag cdkDragRootElement=".cdk-overlay-pane" cdkDragHandle>
+  <span>{{ getDialogTitle() }}</span>
+</h2>
+
+<mat-dialog-content class="assignment-dialog-content">
+  <!-- Filter Section -->
+  <div class="filter-section" [formGroup]="filterForm">
+    <div class="filter-row">
+      <mat-form-field appearance="outline">
+        <mat-label>IRI Week</mat-label>
+        <input matInput [value]="data.iriWeek" readonly />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Territory</mat-label>
+        <mat-select formControlName="territory" (selectionChange)="onTerritoryChange()">
+          <mat-option *ngFor="let territory of territories" [value]="territory.territory_id">
+            {{ territory.territory_name }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <div class="filter-row">
+      <!-- First Name Autocomplete -->
+      <mat-form-field appearance="outline">
+        <mat-label>First Name</mat-label>
+        <input
+          matInput
+          formControlName="firstName"
+          placeholder="Search by first name..."
+          [matAutocomplete]="firstNameAuto"
+        />
+        <mat-autocomplete
+          #firstNameAuto="matAutocomplete"
+          (optionSelected)="onFirstNameSelected($event)"
+          [displayWith]="displayFn"
+        >
+          <mat-option *ngFor="let option of filteredFirstNames | async" [value]="option">
+            {{ option.FirstName }} {{ option.LastName }}
+          </mat-option>
+        </mat-autocomplete>
+      </mat-form-field>
+
+      <!-- Last Name Autocomplete -->
+      <mat-form-field appearance="outline">
+        <mat-label>Last Name</mat-label>
+        <input
+          matInput
+          formControlName="lastName"
+          placeholder="Search by last name..."
+          [matAutocomplete]="lastNameAuto"
+        />
+        <mat-autocomplete
+          #lastNameAuto="matAutocomplete"
+          (optionSelected)="onLastNameSelected($event)"
+          [displayWith]="displayFn"
+        >
+          <mat-option *ngFor="let option of filteredLastNames | async" [value]="option">
+            {{ option.FirstName }} {{ option.LastName }}
+          </mat-option>
+        </mat-autocomplete>
+      </mat-form-field>
+
+      <!-- Search Button -->
+      <button mat-raised-button color="primary" (click)="searchFsrs()" [disabled]="isLoading">
+        <mat-icon>search</mat-icon>
+        Search
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading Indicator -->
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner diameter="30"></mat-spinner>
+    <span>Loading FSRs...</span>
+  </div>
+
+  <!-- FSR Table with Sticky Header -->
+  <div class="table-wrapper" *ngIf="!isLoading">
+    <div class="table-container">
+      <table mat-table [dataSource]="fsrDataSource" class="fsr-table">
+        <!-- Action Columns (conditional based on mode) -->
+        <ng-container matColumnDef="assign_all" *ngIf="showColumn('assign_all')">
+          <mat-header-cell *matHeaderCellDef>Assign All</mat-header-cell>
+          <mat-cell *matCellDef="let fsr">
+            <button
+              mat-stroked-button
+              color="primary"
+              (click)="assignTask(fsr, 2)"
+              class="action-button"
+            >
+              Assign All
+            </button>
+          </mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="unassign_all" *ngIf="showColumn('unassign_all')">
+          <mat-header-cell *matHeaderCellDef>Unassign All</mat-header-cell>
+          <mat-cell *matCellDef="let fsr">
+            <button
+              mat-stroked-button
+              color="warn"
+              (click)="assignTask(fsr, 4)"
+              class="action-button"
+            >
+              Unassign All
+            </button>
+          </mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="assign" *ngIf="showColumn('assign')">
+          <mat-header-cell *matHeaderCellDef>Assign</mat-header-cell>
+          <mat-cell *matCellDef="let fsr">
+            <button
+              mat-stroked-button
+              color="primary"
+              (click)="assignTask(fsr, 1)"
+              class="action-button"
+            >
+              Assign
+            </button>
+          </mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="unassign" *ngIf="showColumn('unassign')">
+          <mat-header-cell *matHeaderCellDef>Unassign</mat-header-cell>
+          <mat-cell *matCellDef="let fsr">
+            <button
+              mat-stroked-button
+              color="warn"
+              (click)="assignTask(fsr, 3)"
+              class="action-button"
+            >
+              Unassign
+            </button>
+          </mat-cell>
+        </ng-container>
+
+        <!-- FSR Information Columns -->
+        <ng-container matColumnDef="name">
+          <mat-header-cell *matHeaderCellDef class="col-name">Name</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-name">{{ fsr.LastName }}, {{ fsr.FirstName }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="address">
+          <mat-header-cell *matHeaderCellDef class="col-address">Address</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-address">{{ fsr.AddrLine1 }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="assigned_hrs">
+          <mat-header-cell *matHeaderCellDef class="col-assigned-hrs">Assigned Hrs</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-assigned-hrs">{{ fsr.AssignedHrs }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="max_hrs">
+          <mat-header-cell *matHeaderCellDef class="col-max-hrs">Max Hours</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-max-hrs">{{ fsr.MaxHrs }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="cluster">
+          <mat-header-cell *matHeaderCellDef class="col-cluster">Cluster</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-cluster">{{ fsr.PositionName }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="contact">
+          <mat-header-cell *matHeaderCellDef class="col-contact">Contact</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-contact">
+            <div class="contact-item">{{ fsr.phone }}</div>
+            <div class="contact-item"><a href="mailto:{{ fsr.Email }}" class="contact-link">{{ fsr.Email }}</a></div>
+          </mat-cell>
+        </ng-container>
+
+        <mat-header-row *matHeaderRowDef="getDisplayedColumns2(); sticky: true"></mat-header-row>
+        <mat-row *matRowDef="let row; columns: getDisplayedColumns2()"></mat-row>
+      </table>
+
+      <div *ngIf="fsrDataSource.data.length === 0 && !isLoading" class="no-data">
+        No FSRs found. Please adjust your search criteria.
+      </div>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end" class="dialog-actions">
+  <button mat-button (click)="onClose()">Close</button>
+</mat-dialog-actions>
+
+<!-- Fixed Close Button in Bottom Right Corner -->
+<button class="fixed-close-btn" title="Close" [mat-dialog-close]="{ hasChanges: false }">
+  <mat-icon class="close-btn-icon">close</mat-icon>
+</button>
+
+<footer>
+  <div class="mat-spinner-container">
+      <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
+      <div *ngIf="showSpinner" style="position:relative;left: 10px">Loading...</div>
+  </div>
+</footer>
+
+import { CommonService } from './../../shared/common.service';
+import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
+import { FormBuilder, FormGroup } from '@angular/forms';
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { HttpClient } from '@angular/common/http';
+import { MatTableDataSource } from '@angular/material/table';
+import {  catchError,  debounceTime,  distinctUntilChanged,  firstValueFrom,  map,  Observable,  of,  Subject,  switchMap,  takeUntil,} from 'rxjs';
+
+export interface AssignmentDialogData {
+  storeNumber: string;
+  storeName: string;
+  taskNumber?: string;
+  taskName?: string;
+  iriWeek: string;
+  territoryId: string;
+  positionNumber?: string;
+  mode: 'StoreLevel' | 'TaskLevel' | 'ClusterLevel';
+}
+
+interface NameOption {
+  emp_name: string;
+  emp_id: string;
+  FirstName: string;
+  LastName: string;
+  value: string;
+  id: string;
+}
+
+interface DialogResult {
+  hasChanges: boolean;
+  data?: any;
+}
+
+@Component({
+  selector: 'app-assignment-dialog',
+  templateUrl: './assignment-dialog.component.html',
+  styleUrls: ['./assignment-dialog.component.css'],
+})
+export class AssignmentDialogComponent implements OnInit, OnDestroy {
+  // Form & Data Management
+  filterForm: FormGroup;
+  territories: any[] = [];
+  fsrDataSource = new MatTableDataSource<any>([]);
+
+  // UI State Management
+  isLoading = false;
+  showSpinner = false;
+
+  // Autocomplete
+  filteredFirstNames: Observable<NameOption[]>;
+  filteredLastNames: Observable<NameOption[]>;
+
+  // Track Changes
+  private hasChanges = false;
+  private destroy$ = new Subject<void>();
+  selectedFirstNameId: string = '';
+  selectedLastNameId: string = '';
+
+  // Display Columns
+  displayedColumns: string[] = [];
+
+  constructor(
+    private dialogRef: MatDialogRef<AssignmentDialogComponent>,
+    @Inject(MAT_DIALOG_DATA) public data: AssignmentDialogData,
+    private fb: FormBuilder,
+    private http: HttpClient,
+    private commonService: CommonService,
+    @Inject('BASE_URL') private baseUrl: string
+  ) {
+    this.filterForm = this.fb.group({
+      territory: [data.territoryId],
+      firstName: [''],
+      lastName: [''],
+    });
+  }
+
+  async ngOnInit(): Promise<void> {
+    await this.loadTerritories();
+    this.setupAutocomplete();
+    await this.loadCurrentAssignment();
+    this.initializeDisplayedColumns();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+
+  getDialogTitle(): string {
+    const location =
+      this.data.mode === 'ClusterLevel'
+        ? `Cluster: ${this.data.positionNumber} | Store: ALL`
+        : `Store: ${this.data.storeName} (${this.data.storeNumber})`;
+
+    const task = this.data.taskName
+      ? ` | Task: ${this.data.taskName}`
+      : ' | Task: ALL';
+
+    return `Assignment for ${location}${task}`;
+  }
+
+ 
+  private initializeDisplayedColumns(): void {
+    this.displayedColumns = this.getDisplayedColumns();
+  }
+
+
+  private getDisplayedColumns(): string[] {
+    const columns = [];
+
+    // Add action columns based on mode
+    if (this.data.mode === 'StoreLevel') {
+      columns.push('assign_all', 'unassign_all');
+    } else if (this.data.mode === 'TaskLevel') {
+      columns.push('assign', 'unassign');
+    } else if (this.data.mode === 'ClusterLevel') {
+      columns.push('assign_to_cluster', 'unassign_from_cluster');
+    }
+
+    // Add info columns
+    columns.push('name', 'address', 'assigned_hrs', 'max_hrs', 'cluster', 'contact');
+
+    return columns;
+  }
+
+
+  showColumn(columnName: string): boolean {
+    return this.displayedColumns.includes(columnName);
+  }
+
+
+  private async loadTerritories(): Promise<void> {
+    try {
+      this.territories = await firstValueFrom(
+        this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetTerritory')
+      );
+    } catch (error) {
+      console.error('Error loading territories:', error);
+      this.showSpinner = true;
+    }
+  }
+
+  
+  private async loadCurrentAssignment(): Promise<void> {
+    this.isLoading = true;
+    try {
+      const params = {
+        IriWeek: this.data.iriWeek,
+        StoreNumber: this.data.storeNumber,
+        TaskNumber: this.data.taskNumber || '',
+        AssignmentMode: this.data.mode,
+        PositionNumber: this.data.positionNumber || '',
+        CountryId: this.commonService.getCurrentCountry(),
+      };
+
+      const response = await firstValueFrom(
+        this.http.post<any[]>(
+          this.baseUrl + 'api/TaskAssinment/GetCurrentAssignment',
+          params
+        )
+      );
+
+      this.fsrDataSource.data = response;
+    } catch (error) {
+      console.error('Error loading current assignment:', error);
+      this.fsrDataSource.data = [];
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+
+  async searchFsrs(): Promise<void> {
+    this.isLoading = true;
+    try {
+      const formValue = this.filterForm.value;
+
+     
+
+      const params = {
+        IriWeek: this.data.iriWeek,
+        TerritoryId: formValue.territory,
+        FirstName: formValue.firstName?.FirstName || '',
+        LastName: formValue.lastName?.FirstName || '',
+        PositionNumber: this.data.positionNumber || '',
+        countryId: this.commonService.getCurrentCountry(),
+        Area: '23',
+      };
+
+      const response = await firstValueFrom(
+        this.http.post<any[]>(
+          this.baseUrl + 'api/TaskAssinment/GetFsrForAssignment',
+          params
+        )
+      );
+
+      this.fsrDataSource.data = response;
+    } catch (error) {
+      console.error('Error searching FSRs:', error);
+      this.fsrDataSource.data = [];
+      alert('Error searching for FSRs. Please try again.');
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+ 
+  async assignTask(fsr: any, action: number): Promise<void> {
+    const actionNames: { [key: number]: string } = {
+      1: 'assign current task to',
+      2: 'assign all tasks to',
+      3: 'unassign current task from',
+      4: 'unassign all tasks from',
+      5: 'assign to cluster',
+      6: 'unassign from cluster',
+    };
+
+    const message = `Are you sure you want to ${actionNames[action]} ${fsr.FirstName} ${fsr.LastName}?`;
+
+    if (!confirm(message)) return;
+
+    this.showSpinner = true;
+    try {
+      const params = {
+        iri_week: this.data.iriWeek,
+        territory_id: this.filterForm.get('territory')?.value,
+        store_number: this.data.storeNumber,
+        emp_id: fsr.emp_id,
+        task_number: this.data.taskNumber || '',
+        position_number: this.data.positionNumber || '',
+        action: action,
+        assignment_mode: this.data.mode,
+        countryId: this.commonService.getCurrentCountry(),
+      };
+
+      await firstValueFrom(
+        this.http.post(this.baseUrl + 'api/TaskAssinment/SaveAssignment', params)
+      );
+      this.hasChanges = true;
+      await this.loadCurrentAssignment();
+      this.filterForm.patchValue({ firstName: '', lastName: '' });
+
+      alert('New Assignment saved successfully.');
+    } catch (error) {
+      console.error('Error saving assignment:', error);
+      alert('Error while saving assignments.');
+    } finally {
+      this.showSpinner = false;
+    }
+  }
+
+
+  private setupAutocomplete(): void {
+    this.filteredFirstNames = this.filterForm
+      .get('firstName')!
+      .valueChanges.pipe(
+        debounceTime(300),
+        distinctUntilChanged((prev, curr) => {
+          if (typeof prev === 'object' && typeof curr === 'object') {
+            return prev?.id === curr?.id;
+          }
+          return prev === curr;
+        }),
+        switchMap((value) => {
+          if (typeof value === 'string' && value.length >= 2) {
+            return this.searchFirstNames(value);
+          } else {
+            return of([]);
+          }
+        }),
+        takeUntil(this.destroy$)
+      );
+
+    
+    this.filteredLastNames = this.filterForm
+      .get('lastName')!
+      .valueChanges.pipe(
+        debounceTime(300),
+        distinctUntilChanged((prev, curr) => {
+          if (typeof prev === 'object' && typeof curr === 'object') {
+            return prev?.id === curr?.id;
+          }
+          return prev === curr;
+        }),
+        switchMap((value) => {
+          if (typeof value === 'string' && value.length >= 2) {
+            return this.searchLastNames(value);
+          } else {
+            return of([]);
+          }
+        }),
+        takeUntil(this.destroy$)
+      );
+  }
+
+
+  private searchFirstNames(searchText: string): Observable<NameOption[]> {
+    const params = {
+      IriWeek: this.data.iriWeek,
+      TerritoryId: this.filterForm.get('territory')?.value || this.data.territoryId,
+      SearchText: searchText,
+      NameType: 'first_name',
+    };
+
+    return this.http
+      .post<any[]>(this.baseUrl + 'api/TaskAssinment/GetName', params)
+      .pipe(
+        map((response) =>
+          response.map((item) => ({
+            emp_name: item.emp_name,
+            emp_id: item.emp_id,
+            FirstName: item.FirstName,
+            LastName: item.LastName,
+            value: item.emp_name,
+            id: item.emp_id,
+          }))
+        ),
+        catchError((error) => {
+          console.error('Error fetching first names:', error);
+          return of([]);
+        })
+      );
+  }
+
+ 
+  private searchLastNames(searchText: string): Observable<NameOption[]> {
+    const params = {
+      IriWeek: this.data.iriWeek,
+      TerritoryId: this.filterForm.get('territory')?.value || this.data.territoryId,
+      SearchText: searchText,
+      NameType: 'last_name',
+    };
+
+    return this.http
+      .post<any[]>(this.baseUrl + 'api/TaskAssinment/GetName', params)
+      .pipe(
+        map((response) =>
+          response.map((item) => ({
+            emp_name: item.emp_name,
+            emp_id: item.emp_id,
+            FirstName: item.FirstName,
+            LastName: item.LastName,
+            value: item.emp_name,
+            id: item.emp_id,
+          }))
+        ),
+        catchError((error) => {
+          console.error('Error fetching last names:', error);
+          return of([]);
+        })
+      );
+  }
+
+
+  onFirstNameSelected(event: any): void {
+    const selectedOption = event.option.value as NameOption;
+    this.selectedFirstNameId = selectedOption.id;
+    // Auto-search when name is selected
+    setTimeout(() => {
+      this.searchFsrs();
+    }, 100);
+  }
+
+  
+  onLastNameSelected(event: any): void {
+    const selectedOption = event.option.value as NameOption;
+    this.selectedLastNameId = selectedOption.id;
+    // Auto-search when name is selected
+    setTimeout(() => {
+      this.searchFsrs();
+    }, 100);
+  }
+
+  
+  displayFn(option: NameOption): string {
+    return option && option.FirstName ? option.FirstName : '';
+  }
+
+ 
+  onTerritoryChange(): void {
+    this.filterForm.patchValue({
+      firstName: '',
+      lastName: '',
+    });
+    this.selectedFirstNameId = '';
+    this.selectedLastNameId = '';
+    this.fsrDataSource.data = [];
+  }
+
+  
+  onClose(): void {
+    const result: DialogResult = {
+      hasChanges: this.hasChanges,
+    };
+    this.dialogRef.close(result);
+  }
+
+  
+  getDisplayedColumns2(): string[] {
+    return this.displayedColumns;
+  }
+}
+
+<div class="table-container">
+  <mat-card class="table-card" [ngClass]="getWeekTypeClass()">
+    
+    <mat-card-content>
+      <div class="table-wrapper">
+        <mat-table #table [dataSource]="dataSource" matSort class="store-table mat-elevation-2" [ngClass]="getWeekTypeTableClass()">
+          
+          <!-- ==================== ALL COLUMN DEFINITIONS ==================== -->
+          
+          <!-- Store Number Column -->
+          <ng-container matColumnDef="store_number" *ngIf="isColumnVisible('store_number')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="StoreNumber" class="mat-header-style">
+              <button mat-icon-button 
+                      [disabled]="isExpandingAll"
+                      (click)="expandAllRows(); $event.stopPropagation()" 
+                      [title]="allExpanded ? 'Collapse All' : 'Expand All'"
+                      class="expand-all-btn">
+                <mat-icon>{{allExpanded ? 'unfold_less' : 'unfold_more'}}</mat-icon>
+              </button>
+              Store #
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="store-number-cell">
+              <span class="caret" [class.clicked]="isRowExpanded(element)">▼</span>
+              <span class="store-number">{{element.StoreNumber}}</span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Territory -->
+          <ng-container matColumnDef="territory" *ngIf="isColumnVisible('territory')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="FldTerrtyNbr" class="mat-header-style" matTooltip="Territory">
+              Terr
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.FldTerrtyNbr }}</mat-cell>
+          </ng-container>
+
+          <!-- Position Number -->
+          <ng-container matColumnDef="position_number" *ngIf="isColumnVisible('position_number')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="PositionName" class="mat-header-style">
+              Position #
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.PositionName || element.positionName}}</mat-cell>
+          </ng-container>
+
+            <!--Task-->
+          <ng-container matColumnDef="task" *ngIf="isColumnVisible('task')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="task" class="mat-header-style">
+              Task
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">
+
+              <span *ngIf="!element.isChildRow">
+                ALL
+              </span>
+
+              <span  *ngIf="element.isChildRow">
+                {{element.taskName}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- BFD -->
+          <ng-container matColumnDef="bdf" *ngIf="isColumnVisible('bdf')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="Bfd" class="mat-header-style">BFD</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.Bfd || element.bfd}}</mat-cell>
+          </ng-container>
+
+          <!-- Outlet -->
+          <ng-container matColumnDef="outlet" *ngIf="isColumnVisible('outlet')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="OutletType" class="mat-header-style">
+              Outlet
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.OutletType|| element.outletType}}</mat-cell>
+          </ng-container>
+
+          <!-- Store Name -->
+          <ng-container matColumnDef="store_name" *ngIf="isColumnVisible('store_name')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="StoreName" class="mat-header-style">
+              Store Name
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="store-name-cell">
+              <span class="store-name" 
+                    *ngIf="!element.isChildRow"
+                    (click)="openProximityDataDialog(element); $event.stopPropagation();">
+                {{element.StoreName }}
+              </span>
+
+              <span  *ngIf="element.isChildRow">
+                {{element.storeName}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Address -->
+          <ng-container matColumnDef="addr_line1" *ngIf="isColumnVisible('addr_line1')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="AddrLine1" class="mat-header-style">
+              Address
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.AddrLine1}}</mat-cell>
+          </ng-container>
+
+          <!-- City -->
+          <ng-container matColumnDef="city" *ngIf="isColumnVisible('city')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="City" class="mat-header-style">City</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.City}}</mat-cell>
+          </ng-container>
+
+          <!-- State -->
+          <ng-container matColumnDef="state" *ngIf="isColumnVisible('state')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="State" class="mat-header-style">State</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.State}}</mat-cell>
+          </ng-container>
+
+          <!-- Zip -->
+          <ng-container matColumnDef="zip" *ngIf="isColumnVisible('zip')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="Zip" class="mat-header-style">Zip</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.Zip}}</mat-cell>
+          </ng-container>
+
+          <!-- Assigned To -->
+          <ng-container matColumnDef="assigned_to" *ngIf="isColumnVisible('assigned_to')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="AssignedTo" class="mat-header-style">
+              Assigned To
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="assigned-cell" 
+                      [class.child-assigned]="element.isChildRow"
+                      (click)="element.isChildRow ? openTaskAssignmentDialog2(element) : openAssignmentDialog(element, 'StoreLevel'); $event.stopPropagation()">
+              
+              <!-- Parent Row Assigned To -->
+              <div *ngIf="!element.isChildRow" class="assignment-container">
+                <div class="assignment-names" 
+                     [ngClass]="getAssignmentClass(element.AssignedTo)"
+                     [matTooltip]="getAssignedToTooltip(element.AssignedTo)"
+                     matTooltipClass="multi-line-tooltip">
+                  
+                  <div *ngIf="!shouldDisplayMultipleLines(element.AssignedTo)" class="single-name">
+                    {{element.AssignedTo || 'NOT ASSIGNED'}}
+                  </div>
+                  
+                  <div *ngIf="shouldDisplayMultipleLines(element.AssignedTo)" class="multiple-names">
+                    <div *ngFor="let name of getIndividualNames(element.AssignedTo); let i = index" 
+                         class="name-line" [class.first-name]="i === 0">
+                      {{name}}
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Optimal Collector Indicator -->
+                <div class="optimal-collector-indicator">
+                  <div class="circle-green" 
+                       *ngIf="hasOptimalCollector(element.OptimalCollectorId) && isOptimalCollectorMatch(element.EmpId, element.OptimalCollectorId)" 
+                       (click)="openClosestFsrDataDialog(element); $event.stopPropagation()"
+                       matTooltip="Optimal collector assigned">
+                    <span class="checkmark"></span>
+                  </div>
+                  
+                  <div class="circle-red" 
+                       *ngIf="hasOptimalCollector(element.OptimalCollectorId) && !isOptimalCollectorMatch(element.EmpId, element.OptimalCollectorId)" 
+                       (click)="openClosestFsrDataDialog(element); $event.stopPropagation()"
+                       matTooltip="Non-optimal collector assigned">
+                    <span class="crossmark"></span>
+                  </div>
+                  
+                  <div class="circle-gray" 
+                       *ngIf="!hasOptimalCollector(element.OptimalCollectorId) && element.EmpId" 
+                       (click)="openClosestFsrDataDialog(element); $event.stopPropagation()"
+                       matTooltip="No optimal collector data">
+                    <span class="checkmark"></span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Child Row Assigned To -->
+              <span *ngIf="element.isChildRow" class="clickable-link">
+                {{element.assignedTo || element.AssignedTo}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Task Completed -->
+          <ng-container matColumnDef="task_completed" *ngIf="isColumnVisible('task_completed')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="TaskCompleted" class="mat-header-style" matTooltip="Completed">
+              Completed
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              <span *ngIf="!element.isChildRow" class="status-badge" [ngClass]="getTaskCompletedClass(element.TaskCompleted)">
+                {{formatTaskCompleted(element.TaskCompleted)}}
+              </span>
+                 <span *ngIf="element.isChildRow" class="status-badge">
+                {{ element.taskCompleted}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Cost Over -->
+          <ng-container matColumnDef="cost_over" *ngIf="isColumnVisible('cost_over')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="CostOver" class="mat-header-style">
+              Over Cost
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              <span class="cost-badge" [ngClass]="getCostOverClass(element.CostOver || element.costOver)">
+                {{(element.CostOver || element.costOver) | currencyFormat}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Guaranteed Miles -->
+          <ng-container matColumnDef="guaranteed_miles" *ngIf="isColumnVisible('guaranteed_miles')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="GuaranteedMiles" class="mat-header-style">
+              Miles
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              {{formatGuaranteedMiles(element.GuaranteedMiles || element.guaranteedMiles)}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- Average Cost (Future Week) -->
+          <ng-container matColumnDef="avg_cost" *ngIf="isColumnVisible('avg_cost')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="AvgCost" class="mat-header-style">
+              Avg Cost
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              {{formatAvgCost(element.AvgCost || element.avgCost)}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK1 Costs -->
+          <ng-container matColumnDef="wk1_costs" *ngIf="isColumnVisible('wk1_costs')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK1FSRProdCost" class="mat-header-style">
+              W{{this.currentFilters?.iri_week}} Cost
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" 
+                      [ngClass]="{'negative': (element.WK1FSRProdCost || element.wK1FSRProdCost) > 0, 
+                                  'positive': (element.WK1FSRProdCost || element.wK1FSRProdCost) <= 0}">
+              {{(element.WK1FSRProdCost || element.wK1FSRProdCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK1 Travel -->
+          <ng-container matColumnDef="wk1_travel" *ngIf="isColumnVisible('wk1_travel')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK1StoreTravelCost" class="mat-header-style">
+              W{{this.currentFilters?.iri_week}} Travel
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="travel-column">
+              {{(element.WK1StoreTravelCost || element.wK1StoreTravelCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+        
+
+          <!-- WK1 Ovg Travel -->
+          <ng-container matColumnDef="wk1_ovg_travel" *ngIf="isColumnVisible('wk1_ovg_travel')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK1StoreTravelOvgCost" class="mat-header-style">
+              W{{this.currentFilters?.iri_week}} Ovg Travel
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element"
+                      [ngClass]="{'negative': (element.WK1StoreTravelOvgCost || element.wK1StoreTravelOvgCost) > 0, 
+                                  'positive': (element.WK1StoreTravelOvgCost || element.wK1StoreTravelOvgCost) <= 0}">
+              {{(element.WK1StoreTravelOvgCost || element.wK1StoreTravelOvgCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK2 Costs -->
+          <ng-container matColumnDef="wk2_costs" *ngIf="isColumnVisible('wk2_costs')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK2FSRProdCost" class="mat-header-style">
+              W{{returnWeekminustwo(this.currentFilters.iri_week)}} Cost
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element"
+                      [ngClass]="{'negative': (element.WK2FSRProdCost || element.wK2FSRProdCost) > 0, 
+                                  'positive': (element.WK2FSRProdCost || element.wK2FSRProdCost) <= 0}">
+              {{(element.WK2FSRProdCost || element.wK2FSRProdCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK2 Travel -->
+          <ng-container matColumnDef="wk2_travel" *ngIf="isColumnVisible('wk2_travel')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK2StoreTravelCost" class="mat-header-style">
+              W{{returnWeekminustwo(this.currentFilters.iri_week)}} Travel
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="travel-column">
+              {{(element.WK2StoreTravelCost || element.wK2StoreTravelCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK2 Ovg Travel -->
+          <ng-container matColumnDef="wk2_ovg_travel" *ngIf="isColumnVisible('wk2_ovg_travel')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK2StoreTravelOvgCost" class="mat-header-style">
+              W{{returnWeekminustwo(this.currentFilters.iri_week)}} Ovg Travel
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element"
+                      [ngClass]="{'negative': (element.WK2StoreTravelOvgCost || element.wK2StoreTravelOvgCost) > 0, 
+                                  'positive': (element.WK2StoreTravelOvgCost || element.wK2StoreTravelOvgCost) <= 0}">
+              {{(element.WK2StoreTravelOvgCost || element.wK2StoreTravelOvgCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- Comments -->
+          <ng-container matColumnDef="user_comment" *ngIf="isColumnVisible('user_comment')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="UserComment" class="mat-header-style">
+              Comments
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="comment-cell">
+              <div *ngIf="!element.isChildRow"
+                   class="comment-display"
+                   (click)="openCommentDialog(element); $event.stopPropagation();"
+                   [title]="element.UserComment || 'Click to add/edit comment'"
+                   [class.has-comment]="element.UserComment"
+                   [class.clickable]="canEditComments || element.UserComment">
+                <span class="comment-text">{{getCommentDisplay(element.UserComment)}}</span>
+              </div>
+              <div *ngIf="element.isChildRow">
+                {{element.UserComment}}
+              </div>
+            </mat-cell>
+          </ng-container>
+
+          <!-- ==================== HEADER AND DATA ROWS ==================== -->
+          
+          <mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></mat-header-row>
+          
+          <!-- Regular rows (both parent and child) -->
+          <mat-row *matRowDef="let row; columns: displayedColumns;"
+                   class="table-row"
+                   [class.parent-row]="!row.isChildRow"
+                   [class.child-row]="row.isChildRow"
+                   [class.child-row-first]="row.isChildRow && row.isFirstChild"
+                   [class.child-row-last]="row.isChildRow && row.isLastChild"
+                   [cdkDetailRow]="row" 
+                   [cdkDetailRowTpl]="tpl"                  
+                   (toggleChange)="onDataLoadRequest({directive: $event, rowData: row})"
+                   matRipple>
+          </mat-row>
+        </mat-table>
+      </div>
+      
+      <!-- Search and Paginator -->
+      <div class="search-paginator-bar">
+        <mat-form-field appearance="standard" class="search-field">
+          <mat-label>Search...</mat-label>
+          <input matInput [formControl]="searchControl" 
+                 placeholder="Search by store number, name, address, city, state, assigned to, etc.">
+          <mat-icon matPrefix>search</mat-icon>
+          <button mat-button *ngIf="searchControl.value" matSuffix mat-icon-button (click)="clearSearch()">
+            <mat-icon>clear</mat-icon>
+          </button>
+        </mat-form-field>
+        
+        <mat-paginator [pageSizeOptions]="[50,100,150,200]"
+                       showFirstLastButtons="true">
+        </mat-paginator>
+      </div>
+
+    </mat-card-content>
+  </mat-card>
+</div>
+
+<!-- Empty template - child rows are rendered directly in the table -->
+<ng-template #tpl let-element></ng-template>
+
+<footer>
+  <div class="mat-spinner-container">
+    <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
+    <div *ngIf="showSpinner" style="position:relative;left: 10px">Loading...</div>
+  </div>
+</footer>
+import { trigger, state, style, transition, animate } from '@angular/animations';
+import { HttpClient } from '@angular/common/http';
+import { AfterViewInit, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren, Pipe } from '@angular/core';
+import { FormControl } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
+import { MatPaginator } from '@angular/material/paginator';
+import { MatSort } from '@angular/material/sort';
+import { MatTable, MatTableDataSource } from '@angular/material/table';
+import { catchError, debounceTime, distinctUntilChanged, firstValueFrom, of, Subject, takeUntil, tap } from 'rxjs';
+import { AssignmentDialogComponent } from 'src/app/dialog/assignment-dialog/assignment-dialog.component';
+import { ClosestFsrDialogComponent } from 'src/app/dialog/closest-fsr-dialog/closest-fsr-dialog.component';
+import { ProximityDialogComponent } from 'src/app/dialog/proximity-dialog/proximity-dialog.component';
+import { StoreCommentDialogComponent } from 'src/app/dialog/store-comment-dialog/store-comment-dialog.component';
+import { CdkDetailRowDirective } from 'src/app/shared/cdk-detail-row.directive';
+import { CommonService } from 'src/app/shared/common.service';
+import { SnackbarService } from 'src/app/shared/snackbar.service';
+@Component({
+  selector: 'app-store-table',
+  templateUrl: './store-table.component.html',
+  styleUrls: ['./store-table.component.css'],
+  animations: [
+    trigger('detailExpand', [
+      state('collapsed', style({height: '0px', minHeight: '0'})),
+      state('expanded', style({height: '*'})),
+      transition('expanded <=> collapsed', animate('225ms cubic-bezier(0.4, 0.0, 0.2, 1)')),
+    ]),
+  ],
+})
+export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
+  
+  @ViewChild(MatTable, { static: false }) table: MatTable<any>;
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
+  @ViewChildren(CdkDetailRowDirective) detailRows!: QueryList<CdkDetailRowDirective>;
+
+  // Week type tracking
+  currentWeekType: 'current' | 'future' | 'previous' = 'current';
+
+  // Column definitions for different week types
+  baseColumns = ['store_number', 'territory','store_name','task', 'addr_line1', 'city', 'state', 'assigned_to', 'user_comment'];
+  
+  currentWeekColumns = [
+    'store_number', 'territory','position_number','bdf', 'outlet','task','store_name', 'addr_line1', 'city', 'state', 'assigned_to', 
+    'task_completed', 'cost_over', 'guaranteed_miles', 'user_comment'
+  ];
+  
+  futureWeekColumns = [
+    'store_number','territory', 'position_number','bdf', 'outlet','task','store_name', 'addr_line1', 'city', 'state', 'assigned_to',
+    'avg_cost', 'guaranteed_miles', 'user_comment'
+  ];
+  
+  previousWeekColumns = [
+    'store_number','territory', 'position_number','bdf','outlet', 'task','store_name', 'addr_line1', 'city', 'state', 'assigned_to',
+    'task_completed','cost_over', 'wk1_costs','wk1_travel', 'wk1_ovg_travel','wk2_costs', 'wk2_travel','wk2_ovg_travel','user_comment'
+  ];
+
+  //  Dynamic column management
+  availableColumns: string[] = [];
+  displayedColumns: string[] = [];
+  visibleColumns: string[] = [];
+  private parentRowsData:any[]=[] 
+  // Data and state
+  dataSource = new MatTableDataSource<any>([]);
+  originalData: any[] = [];
+  showSpinner = false;
+  
+  // Search functionality
+  searchControl = new FormControl('');
+  isSearching = false;
+
+  // Expansion state
+  isExpandingAll = false;
+  allExpanded = false;
+  expandedRowsData = new Map<string, {data: any[], weekType: string}>();
+  expandedRows = new Set<CdkDetailRowDirective>();
+  selectedRows = new Set<any>();
+
+  // User permissions
+  canEditComments = false;
+  canDeleteComments = false;
+
+  currentSortColumn: string = '';
+  currentSortDirection: 'asc' | 'desc' | '' = '';
+  private childRowMap = new Map<string,any[]>();
+  private destroy$ = new Subject<void>();
+  private unsubscribe$ = new Subject<void>();
+  loggeduser: string; 
+  currentFilters;
+  constructor(private commonService: CommonService,
+  private snackbar: SnackbarService,
+  public http: HttpClient,
+  @Inject('BASE_URL') public baseUrl: string,
+   private cdr: ChangeDetectorRef,
+  private dialog:MatDialog) {this.loggeduser = localStorage.getItem("loggedUserId"); }
+
+  ngOnInit(): void {
+    this.commonService.spinner$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(isLoading => {
+        this.showSpinner = isLoading;
+      });
+this.commonService.currentFilters$.subscribe(filter=>{
+        this.currentFilters = filter
+    });
+    // Subscribe to user group permissions
+    this.commonService.groupsStatus$.subscribe(userGroups => {
+      this.canEditComments = userGroups['isgTechnologyGroup'];
+      this.canDeleteComments = userGroups['isgTechnologyGroup'];
+    });
+
+    // Subscribe to week type changes
+    this.commonService.weekType$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(weekType => {
+        this.currentWeekType = weekType;
+        this.updateAvailableColumns();
+        this.updateDisplayedColumns();
+        this.forceCollapseAllRows();
+        this.resetExpansionState();
+        this.cdr.detectChanges();
+      });
+
+    // Subscribe to current week data
+    this.commonService.currentWeekData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (this.currentWeekType === 'current') {
+          this.updateDataSource(data);
+        }
+      });
+
+    // Subscribe to future week data
+    this.commonService.futureWeekData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (this.currentWeekType === 'future') {
+          this.updateDataSource(data);
+        }
+      });
+
+    // Subscribe to previous week data
+    this.commonService.previousWeekData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (this.currentWeekType === 'previous') {
+          this.updateDataSource(data);
+        }
+      });
+
+      this.dataSource = new MatTableDataSource<any>([]);
+      this.dataSource.filterPredicate = (data: any, filter: string) => {
+        // Only filter parent rows, child rows are always included with their parents
+        if (data.isChildRow) {
+          return true;
+        }
+        
+        // Apply filter to parent rows only
+        const searchStr = filter.toLowerCase();
+        return (
+          (data.StoreNumber?.toString().toLowerCase().includes(searchStr) || false) ||
+          (data.StoreName?.toLowerCase().includes(searchStr) || false) ||
+          (data.AddrLine1?.toLowerCase().includes(searchStr) || false) ||
+          (data.City?.toLowerCase().includes(searchStr) || false) ||
+          (data.State?.toLowerCase().includes(searchStr) || false) ||
+          (data.AssignedTo?.toLowerCase().includes(searchStr) || false)
+        );
+      };
+    this.setupSearch();
+  }
+
+  //Column visibility management
+  updateVisibleColumns(selectedColumns: string[]): void {
+    this.visibleColumns = selectedColumns;
+    this.updateDisplayedColumns();
+    this.forceCollapseAllRows();
+    this.resetExpansionState()
+    this.cdr.detectChanges();
+  }
+
+  private updateAvailableColumns(): void {
+    switch (this.currentWeekType) {
+      case 'current':
+        this.availableColumns = this.currentWeekColumns;
+        break;
+      case 'future':
+        this.availableColumns = this.futureWeekColumns;
+        break;
+      case 'previous':
+        this.availableColumns = this.previousWeekColumns;
+        break;
+      default:
+        this.availableColumns = this.baseColumns;
+    }
+  }
+
+  private updateDisplayedColumns(): void {
+    let availableColumns: string[] = [];
+    
+    // Get available columns based on week type
+    switch (this.currentWeekType) {
+      case 'current':
+        availableColumns = this.currentWeekColumns;
+        break;
+      case 'future':
+        availableColumns = this.futureWeekColumns;
+        break;
+      case 'previous':
+        availableColumns = this.previousWeekColumns;
+        break;
+      default:
+        availableColumns = this.baseColumns;
+    }
+    
+    // Filter by visible columns if specified
+    if (this.visibleColumns.length > 0) {
+      this.displayedColumns = availableColumns.filter(col => 
+        this.visibleColumns.includes(col)
+      );
+    } else {
+      // Show all available columns if no specific selection
+      this.displayedColumns = [...availableColumns];
+    }
+  }
+
+  isColumnVisible(columnName: string): boolean {
+    return this.displayedColumns.includes(columnName);
+  }
+
+  //  Multiple names display with line breaks
+  getAssignedToDisplay(assignedTo: string): string {
+   if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return 'NOT ASSIGNED';
+  }
+
+  // Return as-is (the template will handle the splitting and line display)
+  return assignedTo.trim();
+  }
+
+  getAssignedToTooltip(assignedTo: string): string {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return 'No one assigned';
+  }
+  
+  // Split by comma and return each name on a new line for tooltip
+  const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
+  return names.join('\\n');
+}
+
+  getAssignmentClass(assignedTo: string): string {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return 'not-assigned';
+  }
+  
+  // Check if there are multiple names (contains comma)
+  const hasMultipleNames = assignedTo.includes(',');
+  if (hasMultipleNames) {
+    // Verify it's actually multiple valid names
+    const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
+    return names.length > 1 ? 'multiple-assigned' : 'single-assigned';
+  }
+  
+  return 'single-assigned';
+}
+
+shouldDisplayMultipleLines(assignedTo: string): boolean {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return false;
+  }
+  
+  if (!assignedTo.includes(',')) {
+    return false;
+  }
+  
+  const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
+  return names.length > 1;
+}
+
+getIndividualNames(assignedTo: string): string[] {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return ['NOT ASSIGNED'];
+  }
+  
+  if (!assignedTo.includes(',')) {
+    return [assignedTo.trim()];
+  }
+  
+  return assignedTo.split(',').map(name => name.trim()).filter(name => name);
+}
+  //  Comment management with popup dialog
+  openCommentDialog(element: any): void {
+    const dialogRef = this.dialog.open(StoreCommentDialogComponent, {
+      width: '600px',
+      maxWidth: '90vw',
+      data: {
+        storeNumber: element.StoreNumber,
+        storeName: element.StoreName,
+        comment: element.UserComment || '',
+        canEdit: this.canEditComments,
+        canDelete: this.canDeleteComments
+      },
+      disableClose: true
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result && result.action !== 'cancel') {
+        element.UserComment = result.comment;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  //  Comment display with truncation
+  getCommentDisplay(comment: string): string {
+    if (!comment) return this.canEditComments ? 'Add Comment...' : 'No comment';
+    
+    if (comment.length <= 20) return comment;
+    return comment.substring(0, 20) + '...';
+  }
+
+  returnWeekminustwo(week:string){    
+    return week === null || week === undefined || week ==="" ? week : isNaN(Number(week))?week:Number(week)-1
+  }
+
+  // Search functionality
+  private setupSearch(): void {
+    this.searchControl.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      tap(() => {
+        this.isSearching = true;
+        this.commonService.show('table-search');
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe(searchTerm => {
+      this.performSearch(searchTerm || '');
+    });
+  }
+
+  // private performSearch(searchTerm: string): void {
+  //   try {
+  //     if (!searchTerm.trim()) {
+  //       this.dataSource.data = [...this.originalData];
+  //     } else {
+  //       const filtered = this.originalData.filter(row => 
+  //         this.matchesSearchTerm(row, searchTerm.toLowerCase())
+  //       );
+  //       this.dataSource.data = filtered;
+  //     }
+  //     this.updatePaginatorLength();
+  //     if (this.paginator) {
+  //       this.paginator.firstPage();
+  //     }
+  //     this.resetExpansionState();
+      
+  //   } catch (error) {
+  //     console.error('Error performing search:', error);
+  //   } finally {
+  //     this.isSearching = false;
+  //     this.commonService.hide('table-search');
+  //   }
+  // }
+private performSearch(searchTerm: string): void {
+  try {
+    let filtered: any[];
+    
+    if (!searchTerm.trim()) {
+      filtered = [...this.originalData];
+    } else {
+      filtered = this.originalData.filter(row => 
+        this.matchesSearchTerm(row, searchTerm.toLowerCase())
+      );
+    }
+    
+    // Update parentRowsData with filtered results
+    this.parentRowsData = filtered;
+    
+    // Apply pagination to filtered results
+    if (this.paginator) {
+      this.paginator.pageIndex = 0; // Reset to first page
+      this.applyParentRowPagination();
+    } else {
+      this.dataSource.data = filtered;
+    }
+    
+    // Update paginator length
+    this.updatePaginatorLength();
+    
+    this.resetExpansionState();
+    
+  } catch (error) {
+    console.error('Error performing search:', error);
+  } finally {
+    this.isSearching = false;
+    this.commonService.hide('table-search');
+  }
+}
+  private matchesSearchTerm(row: any, searchTerm: string): boolean {
+    const searchableFields = [
+      'StoreNumber','PositionName','Bfd','StoreName', 'AddrLine1', 'City', 'State', 
+      'Zip', 'AssignedTo', 'TaskCompleted','CostOver','GuaranteedMiles', 'AvgCost', 'WK1FSRProdCost',
+      'WK1StoreTravelCost','WK1StoreTravelOvgCost','WK2FSRProdCost',
+      'WK2StoreTravelCost','WK2StoreTravelOvgCost','UserComment'
+    ];
+
+    return searchableFields.some(field => {
+      const value = row[field];
+      return value && value.toString().toLowerCase().includes(searchTerm);
+    });
+  }
+
+  clearSearch(): void {
+    this.searchControl.setValue('');
+  }
+
+  // Data management
+//   private updateDataSource(data: any[]): void {
+//     this.commonService.show('table-update');
+    
+//     this.parentRowsData = data.map(row => ({ ...row, isChildRow: false }));
+//   this.originalData = [...this.parentRowsData];
+    
+//    const searchTerm = this.searchControl.value;
+//   if (searchTerm && searchTerm.trim()) {
+//     this.performSearch(searchTerm);
+//   } else {
+//       if (this.paginator) {
+//       this.paginator.pageIndex = 0; 
+//       this.applyParentRowPagination();
+//     } else {
+//       this.dataSource.data = [...this.parentRowsData];
+//     }
+//   }
+  
+//  // this.dataSource.paginator = this.paginator;
+//   this.dataSource.sort = this.sort;
+  
+//   // Update paginator length to count only parent rows
+//   this.updatePaginatorLength();
+  
+//   this.resetExpansionState();
+  
+//   this.commonService.hide('table-update');
+//   }
+
+private updateDataSource(data: any[]): void {
+  this.commonService.show('table-update');
+  
+  try {
+    // ✅ STEP 1: Clear ALL old data FIRST
+    this.forceCollapseAllRows();
+    this.resetExpansionState();
+    this.expandedRowsData.clear();  // ← CLEAR CACHED CHILD ROWS
+    
+    // ✅ STEP 2: Clear search
+    this.searchControl.setValue('', { emitEvent: false });
+    
+    // ✅ STEP 3: Map new data as parent rows only
+    this.parentRowsData = data.map(row => ({ ...row, isChildRow: false }));
+    this.originalData = [...this.parentRowsData];
+    
+    // ✅ STEP 4: Reset paginator to first page
+    if (this.paginator) {
+      this.paginator.pageIndex = 0;
+      this.applyParentRowPagination();
+    } else {
+      this.dataSource.data = [...this.parentRowsData];
+    }
+    
+    // ✅ STEP 5: Reset sort state
+    this.currentSortColumn = '';
+    this.currentSortDirection = '';
+    this.dataSource.sort = this.sort;
+    
+    // ✅ STEP 6: Update paginator length
+    this.updatePaginatorLength();
+    
+    // ✅ STEP 7: Force change detection
+    this.cdr.markForCheck();
+    this.cdr.detectChanges();
+    
+  } finally {
+    this.commonService.hide('table-update');
+  }
+}
+
+private updatePaginatorLength(): void {
+  if (!this.paginator) return;
+  
+  // ✅ Count ONLY parent rows - NEVER include child rows
+  const parentRowCount = this.parentRowsData.filter(row => !row.isChildRow).length;
+  this.paginator.length = parentRowCount;
+  
+  console.log('Paginator length updated to:', parentRowCount);
+}
+
+  //  Expand all rows with proper spinner management
+async expandAllRows(): Promise<void> {
+  if (this.isExpandingAll) return;
+
+  this.isExpandingAll = true;
+  this.commonService.show('expand-all-rows');
+
+  try {
+    if (this.allExpanded) {
+      // Collapse all
+      this.collapseAllRows();
+      this.allExpanded = false;
+    } else {
+      // Expand all
+      await this.expandAllRowsSequentially();
+      this.allExpanded = true;
+    }
+  } catch (error) {
+    console.error('Error in expandAllRows:', error);
+  } finally {
+    this.isExpandingAll = false;
+    this.commonService.hide('expand-all-rows');
+    this.cdr.detectChanges();
+  }
+}
+
+/**
+ * Collapse all expanded rows and remove child rows from datasource
+ */
+private collapseAllRows(): void {
+  this.commonService.show('collapse-all-rows');
+  
+  try {
+    // Get all detail row directives
+    const detailRowsArray = this.detailRows?.toArray() || [];
+    
+    // Collapse each expanded directive
+    detailRowsArray.forEach(detailRow => {
+      if (detailRow.isExpanded) {
+        detailRow.collapse();
+      }
+    });
+
+    // Remove all child rows from datasource
+    const filteredData = this.dataSource.data.filter(row => !row.isChildRow);
+    this.dataSource.data = filteredData;
+
+    // Clear tracking sets
+    this.expandedRows.clear();
+    this.selectedRows.clear();
+
+    // Trigger change detection to update UI (carets, etc.)
+    this.cdr.detectChanges();
+  } catch (error) {
+    console.error('Error collapsing all rows:', error);
+  } finally {
+    this.commonService.hide('collapse-all-rows');
+  }
+}
+
+/**
+ * Expand all rows on current page sequentially
+ */
+private async expandAllRowsSequentially(): Promise<void> {
+  // First, collapse all to ensure clean state
+  this.collapseAllRows();
+
+  const currentPageData = this.getCurrentPageData();
+  const detailRowsArray = this.detailRows?.toArray() || [];
+
+  if (detailRowsArray.length === 0 || currentPageData.length === 0) {
+    console.warn('No rows to expand');
+    return;
+  }
+
+  this.commonService.show('load-all-subgrid-data');
+
+  try {
+    // Process each row sequentially
+    for (let i = 0; i < Math.min(currentPageData.length, detailRowsArray.length); i++) {
+      const parentRow = currentPageData[i];
+      const detailRowDirective = detailRowsArray[i];
+
+      // Skip if row is a child row
+      if (parentRow.isChildRow) continue;
+
+      // Skip if directive is already expanded
+      if (detailRowDirective.isExpanded) continue;
+
+      try {
+        // Load child data for this row
+        const responseData = await this.loadSubgridDataForRow(parentRow);
+
+        // Insert child rows into datasource
+        this.insertChildRowsIntoDataSource(parentRow, responseData.data || [], responseData.weekType || 'current');
+
+        // Mark the directive as expanded
+        detailRowDirective.isExpanded = true;
+        this.expandedRows.add(detailRowDirective);
+        this.selectedRows.add(parentRow);
+
+        // Small delay to prevent overwhelming the UI
+        await this.delay(50);
+      } catch (error) {
+        console.error(`Error expanding row ${i}:`, error);
+        // Continue with next row even if this one fails
+      }
+    }
+
+    // Final change detection
+    this.cdr.detectChanges();
+  } catch (error) {
+    console.error('Error in expandAllRowsSequentially:', error);
+  } finally {
+    this.commonService.hide('load-all-subgrid-data');
+  }
+}
+
+  //  Force collapse with proper spinner management
+  private forceCollapseAllRows(): void {
+    this.commonService.show('collapse-all-rows');
+    
+    const detailRowsArray = this.detailRows?.toArray() || [];
+    
+    detailRowsArray.forEach((detailRow) => {
+      if (detailRow.isExpanded) {
+        detailRow.collapse();
+      }
+    });
+    
+    this.expandedRows.clear();
+    this.selectedRows.clear();
+    
+    // Trigger change detection to update caret icons
+    this.cdr.detectChanges();
+    
+    this.commonService.hide('collapse-all-rows');
+  }
+
+  //  Expand rows with data with proper spinner management
+ 
+
+  //  Load subgrid data with proper spinner management
+  private loadSubgridDataForRow(row: any): Promise<{data: any[], weekType: string}> {
+    const storeKey = row.StoreNumber || row.store_number;
+    this.commonService.show(`subgrid-${storeKey}`);
+    
+    return new Promise((resolve, reject) => {
+      if (this.expandedRowsData.has(storeKey)) {
+        this.commonService.hide(`subgrid-${storeKey}`);
+        const cachedData = this.expandedRowsData.get(storeKey);
+        resolve(cachedData || { data: [], weekType: 'current' });
+        return;
+      }
+
+      const payload = {
+        IriWeek: row.IriWeek || row.iri_week,
+        StoreNumber: storeKey
+      };
+
+      this.http.post<any>(this.baseUrl + 'api/TaskAssinment/GetSubgridData', payload)
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe({
+          next: (response) => {
+            
+            const responseData = {
+              data: response.data || response, // Handle both new and old response formats
+              weekType: response.weekType || 'current' // Default to current if not provided
+            };
+            this.expandedRowsData.set(storeKey, responseData);
+            this.commonService.hide(`subgrid-${storeKey}`);
+            resolve(responseData);
+          },
+          error: (error) => {
+            this.commonService.hide(`subgrid-${storeKey}`);
+            reject(error);
+          }
+        });
+    });
+  }
+
+  // Individual row expansion
+  // GetSubgridData(cdkDetailRow: CdkDetailRowDirective, row: any): void {
+  //   if (cdkDetailRow.isExpanded) {
+  //     this.expandedRows.add(cdkDetailRow);
+  //     this.selectedRows.add(row);
+  //   } else {
+  //     this.expandedRows.delete(cdkDetailRow);
+  //     this.selectedRows.delete(row);
+      
+  //     if (this.allExpanded && this.expandedRows.size < this.getCurrentPageData().length) {
+  //       this.allExpanded = false;
+  //     }
+  //   }
+    
+  //   this.updateCaretIcon(cdkDetailRow, cdkDetailRow.isExpanded);
+  // }
+
+  // Check if a specific row is expanded
+  isRowExpanded(element: any): boolean {
+    return this.selectedRows.has(element);
+  }
+
+  // Data load request handler
+  // onDataLoadRequest(event: {directive: CdkDetailRowDirective, rowData: any}): void {
+  //   const { directive, rowData } = event;
+  //   const storeKey = rowData.StoreNumber || rowData.store_number;
+    
+  //   // Track expansion state for caret rotation
+  //   if (directive.isExpanded) {
+  //     this.expandedRows.add(directive);
+  //     this.selectedRows.add(rowData);
+      
+  //     // Load data if expanding
+  //     if (this.expandedRowsData.has(storeKey)) {
+  //       const cachedData = this.expandedRowsData.get(storeKey);
+  //       directive.setSubgridData(cachedData?.data || [], cachedData?.weekType || 'current');
+  //     } else {
+  //       this.loadSubgridDataForRow(rowData)
+  //         .then(responseData => {
+  //           directive.setSubgridData(responseData.data || [], responseData.weekType || 'current');
+  //         })
+  //         .catch(error => {
+  //           console.error('Error loading subgrid data:', error);
+  //           directive.setSubgridData([], 'current');
+  //         });
+  //     }
+  //   } else {
+  //     // Collapsing - remove from tracking
+  //     this.expandedRows.delete(directive);
+  //     this.selectedRows.delete(rowData);
+      
+  //     // Update allExpanded flag if needed
+  //     if (this.allExpanded && this.expandedRows.size < this.getCurrentPageData().length) {
+  //       this.allExpanded = false;
+  //     }
+  //   }
+    
+  //   // Trigger change detection to update caret icons
+  //   this.cdr.detectChanges();
+  // }
+
+  onDataLoadRequest(event: {directive: CdkDetailRowDirective, rowData: any}): void {
+  const { directive, rowData } = event;
+  const storeKey = rowData.StoreNumber || rowData.store_number;
+  
+  if (directive.isExpanded && !rowData.isChildRow) {
+    // Expanding parent row - load and insert child rows
+    this.expandedRows.add(directive);
+    this.selectedRows.add(rowData);
+    
+    if (this.expandedRowsData.has(storeKey)) {
+      const cachedData = this.expandedRowsData.get(storeKey);
+      this.insertChildRowsIntoDataSource(rowData, cachedData?.data || [], cachedData?.weekType || 'current');
+    } else {
+      this.loadSubgridDataForRow(rowData)
+        .then(responseData => {
+          this.expandedRowsData.set(storeKey,responseData);
+          this.insertChildRowsIntoDataSource(rowData, responseData.data || [], responseData?.weekType || 'current');
+          this.cdr.detectChanges()
+        })
+        .catch(error => {
+          console.error('Error loading subgrid data:', error);
+        });
+    }
+  } else if (!directive.isExpanded) {
+    // Collapsing - remove child rows
+    this.expandedRows.delete(directive);
+    this.selectedRows.delete(rowData);
+    this.removeChildRowsFromDataSource(rowData);
+    
+    if (this.allExpanded && this.expandedRows.size < this.getCurrentPageData().length) {
+      this.allExpanded = false;
+    }
+  }
+  
+  this.cdr.detectChanges();
+}
+
+/**
+ * Insert child rows directly into the table's datasource
+ */
+private insertChildRowsIntoDataSource(parentRow: any, childData: any[], weekType: string): void {
+    const parentStoreKey = parentRow.StoreNumber || parentRow.store_number;
+  
+  try {
+    if (!childData || childData.length === 0) {
+      // If no child data, remove any existing children for this parent
+      this.childRowMap.delete(parentStoreKey);
+      return;
+    }
+  
+  // Map child data to match parent column structure
+  const childRows = childData.map((child, index) => ({
+    ...child,
+    isChildRow: true,
+    isFirstChild: index === 0,
+    isLastChild: index === childData.length - 1,
+    parentStoreNumber: parentRow.StoreNumber,
+    
+    // Map child fields to parent column names
+    StoreNumber: child.storeNumber, 
+    FldTerrtyNbr: parentRow.FldTerrtyNbr || '',
+    PositionName: child.positionName || '',
+    Bfd: child.bfd || '',
+    OutletType: child.outletType,
+    StoreName: child.storeName||'',
+    AddrLine1: child.addrLine1,
+    City: child.city,
+    State: child.state,
+    Zip: child.zip||'',
+    AssignedTo: child.assignedTo || '',
+    assignedTo: child.assignedTo || '',
+    Task:child.taskName,
+    // Task-level data
+    TaskCompleted: child.taskCompleted || child.TaskCompleted,
+    taskCompleted: child.taskCompleted || child.TaskCompleted,
+    GuaranteedMiles: child.guaranteedMiles,
+    guaranteedMiles: child.guaranteedMiles,
+    CostOver: child.costOver,
+    costOver: child.costOver,
+   
+    // Week-specific fields
+    ...(weekType === 'future' && {
+      AvgCost: child.avgCost,
+      avgCost: child.avgCost,
+      Wave: child.wave,
+      ExpectedCollectionTime: child.expectedCollectionTime
+    }),
+    
+    ...(weekType === 'previous' && {
+      WK1FSRProdCost: child.wK1FSRProdCost,
+      wK1FSRProdCost: child.wK1FSRProdCost,
+      WK1StoreTravelCost: child.wK1StoreTravelCost,
+      wK1StoreTravelCost: child.wK1StoreTravelCost,
+      WK1StoreTravelOvgCost: child.wK1StoreTravelOvgCost,
+      wK1StoreTravelOvgCost: child.wK1StoreTravelOvgCost,
+      WK2FSRProdCost: child.wK2FSRProdCost,
+      wK2FSRProdCost: child.wK2FSRProdCost,
+      WK2StoreTravelCost: child.wK2StoreTravelCost,
+      wK2StoreTravelCost: child.wK2StoreTravelCost,
+      WK2StoreTravelOvgCost: child.wK2StoreTravelOvgCost,
+      wK2StoreTravelOvgCost: child.wK2StoreTravelOvgCost,
+      Quality: child.quality
+    }),
+    
+    // Store task-specific data for dialog access
+    UserComment:"",
+    storeNumber: child.storeNumber || parentRow.StoreNumber,
+    storeName: child.storeName || parentRow.StoreName,
+    taskNumber: child.taskNumber,
+    taskName: child.taskName
+     
+  }));
+  
+  // Get updated data array
+  this.childRowMap.set(parentStoreKey,childRows)
+  const currentData = [...this.dataSource.data];
+    const parentIndex = currentData.findIndex(row => 
+      row.StoreNumber === parentRow.StoreNumber && !row.isChildRow
+    );
+    
+    if (parentIndex !== -1) {
+      // Insert child rows right after parent row
+      currentData.splice(parentIndex + 1, 0, ...childRows);
+      this.dataSource.data = currentData;
+    }
+  this.cdr.markForCheck();
+  this.cdr.detectChanges()
+}catch(error){
+    console.error(error)
+  }
+}
+
+/**
+ * Remove child rows from datasource
+ */
+private removeChildRowsFromDataSource(parentRow: any): void {
+  const parentStoreKey = parentRow.StoreNumber || parentRow.store_number;
+  this.childRowMap.delete(parentStoreKey);
+  
+  // Remove from visual display if needed
+  const filteredData = this.dataSource.data.filter(row => 
+    !(row.isChildRow && row.parentStoreNumber === parentRow.StoreNumber)
+  );
+  this.dataSource.data = filteredData;
+}
+
+
+  // Week type display methods
+  getWeekTypeDisplayName(): string {
+    switch (this.currentWeekType) {
+      case 'current': return 'Current Week Tasks';
+      case 'future': return 'Future Week Planning';
+      case 'previous': return 'Previous Week History';
+      default: return 'Store Assignment Data';
+    }
+  }
+
+  getWeekTypeClass(): string {
+    return `week-${this.currentWeekType}`;
+  }
+
+  // Data formatting methods for different week types
+  formatTaskCompleted(value: any): string {
+    return value?.toLowerCase() == 'y' ? 'Yes' : 'No';
+  }
+
+
+
+  formatCostOver(value: any): string {
+    return value ? `${value}` : 'N/A';
+  }
+
+  formatGuaranteedMiles(value: any): string {
+    return value ? `${value}` : 'N/A';
+  }
+
+  formatAvgCost(value: any): string {
+    // Return blank if null or empty
+    if (value === null || value === undefined || value === '') {
+      return '';
+    }
+    
+    // Convert to number
+    const numValue = parseFloat(value);
+    
+    // Return blank if not a valid number
+    if (isNaN(numValue)) {
+      return '';
+    }
+    
+    // Format as currency (including zero)
+    return `$${numValue.toFixed(2)}`;
+  }
+
+  formatWk1Costs(row: any): string {
+    const prod = parseFloat(row.WK1FSRProdCost || 0);
+    const travel = parseFloat(row.WK1StoreTravelCost || 0);
+    const ovg = parseFloat(row.WK1StoreTravelOvgCost || 0);
+    const total = prod + travel + ovg;
+    return total > 0 ? `$${total.toFixed(2)}` : '$0.00';
+  }
+
+  formatWk2Costs(row: any): string {
+    const prod = parseFloat(row.WK2FSRProdCost || 0);
+    const travel = parseFloat(row.WK2StoreTravelCost || 0);
+    const ovg = parseFloat(row.WK2StoreTravelOvgCost || 0);
+    const total = prod + travel + ovg;
+    return total > 0 ? `$${total.toFixed(2)}` : '$0.00';
+  }
+
+  // Status badge classes
+  getTaskCompletedClass(value: any): string {
+    return value?.toLowerCase() === 'yes' ? 'completed' : 'incomplete';
+  }
+
+
+
+  getCostOverClass(value: any): string {
+    return value?.toLowerCase() === 'yes' ? 'cost-over' : 'cost-ok';
+  }
+
+  // Dialog methods
+  async openAssignmentDialog(row: any, mode: 'StoreLevel' | 'TaskLevel' = 'StoreLevel'): Promise<void> {
+    try {
+      const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+      
+      if (!currentFilters || Object.keys(currentFilters).length === 0) {
+        console.warn('No filters applied. Cannot open assignment dialog.');
+        return;
+      }
+      
+      const dialogRef = this.dialog.open(AssignmentDialogComponent, {
+        width: '90vw',
+        maxWidth: '1200px',
+        height: '80vh',
+        data: {
+          storeNumber: row.StoreNumber,
+          storeName: row.StoreName,
+          iriWeek: row.IriWeek,
+          territoryId: currentFilters.territory_id,
+          mode: 'StoreLevel'
+        },
+        disableClose: true
+      });
+
+      dialogRef.afterClosed().subscribe(result => {
+        if (result?.hasChanges) {
+          this.refreshGridData();
+        }
+      });
+    } catch (error) {
+      console.error('Error opening assignment dialog:', error);
+    }
+  }
+
+  // Method to check if EmpId matches OptimalCollectorId (handles comma-separated EmpIds)
+  isOptimalCollectorMatch(empId: string | null | undefined, optimalCollectorId: string | null | undefined): boolean {
+    // Check if both values exist and are not empty strings
+    if (!empId || !optimalCollectorId || empId.trim() === '' || optimalCollectorId.trim() === '') {
+      return false;
+    }
+    
+    // Convert to strings and trim
+    const empIdStr = String(empId).trim();
+    const optimalIdStr = String(optimalCollectorId).trim();
+    
+    // Handle comma-separated EmpIds
+    if (empIdStr.includes(',')) {
+      const empIds = empIdStr.split(',').map(id => id.trim());
+      return empIds.includes(optimalIdStr);
+    }
+    
+    // Simple comparison for single EmpId (case-insensitive)
+    return empIdStr.toLowerCase() === optimalIdStr.toLowerCase();
+  }
+  
+  // Helper method to check if OptimalCollectorId exists and is valid
+  hasOptimalCollector(optimalCollectorId: string | null | undefined): boolean {
+    return !!optimalCollectorId && String(optimalCollectorId).trim() !== '';
+  }
+  
+  // Debug helper - call this from console to check values
+  // debugCollectorMatch(element: any): void {
+  //   console.log('Debug Collector Match:', {
+  //     EmpId: element.EmpId,
+  //     OptimalCollectorId: element.OptimalCollectorId,
+  //     hasOptimal: this.hasOptimalCollector(element.OptimalCollectorId),
+  //     isMatch: this.isOptimalCollectorMatch(element.EmpId, element.OptimalCollectorId),
+  //     empIdType: typeof element.EmpId,
+  //     optimalIdType: typeof element.OptimalCollectorId
+  //   });
+  // }
+
+  // Open proximity data dialog
+  async openProximityDataDialog(element: any): Promise<void> {
+    try {
+      const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+      
+      const dialogRef = this.dialog.open(ProximityDialogComponent, {
+        width: '700px',
+        maxWidth: '90vw',
+        maxHeight: '80vh',
+        data: {
+          storeNumber: element.StoreNumber,
+          storeName: element.StoreName,
+          empId: element.EmpId,
+          optimalCollectorId: element.OptimalCollectorId,
+          assignedTo: element.AssignedTo || element.EmployeeName,
+          firstName: element.FirstName,
+          lastName: element.LastName,
+          isActiveFSR: element.IsActiveFSR,
+          terminationDate: element.TerminationDate,
+          countryId: currentFilters?.country_id || '1'
+        },
+        disableClose: false
+      });
+
+      dialogRef.afterClosed().subscribe(result => {
+        if (result) {
+          // Handle any changes when dialog is closed
+          // console.log('Proximity dialog closed with result:', result);
+        }
+      });
+    } catch (error) {
+      this.snackbar.openSnackBar(error,'error');
+      console.error('Error opening proximity dialog:', error);
+    }
+  }
+
+  // async openTaskAssignmentDialog(taskData: any): Promise<void> {
+  //   try {
+  //     const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+      
+  //     if (!currentFilters || Object.keys(currentFilters).length === 0) {
+  //       console.warn('No filters applied. Cannot open assignment dialog.');
+  //       return;
+  //     }   
+  //     const dialogRef = this.dialog.open(AssignmentDialogComponent, {
+  //       width: '90vw',
+  //       maxWidth: '1200px', 
+  //       height: '80vh',
+  //       data: {
+  //         storeNumber: taskData.StoreNumber,
+  //         storeName: taskData.storeName,
+  //         taskNumber: taskData.TaskNumber,
+  //         taskName: taskData.TaskName,
+  //         iriWeek: currentFilters.iri_week,
+  //         territoryId: currentFilters.territory_id,
+  //         mode: 'TaskLevel'
+  //       },
+  //       disableClose: true
+  //     });
+
+  //     dialogRef.afterClosed().subscribe(result => {
+  //       if (result) {
+  //         this.refreshGridData();
+  //       }
+  //     });
+  //   } catch (error) {
+  //     console.error('Error opening task assignment dialog:', error);
+  //   }
+  // }
+
+    async openTaskAssignmentDialog2(taskData: any): Promise<void> {
+    try {
+      const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+      
+      if (!currentFilters || Object.keys(currentFilters).length === 0) {
+        console.warn('No filters applied. Cannot open assignment dialog.');
+        return;
+      }   
+      const dialogRef = this.dialog.open(AssignmentDialogComponent, {
+        width: '90vw',
+        maxWidth: '1200px', 
+        height: '80vh',
+        data: {
+          storeNumber: taskData.storeNumber,
+          storeName: taskData.storeName,
+          taskNumber: taskData.taskNumber,
+          taskName: taskData.taskName,
+          iriWeek: currentFilters.iri_week,
+          territoryId: currentFilters.territory_id,
+          mode: 'TaskLevel'
+        },
+        disableClose: true
+      });
+
+      dialogRef.afterClosed().subscribe(result => {
+        if (result?.hasChanges) {
+          console.log(result)
+          this.refreshGridData();
+        }
+      });
+    } catch (error) {
+      console.error('Error opening task assignment dialog:', error);
+    }
+  }
+
+
+  // Open Closest FSR dialog (when clicking colored circles)
+  async openClosestFsrDataDialog(element: any): Promise<void> {
+    try {
+      const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+      
+      const dialogRef = this.dialog.open(ClosestFsrDialogComponent, {
+        width: '60vw',
+        maxWidth: '60vw',
+        minWidth: '600px',
+        maxHeight: '55vh',
+        minHeight: '250px',
+        data: {
+          StoreNumber: element.StoreNumber,
+          StoreName: element.StoreName,
+          CollectorId: element.EmpId,
+          OptimalCollectorId: element.OptimalCollectorId,
+          FirstName: element.FirstName,
+          LastName: element.LastName,
+          IsActiveFSR: element.IsActiveFSR,
+          TerminationDate: element.TerminationDate,
+          CountryId: currentFilters?.country_id || '1'
+        },
+        disableClose: true,
+      });
+
+      dialogRef.afterClosed().subscribe(result => {
+        if (result) {
+          // console.log('Closest FSR dialog closed with result:', result);
+        }
+      });
+    } catch (error) {
+      this.snackbar.openSnackBar(error,"error")
+      console.error('Error opening Closest FSR dialog:', error);
+    }
+  }
+
+ 
+  private resetExpansionState(): void {
+    this.allExpanded = false;
+    this.isExpandingAll = false;
+    this.expandedRows.clear();
+    this.selectedRows.clear();
+    this.childRowMap.clear();
+    const parentRowsOnly = this.dataSource.data.filter(row => !row.isChildRow);
+    this.dataSource.data = parentRowsOnly;
+    this.updatePaginatorLength();
+    this.cdr.detectChanges(); // Ensure caret icons are updated
+  }
+
+
+  // private getCurrentPageData(): any[] {
+  //   if (!this.paginator) {
+  //     return this.dataSource.data;
+  //   }
+    
+  //   const startIndex = this.paginator.pageIndex * this.paginator.pageSize;
+  //   const endIndex = startIndex + this.paginator.pageSize;
+  //   return this.dataSource.data.slice(startIndex, endIndex);
+  // }
+
+  private getCurrentPageData(): any[] {
+  if (!this.paginator) {
+    return this.dataSource.data.filter(row => !row.isChildRow);
+  }
+  
+  const startIndex = this.paginator.pageIndex * this.paginator.pageSize;
+  const endIndex = startIndex + this.paginator.pageSize;
+  
+  // Filter to only get parent rows on current page
+  return this.dataSource.data
+    .filter(row => !row.isChildRow)
+    .slice(startIndex, endIndex);
+}
+
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  private async refreshGridData(): Promise<void> {
+    this.snackbar.openSnackBar("Refreshing grid data after assignment change","success")
+    const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+    if(!currentFilters){
+      this.snackbar.openSnackBar("Refreshing grid data failed","error")
+      return;
+    }
+    this.commonService.applyFilters(currentFilters)
+    // console.log('Refreshing grid data after assignment change');
+  }
+
+  //  helpers
+
+  getExpandedRowCount(): number {
+    return this.expandedRows.size;
+  }
+
+  formatCollectionTime(time: string): string {
+    return time || 'Not specified';
+  }
+
+  getClusterDisplay(positionName: string): string {
+    return positionName || 'N/A';
+  }
+
+  ngAfterViewInit(): void {
+    // this.dataSource.paginator = this.paginator;
+    this.dataSource.sort = this.sort;
+    
+  
+     this.dataSource.sortingDataAccessor = (data: any, sortHeaderId: string) => {
+      switch (sortHeaderId) {
+        // Numeric sorting
+        case 'StoreNumber':
+          return parseInt(data.StoreNumber) || 0;
+        
+        case 'FldTerrtyNbr':
+          return parseInt(data.FldTerrtyNbr) || 0;
+        
+        case 'Zip':
+          return data.Zip ? data.Zip.toString() : '';
+        
+        // Cost columns - convert to numbers for proper sorting
+        case 'AvgCost':
+        case 'WK1FSRProdCost':
+        case 'WK1StoreTravelCost':
+        case 'WK1StoreTravelOvgCost':
+        case 'WK2FSRProdCost':
+        case 'WK2StoreTravelCost':
+        case 'WK2StoreTravelOvgCost':
+        case 'GuaranteedMiles':
+          return parseFloat(data[sortHeaderId]) || 0;
+        
+        // String sorting (case-insensitive)
+        case 'StoreName':
+        case 'AddrLine1':
+        case 'City':
+        case 'State':
+        case 'PositionName':
+        case 'Bfd':
+        case 'OutletType':
+          return data[sortHeaderId] ? data[sortHeaderId].toString().toLowerCase() : '';
+        
+        // Assigned To - sort by first name for multiple assignments
+        case 'AssignedTo':
+          if (!data.AssignedTo || data.AssignedTo === 'NOT ASSIGNED') {
+            return 'zzz'; 
+          }
+          // Get first name from comma-separated list
+          const name = data.AssignedTo.split(',');          
+          const firstName = name[0]?.trim().toLowerCase()||'';
+          return firstName.toLowerCase();
+        
+        // Status columns - custom sort order
+        case 'TaskCompleted':
+          return this.getTaskCompletedSortValue(data.TaskCompleted);
+        
+        // case 'Quality':
+        //   return this.getQualitySortValue(data.Quality);
+        
+        case 'CostOver':
+          return this.getCostOverSortValue(data.CostOver);
+        
+        // Comments - sort by existence and then alphabetically
+        case 'UserComment':
+          if (!data.UserComment) return 'zzz'; // Empty comments last
+          return data.UserComment.toLowerCase();
+        
+        default:
+          return data[sortHeaderId] || '';
+      }
+    };
+
+     if (this.paginator) {
+      this.paginator.page
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(() => {
+          this.forceCollapseAllRows();
+          this.resetExpansionState();
+        });
+    }
+     this.cdr.detectChanges();
+  }
+
+private applyParentRowPagination(): void {
+  if (!this.paginator) return;
+
+  this.forceCollapseAllRows();
+  this.resetExpansionState();
+
+  const pageIndex = this.paginator.pageIndex;
+  const pageSize = this.paginator.pageSize;
+
+  // Get ONLY parent rows - never count child rows for pagination
+  const allParentRows = this.parentRowsData.filter(row => !row.isChildRow);
+  
+  // Calculate pagination based on PARENT rows only
+  const startIndex = pageIndex * pageSize;
+  const endIndex = startIndex + pageSize;
+  
+  // Get parent rows for current page (NO CHILD ROWS)
+  const currentPageParentRows = allParentRows.slice(startIndex, endIndex);
+  
+  // Update datasource with ONLY parent rows for current page
+  this.dataSource.data = currentPageParentRows;
+  
+  // CRITICAL: Set paginator length to ONLY parent rows count
+  this.paginator.length = allParentRows.length;  // Should be 5000, not 50!
+  
+  this.cdr.detectChanges();
+}
+
+
+  // Week type class specifically for table min-width
+  getWeekTypeTableClass(): string {
+    return `week-${this.currentWeekType}`;
+  }
+
+  // Get current table min-width for debugging/info
+  getCurrentTableMinWidth(): number {
+    switch (this.currentWeekType) {
+      case 'current':
+        return 1520;
+      case 'future':
+        return 1320;
+      case 'previous':
+        return 2100;
+      default:
+        return 1200;
+    }
+  }
+
+  // Get week type display info
+  getWeekTypeInfo(): { name: string, minWidth: number, columns: number } {
+    switch (this.currentWeekType) {
+      case 'current':
+        return { 
+          name: 'Current Week Tasks', 
+          minWidth: 1520, 
+          columns: this.currentWeekColumns.length 
+        };
+      case 'future':
+        return { 
+          name: 'Future Week Planning', 
+          minWidth: 1320, 
+          columns: this.futureWeekColumns.length 
+        };
+      case 'previous':
+        return { 
+          name: 'Previous Week History', 
+          minWidth: 2100, 
+          columns: this.previousWeekColumns.length 
+        };
+      default:
+        return { 
+          name: 'Store Data', 
+          minWidth: 1200, 
+          columns: this.baseColumns.length 
+        };
+    }
+  }
+
+//   formatQuality(value: any): string {
+//   if (!value) return 'N/A';
+//   const quality = value.toString().toLowerCase();
+//   return quality === 'approved' ? 'Approved' : 'Not Approved';
+// }
+
+// getQualityClass(value: any): string {
+//   if (!value) return 'quality-unknown';
+//   const quality = value.toString().toLowerCase();
+//   return quality === 'approved' ? 'quality-approved' : 'quality-not-approved';
+// }
+
+
+  private getTaskCompletedSortValue(status: any): number {
+    if (!status) return 3;
+    const statusStr = status.toString().toLowerCase();
+    switch (statusStr) {
+      case 'yes':
+      case 'completed':
+      case 'complete':
+        return 1;
+      case 'no':
+      case 'incomplete':
+      case 'pending':
+        return 2;
+      default:
+        return 3;
+    }
+  }
+
+  
+
+  private getCostOverSortValue(costOver: any): number {
+    if (!costOver) return 2;
+    const costStr = costOver.toString().toLowerCase();
+    switch (costStr) {
+      case 'no':
+      case 'false':
+        return 1;
+      case 'yes':
+      case 'true':
+        return 2;
+      default:
+        return 2;
+    }
+  }
+
+  // ADD: Enhanced money formatting for display
+  formatMoney(value: any): string {
+    if (!value || value === 0 || value === '0') return '$0.00';
+    
+    const num = parseFloat(value);
+    if (isNaN(num)) return '$0.00';
+    
+    return '$' + num.toLocaleString('en-US', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    });
+  }
+
+  // ADD: Sort change handler with logging
+  onSortChange(event: any): void {
+    this.currentSortColumn = event.active;
+    this.currentSortDirection = event.direction;    
+    // Collapse all expanded rows when sorting
+    this.forceCollapseAllRows();
+    this.resetExpansionState();
+  }
+
+  // ADD: Get current sort info for display
+  getCurrentSortInfo(): { column: string, direction: string } {
+    return {
+      column: this.currentSortColumn || 'None',
+      direction: this.currentSortDirection || 'None'
+    };
+  }
+
+    
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.unsubscribe$.next();
+    this.unsubscribe$.complete();
+  }
+}
