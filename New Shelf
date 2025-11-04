@@ -1,3 +1,102 @@
+createWorkOrderForFSR(params: any): Observable<any> {
+  const payload = {
+    storeNumber: params.storeNumber,
+    storeName: params.storeName,
+    iriWeek: params.iriWeek,
+    territoryId: params.territoryId,
+    empId: params.empId,
+    fsrName: params.fsrName,
+    fsrEmail: params.fsrEmail,
+    tasks: params.tasks || null,  // Optional - for filtering specific tasks
+    userId: localStorage.getItem('loggedUserId') || ''
+  };
+
+  return this.http.post<any>(
+    this.baseUrl + 'api/TaskAssinment/CreateWorkOrderForFSR',
+    payload,
+    { 
+      headers: { 'Content-Type': 'application/json; charset=utf-8' }
+    }
+  ).pipe(catchError(this.handleError('createWorkOrderForFSR', {})));
+}
+
+/**
+ * Send email for the work order to FSR
+ * @param pdfSessionId - PDF session ID from work order creation
+ */
+sendWorkOrderEmailToFSR(pdfSessionId: string): Observable<any> {
+  const payload = {
+    pdfSessionId: pdfSessionId,
+    userId: localStorage.getItem('loggedUserId') || ''
+  };
+
+  return this.http.post<any>(
+    this.baseUrl + 'api/TaskAssinment/SendWorkOrderEmailToFSR',
+    payload,
+    { 
+      headers: { 'Content-Type': 'application/json; charset=utf-8' }
+    }
+  ).pipe(catchError(this.handleError('sendWorkOrderEmailToFSR', {})));
+}
+
+---
+// ✅ CORRECT
+async createAndSendWorkOrder(element: any): Promise<void> {
+  try {
+    element.isProcessingWorkOrder = true;
+    this.commonService.show('create-work-order');
+    
+    // Get FSR information
+    const fsrList = this.parseAssignedTo(element.AssignedTo);
+    
+    if (!fsrList || fsrList.length === 0) {
+      this.snackbar.openSnackBar('No FSR assigned to this store', 'error');
+      element.isProcessingWorkOrder = false;
+      return;
+    }
+    
+    const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+    
+    // Prepare work order parameters
+    const workOrderParams = {
+      storeNumber: element.StoreNumber,
+      storeName: element.StoreName,
+      iriWeek: currentFilters.iri_week,
+      territoryId: currentFilters.territory_id,
+      empId: fsrList.empId,  // First FSR
+      fsrName: fsrList.name,
+      fsrEmail: fsrList.email
+    };
+    
+    // ✅ CORRECT - Call createWorkOrderForFSR (camelCase)
+    const workOrderResponse = await firstValueFrom(
+      this.commonService.createWorkOrderForFSR(workOrderParams)
+    );
+    
+    const sessionId = workOrderResponse.sessionId;
+    
+    if (!sessionId) {
+      throw new Error('No session ID returned from work order creation');
+    }
+    
+    // ✅ CORRECT - Call sendWorkOrderEmailToFSR (camelCase)
+    await firstValueFrom(
+      this.commonService.sendWorkOrderEmailToFSR(sessionId)
+    );
+    
+    this.snackbar.openSnackBar('Work order created and email sent successfully!', 'success');
+    this.commonService.hide('create-work-order');
+    
+  } catch (error) {
+    console.error('Error creating work order:', error);
+    this.snackbar.openSnackBar('Error: ' + error.message, 'error');
+  } finally {
+    element.isProcessingWorkOrder = false;
+    this.cdr.detectChanges();
+  }
+}
+
+.........................
 import { Injectable, Inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { countryModel, FilterOptions, GetGridDataFilter, SelectModel, Store, StoreFilter } from './common.model';
