@@ -1,10 +1,104 @@
-currently the task assignment is happening at 2 level one is at store level and another is task levele now i need to improve it by adding one more level position or cluster level 
-as uI looks something like as attached bascally user can click the fsr at store level (main grid level )or task lelve (subgrid lelve)
-or  postion or cluster level (need to create a clickable thing) based on user click we need to defult to that selection 
-      All three can be done using the same UI by giving the option to the user to select options like this (drop down list in the UI). 
-1.	<Store Name, selected task>. ———————————————— if user selected a task from the main screen
-2.	<Store Name all Tasks> —————— either user selected a store OR give option to user to select.
-3.	<Cluster and all store all tasks> ——————— get corresponding cluster of a store selected.
+Current Functionality
+
+Task assignment currently happens at two levels:
+
+Store Level (Main Grid)
+
+Task Level (Sub Grid)
+
+Enhancement Required
+
+Introduce one more assignment level: Position or Cluster Level
+
+The UI should now support assignment at:
+
+Store level
+
+Task level
+
+Position/Cluster level
+
+UI/Functional Flow
+
+Grid Structure:
+
+The main grid displays stores.
+
+The subgrid (expandable) displays tasks for each store.
+
+A new Position/Cluster column should be added and made clickable.
+
+For now, this column is not clickable — please make it interactive.
+
+User Interaction & Default Behavior:
+
+Based on where the user clicks (Store, Task, or Position/Cluster), the system should default the assignment values accordingly.
+
+Examples:
+
+If the user clicks on FSR at the main grid (store level):
+
+Default Assign To = <Store Name all Tasks>
+
+Territory = based on the territory field in the table.
+
+Assigned FSR (if already assigned) should be displayed — same as current logic.
+
+The user should still be able to change the “Assign To” dropdown.
+
+If the Cluster/Position value is not available, disable that option (user cannot select it).
+
+Assignment Options (Dropdown Values):
+The “Assign To” dropdown should include the following options:
+
+<Store Name all Tasks>
+<Cluster and all stores all tasks>
+<Store Name, task1>
+<Store Name, task2>
+<Store Name, task3>
+
+
+If the user clicks at task level, default it to the specific task (e.g., <Store Name, task1>), but the user can still change it.
+
+If the user clicks at store level, default it to <Store Name all Tasks>.
+
+If the user clicks at cluster/position level, default it to <Cluster and all stores all tasks>.
+
+Data Handling Logic
+
+Week value should be passed from the table as well as territory.
+
+Replace lookups based on “code” with first name and last name (reuse existing code where possible).
+
+If the cluster or position data is not available, hide/disable that selection in the dropdown.
+
+If the user selects a store or task that has subtasks, make sure all tasks are included in the dropdown options.
+
+If the user hasn’t expanded the subgrid, create a new method to fetch subgrid data (task-level info) dynamically:
+
+Call GetSubGridData() for fetching task-level info if the subgrid is not expanded.
+
+If already expanded, use the existing data.
+
+C# Backend Updates
+
+Ensure backend methods support the new cluster/position level.
+
+Verify that all assignments and fetch operations (for FSR, territory, etc.) work with the new hierarchy.
+
+Reuse the existing code for assignment mapping wherever possible.
+
+Add any missing columns to the data table if they are available in the database but not currently being displayed.
+
+UI Enhancement Summary
+
+Add clickable Position/Cluster column.
+
+Update dropdown options for assignment.
+
+Modify default value selection logic based on user click.
+
+Enable dynamic loading of subgrid task-level data.
 
 <html><head><style>body{font-family:Arial,sans-serif;font-size:8pt;}table{border
 private async Task<bool> CreatePdfAsync(string filePath, string htmlContent)
