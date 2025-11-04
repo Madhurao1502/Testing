@@ -1,317 +1,44 @@
-using MigraDoc.DocumentObjectModel;
-using MigraDoc.DocumentObjectModel.Tables;
-using MigraDoc.Rendering;
-using System.IO;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace TaskAssignment.Services
 {
-    public class PdfSharpGeneratorService : IPdfGeneratorService
+    public interface IPdfGeneratorService
     {
-        private readonly ILogger<PdfSharpGeneratorService> _logger;
+        Task<byte[]> GenerateWorkOrderPdfAsync(WorkOrderRequest request);
+        Task<byte[]> GenerateTaskAssignmentPdfAsync(TaskAssignmentRequest request);
+        Task<byte[]> GenerateMultiplePdfsAsZipAsync(List<WorkOrderRequest> requests);
+    }
 
-        public PdfSharpGeneratorService(ILogger<PdfSharpGeneratorService> logger)
-        {
-            _logger = logger;
-        }
+    public class WorkOrderRequest
+    {
+        public string FsrName { get; set; }
+        public string FsrId { get; set; }
+        public string FsrEmail { get; set; }
+        public string Territory { get; set; }
+        public DateTime AssignedDate { get; set; }
+        public List<TaskData> Tasks { get; set; } = new();
+    }
 
-        public async Task<byte[]> GenerateWorkOrderPdfAsync(WorkOrderRequest request)
-        {
-            return await Task.Run(() =>
-            {
-                try
-                {
-                    // Create MigraDoc document
-                    Document doc = new Document();
-                    Section section = doc.AddSection();
-                    section.PageSetup.TopMargin = "2cm";
-                    section.PageSetup.BottomMargin = "2cm";
-                    section.PageSetup.LeftMargin = "1.5cm";
-                    section.PageSetup.RightMargin = "1.5cm";
+    public class TaskData
+    {
+        public int TaskId { get; set; }
+        public string TaskName { get; set; }
+        public string TaskNumber { get; set; }
+        public string StoreNumber { get; set; }
+        public string StoreName { get; set; }
+        public string Status { get; set; }
+    }
 
-                    // ========== HEADER SECTION ==========
-                    Paragraph title = section.AddParagraph("WORK ORDER");
-                    title.Format.Font.Size = 24;
-                    title.Format.Font.Bold = true;
-                    title.Format.Alignment = ParagraphAlignment.Center;
-                    title.Format.SpaceAfter = "0.5cm";
-
-                    Paragraph dateInfo = section.AddParagraph();
-                    dateInfo.Format.Font.Size = 10;
-                    dateInfo.Format.Alignment = ParagraphAlignment.Right;
-                    dateInfo.AddFormattedText($"Date: {DateTime.Now:yyyy-MM-dd HH:mm:ss}", TextFormat.Italic);
-
-                    section.AddParagraph("");
-
-                    // ========== FSR INFORMATION SECTION ==========
-                    Paragraph frsTitle = section.AddParagraph("FSR INFORMATION");
-                    frsTitle.Format.Font.Size = 14;
-                    frsTitle.Format.Font.Bold = true;
-                    frsTitle.Format.SpaceBefore = "0.3cm";
-                    frsTitle.Format.SpaceAfter = "0.2cm";
-
-                    Table infoTable = section.AddTable();
-                    infoTable.Borders.Width = 0.75;
-                    infoTable.AddColumn("3cm");
-                    infoTable.AddColumn("6cm");
-
-                    Row row = infoTable.AddRow();
-                    row.Cells.AddParagraph("Name:").Format.Font.Bold = true;
-                    row.Cells.AddParagraph(request.FsrName ?? "N/A");
-
-                    row = infoTable.AddRow();
-                    row.Cells.AddParagraph("Employee ID:").Format.Font.Bold = true;
-                    row.Cells.AddParagraph(request.FsrId ?? "N/A");
-
-                    row = infoTable.AddRow();
-                    row.Cells.AddParagraph("Email:").Format.Font.Bold = true;
-                    row.Cells.AddParagraph(request.FsrEmail ?? "N/A");
-
-                    row = infoTable.AddRow();
-                    row.Cells.AddParagraph("Territory:").Format.Font.Bold = true;
-                    row.Cells.AddParagraph(request.Territory ?? "N/A");
-
-                    row = infoTable.AddRow();
-                    row.Cells.AddParagraph("Assigned Date:").Format.Font.Bold = true;
-                    row.Cells.AddParagraph(request.AssignedDate.ToString("yyyy-MM-dd"));
-
-                    section.AddParagraph("");
-
-                    // ========== TASKS TABLE SECTION ==========
-                    Paragraph tasksTitle = section.AddParagraph("ASSIGNED TASKS");
-                    tasksTitle.Format.Font.Size = 14;
-                    tasksTitle.Format.Font.Bold = true;
-                    tasksTitle.Format.SpaceBefore = "0.3cm";
-                    tasksTitle.Format.SpaceAfter = "0.2cm";
-
-                    Table tasksTable = section.AddTable();
-                    tasksTable.Borders.Width = 0.75;
-                    
-                    Column col = tasksTable.AddColumn("0.8cm");
-                    col.Format.Alignment = ParagraphAlignment.Center;
-                    
-                    tasksTable.AddColumn("2.5cm");
-                    tasksTable.AddColumn("2cm");
-                    tasksTable.AddColumn("3cm");
-                    tasksTable.AddColumn("3cm");
-                    tasksTable.AddColumn("1.5cm");
-
-                    // Header row
-                    row = tasksTable.AddRow();
-                    row.Format.Font.Bold = true;
-                    row.Format.BackColor = new Color(200, 200, 200);
-                    
-                    row.Cells.AddParagraph("No.");
-                    row.Cells.AddParagraph("Task Name");
-                    row.Cells.AddParagraph("Task #");
-                    row.Cells.AddParagraph("Store");
-                    row.Cells.AddParagraph("Location");
-                    row.Cells.AddParagraph("Status");
-
-                    // Data rows
-                    int taskNum = 1;
-                    if (request.Tasks != null && request.Tasks.Count > 0)
-                    {
-                        foreach (var task in request.Tasks)
-                        {
-                            row = tasksTable.AddRow();
-                            
-                            if (taskNum % 2 == 0)
-                                row.Format.BackColor = new Color(240, 240, 240);
-
-                            row.Cells.AddParagraph(taskNum.ToString()).Format.Alignment = ParagraphAlignment.Center;
-                            row.Cells.AddParagraph(task.TaskName ?? "");
-                            row.Cells.AddParagraph(task.TaskNumber ?? "");
-                            row.Cells.AddParagraph($"{task.StoreNumber} - {task.StoreName}");
-                            row.Cells.AddParagraph(task.Status ?? "Pending");
-                            row.Cells.AddParagraph("");
-
-                            taskNum++;
-                        }
-                    }
-                    else
-                    {
-                        row = tasksTable.AddRow();
-                        row.Cells.AddParagraph("No tasks assigned");
-                    }
-
-                    section.AddParagraph("");
-
-                    // ========== SUMMARY SECTION ==========
-                    Paragraph summaryTitle = section.AddParagraph("SUMMARY");
-                    summaryTitle.Format.Font.Size = 12;
-                    summaryTitle.Format.Font.Bold = true;
-                    summaryTitle.Format.SpaceBefore = "0.3cm";
-
-                    Table summaryTable = section.AddTable();
-                    summaryTable.Borders.Width = 0.75;
-                    summaryTable.AddColumn("4cm");
-                    summaryTable.AddColumn("4cm");
-
-                    row = summaryTable.AddRow();
-                    row.Cells.AddParagraph("Total Tasks:").Format.Font.Bold = true;
-                    row.Cells.AddParagraph((request.Tasks?.Count ?? 0).ToString());
-
-                    row = summaryTable.AddRow();
-                    row.Cells.AddParagraph("Generated Date:").Format.Font.Bold = true;
-                    row.Cells.AddParagraph(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-
-                    section.AddParagraph("");
-
-                    // ========== FOOTER SECTION ==========
-                    Paragraph footer = section.AddParagraph("This is an automatically generated document.");
-                    footer.Format.Font.Size = 8;
-                    footer.Format.Font.Italic = true;
-                    footer.Format.Alignment = ParagraphAlignment.Center;
-                    footer.Format.SpaceBefore = "1cm";
-
-                    // Convert to PDF
-                    PdfDocumentRenderer renderer = new PdfDocumentRenderer();
-                    renderer.Document = doc;
-                    renderer.RenderDocument();
-
-                    using (var memoryStream = new MemoryStream())
-                    {
-                        renderer.PdfDocument.Save(memoryStream, false);
-                        byte[] pdfBytes = memoryStream.ToArray();
-
-                        _logger.LogInformation($"Work order PDF generated successfully: {pdfBytes.Length} bytes");
-                        return pdfBytes;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, $"Error generating work order PDF for FSR: {request.FsrName}");
-                    throw;
-                }
-            });
-        }
-
-        public async Task<byte[]> GenerateTaskAssignmentPdfAsync(TaskAssignmentRequest request)
-        {
-            return await Task.Run(() =>
-            {
-                try
-                {
-                    _logger.LogInformation($"Generating task assignment PDF for task: {request.TaskName}");
-
-                    Document doc = new Document();
-                    Section section = doc.AddSection();
-                    section.PageSetup.TopMargin = "2cm";
-                    section.PageSetup.BottomMargin = "2cm";
-                    section.PageSetup.LeftMargin = "1.5cm";
-                    section.PageSetup.RightMargin = "1.5cm";
-
-                    // Header
-                    Paragraph title = section.AddParagraph("TASK ASSIGNMENT");
-                    title.Format.Font.Size = 20;
-                    title.Format.Font.Bold = true;
-                    title.Format.Alignment = ParagraphAlignment.Center;
-                    title.Format.SpaceAfter = "0.5cm";
-
-                    Paragraph dateInfo = section.AddParagraph($"Date: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                    dateInfo.Format.Font.Size = 10;
-                    dateInfo.Format.Alignment = ParagraphAlignment.Right;
-
-                    section.AddParagraph("");
-
-                    // Task Information Table
-                    Table table = section.AddTable();
-                    table.Borders.Width = 0.75;
-                    table.AddColumn("3.5cm");
-                    table.AddColumn("6cm");
-
-                    Row row = table.AddRow();
-                    row.Cells.AddParagraph("Task:").Format.Font.Bold = true;
-                    row.Cells.AddParagraph(request.TaskName ?? "");
-
-                    row = table.AddRow();
-                    row.Cells.AddParagraph("Task Number:").Format.Font.Bold = true;
-                    row.Cells.AddParagraph(request.TaskId.ToString());
-
-                    row = table.AddRow();
-                    row.Cells.AddParagraph("Store:").Format.Font.Bold = true;
-                    row.Cells.AddParagraph($"{request.StoreNumber} - {request.StoreName}");
-
-                    row = table.AddRow();
-                    row.Cells.AddParagraph("Assigned To:").Format.Font.Bold = true;
-                    row.Cells.AddParagraph(request.AssignedTo ?? "");
-
-                    row = table.AddRow();
-                    row.Cells.AddParagraph("Assigned Date:").Format.Font.Bold = true;
-                    row.Cells.AddParagraph(request.AssignedDate.ToString("yyyy-MM-dd"));
-
-                    section.AddParagraph("");
-
-                    // Notes Section
-                    Paragraph notesTitle = section.AddParagraph("NOTES");
-                    notesTitle.Format.Font.Size = 12;
-                    notesTitle.Format.Font.Bold = true;
-
-                    Paragraph notesContent = section.AddParagraph(request.Notes ?? "No additional notes");
-                    notesContent.Format.BackColor = new Color(245, 245, 245);
-                    notesContent.Format.LeftIndent = "0.5cm";
-                    notesContent.Format.RightIndent = "0.5cm";
-
-                    // Convert to PDF
-                    PdfDocumentRenderer renderer = new PdfDocumentRenderer();
-                    renderer.Document = doc;
-                    renderer.RenderDocument();
-
-                    using (var memoryStream = new MemoryStream())
-                    {
-                        renderer.PdfDocument.Save(memoryStream, false);
-                        byte[] pdfBytes = memoryStream.ToArray();
-
-                        _logger.LogInformation($"Task assignment PDF generated successfully: {pdfBytes.Length} bytes");
-                        return pdfBytes;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, $"Error generating task assignment PDF");
-                    throw;
-                }
-            });
-        }
-
-        public async Task<byte[]> GenerateMultiplePdfsAsZipAsync(List<WorkOrderRequest> requests)
-        {
-            return await Task.Run(async () =>
-            {
-                try
-                {
-                    using (var memoryStream = new MemoryStream())
-                    {
-                        using (var archive = new System.IO.Compression.ZipArchive(memoryStream, System.IO.Compression.ZipArchiveMode.Create, true))
-                        {
-                            int count = 1;
-                            foreach (var request in requests)
-                            {
-                                var pdfBytes = await GenerateWorkOrderPdfAsync(request);
-                                var entry = archive.CreateEntry($"WorkOrder_{request.FsrId}_{count}.pdf");
-                                
-                                using (var entryStream = entry.Open())
-                                {
-                                    entryStream.Write(pdfBytes, 0, pdfBytes.Length);
-                                }
-
-                                count++;
-                            }
-                        }
-
-                        _logger.LogInformation($"Generated zip file with {requests.Count} PDFs");
-                        return memoryStream.ToArray();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error generating multiple PDFs as zip");
-                    throw;
-                }
-            });
-        }
+    public class TaskAssignmentRequest
+    {
+        public int TaskId { get; set; }
+        public string TaskName { get; set; }
+        public string StoreNumber { get; set; }
+        public string StoreName { get; set; }
+        public string AssignedTo { get; set; }
+        public DateTime AssignedDate { get; set; }
+        public string Notes { get; set; }
     }
 }
