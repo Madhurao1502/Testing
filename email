@@ -1,0 +1,445 @@
+Step 1: Update Store Table Template (HTML)
+Add the new column definition for "Work Order":
+
+xml
+<!-- Work Order Column (add after user_comment column) -->
+<ng-container matColumnDef="work_order" *ngIf="isColumnVisible('work_order')">
+  <mat-header-cell *matHeaderCellDef class="mat-header-style">
+    Work Order
+  </mat-header-cell>
+  <mat-cell *matCellDef="let element" class="work-order-cell">
+    <!-- Main Grid: Show E-mail button -->
+    <button *ngIf="!element.isChildRow" 
+            mat-raised-button 
+            color="primary" 
+            (click)="createAndSendWorkOrder(element); $event.stopPropagation();"
+            [disabled]="element.isProcessingWorkOrder">
+      <mat-icon *ngIf="!element.isProcessingWorkOrder">email</mat-icon>
+      <mat-spinner *ngIf="element.isProcessingWorkOrder" [diameter]="20" style="display: inline-block;"></mat-spinner>
+      {{ element.isProcessingWorkOrder ? 'Processing...' : 'E-mail' }}
+    </button>
+    
+    <!-- Subgrid: Empty string to maintain column alignment -->
+    <span *ngIf="element.isChildRow"></span>
+  </mat-cell>
+</ng-container>
+Add the new column to your column arrays:
+
+typescript
+// In store-table.component.ts
+
+currentWeekColumns = [
+  'store_number', 'territory', 'position_number', 'bdf', 'outlet', 'task', 'store_name', 
+  'addr_line1', 'city', 'state', 'assigned_to', 'task_completed', 'cost_over', 
+  'guaranteed_miles', 'user_comment', 'work_order'  // ← Add this
+];
+
+futureWeekColumns = [
+  'store_number', 'territory', 'position_number', 'bdf', 'outlet', 'task', 'store_name', 
+  'addr_line1', 'city', 'state', 'assigned_to', 'avg_cost', 'guaranteed_miles', 
+  'user_comment', 'work_order'  // ← Add this
+];
+
+previousWeekColumns = [
+  'store_number', 'territory', 'position_number', 'bfd', 'outlet', 'task', 'store_name', 
+  'addr_line1', 'city', 'state', 'assigned_to', 'task_completed', 'cost_over', 
+  'wk1_costs', 'wk1_travel', 'wk1_ovg_travel', 'wk2_costs', 'wk2_travel', 
+  'wk2_ovg_travel', 'user_comment', 'work_order'  // ← Add this
+];
+Step 2: Update Component TypeScript
+Add the work order creation method:
+
+typescript
+// Add this method to store-table.component.ts
+
+async createAndSendWorkOrder(element: any): Promise<void> {
+  try {
+    // Set loading flag for this row
+    element.isProcessingWorkOrder = true;
+    this.cdr.detectChanges();
+    
+    // Get FSR information from assigned data
+    const fsrList = this.parseAssignedTo(element.AssignedTo);
+    
+    if (!fsrList || fsrList.length === 0) {
+      this.snackbar.openSnackBar('No FSR assigned to this store', 'error');
+      element.isProcessingWorkOrder = false;
+      this.cdr.detectChanges();
+      return;
+    }
+    
+    // For single FSR - get their details and create work order
+    if (fsrList.length === 1) {
+      await this.processWorkOrderForSingleFSR(element, fsrList);
+    } else {
+      // For multiple FSRs - get task data first to determine individual assignments
+      await this.processWorkOrderForMultipleFSRs(element, fsrList);
+    }
+    
+    this.snackbar.openSnackBar('Work order created and email sent successfully!', 'success');
+  } catch (error) {
+    console.error('Error creating work order:', error);
+    this.snackbar.openSnackBar('Error creating work order: ' + error.message, 'error');
+  } finally {
+    element.isProcessingWorkOrder = false;
+    this.cdr.detectChanges();
+  }
+}
+
+private async processWorkOrderForSingleFSR(parentRow: any, fsrInfo: any): Promise<void> {
+  const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+  
+  // Prepare the work order parameters
+  const workOrderParams = {
+    storeNumber: parentRow.StoreNumber,
+    storeName: parentRow.StoreName,
+    iriWeek: currentFilters.iri_week,
+    territoryId: currentFilters.territory_id,
+    empId: fsrInfo.empId, // Single FSR ID
+    fsrName: fsrInfo.name,
+    fsrEmail: fsrInfo.email
+  };
+  
+  // Step 1: Create work order
+  this.commonService.show('create-work-order');
+  
+  const workOrderResponse = await firstValueFrom(
+    this.commonService.createWorkOrder(workOrderParams)
+  );
+  
+  const sessionId = workOrderResponse.sessionId || workOrderResponse.SessionId;
+  
+  if (!sessionId) {
+    throw new Error('Failed to create work order - no session ID returned');
+  }
+  
+  // Step 2: Send email for the work order
+  await firstValueFrom(
+    this.commonService.sendWorkOrderEmail(sessionId)
+  );
+  
+  this.commonService.hide('create-work-order');
+}
+
+private async processWorkOrderForMultipleFSRs(parentRow: any, fsrList: any[]): Promise<void> {
+  const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+  
+  // Check if subgrid data is already expanded
+  const storeKey = parentRow.StoreNumber;
+  let subgridData = null;
+  
+  if (this.expandedRowsData.has(storeKey)) {
+    // Use cached subgrid data
+    const cachedData = this.expandedRowsData.get(storeKey);
+    subgridData = cachedData?.data || [];
+  } else {
+    // Fetch subgrid data dynamically
+    this.commonService.show('fetch-subgrid-for-workorder');
+    
+    const response = await this.loadSubgridDataForRow(parentRow);
+    subgridData = response.data || [];
+    
+    this.commonService.hide('fetch-subgrid-for-workorder');
+  }
+  
+  // Group tasks by assigned FSR from subgrid
+  const tasksByFSR = this.groupTasksByFSR(subgridData);
+  
+  // Create work order for each FSR with their specific tasks
+  for (const [fsrId, tasks] of Object.entries(tasksByFSR)) {
+    const fsrInfo = fsrList.find(fsr => fsr.empId === fsrId);
+    
+    if (!fsrInfo) continue;
+    
+    const workOrderParams = {
+      storeNumber: parentRow.StoreNumber,
+      storeName: parentRow.StoreName,
+      iriWeek: currentFilters.iri_week,
+      territoryId: currentFilters.territory_id,
+      empId: fsrId,
+      fsrName: fsrInfo.name,
+      fsrEmail: fsrInfo.email,
+      tasks: tasks // Pass specific tasks for this FSR
+    };
+    
+    this.commonService.show('create-work-order-' + fsrId);
+    
+    const workOrderResponse = await firstValueFrom(
+      this.commonService.createWorkOrder(workOrderParams)
+    );
+    
+    const sessionId = workOrderResponse.sessionId || workOrderResponse.SessionId;
+    
+    if (sessionId) {
+      // Send email for this FSR
+      await firstValueFrom(
+        this.commonService.sendWorkOrderEmail(sessionId)
+      );
+    }
+    
+    this.commonService.hide('create-work-order-' + fsrId);
+  }
+}
+
+private parseAssignedTo(assignedTo: string): any[] {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return [];
+  }
+  
+  // Split by comma to get individual FSR names
+  const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
+  
+  // Return FSR info objects (you may need to fetch empId and email separately)
+  return names.map(name => ({
+    name: name,
+    empId: '', // Will be populated from subgrid or additional API call
+    email: '' // Will be populated from subgrid or additional API call
+  }));
+}
+
+private groupTasksByFSR(subgridData: any[]): { [key: string]: any[] } {
+  const grouped: { [key: string]: any[] } = {};
+  
+  subgridData.forEach(task => {
+    const assignedTo = task.assignedTo || task.AssignedTo || '';
+    
+    if (!grouped[assignedTo]) {
+      grouped[assignedTo] = [];
+    }
+    
+    grouped[assignedTo].push(task);
+  });
+  
+  return grouped;
+}
+Step 3: Update CommonService (TypeScript Service)
+Add these updated methods:
+
+typescript
+// In common.service.ts
+
+// Enhanced work order creation with FSR-specific parameters
+createWorkOrder(params: any): Observable<any> {
+  return this.http.post<any>(
+    this.baseUrl + 'api/TaskAssinment/CreateWorkOrderForFSR', 
+    {
+      storeNumber: params.storeNumber,
+      storeName: params.storeName,
+      iriWeek: params.iriWeek,
+      territoryId: params.territoryId,
+      empId: params.empId,  // Single FSR ID
+      fsrName: params.fsrName,
+      fsrEmail: params.fsrEmail,
+      tasks: params.tasks || null, // For specific tasks in multi-FSR scenarios
+      userId: localStorage.getItem('loggedUserId') || ''
+    },
+    { 
+      headers: { 'Content-Type': 'application/json; charset=utf-8' }
+    }
+  );
+}
+
+// Send email for the work order
+sendWorkOrderEmail(pdfSessionId: string): Observable<any> {
+  return this.http.post<any>(
+    this.baseUrl + 'api/TaskAssinment/SendWorkOrderEmailToFSR',
+    { 
+      pdfSessionId: pdfSessionId,
+      userId: localStorage.getItem('loggedUserId') || ''
+    },
+    { 
+      headers: { 'Content-Type': 'application/json; charset=utf-8' }
+    }
+  );
+}
+Step 4: C# Backend Implementation
+Create a new C# method in your controller:
+
+csharp
+// In TaskAssignmentController.cs
+
+[HttpPost("[action]")]
+public async Task<IActionResult> CreateWorkOrderForFSR([FromBody] WorkOrderRequest request)
+{
+    try
+    {
+        if (string.IsNullOrEmpty(request.EmpId))
+        {
+            return BadRequest("Employee ID is required");
+        }
+
+        // Create work order specifically for this FSR
+        var workOrderData = await _workOrderService.GenerateWorkOrderForFSRAsync(
+            request.StoreNumber,
+            request.IriWeek,
+            request.EmpId,
+            request.Tasks // Pass specific tasks if provided
+        );
+
+        // Generate PDF
+        string sessionId = Guid.NewGuid().ToString();
+        string pdfPath = await _pdfService.GenerateWorkOrderPDFAsync(
+            workOrderData,
+            sessionId,
+            request.FsrName,
+            request.FsrEmail
+        );
+
+        // Save email info to temp table
+        await InsertWorkOrderEmailAsync(
+            sessionId,
+            pdfPath,
+            $"Work Order for {request.StoreName} - Week {request.IriWeek}",
+            request.FsrEmail,
+            request.UserId
+        );
+
+        return Ok(new { 
+            success = true, 
+            sessionId = sessionId,
+            message = "Work order created successfully"
+        });
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error creating work order for FSR");
+        return StatusCode(500, new { error = ex.Message });
+    }
+}
+
+[HttpPost("[action]")]
+public async Task<IActionResult> SendWorkOrderEmailToFSR([FromBody] SendEmailRequest request)
+{
+    try
+    {
+        // Send the email via notification service
+        int result = await SendWorkOrderEmailAsync(request.PdfSessionId);
+
+        return Ok(new { 
+            success = true, 
+            message = "Email sent successfully",
+            notificationId = result
+        });
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error sending work order email");
+        return StatusCode(500, new { error = ex.Message });
+    }
+}
+
+// Supporting method to generate work order for specific FSR
+private async Task<WorkOrderData> GenerateWorkOrderForFSRAsync(
+    string storeNumber, 
+    string iriWeek, 
+    string empId, 
+    List<TaskInfo> specificTasks = null)
+{
+    var filter = new WorkOrderFilter
+    {
+        StoreNumber = storeNumber,
+        IriWeek = iriWeek,
+        EmpId = empId
+    };
+
+    DataTable dtEmployee = await GetWorkOrderTasksListAsync(filter, empId, false);
+
+    // If specific tasks provided, filter the datatable
+    if (specificTasks != null && specificTasks.Count > 0)
+    {
+        var taskNumbers = specificTasks.Select(t => t.TaskNumber).ToList();
+        var filteredRows = new DataTable();
+        
+        filteredRows.Load(dtEmployee.AsDataView().Table.Copy());
+        
+        for (int i = filteredRows.Rows.Count - 1; i >= 0; i--)
+        {
+            var taskNum = filteredRows.Rows[i]["task_number"]?.ToString();
+            if (!taskNumbers.Contains(taskNum))
+            {
+                filteredRows.Rows.RemoveAt(i);
+            }
+        }
+
+        dtEmployee = filteredRows;
+    }
+
+    string htmlContent = GenerateHtmlFromDataTable(dtEmployee, "Work Order", false);
+
+    return new WorkOrderData 
+    { 
+        HtmlContent = htmlContent,
+        EmpId = empId,
+        StoreNumber = storeNumber
+    };
+}
+
+// Supporting classes
+public class WorkOrderRequest
+{
+    public string StoreNumber { get; set; }
+    public string StoreName { get; set; }
+    public string IriWeek { get; set; }
+    public string TerritoryId { get; set; }
+    public string EmpId { get; set; }
+    public string FsrName { get; set; }
+    public string FsrEmail { get; set; }
+    public List<TaskInfo> Tasks { get; set; }
+    public string UserId { get; set; }
+}
+
+public class SendEmailRequest
+{
+    public string PdfSessionId { get; set; }
+    public string UserId { get; set; }
+}
+
+public class TaskInfo
+{
+    public string TaskNumber { get; set; }
+    public string TaskName { get; set; }
+}
+Step 5: CSS Styling (Optional)
+Add to your component CSS file:
+
+css
+.work-order-cell {
+  text-align: center;
+  padding: 8px;
+}
+
+button[color="primary"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+mat-spinner {
+  margin: 0 8px;
+}
+Flow Summary
+User clicks E-mail button on a main grid row
+
+Single FSR:
+
+Create work order for that FSR
+
+Send email immediately
+
+Show success message
+
+Multiple FSRs:
+
+Fetch subgrid data (if not expanded)
+
+Group tasks by assigned FSR
+
+For each FSR: Create work order → Send email
+
+Show completion message
+
+Loading Indicator
+Button shows "Processing..." with spinner while operation is in progress
+
+Row's isProcessingWorkOrder flag prevents duplicate clicks
+
+All async operations are awaited before completing
