@@ -1,3 +1,10 @@
+dotnet add package PdfSharp --version 6.2.0
+dotnet add package MigraDoc.Core --version 6.2.0
+dotnet add package MigraDoc.Rendering --version 6.2.0
+
+
+---
+
 Use NuGet Package (Easier - Recommended)
 Install the platform-specific runtime package:
 
