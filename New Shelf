@@ -1,3 +1,11 @@
+currently the task assignment is happening at 2 level one is at store level and another is task levele now i need to improve it by adding one more level position or cluster level 
+as uI looks something like as attached bascally user can click the fsr at store level (main grid level )or task lelve (subgrid lelve)
+or  postion or cluster level (need to create a clickable thing) based on user click we need to defult to that selection 
+      All three can be done using the same UI by giving the option to the user to select options like this (drop down list in the UI). 
+1.	<Store Name, selected task>. ———————————————— if user selected a task from the main screen
+2.	<Store Name all Tasks> —————— either user selected a store OR give option to user to select.
+3.	<Cluster and all store all tasks> ——————— get corresponding cluster of a store selected.
+
 <html><head><style>body{font-family:Arial,sans-serif;font-size:8pt;}table{border
 private async Task<bool> CreatePdfAsync(string filePath, string htmlContent)
 {
