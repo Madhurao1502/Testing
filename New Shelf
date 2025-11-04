@@ -1,68 +1,259 @@
 <html><head><style>body{font-family:Arial,sans-serif;font-size:8pt;}table{border
-collapse:collapse;}th,td{padding:4px;}</style></head><body>
- <table border='0' width='100%'><tr><td><strong>Employee: Young, Marc
- (265673)</strong></td></tr><tr><td>US FIELD (23) / NY-NJ (52), IRI Week:
- 2410</td></tr><tr><td><strong>Additional Communication:</strong></td></tr><tr><td>testing
- </td></tr><tr><td><strong>Store: 14364: (BJ^S WHOLESALE CLUB, 3635 HEMPSTEAD TPKE,
- LEVITTOWN, NY, 11756)</strong></td></tr><tr><td><table border='1' width='100%'><tr><th>Task
- #</th><th>Task Name</th><th>Collection Period</th><th>Est. Time</th></tr><tr><td
- align='center'>5226</td><td>New Item Collection</td><td align='center'>1 Week</td><td
- align='center'>0:30</td></tr><tr><td align='center'>5290</td><td>NewItemPlaceHolder</td><td
- align='center'>1 Week</td><td align='center'>0:00</td></tr><tr><td
- align='center'>8000</td><td>Display</td><td align='center'>1 Week</td><td
- align='center'>0:00</td></tr><tr><td colspan='3' align='right'><strong>Store 14364
- Total:</strong></td><td
- align='center'><strong>0:30</strong></td></tr></table></td></tr><tr><td><strong>Store: 44824: (CVS
- PHARMACY, 610 OLD COUNTRY RDSALISBURY, WESTBURY, NY,
- 11590)</strong></td></tr><tr><td><table border='1' width='100%'><tr><th>Task #</th><th>Task
- Name</th><th>Collection Period</th><th>Est. Time</th></tr><tr><td
- align='center'>5290</td><td>NewItemPlaceHolder</td><td align='center'>1 Week</td><td
- align='center'>0:00</td></tr><tr><td align='center'>8000</td><td>Display</td><td align='center'>1
- Week</td><td align='center'>0:00</td></tr><tr><td colspan='3' align='right'><strong>Store 44824
- Total:</strong></td><td
- align='center'><strong>0:00</strong></td></tr></table></td></tr><tr><td><strong>Store: 91180:
- (TARGET, 999 CORPORATE DR, WESTBURY, NY, 11590)</strong></td></tr><tr><td><table
- border='1' width='100%'><tr><th>Task #</th><th>Task Name</th><th>Collection Period</th><th>Est.
- Time</th></tr><tr><td align='center'>5226</td><td>New Item Collection</td><td align='center'>1
- Week</td><td align='center'>0:30</td></tr><tr><td
- align='center'>5290</td><td>NewItemPlaceHolder</td><td align='center'>1 Week</td><td
- align='center'>0:00</td></tr><tr><td align='center'>8000</td><td>Display</td><td align='center'>1
- Week</td><td align='center'>0:00</td></tr><tr><td align='center'>8020</td><td>Dimension
- Capture</td><td align='center'>1 Week</td><td align='center'>0:20</td></tr><tr><td
- align='center'>8989</td><td>SP Frz PreparedChicken Ma</td><td align='center'>1 Week</td><td
- align='center'>0:00</td></tr><tr><td colspan='3' align='right'><strong>Store 91180
- Total:</strong></td><td
- align='center'><strong>0:50</strong></td></tr></table></td></tr><tr><td><strong>Store: 204301:
- (SPEEDWAY, 880 OLD COUNTRY RD, WESTBURY, NY, 11590)</strong></td></tr><tr><td><table
- border='1' width='100%'><tr><th>Task #</th><th>Task Name</th><th>Collection Period</th><th>Est.
- Time</th></tr><tr><td align='center'>5290</td><td>NewItemPlaceHolder</td><td align='center'>1
- Week</td><td align='center'>0:00</td></tr><tr><td align='center'>7269</td><td>Cstore Outdoor
- Signage</td><td align='center'>1 Week</td><td align='center'>0:00</td></tr><tr><td
- align='center'>7270</td><td>Cstore Features</td><td align='center'>1 Week</td><td
- align='center'>0:00</td></tr><tr><td align='center'>8000</td><td>Display</td><td align='center'>1
- Week</td><td align='center'>0:00</td></tr><tr><td colspan='3' align='right'><strong>Store 204301
- Total:</strong></td><td
- align='center'><strong>0:00</strong></td></tr></table></td></tr><tr><td><strong>Store: 204486:
- (SPEEDWAY, 60 JERICHO TPKE, JERICHO, NY, 11753)</strong></td></tr><tr><td><table
- border='1' width='100%'><tr><th>Task #</th><th>Task Name</th><th>Collection Period</th><th>Est.
- Time</th></tr><tr><td align='center'>5290</td><td>NewItemPlaceHolder</td><td align='center'>1
- Week</td><td align='center'>0:00</td></tr><tr><td align='center'>7269</td><td>Cstore Outdoor
- Signage</td><td align='center'>1 Week</td><td align='center'>0:00</td></tr><tr><td
- align='center'>7270</td><td>Cstore Features</td><td align='center'>1 Week</td><td
- align='center'>0:00</td></tr><tr><td align='center'>8000</td><td>Display</td><td align='center'>1
- Week</td><td align='center'>0:00</td></tr><tr><td colspan='3' align='right'><strong>Store 204486
- Total:</strong></td><td
- align='center'><strong>0:00</strong></td></tr></table></td></tr><tr><td><strong>Store: 212010:
- (HOLIDAY FARMS, 1-1 PARK PLAZA, GLEN HEAD, NY, 11545)</strong></td></tr><tr><td><table
- border='1' width='100%'><tr><th>Task #</th><th>Task Name</th><th>Collection Period</th><th>Est.
- Time</th></tr><tr><td align='center'>5226</td><td>New Item Collection</td><td align='center'>1
- Week</td><td align='center'>0:30</td></tr><tr><td
- align='center'>5290</td><td>NewItemPlaceHolder</td><td align='center'>1 Week</td><td
- align='center'>0:00</td></tr><tr><td align='center'>8000</td><td>Display</td><td align='center'>1
- Week</td><td align='center'>0:00</td></tr><tr><td colspan='3' align='right'><strong>Store 212010
- Total:</strong></td><td
- align='center'><strong>0:30</strong></td></tr></table></td></tr></table></body></html
+private async Task<bool> CreatePdfAsync(string filePath, string htmlContent)
+{
+    try
+    {
+        _logger.LogInformation($"Starting CreatePdfAsync for file: {filePath}");
 
+        // Create MigraDoc document
+        Document doc = new Document();
+        Section section = doc.AddSection();
+        section.PageSetup.TopMargin = "0.5cm";
+        section.PageSetup.BottomMargin = "0.5cm";
+        section.PageSetup.LeftMargin = "0.5cm";
+        section.PageSetup.RightMargin = "0.5cm";
+
+        // Add title
+        Paragraph title = section.AddParagraph("WORK ORDER");
+        title.Format.Font.Size = 16;
+        title.Format.Font.Bold = true;
+        title.Format.Alignment = ParagraphAlignment.Center;
+        title.Format.SpaceAfter = "0.3cm";
+
+        // Parse HTML and extract content
+        ParseHtmlToDocument(htmlContent, section);
+
+        // Save PDF
+        PdfDocumentRenderer renderer = new PdfDocumentRenderer();
+        renderer.Document = doc;
+        renderer.RenderDocument();
+
+        using (var fileStream = new FileStream(filePath, FileMode.Create))
+        {
+            renderer.PdfDocument.Save(fileStream, false);
+        }
+
+        _logger.LogInformation($"PDF successfully saved to: {filePath}");
+        return true;
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, $"Error creating PDF: {filePath}");
+        return false;
+    }
+}
+
+/// <summary>
+/// Parse HTML content and add formatted tables to document
+/// </summary>
+private void ParseHtmlToDocument(string htmlContent, Section section)
+{
+    try
+    {
+        // Remove HTML tags and extract table data
+        var doc = new HtmlDocument();
+        doc.LoadHtml(htmlContent);
+
+        // Get all tables
+        var tables = doc.DocumentNode.SelectNodes("//table");
+
+        if (tables == null || tables.Count == 0)
+        {
+            _logger.LogWarning("No tables found in HTML content");
+            section.AddParagraph(htmlContent.Replace("<br>", "\n").Replace("<br/>", "\n"));
+            return;
+        }
+
+        // Process each table
+        foreach (var tableNode in tables)
+        {
+            try
+            {
+                ProcessHtmlTable(tableNode, section);
+                section.AddParagraph(""); // Add spacing between tables
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing HTML table");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error parsing HTML content");
+        // Fallback: add raw content
+        section.AddParagraph(htmlContent.Replace("<br>", "\n"));
+    }
+}
+
+/// <summary>
+/// Convert HTML table to MigraDoc table
+/// </summary>
+private void ProcessHtmlTable(HtmlNode tableNode, Section section)
+{
+    try
+    {
+        // Get rows
+        var rows = tableNode.SelectNodes(".//tr");
+
+        if (rows == null || rows.Count == 0)
+        {
+            _logger.LogWarning("No rows found in HTML table");
+            return;
+        }
+
+        // Get first row to determine column count
+        var firstRowCells = rows.SelectNodes(".//th | .//td");
+        if (firstRowCells == null || firstRowCells.Count == 0)
+        {
+            _logger.LogWarning("No cells found in first row");
+            return;
+        }
+
+        int columnCount = firstRowCells.Count;
+
+        // Create MigraDoc table
+        Table table = section.AddTable();
+        table.Borders.Width = 0.75;
+        table.Borders.Color = Colors.Black;
+
+        // Set column widths
+        for (int i = 0; i < columnCount; i++)
+        {
+            table.AddColumn("2.5cm");
+        }
+
+        // Process each row
+        foreach (var rowNode in rows)
+        {
+            var cells = rowNode.SelectNodes(".//th | .//td");
+
+            if (cells == null || cells.Count == 0)
+                continue;
+
+            Row row = table.AddRow();
+
+            // Determine if this is a header row (contains <th> tags)
+            bool isHeaderRow = rowNode.SelectNodes(".//th").Count > 0;
+
+            if (isHeaderRow)
+            {
+                row.Format.Font.Bold = true;
+                row.Format.Font.Color = Colors.White;
+
+                // Set header background color
+                for (int i = 0; i < row.Cells.Count; i++)
+                {
+                    row.Cells[i].Shading.Color = new Color(100, 100, 100); // Dark gray
+                }
+            }
+
+            // Add cells to row
+            for (int i = 0; i < cells.Count && i < columnCount; i++)
+            {
+                var cellNode = cells[i];
+                string cellText = CleanHtmlText(cellNode.InnerText);
+
+                // Handle colspan
+                var colspanAttr = cellNode.GetAttributeValue("colspan", "1");
+                if (int.TryParse(colspanAttr, out int colspan) && colspan > 1)
+                {
+                    if (i < row.Cells.Count)
+                    {
+                        row.Cells[i].MergeRight = colspan - 1;
+                    }
+                }
+
+                // Add paragraph
+                Paragraph para = row.Cells[i].AddParagraph(cellText);
+
+                // Check alignment from HTML
+                var styleAttr = cellNode.GetAttributeValue("style", "");
+                if (styleAttr.Contains("text-align:right") || styleAttr.Contains("align='right'"))
+                {
+                    para.Format.Alignment = ParagraphAlignment.Right;
+                }
+                else if (styleAttr.Contains("text-align:center") || styleAttr.Contains("align='center'"))
+                {
+                    para.Format.Alignment = ParagraphAlignment.Center;
+                }
+
+                // Check for align attribute
+                var alignAttr = cellNode.GetAttributeValue("align", "");
+                if (!string.IsNullOrEmpty(alignAttr))
+                {
+                    switch (alignAttr.ToLower())
+                    {
+                        case "center":
+                            para.Format.Alignment = ParagraphAlignment.Center;
+                            break;
+                        case "right":
+                            para.Format.Alignment = ParagraphAlignment.Right;
+                            break;
+                        case "left":
+                            para.Format.Alignment = ParagraphAlignment.Left;
+                            break;
+                    }
+                }
+
+                // Set font style
+                if (cellNode.Name == "th" || cellNode.InnerHtml.Contains("<strong>") || cellNode.InnerHtml.Contains("<b>"))
+                {
+                    para.Format.Font.Bold = true;
+                }
+
+                // Set alternating row colors (for non-header rows)
+                if (!isHeaderRow)
+                {
+                    var rowIndex = table.Rows.Count % 2;
+                    if (rowIndex == 0)
+                    {
+                        row.Cells[i].Shading.Color = new Color(240, 240, 240); // Light gray
+                    }
+                }
+            }
+
+            // Fill empty cells if row has fewer cells than expected
+            for (int i = cells.Count; i < columnCount; i++)
+            {
+                row.Cells[i].AddParagraph("");
+            }
+        }
+
+        _logger.LogInformation($"Successfully processed HTML table with {rows.Count} rows and {columnCount} columns");
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error processing HTML table node");
+        throw;
+    }
+}
+
+/// <summary>
+/// Clean HTML text (remove tags, decode entities)
+/// </summary>
+private string CleanHtmlText(string htmlText)
+{
+    try
+    {
+        if (string.IsNullOrEmpty(htmlText))
+            return "";
+
+        // Decode HTML entities
+        htmlText = System.Net.WebUtility.HtmlDecode(htmlText);
+
+        // Remove extra whitespace
+        htmlText = System.Text.RegularExpressions.Regex.Replace(htmlText, @"\s+", " ");
+        htmlText = htmlText.Trim();
+
+        return htmlText;
+    }
+    catch
+    {
+        return htmlText;
+    }
+}
+=============================================
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Newtonsoft.Json;
