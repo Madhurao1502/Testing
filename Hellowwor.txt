@@ -1,3 +1,154 @@
+async createAndSendWorkOrder(element: any): Promise<void> {
+  try {
+    element.isProcessingWorkOrder = true;
+    this.commonService.show('create-work-order');
+    
+    // Validate that store has an FSR assigned
+    if (!element.AssignedTo || element.AssignedTo === 'NOT ASSIGNED' || element.AssignedTo.trim() === '') {
+      this.snackbar.openSnackBar('No FSR assigned to this store', 'error');
+      element.isProcessingWorkOrder = false;
+      this.commonService.hide('create-work-order');
+      return;
+    }
+    
+    const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+    
+    if (!currentFilters || !currentFilters.iri_week || !currentFilters.territory_id) {
+      this.snackbar.openSnackBar('Please apply IRI week and territory filters first.', 'error');
+      element.isProcessingWorkOrder = false;
+      return;
+    }
+    
+    // Get FSR information - parse assigned to names and EmpIds
+    const fsrList = this.parseAssignedToWithEmpIds(element);
+    
+    if (!fsrList || fsrList.length === 0) {
+      this.snackbar.openSnackBar('No FSR assigned to this store', 'error');
+      element.isProcessingWorkOrder = false;
+      return;
+    }
+
+   
+    
+    // Try to enrich FSR list with email from subgrid data if available
+    const enrichedFsrList = this.enrichFsrListWithEmail(element, fsrList);
+    
+    // Filter out FSRs without email (they can't receive emails)
+    const validFsrs = enrichedFsrList.filter(fsr => fsr.empId && fsr.empId.trim() !== '');
+    
+    if (validFsrs.length === 0) {
+      this.snackbar.openSnackBar('No valid FSR employee IDs found. Cannot generate work orders.', 'error');
+      element.isProcessingWorkOrder = false;
+      return;
+    }
+
+          
+    // Process each FSR: create work order and send email
+    let successCount = 0;
+    let failureCount = 0;
+    const errors: string[] = [];
+    
+    for (const fsr of validFsrs) {
+      try {
+        // Prepare work order parameters for this FSR
+        const workOrderParams = {
+          storeNumber: element.StoreNumber,
+          storeName: element.StoreName,
+          iriWeek: currentFilters.iri_week,
+          territoryId: currentFilters.territory_id,
+          empId: fsr.empId,
+          fsrName: fsr.name,
+          fsrEmail: fsr.email || '', 
+          tasks: fsr.tasks || null ,
+          countryId:currentFilters?.country_id || '1'
+        };
+        
+        // Validate that we have required parameters
+        if (!fsr.email || fsr.email.trim() === '') {
+          errors.push(`FSR ${fsr.name}: Email ID is missing`);
+          failureCount++;
+          continue;
+        }
+
+          if (!fsr.empId || fsr.empId.trim() === '') {
+          errors.push(`FSR ${fsr.name}: Employee ID is missing`);
+          failureCount++;
+          continue;
+        }
+        // Create work order for this FSR
+        const workOrderResponse = await firstValueFrom(
+          this.commonService.createWorkOrderForFSR(workOrderParams)
+        );
+        
+        // Validate response
+        if (!workOrderResponse || !workOrderResponse.success) {
+          errors.push(`FSR ${fsr.name}: ${workOrderResponse?.message || 'Failed to create work order'}`);
+          failureCount++;
+          continue;
+        }
+        
+        const sessionId = workOrderResponse.sessionId;
+        
+        if (!sessionId) {
+          errors.push(`FSR ${fsr.name}: No session ID returned from work order creation`);
+          failureCount++;
+          continue;
+        }
+        
+        // Send email for this FSR
+        const emailResponse = await firstValueFrom(
+          this.commonService.sendWorkOrderEmailToFSR(sessionId)
+        );
+        
+        // Validate email response
+        if (!emailResponse || !emailResponse.success) {
+          errors.push(`FSR ${fsr.name}: ${emailResponse?.message || 'Failed to send email'}`);
+          failureCount++;
+          continue;
+        }
+        
+        successCount++;
+        
+        // Small delay between FSRs to avoid overwhelming the system
+        await this.delay(100);
+        
+      } catch (fsrError) {
+        console.error(`Error processing FSR ${fsr.name}:`, fsrError);
+        errors.push(`FSR ${fsr.name}: ${fsrError?.message || 'Unknown error'}`);
+        failureCount++;
+      }
+    }
+    
+    // Show summary message
+    if (successCount > 0 && failureCount === 0) {
+      this.snackbar.openSnackBar(
+        `Work orders created and emails sent successfully to ${successCount} FSR${successCount > 1 ? 's' : ''}!`, 
+        'success'
+      );
+    } else if (successCount > 0 && failureCount > 0) {
+      this.snackbar.openSnackBar(
+        `Partially successful: ${successCount} work order${successCount > 1 ? 's' : ''} sent, ${failureCount} failed. ${errors.join('; ')}`, 
+        'warning'
+      );
+    } else {
+      this.snackbar.openSnackBar(
+        `Failed to create work orders. Errors: ${errors.join('; ')}`, 
+        'error'
+      );
+    }
+    
+    this.commonService.hide('create-work-order');
+    
+  } catch (error) {
+    console.error('Error creating work order:', error);
+    const errorMessage = error?.message || error?.error?.message || 'Unknown error occurred';
+    this.snackbar.openSnackBar('Error: ' + errorMessage, 'error');
+  } finally {
+    element.isProcessingWorkOrder = false;
+    this.cdr.detectChanges();
+  }
+}
+
 Self-Performance Review: Achievements and Contributions
 
 Throughout this review cycle, I have consistently delivered high-quality work across multiple projects, demonstrating strong technical skills, a proactive approach, and effective self-management. Below are my key contributions:
