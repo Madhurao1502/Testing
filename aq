@@ -1,3 +1,6 @@
+(click)="element.isChildRow ? openTaskAssignmentDialog2(element) : openAssignmentDialog(element, 'StoreLevel');"
+
+
 // ============================================================
 // AUTO-SELECT based on where user came from
 // ============================================================
