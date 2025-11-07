@@ -1,3 +1,28 @@
+************
+private async loadTaskDataIfNeeded(): Promise<void> {
+    try {
+      // For StoreLevel and TaskLevel, we need to fetch task data for the specific store
+      if (this.data.mode === 'StoreLevel' || this.data.mode === 'TaskLevel') {
+        const params = {
+          IriWeek: this.data.iriWeek,
+          StoreNumber: this.data.storeNumber,
+        };
+
+        const response = await firstValueFrom(
+          this.http.post<any>(this.baseUrl + 'api/TaskAssinment/GetSubgridData', params)
+        );
+
+        // Handle both response formats
+        if (response && response.data && Array.isArray(response.data)) {
+          this.taskData = response.data;
+        } else if (Array.isArray(response)) {
+          this.taskData = response;
+        } else {
+          this.taskData = [];
+        }
+      }
+*********************
+
 import { HttpClient } from '@angular/common/http';
 import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
 import { CommonService } from 'src/app/shared/common.service';
