@@ -1,637 +1,2967 @@
-// ✅ CORRECT - Single FSR Work Order
-createWorkOrderForFSR(params: any): Observable<any> {
-  return this.http.post<any>(
-    this.baseUrl + 'api/TaskAssinment/CreateWorkOrderForFSR',  // ✅ CORRECT
-    {
-      storeNumber: params.storeNumber,
-      storeName: params.storeName,
-      iriWeek: params.iriWeek,
-      territoryId: params.territoryId,
-      empId: params.empId,  
-      fsrName: params.fsrName,
-      fsrEmail: params.fsrEmail,
-      tasks: params.tasks || null,  // Optional - for specific tasks
-      userId: localStorage.getItem('loggedUserId') || ''
-    },
-    { 
-      headers: { 'Content-Type': 'application/json; charset=utf-8' }
-    }
-  );
+import { HttpClient } from '@angular/common/http';
+import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
+import { CommonService } from 'src/app/shared/common.service';
+import { SnackbarService } from 'src/app/shared/snackbar.service';
+import { Subject, takeUntil } from 'rxjs';
+import { MatTableDataSource } from '@angular/material/table';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+
+
+
+@Component({
+  selector: 'app-closest-fsr-dialog',
+  templateUrl: './closest-fsr-dialog.component.html',
+  styleUrls: ['./closest-fsr-dialog.component.css']
+})
+export class ClosestFsrDialogComponent implements OnInit, OnDestroy {
+  private unsubscribe$ = new Subject<void>();
+  public showSpinner: boolean = false;
+  displayedColumns:string[]=['empId','empName','cost','time','toll','phone','email'];
+  dataSource:MatTableDataSource<any>
+  isCollectorIDFound:boolean=false
+  isNonSampleCStore:boolean=false
+
+  constructor(
+    public dialogRef: MatDialogRef<ClosestFsrDialogComponent>,
+    @Inject(MAT_DIALOG_DATA) public data: any,
+    private http: HttpClient, 
+    @Inject('BASE_URL') private baseUrl: string,
+    public service: CommonService,
+    private _snackBar: SnackbarService,
+  ) { }
+
+  ngOnInit(): void {
+    this.loadClosestFsrData();
+  }
+
+  ngOnDestroy(): void {
+    this.unsubscribe$.next();
+    this.unsubscribe$.complete();
+  }
+
+    //   CountryId: this.data.CountryId || '1'
+  loadClosestFsrData(): void {
+    this.showSpinner = true;
+    this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetProximityData', {
+      StoreNumber: this.data.StoreNumber
+    }).pipe(takeUntil(this.unsubscribe$)).subscribe({
+      next: (response) => {
+        if (response.length <= 0) {
+          this._snackBar.openSnackBar("No Data Found", 'error');
+          this.showSpinner = false;
+          return;
+        }
+
+        // Check if it's a non-sample C store
+        if (response[0].NonSampleCStore == 'NON SAMPLE C STORE' || response[0].nonSampleCStore == 'NON SAMPLE C STORE') {
+          this.isNonSampleCStore = true;
+          this.showSpinner = false;
+          return;
+        } else {
+          this.isNonSampleCStore = false;
+
+          // Map response to handle both PascalCase and camelCase
+          const mappedData = response.map(item => ({
+            empId: item.EmpId || item.empId,
+            firstName: item.FirstName || item.firstName,
+            lastName: item.LastName || item.lastName,
+            time: item.Time || item.time,
+            toll: item.Toll || item.toll,
+            totalCost: item.TotalCost || item.totalCost,
+            costRank: item.CostRank || item.costRank,
+            email: item.fsrEmailID||item.fsrEmailIDPersonal,
+            fsrPhoneNum:item.fsrPhoneNumPersonal||item.fsrPhoneNumShipping
+          }));
+
+          const sortedData = mappedData.sort((a, b) => (a.costRank || 0) - (b.costRank || 0));
+          this.dataSource = new MatTableDataSource(sortedData);
+
+          this.isCollectorIDFound = !mappedData.some(emp => emp.empId == this.data.CollectorId);
+          this.showSpinner = false;
+        }
+      },
+      error: (error) => {
+        console.error(error);
+        this._snackBar.openSnackBar("Error loading data", 'error');
+        this.showSpinner = false;
+      },
+    });
+  }
+
+  onClose(): void {
+    this.dialogRef.close();
+  }
+
+ 
 }
 
-// ✅ CORRECT - Send Email for Work Order
-sendWorkOrderEmailToFSR(pdfSessionId: string): Observable<any> {
-  return this.http.post<any>(
-    this.baseUrl + 'api/TaskAssinment/SendWorkOrderEmailToFSR',  // ✅ CORRECT
-    { 
-      pdfSessionId: pdfSessionId,
-      userId: localStorage.getItem('loggedUserId') || ''
-    },
-    { 
-      headers: { 'Content-Type': 'application/json; charset=utf-8' }
-    }
-  );
+<div cdkDrag cdkDragRootElement=".cdk-overlay-pane" cdkDragBoundary=".cdk-overlay-container">
+  <h4 mat-dialog-title class="title-style" cdkDragHandle>
+      Closest FSR - {{ data.StoreNumber }} - {{ data.StoreName }}
+      <span class="close-btn" title="Close" [mat-dialog-close]="true">
+          <mat-icon class="close-btn-icon">cancel_presentation</mat-icon>
+      </span>
+  </h4>
+
+  <mat-dialog-content class="mat-dialog-body" *ngIf="!isNonSampleCStore">
+      <div class="table-container">    
+          <table mat-table [dataSource]="dataSource" class="mat-elevation-z8">
+              <!-- Employee Id -->
+              <ng-container matColumnDef="empId">
+                  <th mat-header-cell *matHeaderCellDef style="width: 130px; color: #fff3f3;"> Employee Id </th>
+                  <td mat-cell *matCellDef="let element"> {{element.empId}} </td>
+              </ng-container>
+          
+              <!-- Employee Name -->
+              <ng-container matColumnDef="empName">
+                  <th mat-header-cell *matHeaderCellDef style="width: 200px; color: #fff3f3;">Employee Name </th>
+                  <td mat-cell *matCellDef="let element">
+                      {{element.firstName}} {{element.lastName}}
+                      <mat-icon *ngIf="element.empId == data.OptimalCollectorId" 
+                                style="vertical-align: bottom; color: royalblue;" 
+                                matTooltip="Optimal Collector">stars</mat-icon>
+                      <mat-icon *ngIf="element.empId == data.CollectorId" 
+                                style="vertical-align: bottom;" 
+                                matTooltip="Current Collector">person_pin</mat-icon>
+                  </td>
+              </ng-container>
+          
+              <!-- Employee cost -->
+              <ng-container matColumnDef="cost">
+                  <th mat-header-cell *matHeaderCellDef style="width: 100px; color: #fff3f3;">Cost </th>
+                  <td mat-cell *matCellDef="let element"> {{element.totalCost | currencyFormat}}</td>
+              </ng-container>
+          
+              <!-- Travel Time -->
+              <ng-container matColumnDef="time">
+                  <th mat-header-cell *matHeaderCellDef style="width: 100px; color: #fff3f3;">Travel Time<br>(MM:SS) </th>
+                  <td mat-cell *matCellDef="let element"> {{element.time}}</td>
+              </ng-container>
+          
+              <!-- Toll -->
+              <ng-container matColumnDef="toll">
+                  <th mat-header-cell *matHeaderCellDef style="width: 100px; color: #fff3f3;">Toll </th>
+                  <td mat-cell *matCellDef="let element"> {{element.toll | currencyFormat}}</td>
+              </ng-container>
+
+                 <!-- Email -->
+              <ng-container matColumnDef="email">
+                  <th mat-header-cell *matHeaderCellDef style="width: 100px; color: #fff3f3;">Email </th>
+                  <td mat-cell *matCellDef="let element"> {{element.email}}</td>
+              </ng-container>
+
+                      <!-- phone -->
+              <ng-container matColumnDef="phone">
+                  <th mat-header-cell *matHeaderCellDef style="width: 100px; color: #fff3f3;">Phone </th>
+                  <td mat-cell *matCellDef="let element"> {{element.fsrPhoneNum}}</td>
+              </ng-container>
+          
+              <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+          </table>
+      </div>
+
+      <!-- Warning Messages -->
+      <div class="note-message" *ngIf="isCollectorIDFound && dataSource?.data?.length > 0 && data.IsActiveFSR == 'A'">
+          <span class="highlighted-note">{{data.FirstName}} {{data.LastName}}</span>, is not in the top 5 most cost-effective collectors for this store
+      </div>
+      <div class="note-message" *ngIf="isCollectorIDFound && dataSource?.data?.length > 0 && data.IsActiveFSR == 'T'">
+          <span class="highlighted-note">{{data.FirstName}} {{data.LastName}}</span>, who collected this Store, was Terminated
+      </div>
+  </mat-dialog-content>
+
+  <!-- Non-Sample Store Message -->
+  <mat-dialog-content class="mat-dialog-body" *ngIf="isNonSampleCStore">
+      <div class="note-message" style="text-align: center;">
+          <span class="highlighted-note">Proximity is not calculated for non-sample stores</span>
+      </div>
+  </mat-dialog-content>
+
+  <!-- Loading Spinner -->
+  <footer>
+      <div class="mat-spinner-container">
+          <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
+          <div *ngIf="showSpinner" style="position: relative; left: 10px">
+              Loading closest FSR data...
+          </div>
+      </div>
+  </footer>
+</div>
+*************************
+<h2 mat-dialog-title class="title-style" cdkDrag cdkDragRootElement=".cdk-overlay-pane" cdkDragHandle>
+  <span>{{ getDialogTitle() }}</span>
+</h2>
+
+<mat-dialog-content class="assignment-dialog-content">
+  <!-- Filter Section -->
+  <div class="filter-section" [formGroup]="filterForm">
+    <div class="filter-row">
+      <mat-form-field appearance="outline">
+        <mat-label>IRI Week</mat-label>
+        <input matInput [value]="data.iriWeek" readonly />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Territory</mat-label>
+        <mat-select formControlName="territory" (selectionChange)="onTerritoryChange()">
+          <mat-option *ngFor="let territory of territories" [value]="territory.territory_id">
+            {{ territory.territory_name }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <div class="filter-row">
+      <!-- First Name Autocomplete -->
+      <mat-form-field appearance="outline">
+        <mat-label>First Name</mat-label>
+        <input
+          matInput
+          formControlName="firstName"
+          placeholder="Search by first name..."
+          [matAutocomplete]="firstNameAuto"
+        />
+        <mat-autocomplete
+          #firstNameAuto="matAutocomplete"
+          (optionSelected)="onFirstNameSelected($event)"
+          [displayWith]="displayFn"
+        >
+          <mat-option *ngFor="let option of filteredFirstNames | async" [value]="option">
+            {{ option.FirstName }} {{ option.LastName }}
+          </mat-option>
+        </mat-autocomplete>
+      </mat-form-field>
+
+      <!-- Last Name Autocomplete -->
+      <mat-form-field appearance="outline">
+        <mat-label>Last Name</mat-label>
+        <input
+          matInput
+          formControlName="lastName"
+          placeholder="Search by last name..."
+          [matAutocomplete]="lastNameAuto"
+        />
+        <mat-autocomplete
+          #lastNameAuto="matAutocomplete"
+          (optionSelected)="onLastNameSelected($event)"
+          [displayWith]="displayFn"
+        >
+          <mat-option *ngFor="let option of filteredLastNames | async" [value]="option">
+            {{ option.FirstName }} {{ option.LastName }}
+          </mat-option>
+        </mat-autocomplete>
+      </mat-form-field>
+
+      <!-- Search Button -->
+      <button mat-raised-button color="primary" (click)="searchFsrs()" [disabled]="isLoading">
+        <mat-icon>search</mat-icon>
+        Search
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading Indicator -->
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner diameter="30"></mat-spinner>
+    <span>Loading FSRs...</span>
+  </div>
+
+  <!-- FSR Table with Sticky Header -->
+  <div class="table-wrapper" *ngIf="!isLoading">
+    <div class="table-container">
+      <table mat-table [dataSource]="fsrDataSource" class="fsr-table">
+        <!-- Action Columns (conditional based on mode) -->
+        <ng-container matColumnDef="assign_all" *ngIf="showColumn('assign_all')">
+          <mat-header-cell *matHeaderCellDef>Assign All</mat-header-cell>
+          <mat-cell *matCellDef="let fsr">
+            <button
+              mat-stroked-button
+              color="primary"
+              (click)="assignTask(fsr, 2)"
+              class="action-button"
+            >
+              Assign All
+            </button>
+          </mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="unassign_all" *ngIf="showColumn('unassign_all')">
+          <mat-header-cell *matHeaderCellDef>Unassign All</mat-header-cell>
+          <mat-cell *matCellDef="let fsr">
+            <button
+              mat-stroked-button
+              color="warn"
+              (click)="assignTask(fsr, 4)"
+              class="action-button"
+            >
+              Unassign All
+            </button>
+          </mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="assign" *ngIf="showColumn('assign')">
+          <mat-header-cell *matHeaderCellDef>Assign</mat-header-cell>
+          <mat-cell *matCellDef="let fsr">
+            <button
+              mat-stroked-button
+              color="primary"
+              (click)="assignTask(fsr, 1)"
+              class="action-button"
+            >
+              Assign
+            </button>
+          </mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="unassign" *ngIf="showColumn('unassign')">
+          <mat-header-cell *matHeaderCellDef>Unassign</mat-header-cell>
+          <mat-cell *matCellDef="let fsr">
+            <button
+              mat-stroked-button
+              color="warn"
+              (click)="assignTask(fsr, 3)"
+              class="action-button"
+            >
+              Unassign
+            </button>
+          </mat-cell>
+        </ng-container>
+
+        <!-- FSR Information Columns -->
+        <ng-container matColumnDef="name">
+          <mat-header-cell *matHeaderCellDef class="col-name">Name</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-name">{{ fsr.LastName }}, {{ fsr.FirstName }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="address">
+          <mat-header-cell *matHeaderCellDef class="col-address">Address</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-address">{{ fsr.AddrLine1 }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="assigned_hrs">
+          <mat-header-cell *matHeaderCellDef class="col-assigned-hrs">Assigned Hrs</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-assigned-hrs">{{ fsr.AssignedHrs }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="max_hrs">
+          <mat-header-cell *matHeaderCellDef class="col-max-hrs">Max Hours</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-max-hrs">{{ fsr.MaxHrs }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="cluster">
+          <mat-header-cell *matHeaderCellDef class="col-cluster">Cluster</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-cluster">{{ fsr.PositionName }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="contact">
+          <mat-header-cell *matHeaderCellDef class="col-contact">Contact</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-contact">
+            <div class="contact-item">{{ fsr.phone }}</div>
+            <div class="contact-item"><a href="mailto:{{ fsr.Email }}" class="contact-link">{{ fsr.Email }}</a></div>
+          </mat-cell>
+        </ng-container>
+
+        <mat-header-row *matHeaderRowDef="getDisplayedColumns2(); sticky: true"></mat-header-row>
+        <mat-row *matRowDef="let row; columns: getDisplayedColumns2()"></mat-row>
+      </table>
+
+      <div *ngIf="fsrDataSource.data.length === 0 && !isLoading" class="no-data">
+        No FSRs found. Please adjust your search criteria.
+      </div>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end" class="dialog-actions">
+  <button mat-button (click)="onClose()">Close</button>
+</mat-dialog-actions>
+
+<!-- Fixed Close Button in Bottom Right Corner -->
+<button class="fixed-close-btn" title="Close" [mat-dialog-close]="{ hasChanges: false }">
+  <mat-icon class="close-btn-icon">close</mat-icon>
+</button>
+
+<footer>
+  <div class="mat-spinner-container">
+      <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
+      <div *ngIf="showSpinner" style="position:relative;left: 10px">Loading...</div>
+  </div>
+</footer>
+
+import { CommonService } from './../../shared/common.service';
+import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
+import { FormBuilder, FormGroup } from '@angular/forms';
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { HttpClient } from '@angular/common/http';
+import { MatTableDataSource } from '@angular/material/table';
+import {  catchError,  debounceTime,  distinctUntilChanged,  firstValueFrom,  map,  Observable,  of,  Subject,  switchMap,  takeUntil,} from 'rxjs';
+
+export interface AssignmentDialogData {
+  storeNumber: string;
+  storeName: string;
+  taskNumber?: string;
+  taskName?: string;
+  iriWeek: string;
+  territoryId: string;
+  positionNumber?: string;
+  mode: 'StoreLevel' | 'TaskLevel' | 'ClusterLevel';
 }
 
-.....................
-createWorkOrderForFSR(params: any): Observable<any> {
-  const payload = {
-    storeNumber: params.storeNumber,
-    storeName: params.storeName,
-    iriWeek: params.iriWeek,
-    territoryId: params.territoryId,
-    empId: params.empId,
-    fsrName: params.fsrName,
-    fsrEmail: params.fsrEmail,
-    tasks: params.tasks || null,  // Optional - for filtering specific tasks
-    userId: localStorage.getItem('loggedUserId') || ''
-  };
+interface NameOption {
+  emp_name: string;
+  emp_id: string;
+  FirstName: string;
+  LastName: string;
+  value: string;
+  id: string;
+}
 
-  return this.http.post<any>(
-    this.baseUrl + 'api/TaskAssinment/CreateWorkOrderForFSR',
-    payload,
-    { 
-      headers: { 'Content-Type': 'application/json; charset=utf-8' }
+interface DialogResult {
+  hasChanges: boolean;
+  data?: any;
+}
+
+@Component({
+  selector: 'app-assignment-dialog',
+  templateUrl: './assignment-dialog.component.html',
+  styleUrls: ['./assignment-dialog.component.css'],
+})
+export class AssignmentDialogComponent implements OnInit, OnDestroy {
+  // Form & Data Management
+  filterForm: FormGroup;
+  territories: any[] = [];
+  fsrDataSource = new MatTableDataSource<any>([]);
+
+  // UI State Management
+  isLoading = false;
+  showSpinner = false;
+
+  // Autocomplete
+  filteredFirstNames: Observable<NameOption[]>;
+  filteredLastNames: Observable<NameOption[]>;
+
+  // Track Changes
+  private hasChanges = false;
+  private destroy$ = new Subject<void>();
+  selectedFirstNameId: string = '';
+  selectedLastNameId: string = '';
+
+  // Display Columns
+  displayedColumns: string[] = [];
+
+  constructor(
+    private dialogRef: MatDialogRef<AssignmentDialogComponent>,
+    @Inject(MAT_DIALOG_DATA) public data: AssignmentDialogData,
+    private fb: FormBuilder,
+    private http: HttpClient,
+    private commonService: CommonService,
+    @Inject('BASE_URL') private baseUrl: string
+  ) {
+    this.filterForm = this.fb.group({
+      territory: [data.territoryId],
+      firstName: [''],
+      lastName: [''],
+    });
+  }
+
+  async ngOnInit(): Promise<void> {
+    await this.loadTerritories();
+    this.setupAutocomplete();
+    await this.loadCurrentAssignment();
+    this.initializeDisplayedColumns();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+
+  getDialogTitle(): string {
+    const location =
+      this.data.mode === 'ClusterLevel'
+        ? `Cluster: ${this.data.positionNumber} | Store: ALL`
+        : `Store: ${this.data.storeName} (${this.data.storeNumber})`;
+
+    const task = this.data.taskName
+      ? ` | Task: ${this.data.taskName}`
+      : ' | Task: ALL';
+
+    return `Assignment for ${location}${task}`;
+  }
+
+ 
+  private initializeDisplayedColumns(): void {
+    this.displayedColumns = this.getDisplayedColumns();
+  }
+
+
+  private getDisplayedColumns(): string[] {
+    const columns = [];
+
+    // Add action columns based on mode
+    if (this.data.mode === 'StoreLevel') {
+      columns.push('assign_all', 'unassign_all');
+    } else if (this.data.mode === 'TaskLevel') {
+      columns.push('assign', 'unassign');
+    } else if (this.data.mode === 'ClusterLevel') {
+      columns.push('assign_to_cluster', 'unassign_from_cluster');
     }
-  ).pipe(catchError(this.handleError('createWorkOrderForFSR', {})));
+
+    // Add info columns
+    columns.push('name', 'address', 'assigned_hrs', 'max_hrs', 'cluster', 'contact');
+
+    return columns;
+  }
+
+
+  showColumn(columnName: string): boolean {
+    return this.displayedColumns.includes(columnName);
+  }
+
+
+  private async loadTerritories(): Promise<void> {
+    try {
+      this.territories = await firstValueFrom(
+        this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetTerritory')
+      );
+    } catch (error) {
+      console.error('Error loading territories:', error);
+      this.showSpinner = true;
+    }
+  }
+
+  
+  private async loadCurrentAssignment(): Promise<void> {
+    this.isLoading = true;
+    try {
+      const params = {
+        IriWeek: this.data.iriWeek,
+        StoreNumber: this.data.storeNumber,
+        TaskNumber: this.data.taskNumber || '',
+        AssignmentMode: this.data.mode,
+        PositionNumber: this.data.positionNumber || '',
+        CountryId: this.commonService.getCurrentCountry(),
+      };
+
+      const response = await firstValueFrom(
+        this.http.post<any[]>(
+          this.baseUrl + 'api/TaskAssinment/GetCurrentAssignment',
+          params
+        )
+      );
+
+      this.fsrDataSource.data = response;
+    } catch (error) {
+      console.error('Error loading current assignment:', error);
+      this.fsrDataSource.data = [];
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+
+  async searchFsrs(): Promise<void> {
+    this.isLoading = true;
+    try {
+      const formValue = this.filterForm.value;
+
+     
+
+      const params = {
+        IriWeek: this.data.iriWeek,
+        TerritoryId: formValue.territory,
+        FirstName: formValue.firstName?.FirstName || '',
+        LastName: formValue.lastName?.FirstName || '',
+        PositionNumber: this.data.positionNumber || '',
+        countryId: this.commonService.getCurrentCountry(),
+        Area: '23',
+      };
+
+      const response = await firstValueFrom(
+        this.http.post<any[]>(
+          this.baseUrl + 'api/TaskAssinment/GetFsrForAssignment',
+          params
+        )
+      );
+
+      this.fsrDataSource.data = response;
+    } catch (error) {
+      console.error('Error searching FSRs:', error);
+      this.fsrDataSource.data = [];
+      alert('Error searching for FSRs. Please try again.');
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+ 
+  async assignTask(fsr: any, action: number): Promise<void> {
+    const actionNames: { [key: number]: string } = {
+      1: 'assign current task to',
+      2: 'assign all tasks to',
+      3: 'unassign current task from',
+      4: 'unassign all tasks from',
+      5: 'assign to cluster',
+      6: 'unassign from cluster',
+    };
+
+    const message = `Are you sure you want to ${actionNames[action]} ${fsr.FirstName} ${fsr.LastName}?`;
+
+    if (!confirm(message)) return;
+
+    this.showSpinner = true;
+    try {
+      const params = {
+        iri_week: this.data.iriWeek,
+        territory_id: this.filterForm.get('territory')?.value,
+        store_number: this.data.storeNumber,
+        emp_id: fsr.emp_id,
+        task_number: this.data.taskNumber || '',
+        position_number: this.data.positionNumber || '',
+        action: action,
+        assignment_mode: this.data.mode,
+        countryId: this.commonService.getCurrentCountry(),
+      };
+
+      await firstValueFrom(
+        this.http.post(this.baseUrl + 'api/TaskAssinment/SaveAssignment', params)
+      );
+      this.hasChanges = true;
+      await this.loadCurrentAssignment();
+      this.filterForm.patchValue({ firstName: '', lastName: '' });
+
+      alert('New Assignment saved successfully.');
+    } catch (error) {
+      console.error('Error saving assignment:', error);
+      alert('Error while saving assignments.');
+    } finally {
+      this.showSpinner = false;
+    }
+  }
+
+
+  private setupAutocomplete(): void {
+    this.filteredFirstNames = this.filterForm
+      .get('firstName')!
+      .valueChanges.pipe(
+        debounceTime(300),
+        distinctUntilChanged((prev, curr) => {
+          if (typeof prev === 'object' && typeof curr === 'object') {
+            return prev?.id === curr?.id;
+          }
+          return prev === curr;
+        }),
+        switchMap((value) => {
+          if (typeof value === 'string' && value.length >= 2) {
+            return this.searchFirstNames(value);
+          } else {
+            return of([]);
+          }
+        }),
+        takeUntil(this.destroy$)
+      );
+
+    
+    this.filteredLastNames = this.filterForm
+      .get('lastName')!
+      .valueChanges.pipe(
+        debounceTime(300),
+        distinctUntilChanged((prev, curr) => {
+          if (typeof prev === 'object' && typeof curr === 'object') {
+            return prev?.id === curr?.id;
+          }
+          return prev === curr;
+        }),
+        switchMap((value) => {
+          if (typeof value === 'string' && value.length >= 2) {
+            return this.searchLastNames(value);
+          } else {
+            return of([]);
+          }
+        }),
+        takeUntil(this.destroy$)
+      );
+  }
+
+
+  private searchFirstNames(searchText: string): Observable<NameOption[]> {
+    const params = {
+      IriWeek: this.data.iriWeek,
+      TerritoryId: this.filterForm.get('territory')?.value || this.data.territoryId,
+      SearchText: searchText,
+      NameType: 'first_name',
+    };
+
+    return this.http
+      .post<any[]>(this.baseUrl + 'api/TaskAssinment/GetName', params)
+      .pipe(
+        map((response) =>
+          response.map((item) => ({
+            emp_name: item.emp_name,
+            emp_id: item.emp_id,
+            FirstName: item.FirstName,
+            LastName: item.LastName,
+            value: item.emp_name,
+            id: item.emp_id,
+          }))
+        ),
+        catchError((error) => {
+          console.error('Error fetching first names:', error);
+          return of([]);
+        })
+      );
+  }
+
+ 
+  private searchLastNames(searchText: string): Observable<NameOption[]> {
+    const params = {
+      IriWeek: this.data.iriWeek,
+      TerritoryId: this.filterForm.get('territory')?.value || this.data.territoryId,
+      SearchText: searchText,
+      NameType: 'last_name',
+    };
+
+    return this.http
+      .post<any[]>(this.baseUrl + 'api/TaskAssinment/GetName', params)
+      .pipe(
+        map((response) =>
+          response.map((item) => ({
+            emp_name: item.emp_name,
+            emp_id: item.emp_id,
+            FirstName: item.FirstName,
+            LastName: item.LastName,
+            value: item.emp_name,
+            id: item.emp_id,
+          }))
+        ),
+        catchError((error) => {
+          console.error('Error fetching last names:', error);
+          return of([]);
+        })
+      );
+  }
+
+
+  onFirstNameSelected(event: any): void {
+    const selectedOption = event.option.value as NameOption;
+    this.selectedFirstNameId = selectedOption.id;
+    // Auto-search when name is selected
+    setTimeout(() => {
+      this.searchFsrs();
+    }, 100);
+  }
+
+  
+  onLastNameSelected(event: any): void {
+    const selectedOption = event.option.value as NameOption;
+    this.selectedLastNameId = selectedOption.id;
+    // Auto-search when name is selected
+    setTimeout(() => {
+      this.searchFsrs();
+    }, 100);
+  }
+
+  
+  displayFn(option: NameOption): string {
+    return option && option.FirstName ? option.FirstName : '';
+  }
+
+ 
+  onTerritoryChange(): void {
+    this.filterForm.patchValue({
+      firstName: '',
+      lastName: '',
+    });
+    this.selectedFirstNameId = '';
+    this.selectedLastNameId = '';
+    this.fsrDataSource.data = [];
+  }
+
+  
+  onClose(): void {
+    const result: DialogResult = {
+      hasChanges: this.hasChanges,
+    };
+    this.dialogRef.close(result);
+  }
+
+  
+  getDisplayedColumns2(): string[] {
+    return this.displayedColumns;
+  }
+}
+
+******************************************************
+
+<div class="table-container">
+  <mat-card class="table-card" [ngClass]="getWeekTypeClass()">
+    
+    <mat-card-content>
+      <div class="table-wrapper">
+        <mat-table #table [dataSource]="dataSource" matSort class="store-table mat-elevation-2" [ngClass]="getWeekTypeTableClass()">
+          
+          <!-- ==================== ALL COLUMN DEFINITIONS ==================== -->
+          
+          <!-- Store Number Column -->
+          <ng-container matColumnDef="store_number" *ngIf="isColumnVisible('store_number')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="StoreNumber" class="mat-header-style">
+              <button mat-icon-button 
+                      [disabled]="isExpandingAll"
+                      (click)="expandAllRows(); $event.stopPropagation()" 
+                      [title]="allExpanded ? 'Collapse All' : 'Expand All'"
+                      class="expand-all-btn">
+                <mat-icon>{{allExpanded ? 'unfold_less' : 'unfold_more'}}</mat-icon>
+              </button>
+              Store #
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="store-number-cell">
+              <span class="caret" [class.clicked]="isRowExpanded(element)">▼</span>
+              <span class="store-number">{{element.StoreNumber}}</span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Territory -->
+          <ng-container matColumnDef="territory" *ngIf="isColumnVisible('territory')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="FldTerrtyNbr" class="mat-header-style" matTooltip="Territory">
+              Terr
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.FldTerrtyNbr }}</mat-cell>
+          </ng-container>
+
+          <!-- Position Number -->
+          <ng-container matColumnDef="position_number" *ngIf="isColumnVisible('position_number')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="PositionName" class="mat-header-style">
+              Position #
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.PositionName || element.positionName}}</mat-cell>
+          </ng-container>
+
+            <!--Task-->
+          <ng-container matColumnDef="task" *ngIf="isColumnVisible('task')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="task" class="mat-header-style">
+              Task
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">
+
+              <span *ngIf="!element.isChildRow">
+                ALL
+              </span>
+
+              <span  *ngIf="element.isChildRow">
+                {{element.taskName}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- BFD -->
+          <ng-container matColumnDef="bdf" *ngIf="isColumnVisible('bdf')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="Bfd" class="mat-header-style">BFD</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.Bfd || element.bfd}}</mat-cell>
+          </ng-container>
+
+          <!-- Outlet -->
+          <ng-container matColumnDef="outlet" *ngIf="isColumnVisible('outlet')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="OutletType" class="mat-header-style">
+              Outlet
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.OutletType|| element.outletType}}</mat-cell>
+          </ng-container>
+
+          <!-- Store Name -->
+          <ng-container matColumnDef="store_name" *ngIf="isColumnVisible('store_name')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="StoreName" class="mat-header-style">
+              Store Name
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="store-name-cell">
+              <span class="store-name" 
+                    *ngIf="!element.isChildRow"
+                    (click)="openProximityDataDialog(element); $event.stopPropagation();">
+                {{element.StoreName }}
+              </span>
+
+              <span  *ngIf="element.isChildRow">
+                {{element.storeName}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Address -->
+          <ng-container matColumnDef="addr_line1" *ngIf="isColumnVisible('addr_line1')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="AddrLine1" class="mat-header-style">
+              Address
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.AddrLine1}}</mat-cell>
+          </ng-container>
+
+          <!-- City -->
+          <ng-container matColumnDef="city" *ngIf="isColumnVisible('city')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="City" class="mat-header-style">City</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.City}}</mat-cell>
+          </ng-container>
+
+          <!-- State -->
+          <ng-container matColumnDef="state" *ngIf="isColumnVisible('state')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="State" class="mat-header-style">State</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.State}}</mat-cell>
+          </ng-container>
+
+          <!-- Zip -->
+          <ng-container matColumnDef="zip" *ngIf="isColumnVisible('zip')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="Zip" class="mat-header-style">Zip</mat-header-cell>
+            <mat-cell *matCellDef="let element">{{element.Zip}}</mat-cell>
+          </ng-container>
+
+          <!-- Assigned To -->
+          <ng-container matColumnDef="assigned_to" *ngIf="isColumnVisible('assigned_to')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="AssignedTo" class="mat-header-style">
+              Assigned To
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="assigned-cell" 
+                      [class.child-assigned]="element.isChildRow"
+                      (click)="element.isChildRow ? openTaskAssignmentDialog2(element) : openAssignmentDialog(element, 'StoreLevel'); $event.stopPropagation()">
+              
+              <!-- Parent Row Assigned To -->
+              <div *ngIf="!element.isChildRow" class="assignment-container">
+                <div class="assignment-names" 
+                     [ngClass]="getAssignmentClass(element.AssignedTo)"
+                     [matTooltip]="getAssignedToTooltip(element.AssignedTo)"
+                     matTooltipClass="multi-line-tooltip">
+                  
+                  <div *ngIf="!shouldDisplayMultipleLines(element.AssignedTo)" class="single-name">
+                    {{element.AssignedTo || 'NOT ASSIGNED'}}
+                  </div>
+                  
+                  <div *ngIf="shouldDisplayMultipleLines(element.AssignedTo)" class="multiple-names">
+                    <div *ngFor="let name of getIndividualNames(element.AssignedTo); let i = index" 
+                         class="name-line" [class.first-name]="i === 0">
+                      {{name}}
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Optimal Collector Indicator -->
+                <div class="optimal-collector-indicator">
+                  <div class="circle-green" 
+                       *ngIf="hasOptimalCollector(element.OptimalCollectorId) && isOptimalCollectorMatch(element.EmpId, element.OptimalCollectorId)" 
+                       (click)="openClosestFsrDataDialog(element); $event.stopPropagation()"
+                       matTooltip="Optimal collector assigned">
+                    <span class="checkmark"></span>
+                  </div>
+                  
+                  <div class="circle-red" 
+                       *ngIf="hasOptimalCollector(element.OptimalCollectorId) && !isOptimalCollectorMatch(element.EmpId, element.OptimalCollectorId)" 
+                       (click)="openClosestFsrDataDialog(element); $event.stopPropagation()"
+                       matTooltip="Non-optimal collector assigned">
+                    <span class="crossmark"></span>
+                  </div>
+                  
+                  <div class="circle-gray" 
+                       *ngIf="!hasOptimalCollector(element.OptimalCollectorId) && element.EmpId" 
+                       (click)="openClosestFsrDataDialog(element); $event.stopPropagation()"
+                       matTooltip="No optimal collector data">
+                    <span class="checkmark"></span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Child Row Assigned To -->
+              <span *ngIf="element.isChildRow" class="clickable-link">
+                {{element.assignedTo || element.AssignedTo}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Task Completed -->
+          <ng-container matColumnDef="task_completed" *ngIf="isColumnVisible('task_completed')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="TaskCompleted" class="mat-header-style" matTooltip="Completed">
+              Completed
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              <span *ngIf="!element.isChildRow" class="status-badge" [ngClass]="getTaskCompletedClass(element.TaskCompleted)">
+                {{formatTaskCompleted(element.TaskCompleted)}}
+              </span>
+                 <span *ngIf="element.isChildRow" class="status-badge">
+                {{ element.taskCompleted}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Cost Over -->
+          <ng-container matColumnDef="cost_over" *ngIf="isColumnVisible('cost_over')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="CostOver" class="mat-header-style">
+              Over Cost
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              <span class="cost-badge" [ngClass]="getCostOverClass(element.CostOver || element.costOver)">
+                {{(element.CostOver || element.costOver) | currencyFormat}}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Guaranteed Miles -->
+          <ng-container matColumnDef="guaranteed_miles" *ngIf="isColumnVisible('guaranteed_miles')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="GuaranteedMiles" class="mat-header-style">
+              Miles
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              {{formatGuaranteedMiles(element.GuaranteedMiles || element.guaranteedMiles)}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- Average Cost (Future Week) -->
+          <ng-container matColumnDef="avg_cost" *ngIf="isColumnVisible('avg_cost')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="AvgCost" class="mat-header-style">
+              Avg Cost
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element">
+              {{formatAvgCost(element.AvgCost || element.avgCost)}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK1 Costs -->
+          <ng-container matColumnDef="wk1_costs" *ngIf="isColumnVisible('wk1_costs')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK1FSRProdCost" class="mat-header-style">
+              W{{this.currentFilters?.iri_week}} Cost
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" 
+                      [ngClass]="{'negative': (element.WK1FSRProdCost || element.wK1FSRProdCost) > 0, 
+                                  'positive': (element.WK1FSRProdCost || element.wK1FSRProdCost) <= 0}">
+              {{(element.WK1FSRProdCost || element.wK1FSRProdCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK1 Travel -->
+          <ng-container matColumnDef="wk1_travel" *ngIf="isColumnVisible('wk1_travel')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK1StoreTravelCost" class="mat-header-style">
+              W{{this.currentFilters?.iri_week}} Travel
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="travel-column">
+              {{(element.WK1StoreTravelCost || element.wK1StoreTravelCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+        
+
+          <!-- WK1 Ovg Travel -->
+          <ng-container matColumnDef="wk1_ovg_travel" *ngIf="isColumnVisible('wk1_ovg_travel')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK1StoreTravelOvgCost" class="mat-header-style">
+              W{{this.currentFilters?.iri_week}} Ovg Travel
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element"
+                      [ngClass]="{'negative': (element.WK1StoreTravelOvgCost || element.wK1StoreTravelOvgCost) > 0, 
+                                  'positive': (element.WK1StoreTravelOvgCost || element.wK1StoreTravelOvgCost) <= 0}">
+              {{(element.WK1StoreTravelOvgCost || element.wK1StoreTravelOvgCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK2 Costs -->
+          <ng-container matColumnDef="wk2_costs" *ngIf="isColumnVisible('wk2_costs')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK2FSRProdCost" class="mat-header-style">
+              W{{returnWeekminustwo(this.currentFilters.iri_week)}} Cost
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element"
+                      [ngClass]="{'negative': (element.WK2FSRProdCost || element.wK2FSRProdCost) > 0, 
+                                  'positive': (element.WK2FSRProdCost || element.wK2FSRProdCost) <= 0}">
+              {{(element.WK2FSRProdCost || element.wK2FSRProdCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK2 Travel -->
+          <ng-container matColumnDef="wk2_travel" *ngIf="isColumnVisible('wk2_travel')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK2StoreTravelCost" class="mat-header-style">
+              W{{returnWeekminustwo(this.currentFilters.iri_week)}} Travel
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="travel-column">
+              {{(element.WK2StoreTravelCost || element.wK2StoreTravelCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- WK2 Ovg Travel -->
+          <ng-container matColumnDef="wk2_ovg_travel" *ngIf="isColumnVisible('wk2_ovg_travel')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="WK2StoreTravelOvgCost" class="mat-header-style">
+              W{{returnWeekminustwo(this.currentFilters.iri_week)}} Ovg Travel
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element"
+                      [ngClass]="{'negative': (element.WK2StoreTravelOvgCost || element.wK2StoreTravelOvgCost) > 0, 
+                                  'positive': (element.WK2StoreTravelOvgCost || element.wK2StoreTravelOvgCost) <= 0}">
+              {{(element.WK2StoreTravelOvgCost || element.wK2StoreTravelOvgCost) | currencyFormat}}
+            </mat-cell>
+          </ng-container>
+
+          <!-- Comments -->
+          <ng-container matColumnDef="user_comment" *ngIf="isColumnVisible('user_comment')">
+            <mat-header-cell *matHeaderCellDef mat-sort-header="UserComment" class="mat-header-style">
+              Comments
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="comment-cell">
+              <div *ngIf="!element.isChildRow"
+                   class="comment-display"
+                   (click)="openCommentDialog(element); $event.stopPropagation();"
+                   [title]="element.UserComment || 'Click to add/edit comment'"
+                   [class.has-comment]="element.UserComment"
+                   [class.clickable]="canEditComments || element.UserComment">
+                <span class="comment-text">{{getCommentDisplay(element.UserComment)}}</span>
+              </div>
+              <div *ngIf="element.isChildRow">
+                {{element.UserComment}}
+              </div>
+            </mat-cell>
+          </ng-container>
+
+          <!-- Work Order Column (add after user_comment column) -->
+          <ng-container matColumnDef="work_order" *ngIf="isColumnVisible('work_order')">
+            <mat-header-cell *matHeaderCellDef class="mat-header-style">
+              Work Order
+            </mat-header-cell>
+            <mat-cell *matCellDef="let element" class="work-order-cell">
+              <!-- Main Grid: Show E-mail button -->
+              <button *ngIf="!element.isChildRow" 
+                      mat-raised-button 
+                      color="primary" 
+                      (click)="createAndSendWorkOrder(element); $event.stopPropagation();"
+                      [disabled]="element.isProcessingWorkOrder">
+                <mat-icon *ngIf="!element.isProcessingWorkOrder">email</mat-icon>
+                <mat-spinner *ngIf="element.isProcessingWorkOrder" [diameter]="20" style="display: inline-block;"></mat-spinner>
+                {{ element.isProcessingWorkOrder ? 'Processing...' : 'Email' }}
+              </button>
+              
+              <!-- Subgrid: Empty string to maintain column alignment -->
+              <span *ngIf="element.isChildRow"></span>
+            </mat-cell>
+          </ng-container>
+
+          <!-- ==================== HEADER AND DATA ROWS ==================== -->
+          
+          <mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></mat-header-row>
+          
+          <!-- Regular rows (both parent and child) -->
+          <mat-row *matRowDef="let row; columns: displayedColumns;"
+                   class="table-row"
+                   [class.parent-row]="!row.isChildRow"
+                   [class.child-row]="row.isChildRow"
+                   [class.child-row-first]="row.isChildRow && row.isFirstChild"
+                   [class.child-row-last]="row.isChildRow && row.isLastChild"
+                   [cdkDetailRow]="row" 
+                   [cdkDetailRowTpl]="tpl"                  
+                   (toggleChange)="onDataLoadRequest({directive: $event, rowData: row})"
+                   matRipple>
+          </mat-row>
+        </mat-table>
+      </div>
+      
+      <!-- Search and Paginator -->
+      <div class="search-paginator-bar">
+        <mat-form-field appearance="standard" class="search-field">
+          <mat-label>Search...</mat-label>
+          <input matInput [formControl]="searchControl" 
+                 placeholder="Search by store number, name, address, city, state, assigned to, etc.">
+          <mat-icon matPrefix>search</mat-icon>
+          <button mat-button *ngIf="searchControl.value" matSuffix mat-icon-button (click)="clearSearch()">
+            <mat-icon>clear</mat-icon>
+          </button>
+        </mat-form-field>
+        
+        <mat-paginator [pageSizeOptions]="[50,100,150,200]"
+                       showFirstLastButtons="true">
+        </mat-paginator>
+      </div>
+
+    </mat-card-content>
+  </mat-card>
+</div>
+
+<!-- Empty template - child rows are rendered directly in the table -->
+<ng-template #tpl let-element></ng-template>
+
+<footer>
+  <div class="mat-spinner-container">
+    <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
+    <div *ngIf="showSpinner" style="position:relative;left: 10px">Loading...</div>
+  </div>
+</footer>
+
+
+import { trigger, state, style, transition, animate } from '@angular/animations';
+import { HttpClient } from '@angular/common/http';
+import { AfterViewInit, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren, Pipe } from '@angular/core';
+import { FormControl } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
+import { MatPaginator } from '@angular/material/paginator';
+import { MatSort } from '@angular/material/sort';
+import { MatTable, MatTableDataSource } from '@angular/material/table';
+import { catchError, debounceTime, distinctUntilChanged, firstValueFrom, of, Subject, takeUntil, tap } from 'rxjs';
+import { AssignmentDialogComponent } from 'src/app/dialog/assignment-dialog/assignment-dialog.component';
+import { ClosestFsrDialogComponent } from 'src/app/dialog/closest-fsr-dialog/closest-fsr-dialog.component';
+import { ProximityDialogComponent } from 'src/app/dialog/proximity-dialog/proximity-dialog.component';
+import { StoreCommentDialogComponent } from 'src/app/dialog/store-comment-dialog/store-comment-dialog.component';
+import { CdkDetailRowDirective } from 'src/app/shared/cdk-detail-row.directive';
+import { CommonService } from 'src/app/shared/common.service';
+import { SnackbarService } from 'src/app/shared/snackbar.service';
+@Component({
+  selector: 'app-store-table',
+  templateUrl: './store-table.component.html',
+  styleUrls: ['./store-table.component.css'],
+  animations: [
+    trigger('detailExpand', [
+      state('collapsed', style({height: '0px', minHeight: '0'})),
+      state('expanded', style({height: '*'})),
+      transition('expanded <=> collapsed', animate('225ms cubic-bezier(0.4, 0.0, 0.2, 1)')),
+    ]),
+  ],
+})
+export class StoreTableComponent implements OnInit, OnDestroy, AfterViewInit {
+  
+  @ViewChild(MatTable, { static: false }) table: MatTable<any>;
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
+  @ViewChildren(CdkDetailRowDirective) detailRows!: QueryList<CdkDetailRowDirective>;
+
+  // Week type tracking
+  currentWeekType: 'current' | 'future' | 'previous' = 'current';
+
+  // Column definitions for different week types
+  baseColumns = ['store_number', 'territory','store_name','task', 'addr_line1', 'city', 'state', 'assigned_to', 'user_comment','work_order'];
+  
+  currentWeekColumns = [
+    'store_number', 'territory','position_number','bdf', 'outlet','task','store_name', 'addr_line1', 'city', 'state', 'assigned_to', 
+    'task_completed', 'cost_over', 'guaranteed_miles', 'user_comment','work_order'
+  ];
+  
+  futureWeekColumns = [
+    'store_number','territory', 'position_number','bdf', 'outlet','task','store_name', 'addr_line1', 'city', 'state', 'assigned_to',
+    'avg_cost', 'guaranteed_miles', 'user_comment','work_order'
+  ];
+  
+  previousWeekColumns = [
+    'store_number','territory', 'position_number','bdf','outlet', 'task','store_name', 'addr_line1', 'city', 'state', 'assigned_to',
+    'task_completed','cost_over', 'wk1_costs','wk1_travel', 'wk1_ovg_travel','wk2_costs', 'wk2_travel','wk2_ovg_travel','user_comment','work_order'
+  ];
+
+  //  Dynamic column management
+  availableColumns: string[] = [];
+  displayedColumns: string[] = [];
+  visibleColumns: string[] = [];
+  private parentRowsData:any[]=[] 
+  // Data and state
+  dataSource = new MatTableDataSource<any>([]);
+  originalData: any[] = [];
+  showSpinner = false;
+  
+  // Search functionality
+  searchControl = new FormControl('');
+  isSearching = false;
+
+  // Expansion state
+  isExpandingAll = false;
+  allExpanded = false;
+  expandedRowsData = new Map<string, {data: any[], weekType: string}>();
+  expandedRows = new Set<CdkDetailRowDirective>();
+  selectedRows = new Set<any>();
+
+  // User permissions
+  canEditComments = false;
+  canDeleteComments = false;
+
+  currentSortColumn: string = '';
+  currentSortDirection: 'asc' | 'desc' | '' = '';
+  private childRowMap = new Map<string,any[]>();
+  private destroy$ = new Subject<void>();
+  private unsubscribe$ = new Subject<void>();
+  loggeduser: string; 
+  currentFilters;
+  constructor(private commonService: CommonService,
+  private snackbar: SnackbarService,
+  public http: HttpClient,
+  @Inject('BASE_URL') public baseUrl: string,
+   private cdr: ChangeDetectorRef,
+  private dialog:MatDialog) {this.loggeduser = localStorage.getItem("loggedUserId"); }
+
+  ngOnInit(): void {
+    this.commonService.spinner$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(isLoading => {
+        this.showSpinner = isLoading;
+      });
+this.commonService.currentFilters$.subscribe(filter=>{
+        this.currentFilters = filter
+    });
+    // Subscribe to user group permissions
+    this.commonService.groupsStatus$.subscribe(userGroups => {
+      this.canEditComments = userGroups['isgTechnologyGroup'];
+      this.canDeleteComments = userGroups['isgTechnologyGroup'];
+    });
+
+    // Subscribe to week type changes
+    this.commonService.weekType$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(weekType => {
+        this.currentWeekType = weekType;
+        this.updateAvailableColumns();
+        this.updateDisplayedColumns();
+        this.forceCollapseAllRows();
+        this.resetExpansionState();
+        this.cdr.detectChanges();
+      });
+
+    // Subscribe to current week data
+    this.commonService.currentWeekData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (this.currentWeekType === 'current') {
+          this.updateDataSource(data);
+        }
+      });
+
+    // Subscribe to future week data
+    this.commonService.futureWeekData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (this.currentWeekType === 'future') {
+          this.updateDataSource(data);
+        }
+      });
+
+    // Subscribe to previous week data
+    this.commonService.previousWeekData$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (this.currentWeekType === 'previous') {
+          this.updateDataSource(data);
+        }
+      });
+
+      this.dataSource = new MatTableDataSource<any>([]);
+      this.dataSource.filterPredicate = (data: any, filter: string) => {
+        // Only filter parent rows, child rows are always included with their parents
+        if (data.isChildRow) {
+          return true;
+        }
+        
+        // Apply filter to parent rows only
+        const searchStr = filter.toLowerCase();
+        return (
+          (data.StoreNumber?.toString().toLowerCase().includes(searchStr) || false) ||
+          (data.StoreName?.toLowerCase().includes(searchStr) || false) ||
+          (data.AddrLine1?.toLowerCase().includes(searchStr) || false) ||
+          (data.City?.toLowerCase().includes(searchStr) || false) ||
+          (data.State?.toLowerCase().includes(searchStr) || false) ||
+          (data.AssignedTo?.toLowerCase().includes(searchStr) || false)
+        );
+      };
+    this.setupSearch();
+  }
+
+  //Column visibility management
+  updateVisibleColumns(selectedColumns: string[]): void {
+    this.visibleColumns = selectedColumns;
+    this.updateDisplayedColumns();
+    this.forceCollapseAllRows();
+    this.resetExpansionState()
+    this.cdr.detectChanges();
+  }
+
+  private updateAvailableColumns(): void {
+    switch (this.currentWeekType) {
+      case 'current':
+        this.availableColumns = this.currentWeekColumns;
+        break;
+      case 'future':
+        this.availableColumns = this.futureWeekColumns;
+        break;
+      case 'previous':
+        this.availableColumns = this.previousWeekColumns;
+        break;
+      default:
+        this.availableColumns = this.baseColumns;
+    }
+  }
+
+  private updateDisplayedColumns(): void {
+    let availableColumns: string[] = [];
+    
+    // Get available columns based on week type
+    switch (this.currentWeekType) {
+      case 'current':
+        availableColumns = this.currentWeekColumns;
+        break;
+      case 'future':
+        availableColumns = this.futureWeekColumns;
+        break;
+      case 'previous':
+        availableColumns = this.previousWeekColumns;
+        break;
+      default:
+        availableColumns = this.baseColumns;
+    }
+    
+    // Filter by visible columns if specified
+    if (this.visibleColumns.length > 0) {
+      this.displayedColumns = availableColumns.filter(col => 
+        this.visibleColumns.includes(col)
+      );
+    } else {
+      // Show all available columns if no specific selection
+      this.displayedColumns = [...availableColumns];
+    }
+  }
+
+  isColumnVisible(columnName: string): boolean {
+    return this.displayedColumns.includes(columnName);
+  }
+
+  //  Multiple names display with line breaks
+  getAssignedToDisplay(assignedTo: string): string {
+   if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return 'NOT ASSIGNED';
+  }
+
+  // Return as-is (the template will handle the splitting and line display)
+  return assignedTo.trim();
+  }
+
+  getAssignedToTooltip(assignedTo: string): string {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return 'No one assigned';
+  }
+  
+  // Split by comma and return each name on a new line for tooltip
+  const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
+  return names.join('\\n');
+}
+
+  getAssignmentClass(assignedTo: string): string {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return 'not-assigned';
+  }
+  
+  // Check if there are multiple names (contains comma)
+  const hasMultipleNames = assignedTo.includes(',');
+  if (hasMultipleNames) {
+    // Verify it's actually multiple valid names
+    const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
+    return names.length > 1 ? 'multiple-assigned' : 'single-assigned';
+  }
+  
+  return 'single-assigned';
+}
+
+shouldDisplayMultipleLines(assignedTo: string): boolean {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return false;
+  }
+  
+  if (!assignedTo.includes(',')) {
+    return false;
+  }
+  
+  const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
+  return names.length > 1;
+}
+
+getIndividualNames(assignedTo: string): string[] {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return ['NOT ASSIGNED'];
+  }
+  
+  if (!assignedTo.includes(',')) {
+    return [assignedTo.trim()];
+  }
+  
+  return assignedTo.split(',').map(name => name.trim()).filter(name => name);
+}
+  //  Comment management with popup dialog
+  openCommentDialog(element: any): void {
+    const dialogRef = this.dialog.open(StoreCommentDialogComponent, {
+      width: '600px',
+      maxWidth: '90vw',
+      data: {
+        storeNumber: element.StoreNumber,
+        storeName: element.StoreName,
+        comment: element.UserComment || '',
+        canEdit: this.canEditComments,
+        canDelete: this.canDeleteComments
+      },
+      disableClose: true
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result && result.action !== 'cancel') {
+        element.UserComment = result.comment;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  //  Comment display with truncation
+  getCommentDisplay(comment: string): string {
+    if (!comment) return this.canEditComments ? 'Add Comment...' : 'No comment';
+    
+    if (comment.length <= 20) return comment;
+    return comment.substring(0, 20) + '...';
+  }
+
+  returnWeekminustwo(week:string){    
+    return week === null || week === undefined || week ==="" ? week : isNaN(Number(week))?week:Number(week)-1
+  }
+
+  // Search functionality
+  private setupSearch(): void {
+    this.searchControl.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      tap(() => {
+        this.isSearching = true;
+        this.commonService.show('table-search');
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe(searchTerm => {
+      this.performSearch(searchTerm || '');
+    });
+  }
+
+  // private performSearch(searchTerm: string): void {
+  //   try {
+  //     if (!searchTerm.trim()) {
+  //       this.dataSource.data = [...this.originalData];
+  //     } else {
+  //       const filtered = this.originalData.filter(row => 
+  //         this.matchesSearchTerm(row, searchTerm.toLowerCase())
+  //       );
+  //       this.dataSource.data = filtered;
+  //     }
+  //     this.updatePaginatorLength();
+  //     if (this.paginator) {
+  //       this.paginator.firstPage();
+  //     }
+  //     this.resetExpansionState();
+      
+  //   } catch (error) {
+  //     console.error('Error performing search:', error);
+  //   } finally {
+  //     this.isSearching = false;
+  //     this.commonService.hide('table-search');
+  //   }
+  // }
+private performSearch(searchTerm: string): void {
+  try {
+    let filtered: any[];
+    
+    if (!searchTerm.trim()) {
+      filtered = [...this.originalData];
+    } else {
+      filtered = this.originalData.filter(row => 
+        this.matchesSearchTerm(row, searchTerm.toLowerCase())
+      );
+    }
+    
+    // Update parentRowsData with filtered results
+    this.parentRowsData = filtered;
+    
+    // Apply pagination to filtered results
+    if (this.paginator) {
+      this.paginator.pageIndex = 0; // Reset to first page
+      this.applyParentRowPagination();
+    } else {
+      this.dataSource.data = filtered;
+    }
+    
+    // Update paginator length
+    this.updatePaginatorLength();
+    
+    this.resetExpansionState();
+    
+  } catch (error) {
+    console.error('Error performing search:', error);
+  } finally {
+    this.isSearching = false;
+    this.commonService.hide('table-search');
+  }
+}
+  private matchesSearchTerm(row: any, searchTerm: string): boolean {
+    const searchableFields = [
+      'StoreNumber','PositionName','Bfd','StoreName', 'AddrLine1', 'City', 'State', 
+      'Zip', 'AssignedTo', 'TaskCompleted','CostOver','GuaranteedMiles', 'AvgCost', 'WK1FSRProdCost',
+      'WK1StoreTravelCost','WK1StoreTravelOvgCost','WK2FSRProdCost',
+      'WK2StoreTravelCost','WK2StoreTravelOvgCost','UserComment'
+    ];
+
+    return searchableFields.some(field => {
+      const value = row[field];
+      return value && value.toString().toLowerCase().includes(searchTerm);
+    });
+  }
+
+  clearSearch(): void {
+    this.searchControl.setValue('');
+  }
+
+  // Data management
+//   private updateDataSource(data: any[]): void {
+//     this.commonService.show('table-update');
+    
+//     this.parentRowsData = data.map(row => ({ ...row, isChildRow: false }));
+//   this.originalData = [...this.parentRowsData];
+    
+//    const searchTerm = this.searchControl.value;
+//   if (searchTerm && searchTerm.trim()) {
+//     this.performSearch(searchTerm);
+//   } else {
+//       if (this.paginator) {
+//       this.paginator.pageIndex = 0; 
+//       this.applyParentRowPagination();
+//     } else {
+//       this.dataSource.data = [...this.parentRowsData];
+//     }
+//   }
+  
+//  // this.dataSource.paginator = this.paginator;
+//   this.dataSource.sort = this.sort;
+  
+//   // Update paginator length to count only parent rows
+//   this.updatePaginatorLength();
+  
+//   this.resetExpansionState();
+  
+//   this.commonService.hide('table-update');
+//   }
+
+private updateDataSource(data: any[]): void {
+  this.commonService.show('table-update');
+  
+  try {
+    // ✅ STEP 1: Clear ALL old data FIRST
+    this.forceCollapseAllRows();
+    this.resetExpansionState();
+    this.expandedRowsData.clear();  // ← CLEAR CACHED CHILD ROWS
+    
+    // ✅ STEP 2: Clear search
+    this.searchControl.setValue('', { emitEvent: false });
+    
+    // ✅ STEP 3: Map new data as parent rows only
+    this.parentRowsData = data.map(row => ({ ...row, isChildRow: false }));
+    this.originalData = [...this.parentRowsData];
+    
+    // ✅ STEP 4: Reset paginator to first page
+    if (this.paginator) {
+      this.paginator.pageIndex = 0;
+      this.applyParentRowPagination();
+    } else {
+      this.dataSource.data = [...this.parentRowsData];
+    }
+    
+    // ✅ STEP 5: Reset sort state
+    this.currentSortColumn = '';
+    this.currentSortDirection = '';
+    this.dataSource.sort = this.sort;
+    
+    // ✅ STEP 6: Update paginator length
+    this.updatePaginatorLength();
+    
+    // ✅ STEP 7: Force change detection
+    this.cdr.markForCheck();
+    this.cdr.detectChanges();
+    
+  } finally {
+    this.commonService.hide('table-update');
+  }
+}
+
+private updatePaginatorLength(): void {
+  if (!this.paginator) return;
+  
+  // ✅ Count ONLY parent rows - NEVER include child rows
+  const parentRowCount = this.parentRowsData.filter(row => !row.isChildRow).length;
+  this.paginator.length = parentRowCount;
+  
+  console.log('Paginator length updated to:', parentRowCount);
+}
+
+  //  Expand all rows with proper spinner management
+async expandAllRows(): Promise<void> {
+  if (this.isExpandingAll) return;
+
+  this.isExpandingAll = true;
+  this.commonService.show('expand-all-rows');
+
+  try {
+    if (this.allExpanded) {
+      // Collapse all
+      this.collapseAllRows();
+      this.allExpanded = false;
+    } else {
+      // Expand all
+      await this.expandAllRowsSequentially();
+      this.allExpanded = true;
+    }
+  } catch (error) {
+    console.error('Error in expandAllRows:', error);
+  } finally {
+    this.isExpandingAll = false;
+    this.commonService.hide('expand-all-rows');
+    this.cdr.detectChanges();
+  }
 }
 
 /**
- * Send email for the work order to FSR
- * @param pdfSessionId - PDF session ID from work order creation
+ * Collapse all expanded rows and remove child rows from datasource
  */
-sendWorkOrderEmailToFSR(pdfSessionId: string): Observable<any> {
-  const payload = {
-    pdfSessionId: pdfSessionId,
-    userId: localStorage.getItem('loggedUserId') || ''
-  };
+private collapseAllRows(): void {
+  this.commonService.show('collapse-all-rows');
+  
+  try {
+    // Get all detail row directives
+    const detailRowsArray = this.detailRows?.toArray() || [];
+    
+    // Collapse each expanded directive
+    detailRowsArray.forEach(detailRow => {
+      if (detailRow.isExpanded) {
+        detailRow.collapse();
+      }
+    });
 
-  return this.http.post<any>(
-    this.baseUrl + 'api/TaskAssinment/SendWorkOrderEmailToFSR',
-    payload,
-    { 
-      headers: { 'Content-Type': 'application/json; charset=utf-8' }
-    }
-  ).pipe(catchError(this.handleError('sendWorkOrderEmailToFSR', {})));
+    // Remove all child rows from datasource
+    const filteredData = this.dataSource.data.filter(row => !row.isChildRow);
+    this.dataSource.data = filteredData;
+
+    // Clear tracking sets
+    this.expandedRows.clear();
+    this.selectedRows.clear();
+
+    // Trigger change detection to update UI (carets, etc.)
+    this.cdr.detectChanges();
+  } catch (error) {
+    console.error('Error collapsing all rows:', error);
+  } finally {
+    this.commonService.hide('collapse-all-rows');
+  }
 }
 
----
-// ✅ CORRECT
+/**
+ * Expand all rows on current page sequentially
+ */
+private async expandAllRowsSequentially(): Promise<void> {
+  // First, collapse all to ensure clean state
+  this.collapseAllRows();
+
+  const currentPageData = this.getCurrentPageData();
+  const detailRowsArray = this.detailRows?.toArray() || [];
+
+  if (detailRowsArray.length === 0 || currentPageData.length === 0) {
+    console.warn('No rows to expand');
+    return;
+  }
+
+  this.commonService.show('load-all-subgrid-data');
+
+  try {
+    // Process each row sequentially
+    for (let i = 0; i < Math.min(currentPageData.length, detailRowsArray.length); i++) {
+      const parentRow = currentPageData[i];
+      const detailRowDirective = detailRowsArray[i];
+
+      // Skip if row is a child row
+      if (parentRow.isChildRow) continue;
+
+      // Skip if directive is already expanded
+      if (detailRowDirective.isExpanded) continue;
+
+      try {
+        // Load child data for this row
+        const responseData = await this.loadSubgridDataForRow(parentRow);
+
+        // Insert child rows into datasource
+        this.insertChildRowsIntoDataSource(parentRow, responseData.data || [], responseData.weekType || 'current');
+
+        // Mark the directive as expanded
+        detailRowDirective.isExpanded = true;
+        this.expandedRows.add(detailRowDirective);
+        this.selectedRows.add(parentRow);
+
+        // Small delay to prevent overwhelming the UI
+        await this.delay(50);
+      } catch (error) {
+        console.error(`Error expanding row ${i}:`, error);
+        // Continue with next row even if this one fails
+      }
+    }
+
+    // Final change detection
+    this.cdr.detectChanges();
+  } catch (error) {
+    console.error('Error in expandAllRowsSequentially:', error);
+  } finally {
+    this.commonService.hide('load-all-subgrid-data');
+  }
+}
+
+  //  Force collapse with proper spinner management
+  private forceCollapseAllRows(): void {
+    this.commonService.show('collapse-all-rows');
+    
+    const detailRowsArray = this.detailRows?.toArray() || [];
+    
+    detailRowsArray.forEach((detailRow) => {
+      if (detailRow.isExpanded) {
+        detailRow.collapse();
+      }
+    });
+    
+    this.expandedRows.clear();
+    this.selectedRows.clear();
+    
+    // Trigger change detection to update caret icons
+    this.cdr.detectChanges();
+    
+    this.commonService.hide('collapse-all-rows');
+  }
+
+  //  Expand rows with data with proper spinner management
+ 
+
+  //  Load subgrid data with proper spinner management
+  private loadSubgridDataForRow(row: any): Promise<{data: any[], weekType: string}> {
+    const storeKey = row.StoreNumber || row.store_number;
+    this.commonService.show(`subgrid-${storeKey}`);
+    
+    return new Promise((resolve, reject) => {
+      if (this.expandedRowsData.has(storeKey)) {
+        this.commonService.hide(`subgrid-${storeKey}`);
+        const cachedData = this.expandedRowsData.get(storeKey);
+        resolve(cachedData || { data: [], weekType: 'current' });
+        return;
+      }
+
+      const payload = {
+        IriWeek: row.IriWeek || row.iri_week,
+        StoreNumber: storeKey
+      };
+
+      this.http.post<any>(this.baseUrl + 'api/TaskAssinment/GetSubgridData', payload)
+        .pipe(takeUntil(this.unsubscribe$))
+        .subscribe({
+          next: (response) => {
+            
+            const responseData = {
+              data: response.data || response, // Handle both new and old response formats
+              weekType: response.weekType || 'current' // Default to current if not provided
+            };
+            this.expandedRowsData.set(storeKey, responseData);
+            this.commonService.hide(`subgrid-${storeKey}`);
+            resolve(responseData);
+          },
+          error: (error) => {
+            this.commonService.hide(`subgrid-${storeKey}`);
+            reject(error);
+          }
+        });
+    });
+  }
+
+  // Individual row expansion
+  // GetSubgridData(cdkDetailRow: CdkDetailRowDirective, row: any): void {
+  //   if (cdkDetailRow.isExpanded) {
+  //     this.expandedRows.add(cdkDetailRow);
+  //     this.selectedRows.add(row);
+  //   } else {
+  //     this.expandedRows.delete(cdkDetailRow);
+  //     this.selectedRows.delete(row);
+      
+  //     if (this.allExpanded && this.expandedRows.size < this.getCurrentPageData().length) {
+  //       this.allExpanded = false;
+  //     }
+  //   }
+    
+  //   this.updateCaretIcon(cdkDetailRow, cdkDetailRow.isExpanded);
+  // }
+
+  // Check if a specific row is expanded
+  isRowExpanded(element: any): boolean {
+    return this.selectedRows.has(element);
+  }
+
+  // Data load request handler
+  // onDataLoadRequest(event: {directive: CdkDetailRowDirective, rowData: any}): void {
+  //   const { directive, rowData } = event;
+  //   const storeKey = rowData.StoreNumber || rowData.store_number;
+    
+  //   // Track expansion state for caret rotation
+  //   if (directive.isExpanded) {
+  //     this.expandedRows.add(directive);
+  //     this.selectedRows.add(rowData);
+      
+  //     // Load data if expanding
+  //     if (this.expandedRowsData.has(storeKey)) {
+  //       const cachedData = this.expandedRowsData.get(storeKey);
+  //       directive.setSubgridData(cachedData?.data || [], cachedData?.weekType || 'current');
+  //     } else {
+  //       this.loadSubgridDataForRow(rowData)
+  //         .then(responseData => {
+  //           directive.setSubgridData(responseData.data || [], responseData.weekType || 'current');
+  //         })
+  //         .catch(error => {
+  //           console.error('Error loading subgrid data:', error);
+  //           directive.setSubgridData([], 'current');
+  //         });
+  //     }
+  //   } else {
+  //     // Collapsing - remove from tracking
+  //     this.expandedRows.delete(directive);
+  //     this.selectedRows.delete(rowData);
+      
+  //     // Update allExpanded flag if needed
+  //     if (this.allExpanded && this.expandedRows.size < this.getCurrentPageData().length) {
+  //       this.allExpanded = false;
+  //     }
+  //   }
+    
+  //   // Trigger change detection to update caret icons
+  //   this.cdr.detectChanges();
+  // }
+
+  onDataLoadRequest(event: {directive: CdkDetailRowDirective, rowData: any}): void {
+  const { directive, rowData } = event;
+  const storeKey = rowData.StoreNumber || rowData.store_number;
+  
+  if (directive.isExpanded && !rowData.isChildRow) {
+    // Expanding parent row - load and insert child rows
+    this.expandedRows.add(directive);
+    this.selectedRows.add(rowData);
+    
+    if (this.expandedRowsData.has(storeKey)) {
+      const cachedData = this.expandedRowsData.get(storeKey);
+      this.insertChildRowsIntoDataSource(rowData, cachedData?.data || [], cachedData?.weekType || 'current');
+    } else {
+      this.loadSubgridDataForRow(rowData)
+        .then(responseData => {
+          this.expandedRowsData.set(storeKey,responseData);
+          this.insertChildRowsIntoDataSource(rowData, responseData.data || [], responseData?.weekType || 'current');
+          this.cdr.detectChanges()
+        })
+        .catch(error => {
+          console.error('Error loading subgrid data:', error);
+        });
+    }
+  } else if (!directive.isExpanded) {
+    // Collapsing - remove child rows
+    this.expandedRows.delete(directive);
+    this.selectedRows.delete(rowData);
+    this.removeChildRowsFromDataSource(rowData);
+    
+    if (this.allExpanded && this.expandedRows.size < this.getCurrentPageData().length) {
+      this.allExpanded = false;
+    }
+  }
+  
+  this.cdr.detectChanges();
+}
+
+/**
+ * Insert child rows directly into the table's datasource
+ */
+private insertChildRowsIntoDataSource(parentRow: any, childData: any[], weekType: string): void {
+    const parentStoreKey = parentRow.StoreNumber || parentRow.store_number;
+  
+  try {
+    if (!childData || childData.length === 0) {
+      // If no child data, remove any existing children for this parent
+      this.childRowMap.delete(parentStoreKey);
+      return;
+    }
+  
+  // Map child data to match parent column structure
+  const childRows = childData.map((child, index) => ({
+    ...child,
+    isChildRow: true,
+    isFirstChild: index === 0,
+    isLastChild: index === childData.length - 1,
+    parentStoreNumber: parentRow.StoreNumber,
+    
+    // Map child fields to parent column names
+    StoreNumber: child.storeNumber, 
+    FldTerrtyNbr: parentRow.FldTerrtyNbr || '',
+    PositionName: child.positionName || '',
+    Bfd: child.bfd || '',
+    OutletType: child.outletType,
+    StoreName: child.storeName||'',
+    AddrLine1: child.addrLine1,
+    City: child.city,
+    State: child.state,
+    Zip: child.zip||'',
+    AssignedTo: child.assignedTo || '',
+    assignedTo: child.assignedTo || '',
+    Task:child.taskName,
+    // Task-level data
+    TaskCompleted: child.taskCompleted || child.TaskCompleted,
+    taskCompleted: child.taskCompleted || child.TaskCompleted,
+    GuaranteedMiles: child.guaranteedMiles,
+    guaranteedMiles: child.guaranteedMiles,
+    CostOver: child.costOver,
+    costOver: child.costOver,
+   
+    // Week-specific fields
+    ...(weekType === 'future' && {
+      AvgCost: child.avgCost,
+      avgCost: child.avgCost,
+      Wave: child.wave,
+      ExpectedCollectionTime: child.expectedCollectionTime
+    }),
+    
+    ...(weekType === 'previous' && {
+      WK1FSRProdCost: child.wK1FSRProdCost,
+      wK1FSRProdCost: child.wK1FSRProdCost,
+      WK1StoreTravelCost: child.wK1StoreTravelCost,
+      wK1StoreTravelCost: child.wK1StoreTravelCost,
+      WK1StoreTravelOvgCost: child.wK1StoreTravelOvgCost,
+      wK1StoreTravelOvgCost: child.wK1StoreTravelOvgCost,
+      WK2FSRProdCost: child.wK2FSRProdCost,
+      wK2FSRProdCost: child.wK2FSRProdCost,
+      WK2StoreTravelCost: child.wK2StoreTravelCost,
+      wK2StoreTravelCost: child.wK2StoreTravelCost,
+      WK2StoreTravelOvgCost: child.wK2StoreTravelOvgCost,
+      wK2StoreTravelOvgCost: child.wK2StoreTravelOvgCost,
+      Quality: child.quality
+    }),
+    
+    // Store task-specific data for dialog access
+    UserComment:"",
+    storeNumber: child.storeNumber || parentRow.StoreNumber,
+    storeName: child.storeName || parentRow.StoreName,
+    taskNumber: child.taskNumber,
+    taskName: child.taskName
+     
+  }));
+  
+  // Get updated data array
+  this.childRowMap.set(parentStoreKey,childRows)
+  const currentData = [...this.dataSource.data];
+    const parentIndex = currentData.findIndex(row => 
+      row.StoreNumber === parentRow.StoreNumber && !row.isChildRow
+    );
+    
+    if (parentIndex !== -1) {
+      // Insert child rows right after parent row
+      currentData.splice(parentIndex + 1, 0, ...childRows);
+      this.dataSource.data = currentData;
+    }
+  this.cdr.markForCheck();
+  this.cdr.detectChanges()
+}catch(error){
+    console.error(error)
+  }
+}
+
+/**
+ * Remove child rows from datasource
+ */
+private removeChildRowsFromDataSource(parentRow: any): void {
+  const parentStoreKey = parentRow.StoreNumber || parentRow.store_number;
+  this.childRowMap.delete(parentStoreKey);
+  
+  // Remove from visual display if needed
+  const filteredData = this.dataSource.data.filter(row => 
+    !(row.isChildRow && row.parentStoreNumber === parentRow.StoreNumber)
+  );
+  this.dataSource.data = filteredData;
+}
+
+
+  // Week type display methods
+  getWeekTypeDisplayName(): string {
+    switch (this.currentWeekType) {
+      case 'current': return 'Current Week Tasks';
+      case 'future': return 'Future Week Planning';
+      case 'previous': return 'Previous Week History';
+      default: return 'Store Assignment Data';
+    }
+  }
+
+  getWeekTypeClass(): string {
+    return `week-${this.currentWeekType}`;
+  }
+
+  // Data formatting methods for different week types
+  formatTaskCompleted(value: any): string {
+    return value?.toLowerCase() == 'y' ? 'Yes' : 'No';
+  }
+
+
+
+  formatCostOver(value: any): string {
+    return value ? `${value}` : 'N/A';
+  }
+
+  formatGuaranteedMiles(value: any): string {
+    return value ? `${value}` : 'N/A';
+  }
+
+  formatAvgCost(value: any): string {
+    // Return blank if null or empty
+    if (value === null || value === undefined || value === '') {
+      return '';
+    }
+    
+    // Convert to number
+    const numValue = parseFloat(value);
+    
+    // Return blank if not a valid number
+    if (isNaN(numValue)) {
+      return '';
+    }
+    
+    // Format as currency (including zero)
+    return `$${numValue.toFixed(2)}`;
+  }
+
+  formatWk1Costs(row: any): string {
+    const prod = parseFloat(row.WK1FSRProdCost || 0);
+    const travel = parseFloat(row.WK1StoreTravelCost || 0);
+    const ovg = parseFloat(row.WK1StoreTravelOvgCost || 0);
+    const total = prod + travel + ovg;
+    return total > 0 ? `$${total.toFixed(2)}` : '$0.00';
+  }
+
+  formatWk2Costs(row: any): string {
+    const prod = parseFloat(row.WK2FSRProdCost || 0);
+    const travel = parseFloat(row.WK2StoreTravelCost || 0);
+    const ovg = parseFloat(row.WK2StoreTravelOvgCost || 0);
+    const total = prod + travel + ovg;
+    return total > 0 ? `$${total.toFixed(2)}` : '$0.00';
+  }
+
+  // Status badge classes
+  getTaskCompletedClass(value: any): string {
+    return value?.toLowerCase() === 'yes' ? 'completed' : 'incomplete';
+  }
+
+
+
+  getCostOverClass(value: any): string {
+    return value?.toLowerCase() === 'yes' ? 'cost-over' : 'cost-ok';
+  }
+
+  // Dialog methods
+  async openAssignmentDialog(row: any, mode: 'StoreLevel' | 'TaskLevel' = 'StoreLevel'): Promise<void> {
+    try {
+      const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+      
+      if (!currentFilters || Object.keys(currentFilters).length === 0) {
+        console.warn('No filters applied. Cannot open assignment dialog.');
+        return;
+      }
+      
+      const dialogRef = this.dialog.open(AssignmentDialogComponent, {
+        width: '90vw',
+        maxWidth: '1200px',
+        height: '80vh',
+        data: {
+          storeNumber: row.StoreNumber,
+          storeName: row.StoreName,
+          iriWeek: row.IriWeek,
+          territoryId: currentFilters.territory_id,
+          mode: 'StoreLevel'
+        },
+        disableClose: true
+      });
+
+      dialogRef.afterClosed().subscribe(result => {
+        if (result?.hasChanges) {
+          this.refreshGridData();
+        }
+      });
+    } catch (error) {
+      console.error('Error opening assignment dialog:', error);
+    }
+  }
+
+  // Method to check if EmpId matches OptimalCollectorId (handles comma-separated EmpIds)
+  isOptimalCollectorMatch(empId: string | null | undefined, optimalCollectorId: string | null | undefined): boolean {
+    // Check if both values exist and are not empty strings
+    if (!empId || !optimalCollectorId || empId.trim() === '' || optimalCollectorId.trim() === '') {
+      return false;
+    }
+    
+    // Convert to strings and trim
+    const empIdStr = String(empId).trim();
+    const optimalIdStr = String(optimalCollectorId).trim();
+    
+    // Handle comma-separated EmpIds
+    if (empIdStr.includes(',')) {
+      const empIds = empIdStr.split(',').map(id => id.trim());
+      return empIds.includes(optimalIdStr);
+    }
+    
+    // Simple comparison for single EmpId (case-insensitive)
+    return empIdStr.toLowerCase() === optimalIdStr.toLowerCase();
+  }
+  
+  // Helper method to check if OptimalCollectorId exists and is valid
+  hasOptimalCollector(optimalCollectorId: string | null | undefined): boolean {
+    return !!optimalCollectorId && String(optimalCollectorId).trim() !== '';
+  }
+  
+  // Debug helper - call this from console to check values
+  // debugCollectorMatch(element: any): void {
+  //   console.log('Debug Collector Match:', {
+  //     EmpId: element.EmpId,
+  //     OptimalCollectorId: element.OptimalCollectorId,
+  //     hasOptimal: this.hasOptimalCollector(element.OptimalCollectorId),
+  //     isMatch: this.isOptimalCollectorMatch(element.EmpId, element.OptimalCollectorId),
+  //     empIdType: typeof element.EmpId,
+  //     optimalIdType: typeof element.OptimalCollectorId
+  //   });
+  // }
+
+  // Open proximity data dialog
+  async openProximityDataDialog(element: any): Promise<void> {
+    try {
+      const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+      
+      const dialogRef = this.dialog.open(ProximityDialogComponent, {
+        width: '700px',
+        maxWidth: '90vw',
+        maxHeight: '80vh',
+        data: {
+          storeNumber: element.StoreNumber,
+          storeName: element.StoreName,
+          empId: element.EmpId,
+          optimalCollectorId: element.OptimalCollectorId,
+          assignedTo: element.AssignedTo || element.EmployeeName,
+          firstName: element.FirstName,
+          lastName: element.LastName,
+          isActiveFSR: element.IsActiveFSR,
+          terminationDate: element.TerminationDate,
+          countryId: currentFilters?.country_id || '1'
+        },
+        disableClose: false
+      });
+
+      dialogRef.afterClosed().subscribe(result => {
+        if (result) {
+          // Handle any changes when dialog is closed
+          // console.log('Proximity dialog closed with result:', result);
+        }
+      });
+    } catch (error) {
+      this.snackbar.openSnackBar(error,'error');
+      console.error('Error opening proximity dialog:', error);
+    }
+  }
+
+  // async openTaskAssignmentDialog(taskData: any): Promise<void> {
+  //   try {
+  //     const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+      
+  //     if (!currentFilters || Object.keys(currentFilters).length === 0) {
+  //       console.warn('No filters applied. Cannot open assignment dialog.');
+  //       return;
+  //     }   
+  //     const dialogRef = this.dialog.open(AssignmentDialogComponent, {
+  //       width: '90vw',
+  //       maxWidth: '1200px', 
+  //       height: '80vh',
+  //       data: {
+  //         storeNumber: taskData.StoreNumber,
+  //         storeName: taskData.storeName,
+  //         taskNumber: taskData.TaskNumber,
+  //         taskName: taskData.TaskName,
+  //         iriWeek: currentFilters.iri_week,
+  //         territoryId: currentFilters.territory_id,
+  //         mode: 'TaskLevel'
+  //       },
+  //       disableClose: true
+  //     });
+
+  //     dialogRef.afterClosed().subscribe(result => {
+  //       if (result) {
+  //         this.refreshGridData();
+  //       }
+  //     });
+  //   } catch (error) {
+  //     console.error('Error opening task assignment dialog:', error);
+  //   }
+  // }
+
+    async openTaskAssignmentDialog2(taskData: any): Promise<void> {
+    try {
+      const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+      
+      if (!currentFilters || Object.keys(currentFilters).length === 0) {
+        console.warn('No filters applied. Cannot open assignment dialog.');
+        return;
+      }   
+      const dialogRef = this.dialog.open(AssignmentDialogComponent, {
+        width: '90vw',
+        maxWidth: '1200px', 
+        height: '80vh',
+        data: {
+          storeNumber: taskData.storeNumber,
+          storeName: taskData.storeName,
+          taskNumber: taskData.taskNumber,
+          taskName: taskData.taskName,
+          iriWeek: currentFilters.iri_week,
+          territoryId: currentFilters.territory_id,
+          mode: 'TaskLevel'
+        },
+        disableClose: true
+      });
+
+      dialogRef.afterClosed().subscribe(result => {
+        if (result?.hasChanges) {
+          console.log(result)
+          this.refreshGridData();
+        }
+      });
+    } catch (error) {
+      console.error('Error opening task assignment dialog:', error);
+    }
+  }
+
+
+  // Open Closest FSR dialog (when clicking colored circles)
+  async openClosestFsrDataDialog(element: any): Promise<void> {
+    try {
+      const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+      
+      const dialogRef = this.dialog.open(ClosestFsrDialogComponent, {
+        width: '60vw',
+        maxWidth: '60vw',
+        minWidth: '600px',
+        maxHeight: '55vh',
+        minHeight: '250px',
+        data: {
+          StoreNumber: element.StoreNumber,
+          StoreName: element.StoreName,
+          CollectorId: element.EmpId,
+          OptimalCollectorId: element.OptimalCollectorId,
+          FirstName: element.FirstName,
+          LastName: element.LastName,
+          IsActiveFSR: element.IsActiveFSR,
+          TerminationDate: element.TerminationDate,
+          CountryId: currentFilters?.country_id || '1'
+        },
+        disableClose: true,
+      });
+
+      dialogRef.afterClosed().subscribe(result => {
+        if (result) {
+          // console.log('Closest FSR dialog closed with result:', result);
+        }
+      });
+    } catch (error) {
+      this.snackbar.openSnackBar(error,"error")
+      console.error('Error opening Closest FSR dialog:', error);
+    }
+  }
+
+ 
+  private resetExpansionState(): void {
+    this.allExpanded = false;
+    this.isExpandingAll = false;
+    this.expandedRows.clear();
+    this.selectedRows.clear();
+    this.childRowMap.clear();
+    const parentRowsOnly = this.dataSource.data.filter(row => !row.isChildRow);
+    this.dataSource.data = parentRowsOnly;
+    this.updatePaginatorLength();
+    this.cdr.detectChanges(); // Ensure caret icons are updated
+  }
+
+
+  // private getCurrentPageData(): any[] {
+  //   if (!this.paginator) {
+  //     return this.dataSource.data;
+  //   }
+    
+  //   const startIndex = this.paginator.pageIndex * this.paginator.pageSize;
+  //   const endIndex = startIndex + this.paginator.pageSize;
+  //   return this.dataSource.data.slice(startIndex, endIndex);
+  // }
+
+  private getCurrentPageData(): any[] {
+  if (!this.paginator) {
+    return this.dataSource.data.filter(row => !row.isChildRow);
+  }
+  
+  const startIndex = this.paginator.pageIndex * this.paginator.pageSize;
+  const endIndex = startIndex + this.paginator.pageSize;
+  
+  // Filter to only get parent rows on current page
+  return this.dataSource.data
+    .filter(row => !row.isChildRow)
+    .slice(startIndex, endIndex);
+}
+
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  private async refreshGridData(): Promise<void> {
+    this.snackbar.openSnackBar("Refreshing grid data after assignment change","success")
+    const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+    if(!currentFilters){
+      this.snackbar.openSnackBar("Refreshing grid data failed","error")
+      return;
+    }
+    this.commonService.applyFilters(currentFilters)
+    // console.log('Refreshing grid data after assignment change');
+  }
+
+  //  helpers
+
+  getExpandedRowCount(): number {
+    return this.expandedRows.size;
+  }
+
+  formatCollectionTime(time: string): string {
+    return time || 'Not specified';
+  }
+
+  getClusterDisplay(positionName: string): string {
+    return positionName || 'N/A';
+  }
+
+  ngAfterViewInit(): void {
+    // this.dataSource.paginator = this.paginator;
+    this.dataSource.sort = this.sort;
+    
+  
+     this.dataSource.sortingDataAccessor = (data: any, sortHeaderId: string) => {
+      switch (sortHeaderId) {
+        // Numeric sorting
+        case 'StoreNumber':
+          return parseInt(data.StoreNumber) || 0;
+        
+        case 'FldTerrtyNbr':
+          return parseInt(data.FldTerrtyNbr) || 0;
+        
+        case 'Zip':
+          return data.Zip ? data.Zip.toString() : '';
+        
+        // Cost columns - convert to numbers for proper sorting
+        case 'AvgCost':
+        case 'WK1FSRProdCost':
+        case 'WK1StoreTravelCost':
+        case 'WK1StoreTravelOvgCost':
+        case 'WK2FSRProdCost':
+        case 'WK2StoreTravelCost':
+        case 'WK2StoreTravelOvgCost':
+        case 'GuaranteedMiles':
+          return parseFloat(data[sortHeaderId]) || 0;
+        
+        // String sorting (case-insensitive)
+        case 'StoreName':
+        case 'AddrLine1':
+        case 'City':
+        case 'State':
+        case 'PositionName':
+        case 'Bfd':
+        case 'OutletType':
+          return data[sortHeaderId] ? data[sortHeaderId].toString().toLowerCase() : '';
+        
+        // Assigned To - sort by first name for multiple assignments
+        case 'AssignedTo':
+          if (!data.AssignedTo || data.AssignedTo === 'NOT ASSIGNED') {
+            return 'zzz'; 
+          }
+          // Get first name from comma-separated list
+          const name = data.AssignedTo.split(',');          
+          const firstName = name[0]?.trim().toLowerCase()||'';
+          return firstName.toLowerCase();
+        
+        // Status columns - custom sort order
+        case 'TaskCompleted':
+          return this.getTaskCompletedSortValue(data.TaskCompleted);
+        
+        // case 'Quality':
+        //   return this.getQualitySortValue(data.Quality);
+        
+        case 'CostOver':
+          return this.getCostOverSortValue(data.CostOver);
+        
+        // Comments - sort by existence and then alphabetically
+        case 'UserComment':
+          if (!data.UserComment) return 'zzz'; // Empty comments last
+          return data.UserComment.toLowerCase();
+        
+        default:
+          return data[sortHeaderId] || '';
+      }
+    };
+
+     if (this.paginator) {
+      this.paginator.page
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(() => {
+          this.forceCollapseAllRows();
+          this.resetExpansionState();
+        });
+    }
+     this.cdr.detectChanges();
+  }
+
+private applyParentRowPagination(): void {
+  if (!this.paginator) return;
+
+  this.forceCollapseAllRows();
+  this.resetExpansionState();
+
+  const pageIndex = this.paginator.pageIndex;
+  const pageSize = this.paginator.pageSize;
+
+  // Get ONLY parent rows - never count child rows for pagination
+  const allParentRows = this.parentRowsData.filter(row => !row.isChildRow);
+  
+  // Calculate pagination based on PARENT rows only
+  const startIndex = pageIndex * pageSize;
+  const endIndex = startIndex + pageSize;
+  
+  // Get parent rows for current page (NO CHILD ROWS)
+  const currentPageParentRows = allParentRows.slice(startIndex, endIndex);
+  
+  // Update datasource with ONLY parent rows for current page
+  this.dataSource.data = currentPageParentRows;
+  
+  // CRITICAL: Set paginator length to ONLY parent rows count
+  this.paginator.length = allParentRows.length;  // Should be 5000, not 50!
+  
+  this.cdr.detectChanges();
+}
+
+
+  // Week type class specifically for table min-width
+  getWeekTypeTableClass(): string {
+    return `week-${this.currentWeekType}`;
+  }
+
+  // Get current table min-width for debugging/info
+  getCurrentTableMinWidth(): number {
+    switch (this.currentWeekType) {
+      case 'current':
+        return 1520;
+      case 'future':
+        return 1320;
+      case 'previous':
+        return 2100;
+      default:
+        return 1200;
+    }
+  }
+
+  // Get week type display info
+  getWeekTypeInfo(): { name: string, minWidth: number, columns: number } {
+    switch (this.currentWeekType) {
+      case 'current':
+        return { 
+          name: 'Current Week Tasks', 
+          minWidth: 1520, 
+          columns: this.currentWeekColumns.length 
+        };
+      case 'future':
+        return { 
+          name: 'Future Week Planning', 
+          minWidth: 1320, 
+          columns: this.futureWeekColumns.length 
+        };
+      case 'previous':
+        return { 
+          name: 'Previous Week History', 
+          minWidth: 2100, 
+          columns: this.previousWeekColumns.length 
+        };
+      default:
+        return { 
+          name: 'Store Data', 
+          minWidth: 1200, 
+          columns: this.baseColumns.length 
+        };
+    }
+  }
+
+//   formatQuality(value: any): string {
+//   if (!value) return 'N/A';
+//   const quality = value.toString().toLowerCase();
+//   return quality === 'approved' ? 'Approved' : 'Not Approved';
+// }
+
+// getQualityClass(value: any): string {
+//   if (!value) return 'quality-unknown';
+//   const quality = value.toString().toLowerCase();
+//   return quality === 'approved' ? 'quality-approved' : 'quality-not-approved';
+// }
+
+
+  private getTaskCompletedSortValue(status: any): number {
+    if (!status) return 3;
+    const statusStr = status.toString().toLowerCase();
+    switch (statusStr) {
+      case 'yes':
+      case 'completed':
+      case 'complete':
+        return 1;
+      case 'no':
+      case 'incomplete':
+      case 'pending':
+        return 2;
+      default:
+        return 3;
+    }
+  }
+
+  
+
+  private getCostOverSortValue(costOver: any): number {
+    if (!costOver) return 2;
+    const costStr = costOver.toString().toLowerCase();
+    switch (costStr) {
+      case 'no':
+      case 'false':
+        return 1;
+      case 'yes':
+      case 'true':
+        return 2;
+      default:
+        return 2;
+    }
+  }
+
+  // ADD: Enhanced money formatting for display
+  formatMoney(value: any): string {
+    if (!value || value === 0 || value === '0') return '$0.00';
+    
+    const num = parseFloat(value);
+    if (isNaN(num)) return '$0.00';
+    
+    return '$' + num.toLocaleString('en-US', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    });
+  }
+
+  // ADD: Sort change handler with logging
+  onSortChange(event: any): void {
+    this.currentSortColumn = event.active;
+    this.currentSortDirection = event.direction;    
+    // Collapse all expanded rows when sorting
+    this.forceCollapseAllRows();
+    this.resetExpansionState();
+  }
+
+  // ADD: Get current sort info for display
+  getCurrentSortInfo(): { column: string, direction: string } {
+    return {
+      column: this.currentSortColumn || 'None',
+      direction: this.currentSortDirection || 'None'
+    };
+  }
+
 async createAndSendWorkOrder(element: any): Promise<void> {
   try {
     element.isProcessingWorkOrder = true;
     this.commonService.show('create-work-order');
     
-    // Get FSR information
-    const fsrList = this.parseAssignedTo(element.AssignedTo);
+    // Validate that store has an FSR assigned
+    if (!element.AssignedTo || element.AssignedTo === 'NOT ASSIGNED' || element.AssignedTo.trim() === '') {
+      this.snackbar.openSnackBar('No FSR assigned to this store', 'error');
+      element.isProcessingWorkOrder = false;
+      this.commonService.hide('create-work-order');
+      return;
+    }
+    
+    const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+    
+    if (!currentFilters || !currentFilters.iri_week || !currentFilters.territory_id) {
+      this.snackbar.openSnackBar('Please apply IRI week and territory filters first.', 'error');
+      element.isProcessingWorkOrder = false;
+      return;
+    }
+    
+    // Get FSR information - parse assigned to names and EmpIds
+    const fsrList = this.parseAssignedToWithEmpIds(element);
     
     if (!fsrList || fsrList.length === 0) {
       this.snackbar.openSnackBar('No FSR assigned to this store', 'error');
       element.isProcessingWorkOrder = false;
       return;
     }
+
+   
     
-    const currentFilters = await firstValueFrom(this.commonService.currentFilters$);
+    // Try to enrich FSR list with email from subgrid data if available
+    const enrichedFsrList = this.enrichFsrListWithEmail(element, fsrList);
     
-    // Prepare work order parameters
-    const workOrderParams = {
-      storeNumber: element.StoreNumber,
-      storeName: element.StoreName,
-      iriWeek: currentFilters.iri_week,
-      territoryId: currentFilters.territory_id,
-      empId: fsrList.empId,  // First FSR
-      fsrName: fsrList.name,
-      fsrEmail: fsrList.email
-    };
+    // Filter out FSRs without email (they can't receive emails)
+    const validFsrs = enrichedFsrList.filter(fsr => fsr.empId && fsr.empId.trim() !== '');
     
-    // ✅ CORRECT - Call createWorkOrderForFSR (camelCase)
-    const workOrderResponse = await firstValueFrom(
-      this.commonService.createWorkOrderForFSR(workOrderParams)
-    );
+    if (validFsrs.length === 0) {
+      this.snackbar.openSnackBar('No valid FSR employee IDs found. Cannot generate work orders.', 'error');
+      element.isProcessingWorkOrder = false;
+      return;
+    }
+
+          
+    // Process each FSR: create work order and send email
+    let successCount = 0;
+    let failureCount = 0;
+    const errors: string[] = [];
     
-    const sessionId = workOrderResponse.sessionId;
-    
-    if (!sessionId) {
-      throw new Error('No session ID returned from work order creation');
+    for (const fsr of validFsrs) {
+      try {
+        // Prepare work order parameters for this FSR
+        const workOrderParams = {
+          storeNumber: element.StoreNumber,
+          storeName: element.StoreName,
+          iriWeek: currentFilters.iri_week,
+          territoryId: currentFilters.territory_id,
+          empId: fsr.empId,
+          fsrName: fsr.name,
+          fsrEmail: fsr.email || '', 
+          tasks: fsr.tasks || null ,
+          countryId:currentFilters?.country_id || '1'
+        };
+        
+        // Validate that we have required parameters
+        if (!fsr.email || fsr.email.trim() === '') {
+          errors.push(`FSR ${fsr.name}: Email ID is missing`);
+          failureCount++;
+          continue;
+        }
+
+          if (!fsr.empId || fsr.empId.trim() === '') {
+          errors.push(`FSR ${fsr.name}: Employee ID is missing`);
+          failureCount++;
+          continue;
+        }
+        // Create work order for this FSR
+        const workOrderResponse = await firstValueFrom(
+          this.commonService.createWorkOrderForFSR(workOrderParams)
+        );
+        
+        // Validate response
+        if (!workOrderResponse || !workOrderResponse.success) {
+          errors.push(`FSR ${fsr.name}: ${workOrderResponse?.message || 'Failed to create work order'}`);
+          failureCount++;
+          continue;
+        }
+        
+        const sessionId = workOrderResponse.sessionId;
+        
+        if (!sessionId) {
+          errors.push(`FSR ${fsr.name}: No session ID returned from work order creation`);
+          failureCount++;
+          continue;
+        }
+        
+        // Send email for this FSR
+        const emailResponse = await firstValueFrom(
+          this.commonService.sendWorkOrderEmailToFSR(sessionId)
+        );
+        
+        // Validate email response
+        if (!emailResponse || !emailResponse.success) {
+          errors.push(`FSR ${fsr.name}: ${emailResponse?.message || 'Failed to send email'}`);
+          failureCount++;
+          continue;
+        }
+        
+        successCount++;
+        
+        // Small delay between FSRs to avoid overwhelming the system
+        await this.delay(100);
+        
+      } catch (fsrError) {
+        console.error(`Error processing FSR ${fsr.name}:`, fsrError);
+        errors.push(`FSR ${fsr.name}: ${fsrError?.message || 'Unknown error'}`);
+        failureCount++;
+      }
     }
     
-    // ✅ CORRECT - Call sendWorkOrderEmailToFSR (camelCase)
-    await firstValueFrom(
-      this.commonService.sendWorkOrderEmailToFSR(sessionId)
-    );
+    // Show summary message
+    if (successCount > 0 && failureCount === 0) {
+      this.snackbar.openSnackBar(
+        `Work orders created and emails sent successfully to ${successCount} FSR${successCount > 1 ? 's' : ''}!`, 
+        'success'
+      );
+    } else if (successCount > 0 && failureCount > 0) {
+      this.snackbar.openSnackBar(
+        `Partially successful: ${successCount} work order${successCount > 1 ? 's' : ''} sent, ${failureCount} failed. ${errors.join('; ')}`, 
+        'warning'
+      );
+    } else {
+      this.snackbar.openSnackBar(
+        `Failed to create work orders. Errors: ${errors.join('; ')}`, 
+        'error'
+      );
+    }
     
-    this.snackbar.openSnackBar('Work order created and email sent successfully!', 'success');
     this.commonService.hide('create-work-order');
     
   } catch (error) {
     console.error('Error creating work order:', error);
-    this.snackbar.openSnackBar('Error: ' + error.message, 'error');
+    const errorMessage = error?.message || error?.error?.message || 'Unknown error occurred';
+    this.snackbar.openSnackBar('Error: ' + errorMessage, 'error');
   } finally {
     element.isProcessingWorkOrder = false;
     this.cdr.detectChanges();
   }
 }
 
-.........................
-import { Injectable, Inject } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { countryModel, FilterOptions, GetGridDataFilter, SelectModel, Store, StoreFilter } from './common.model';
-import { BehaviorSubject, catchError, firstValueFrom, Observable, of, shareReplay } from 'rxjs';
-import { environment } from 'src/environments/environment';
 
-@Injectable({
-  providedIn: 'root',
-})
-export class CommonService {
- 
-  private translations: any = {};
-  private currentLang: BehaviorSubject<string> = new BehaviorSubject<string>(this.getSavedLanguage()||'English');
-  private languages: BehaviorSubject<string[]> = new BehaviorSubject<string[]>([]);
-  private userGroups = {
-    projectManagementGroup:false,
-    isgTechnologyGroup:false,
-    scanScapeGroup:false
-  }
-  userId: string;
-  domainName: string;
-  private groupStatusSubject = new BehaviorSubject<{[key:string]:boolean}>(this.userGroups)
-  groupsStatus$=this.groupStatusSubject.asObservable();
 
-private sampleStores: Store[]=[];
-
-private sidebarStateSubject = new BehaviorSubject<boolean>(true);
-public sidebarState$ = this.sidebarStateSubject.asObservable();
-private filtersSubject = new BehaviorSubject<GetGridDataFilter>(new GetGridDataFilter());
-public filters$ = this.filtersSubject.asObservable();
-private gridDataSubject = new BehaviorSubject<any[]>([]);
-public gridData$ = this.gridDataSubject.asObservable();
-private countrySubject = new BehaviorSubject<string>('');
-public country$ = this.countrySubject.asObservable();
-private currentFiltersSubject = new BehaviorSubject<any>({});
-public currentFilters$ = this.currentFiltersSubject.asObservable();
-private currentIRIWeekSubject = new BehaviorSubject<string>('');
-public currentIRIWeek$ = this.currentIRIWeekSubject.asObservable();
-
- private weekTypeSubject = new BehaviorSubject<'current' | 'future' | 'previous'>('current');
-  public weekType$ = this.weekTypeSubject.asObservable();
-
-  // Separate data subjects for each week type
-  private currentWeekDataSubject = new BehaviorSubject<any[]>([]);
-  public currentWeekData$ = this.currentWeekDataSubject.asObservable();
-
-  private futureWeekDataSubject = new BehaviorSubject<any[]>([]);
-  public futureWeekData$ = this.futureWeekDataSubject.asObservable();
-
-  private previousWeekDataSubject = new BehaviorSubject<any[]>([]);
-  public previousWeekData$ = this.previousWeekDataSubject.asObservable();
-
-  private spinnerSubject = new BehaviorSubject<boolean>(false);
-  public spinner$ = this.spinnerSubject.asObservable();
-  
-  private loadingTasks = new Set<string>();
-
-  async fetchUserGroupMemberships(){
-    this.userId = localStorage.getItem("loggedUserId");
-      this.domainName = localStorage.getItem("loggedDomainId");
-      try{
-       const groups = await firstValueFrom(
-      this.http.get<string[]>(this.baseUrl + `api/Utilities/GetLogonUserGroupList?userId=`+this.userId+"&domainId="+this.domainName)); 
-      this.setUserGroup(groups) 
-      }catch(error){
-        console.error(error)
-      }
-     
+/**
+ * Parse AssignedTo and EmpId to get list of FSRs with their EmpIds
+ * Handles comma-separated values for both AssignedTo and EmpId
+ * Also retrieves email from grid data if available
+ */
+private parseAssignedToWithEmpIds(element: any): any[] {
+  if (!element.AssignedTo || element.AssignedTo === 'NOT ASSIGNED' || element.AssignedTo.trim() === '') {
+    return [];
   }
   
-  setUserGroup(groups:any[]){ 
-  groups.forEach(group=>{   
-    if(group.anyType_Text ==='ISG TECHNOLOGY'){   
-      this.userGroups.isgTechnologyGroup = true;      
-    }else if (group.anyType_Text ==='ISG PROJECT MANAGEMENT'){ 
-      this.userGroups.projectManagementGroup = true; 
-    }else if (group.anyType_Text ==='SCANSCAPE FIELD'){    
-      this.userGroups.scanScapeGroup = true; 
+  // Split by comma to get individual FSR names
+  const names = element.AssignedTo.split(',').map((name: string) => name.trim()).filter((name: string) => name);
+  
+  // Split EmpId by comma if it's comma-separated
+  let empIds: string[] = [];
+  if (element.EmpId && element.EmpId.trim() !== '') {
+    empIds = element.EmpId.split(',').map((id: string) => id.trim()).filter((id: string) => id);
+  }
+  
+  // Get email from grid data - check multiple possible field names
+  const gridEmail = element.EmpEmailId || element.empEmailId || '';
+  
+  // Split email by comma if it's comma-separated (for multiple FSRs)
+  let emails: string[] = [];
+  if (gridEmail && gridEmail.trim() !== '') {
+    emails = gridEmail.split(',').map((email: string) => email.trim()).filter((email: string) => email);
+  }
+  
+  // Create FSR list with matched names and EmpIds
+  const fsrList: any[] = [];
+  
+  // If EmpIds count matches names count, match them by index
+  if (empIds.length === names.length) {
+    for (let i = 0; i < names.length; i++) {
+      fsrList.push({
+        name: names[i],
+        empId: empIds[i],
+        email: (emails.length === names.length && emails[i]) ? emails[i] : (emails.length > 0 ? emails[0] : ''), // Use matching email or first email
+        tasks: [] // Will be populated if subgrid data is available
+      });
     }
+  } else if (empIds.length > 0) {
+    // If EmpIds don't match, use first EmpId for all (fallback)
+    // This is a fallback scenario - ideally EmpIds should match names
+    for (let i = 0; i < names.length; i++) {
+      fsrList.push({
+        name: names[i],
+        empId: i < empIds.length ? empIds[i] : empIds[0], // Use first EmpId as fallback
+        email: (emails.length === names.length && emails[i]) ? emails[i] : (emails.length > 0 ? emails[0] : ''),
+        tasks: []
+      });
+    }
+  } else {
+    // No EmpIds available - only names
+    // Note: This might not work without EmpIds, but we'll try to enrich from subgrid
+    for (let i = 0; i < names.length; i++) {
+      fsrList.push({
+        name: names[i],
+        empId: '', // Will be enriched from subgrid data
+        email: (emails.length === names.length && emails[i]) ? emails[i] : (emails.length > 0 ? emails[0] : ''),
+        tasks: []
+      });
+    }
+  }
+  
+  return fsrList;
+}
+
+/**
+ * Enrich FSR list with email and EmpId from subgrid data if available
+ * Prefers email from grid data (already set in parseAssignedToWithEmpIds) over subgrid data
+ */
+private enrichFsrListWithEmail(element: any, fsrList: any[]): any[] {
+  // Check if subgrid data is available for this store
+  const storeKey = element.StoreNumber || element.store_number;
+  const subgridData = this.expandedRowsData.get(storeKey);
+  
+  if (!subgridData || !subgridData.data || subgridData.data.length === 0) {
+    // No subgrid data - return as is (Emails from grid data should already be set)
+    console.log('No subgrid data available, using grid data email:', fsrList.map(f => ({name: f.name, email: f.email})));
+    return fsrList;
+  }
+  
+  // Group tasks by FSR (assignedTo) from subgrid data
+  const tasksByFsr = this.groupTasksByFSR(subgridData.data);
+  
+  // Enrich FSR list with data from subgrid
+  return fsrList.map(fsr => {
+    // Try to find matching FSR in subgrid data by name
+    const matchingFsrName = Object.keys(tasksByFsr).find(
+      fsrName => fsrName.toLowerCase().includes(fsr.name.toLowerCase()) ||
+                 fsr.name.toLowerCase().includes(fsrName.toLowerCase())
+    );
+    
+    if (matchingFsrName && tasksByFsr[matchingFsrName].length > 0) {
+      const firstTask = tasksByFsr[matchingFsrName][0];
+      
+      // Use subgrid data to enrich FSR info
+      // Prefer email from grid data (already set), fallback to subgrid if grid email is empty
+      const enrichedEmail = fsr.email || firstTask.email || firstTask.fsrEmail || firstTask.emailAddress || '';
+      
+      return {
+        ...fsr,
+        empId: fsr.empId || firstTask.empId || firstTask.emp_id || '', // Use subgrid EmpId if parent doesn't have it
+        email: enrichedEmail, // Prefer grid email, fallback to subgrid email
+        tasks: tasksByFsr[matchingFsrName] // Assign tasks specific to this FSR
+      };
+    }
+    
+    // No matching FSR found in subgrid - return as is (with grid email)
+    console.log(`No matching FSR in subgrid for ${fsr.name}, using grid email: ${fsr.email}`);
+    return fsr;
+  });
+}
+
+private parseAssignedTo(assignedTo: string): any[] {
+  if (!assignedTo || assignedTo === 'NOT ASSIGNED' || assignedTo.trim() === '') {
+    return [];
+  }
+  
+  // Split by comma to get individual FSR names
+  const names = assignedTo.split(',').map(name => name.trim()).filter(name => name);
+  
+  // Return FSR info objects (you may need to fetch empId and email separately)
+  return names.map(name => ({
+    name: name,
+    empId: '', // Will be populated from subgrid or additional API call
+    email: '' // Will be populated from subgrid or additional API call
+  }));
+}
+
+private groupTasksByFSR(subgridData: any[]): { [key: string]: any[] } {
+  const grouped: { [key: string]: any[] } = {};
+  
+  subgridData.forEach(task => {
+    const assignedTo = task.assignedTo || task.AssignedTo || '';
+    
+    if (!grouped[assignedTo]) {
+      grouped[assignedTo] = [];
+    }
+    
+    grouped[assignedTo].push(task);
   });
   
-  this.groupStatusSubject.next(this.userGroups);  
-  }
-
-  private isgcountryapi=
-    // 'https://localhost:7140/api/Country/getcountry';
-    'http://isgiiswt02.iricommercial.com/isgapi/api/Country/getcountry';
-    //'https://isg.infores.com/isgapi/api/Country/getcountry';
-  
-  private isgemployeeapi = 
-    // 'https://localhost:7140/api/Employee/getemployee';
-    'http://isgiiswt02.iricommercial.com/isgapi/api/Employee/getemployee';
-    //'https://isg.infores.com/isgapi/api/Employee/getemployee';
-  
-
- 
-
-  constructor(private http: HttpClient, @Inject('BASE_URL') private baseUrl: string) {
-  }
-
-  private getSavedLanguage():string | null{
-    return localStorage.getItem('language')
-  }
-
-  private saveLanguage(lang:string){
-    localStorage.setItem('language',lang)
-  }
-
- 
-
-  async getcountry():Promise<countryModel[]>{
-    if(environment.production)
-    return await firstValueFrom(this.http.get<countryModel[]>(this.isgcountryapi));
-    else
-    return await firstValueFrom(this.http.get<countryModel[]>(this.baseUrl + `api/TestEnv/GetCountryTestEnv`)); 
-  }
-
-  getEmployee(lanId:string):Observable<any[]>{
-    let url = this.isgemployeeapi
-    if(lanId){
-      url+=`?LanID=${lanId}`
-    }
-    const headers = new HttpHeaders({
-      'Content-Type':'application/json'
-    })
-
-    if(environment.production)
-      return this.http.get<any[]>(url,{headers:headers})
-      else
-      return this.http.get<any[]>(this.baseUrl + `api/TestEnv/GetEmployeeTestEnv?LanID=${this.userId}`); 
-  }
-
-//Testing
-// Centralized API methods
-getIriWeeks(): Observable<any[]> {
-  return this.http.get<any[]>(`${this.baseUrl}api/TaskAssinment/GetIriWeek`)
-    .pipe(catchError(this.handleError<any[]>('getIriWeeks', [])));
+  return grouped;
 }
-
-getTerritories(): Observable<any[]> {
-  return this.http.get<any[]>(`${this.baseUrl}api/TaskAssinment/GetTerritory`)
-    .pipe(catchError(this.handleError<any[]>('getTerritories', [])));
-}
-
-searchStores(payload: any): Observable<any[]> {
-  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetStore`, payload)
-    .pipe(catchError(this.handleError<any[]>('searchStores', [])));
-}
-
-searchStates(payload: any): Observable<any[]> {
-  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetState`, payload)
-    .pipe(catchError(this.handleError<any[]>('searchStates', [])));
-}
-
-searchCities(payload: any): Observable<any[]> {
-  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetCity`, payload)
-    .pipe(catchError(this.handleError<any[]>('searchCities', [])));
-}
-
-searchClusters(payload: any): Observable<any[]> {
-  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetCluster`, payload)
-    .pipe(catchError(this.handleError<any[]>('searchClusters', [])));
-}
-
-searchTasks(payload: any): Observable<any[]> {
-  return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetTask`, payload)
-    .pipe(catchError(this.handleError<any[]>('searchTasks', [])));
-}
-
-// getGridData(payload: GetGridDataFilter): Observable<any[]> {
-//   return this.http.post<any[]>(`${this.baseUrl}api/TaskAssinment/GetGridData`, payload)
-//     .pipe(catchError(this.handleError<any[]>('getGridData', [])));
-// }
-
-// getGridData(payload: GetGridDataFilter): Observable<any[]> {
-//     const currentIRIWeek = this.getCurrentIRIWeek();
-//     const payloadIRIWeek = payload.iriWeek;
-    
-//     let apiEndpoint = '';
-    
-//     // Determine which API to call based on IRI week comparison
-//     if (payloadIRIWeek === currentIRIWeek) {
-//       // Current week
-//       apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetcurrentweekGridData`;
-//       console.log('Using current week API');
-//     } else if (payloadIRIWeek > currentIRIWeek) {
-//       // Future week
-//       apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetfutureweekGridData`;
-//       console.log('Using future week API');
-//     } else {
-//       // Previous week
-//       apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetpreviousweekGridData`;
-//       console.log('Using previous week API');
-//     }
-    
-//     console.log(`API Selection: Payload(${payloadIRIWeek}) vs Current(${currentIRIWeek}) -> ${apiEndpoint}`);
-    
-//     return this.http.post<any[]>(apiEndpoint, payload)
-//       .pipe(catchError(this.handleError<any[]>('getGridData', [])));
-//   }
-
-getGridData(payload: GetGridDataFilter): Observable<any[]> {
-    const currentIRIWeek = this.getCurrentIRIWeek();
-    const payloadIRIWeek = payload.iriWeek;
-    
-    let apiEndpoint = '';
-    let weekType: 'current' | 'future' | 'previous' = 'current';
-    
-    // Determine which API to call
-    if (payloadIRIWeek === currentIRIWeek) {
-      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetcurrentweekGridData`;
-      weekType = 'current';
-    } else if (payloadIRIWeek > currentIRIWeek) {
-      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetfutureweekGridData`;
-      weekType = 'future';
-    } else {
-      apiEndpoint = `${this.baseUrl}api/TaskAssinment/GetpreviousweekGridData`;
-      weekType = 'previous';
-    }
-    
-    // Update week type
-    this.weekTypeSubject.next(weekType);
-    
-    return this.http.post<any[]>(apiEndpoint, payload)
-      .pipe(catchError(this.handleError<any[]>('getGridData', [])));
-  }
-
-  // UPDATED: Apply filters with specific data stream updates
-  applyFilters(filters: GetGridDataFilter): void {
-    this.show('apply-Filters')
-    const currentCountry = this.getCurrentCountry();
-    
-    if (!currentCountry) {
-      filters.countryId = '1';
-    } else {
-      filters.countryId = currentCountry;
-    }
-
-    this.filtersSubject.next(filters);
-   this.currentFiltersSubject.next({
-      countryId: filters.countryId,
-      iri_week: filters.iriWeek,
-      territory_id: filters.territoryId,
-      area: filters.area,
-      store_number: filters.storeNumber,
-      store_name: filters.storeName,
-      state: filters.state,
-      city: filters.city,
-      position_number: filters.positionNumber,
-      task_number: filters.taskNumber,
-      emp_id: filters.empId,
-      fsr_hour: filters.fsrHour,
-      fsr_over_25hrs: filters.fsrOver25hrs,
-      fsr_over_6hrs: filters.fsrOver6hrs,
-      assigned_stores: filters.assignedStores,
-      unassigned_stores: filters.unassignedStores,
-      sample: filters.sample,
-      nonsample: filters.nonSample,
-      multi_fsr_store: filters.multiFsrStore,
-      vacation: filters.vacation,
-      temporary: filters.temporary,
-      fsr_hour_operator: filters.fsrHourOperator
-    });
-
-    this.currentWeekDataSubject.next([]);
-    this.futureWeekDataSubject.next([]);
-    this.previousWeekDataSubject.next([]);
-    this.gridDataSubject.next([]);
-    
-    // Call API and update specific data stream
-     this.getGridData(filters).subscribe({
-      next: (data) => {
-        const currentIRIWeek = this.getCurrentIRIWeek();
-        const payloadIRIWeek = filters.iriWeek;
-        
-        // Add comment editing capability and normalize field names
-        const dataWithComments = data.map(row => ({
-          ...row,         
-          // Normalize field names for consistent access
-          StoreNumber: row.StoreNumber || row.store_number,
-          StoreName: row.StoreName || row.store_name,
-          City: row.CityName || row.city_name,
-          State: row.StateCd || row.state_cd,
-          Zip: row.ZipCd || row.zip_cd,
-          AddrLine1: row.AddrLine1 || row.addr_line1,
-          AssignedTo: this.getAssignedToDisplay(row),
-          UserComment: row.AssignmentNotes || '',
-          IsCommentEditing: false
-        }));
-        
-        // Update appropriate data stream based on week type
-        if (payloadIRIWeek === currentIRIWeek) {
-          this.currentWeekDataSubject.next(dataWithComments);
-         
-        } else if (payloadIRIWeek > currentIRIWeek) {
-          this.futureWeekDataSubject.next(dataWithComments);
-        
-        } else {
-          this.previousWeekDataSubject.next(dataWithComments);
-          
-        }
-        
-        // Also update main grid data for backward compatibility
-        this.gridDataSubject.next(dataWithComments);
-        this.hide('apply-Filters')
-      },
-      error: (error) => {
-        console.error('Error applying filters:', error);
-        this.currentWeekDataSubject.next([]);
-        this.futureWeekDataSubject.next([]);
-        this.previousWeekDataSubject.next([]);
-        this.gridDataSubject.next([]);
-      }
-    });
-  }
-
-   private getAssignedToDisplay(row: any): string {
-
-    if(!row.EmployeeName){
-      return 'NOT ASSIGNED'
-    }else if(row.EmployeeName === 'NOT ASSIGNED'){
-       return 'NOT ASSIGNED'
-    }else if(row.EmployeeName == ' '){
-       return 'NOT ASSIGNED'
-    }else{
-      return row.EmployeeName.trim()
-    }
 
     
 
-  // if (!row.FirstName || !row.LastName) {
-  //   return 'NOT ASSIGNED';
-  // }
-
-  // const hasCommaInFirst = row.FirstName.includes(',');
-  // const hasCommaInLast = row.LastName.includes(',');
-
-  // Case 1: Not comma separated (just a single name)
-  // if (!hasCommaInFirst && !hasCommaInLast) {
-  //   return `${row.FirstName.trim()} ${row.LastName.trim()}`.trim();
-  // }
-
-  // Case 2: Comma separated names
-  // const firstNames = row.FirstName.split(',').map(name => name.trim());
-  // const lastNames = row.LastName.split(',').map(name => name.trim());
-
-  // if (firstNames.length !== lastNames.length) {
-  //   console.warn('Mismatch between first names and last names count');
-  //   return `${row.FirstName} ${row.LastName}`.trim();
-  // }
-
-  // // Create full names
-  // const fullNames = firstNames.map((firstName, index) => {
-  //   const lastName = lastNames[index] || '';
-  //   return `${firstName} ${lastName}`.trim();
-  // });
-
-  // return fullNames.join(', ');
-}
-  
-
-
-  getCurrentWeekType(): 'current' | 'future' | 'previous' {
-    return this.weekTypeSubject.value;
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.unsubscribe$.next();
+    this.unsubscribe$.complete();
   }
-
-private handleError<T>(operation = 'operation', result?: T) {
-  return (error: any): Observable<T> => {
-    console.error(`${operation} failed:`, error);
-    return of(result as T);
-  };
 }
 
-
-  // ADD: Save user comment for a row
-  saveUserComment(storeNumber: string, comment: string): Observable<any> {
-    const payload = {
-      StoreNumber: storeNumber,
-      Comment: comment,
-      UserId: localStorage.getItem("loggedUserId") || ''
-    };
-     return this.http.post(`${this.baseUrl}api/TaskAssinment/SaveUserComment`, payload)
-     .pipe(catchError(this.handleError('saveUserComment', {})));
-  }
-
-
-
- clearFilters(): void {
-    const defaultFilters = new GetGridDataFilter();
-    this.filtersSubject.next(defaultFilters);
-    this.currentWeekDataSubject.next([]);
-    this.futureWeekDataSubject.next([]);
-    this.previousWeekDataSubject.next([]);
-    this.gridDataSubject.next([]);
-  }
-
-setCountry(countryId: string): void {
-    this.countrySubject.next(countryId);
-  }
-
- 
-  getCurrentCountry(): string {
-    return this.countrySubject.value;
-  }
-
-  async loadCurrentIRIWeek(): Promise<void> {
-    try {
-      const currentWeek = await firstValueFrom(
-        this.http.get<any>(`${this.baseUrl}api/TaskAssinment/GetCurrentIRIWeek`)
-      );
-      this.currentIRIWeekSubject.next(currentWeek.toString());
-    } catch (error) {
-      console.error('Error loading current IRI week:', error);
-    }
-  }
-
-  getCurrentIRIWeek(): string {
-    return this.currentIRIWeekSubject.value;
-  }
-
-   show(taskId: string = 'default'): void {
-    this.loadingTasks.add(taskId);
-    this.spinnerSubject.next(true);
-  }
-
-  hide(taskId: string = 'default'): void {
-    this.loadingTasks.delete(taskId);
-    if (this.loadingTasks.size === 0) {
-      this.spinnerSubject.next(false);
-    }
-  }
-
-  hideAll(): void {
-    this.loadingTasks.clear();
-    this.spinnerSubject.next(false);
-  }
-
-  isLoading(): boolean {
-    return this.spinnerSubject.value;
-  }
-
-  
-  createWorkOrder(params: any): Observable<any> {
-    return this.http.post<any>(
-      this.baseUrl + 'api/TaskAssinment/CreateWorkOrder', 
-      params,
-      { 
-        headers: { 'Content-Type': 'application/json; charset=utf-8' }
-      }
-    );
-  }
-
- 
-  sendWorkOrderEmail(pdfSessionId: string): Observable<any> {
-    return this.http.post<any>(
-      this.baseUrl + 'api/TaskAssinment/SendWorkOrderEmail',
-      { pdfSessionId: pdfSessionId },
-      { 
-        headers: { 'Content-Type': 'application/json; charset=utf-8' }
-      }
-    );
-  }
-
-  CreateWorkOrderForFSR(params: any): Observable<any> {
-  return this.http.post<any>(
-    this.baseUrl + 'api/TaskAssinment/CreateWorkOrderForFSR', 
-    {
-      storeNumber: params.storeNumber,
-      storeName: params.storeName,
-      iriWeek: params.iriWeek,
-      territoryId: params.territoryId,
-      empId: params.empId,  
-      fsrName: params.fsrName,
-      fsrEmail: params.fsrEmail,
-      tasks: params.tasks || null, 
-      userId: localStorage.getItem('loggedUserId') || ''
-    },
-    { 
-      headers: { 'Content-Type': 'application/json; charset=utf-8' }
-    }
-  );
-}
-
-// Send email for the work order
-SendWorkOrderEmailToFSR(pdfSessionId: string): Observable<any> {
-  return this.http.post<any>(
-    this.baseUrl + 'api/TaskAssinment/SendWorkOrderEmailToFSR',
-    { 
-      pdfSessionId: pdfSessionId,
-      userId: localStorage.getItem('loggedUserId') || ''
-    },
-    { 
-      headers: { 'Content-Type': 'application/json; charset=utf-8' }
-    }
-  );
-}
-
- 
-//end
-
-
-}
