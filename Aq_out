@@ -1,3 +1,32 @@
+
+/* Close icon in header */
+.header-close-btn {
+  color: #fff;
+  opacity: 0.9;
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+}
+
+.header-close-btn mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.header-close-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+}
+
+/* (Optional) keep header compact as before */
+.title-style {
+  /* you already have: display:flex; justify-content:space-between; align-items:center; */
+  padding: 5px 12px; /* a bit tighter if you want */
+}
+
+.................................................................
 ::ng-deep .mat-expansion-panel-header {
   min-height: 32px !important;
   height: 32px !important;
