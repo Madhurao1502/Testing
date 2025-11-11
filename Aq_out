@@ -1,4 +1,76 @@
+::ng-deep .mat-expansion-panel-header {
+  min-height: 32px !important;
+  height: 32px !important;
+  padding: 0 12px !important;
+}
+::ng-deep .mat-expansion-panel-header.mat-expanded {
+  min-height: 32px !important;
+  height: 32px !important;
+}
 
+/* 2 & 3) Fixed heights + scroll for TABLE 2 and TABLE 3 */
+.fsr-section .table-wrapper,
+.task-assignment-section .table-wrapper {
+  max-height: 320px;          /* adjust 300–360px as you like */
+  overflow: auto;              /* vertical + horizontal scroll as needed */
+  border-radius: 4px;
+}
+
+/* Ensure sticky header works inside the scroll container */
+.fsr-section .mat-header-row,
+.task-assignment-section .mat-header-row {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* 4) Ensure header row height + body row height consistent on TABLE 2 */
+.fsr-section .mat-header-cell,
+.fsr-section .mat-cell {
+  height: 30px;
+  line-height: 30px;
+  padding: 0 8px;
+  font-size: 13px;
+}
+
+/* 3 & 4) Same sizing for TABLE 3 just in case */
+.task-assignment-section .mat-header-cell,
+.task-assignment-section .mat-cell {
+  height: 30px;
+  line-height: 30px;
+  padding: 0 8px;
+  font-size: 13px;
+}
+
+/* 5) Remove borders on action buttons in TABLE 2 only */
+.fsr-section .action-button.no-border {
+  border: none !important;            /* in case you keep mat-stroked-button */
+  box-shadow: none !important;
+}
+
+/* Make all action buttons compact */
+.action-button {
+  font-size: 12px;
+  padding: 4px 12px;
+  min-width: 90px;
+  height: 28px;
+  line-height: 28px;
+}
+
+/* Optional: tighten global table header height to match 30px target */
+.mat-header-cell {
+  height: 30px;
+  line-height: 30px;
+}
+tr.mat-header-row { height: 30px; }
+tr.mat-row, tr.mat-footer-row { height: 30px; }
+
+/* When a container scrolls, keep nice hover */
+.fsr-section .mat-row:hover,
+.task-assignment-section .mat-row:hover {
+  background-color: #f5f7ff;
+}
+......................
 <h2 mat-dialog-title class="title-style" cdkDrag cdkDragRootElement=".cdk-overlay-pane" cdkDragHandle>
   <span>{{ getDialogTitle() }}</span>
 </h2>
