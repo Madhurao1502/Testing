@@ -1,3 +1,985 @@
+
+<h2 mat-dialog-title class="title-style" cdkDrag cdkDragRootElement=".cdk-overlay-pane" cdkDragHandle>
+  <span>{{ getDialogTitle() }}</span>
+</h2>
+
+<mat-dialog-content class="assignment-dialog-content">
+  
+  <!-- ============================================================ -->
+  <!-- FILTER SECTION - MOVED TO TOP -->
+  <!-- ============================================================ -->
+  <div class="filter-section-container" [formGroup]="filterForm">
+    <div class="filter-row">
+      <mat-form-field appearance="outline" class="small-field">
+        <mat-label>IRI Week</mat-label>
+        <input matInput [value]="data.iriWeek" readonly />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="medium-field">
+        <mat-label>Territory</mat-label>
+        <mat-select formControlName="territory" (selectionChange)="onTerritoryChange()">
+          <mat-option *ngFor="let territory of territories" [value]="territory.territory_id">
+            {{ territory.territory_name }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="medium-field">
+        <mat-label>First Name</mat-label>
+        <input
+          matInput
+          formControlName="firstName"
+          placeholder="Search by first name..."
+          [matAutocomplete]="firstNameAuto"
+        />
+        <mat-autocomplete
+          #firstNameAuto="matAutocomplete"
+          (optionSelected)="onFirstNameSelected($event)"
+          [displayWith]="displayFn"
+        >
+          <mat-option *ngFor="let option of filteredFirstNames | async" [value]="option">
+            {{ option.FirstName }} {{ option.LastName }}
+          </mat-option>
+        </mat-autocomplete>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="medium-field">
+        <mat-label>Last Name</mat-label>
+        <input
+          matInput
+          formControlName="lastName"
+          placeholder="Search by last name..."
+          [matAutocomplete]="lastNameAuto"
+        />
+        <mat-autocomplete
+          #lastNameAuto="matAutocomplete"
+          (optionSelected)="onLastNameSelected($event)"
+          [displayWith]="displayFn"
+        >
+          <mat-option *ngFor="let option of filteredLastNames | async" [value]="option">
+            {{ option.FirstName }} {{ option.LastName }}
+          </mat-option>
+        </mat-autocomplete>
+      </mat-form-field>
+
+      <button 
+        mat-raised-button 
+        color="primary" 
+        (click)="searchFsrs()" 
+        [disabled]="isLoading"
+        class="search-btn">
+        <mat-icon>search</mat-icon>
+        Search
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- ACCORDION CONTAINER FOR ALL TABLES -->
+  <!-- ============================================================ -->
+  <mat-accordion class="tables-accordion">
+
+    <!-- ============================================================ -->
+    <!-- TABLE 1: Proximity FSR Table (Closest FSRs) -->
+    <!-- ============================================================ -->
+    <mat-expansion-panel class="accordion-panel">
+      <mat-expansion-panel-header class="accordion-header">
+        <mat-panel-title>
+          <mat-icon>location_on</mat-icon>
+          Closest FSRs
+        </mat-panel-title>
+      </mat-expansion-panel-header>
+
+      <div class="table-section proximity-section">
+        <div *ngIf="isLoadingProximity" class="loading-container">
+          <mat-spinner diameter="30"></mat-spinner>
+          <span>Loading proximity data...</span>
+        </div>
+
+        <div class="table-wrapper" *ngIf="!isLoadingProximity && proximityDataSource.data.length > 0">
+          <table mat-table [dataSource]="proximityDataSource" class="proximity-table mat-elevation-z2">
+            
+            <!-- Employee ID Column -->
+            <ng-container matColumnDef="empId">
+              <th mat-header-cell *matHeaderCellDef class="col-emp-id">Employee ID</th>
+              <td mat-cell *matCellDef="let fsr">{{ fsr.empId }}</td>
+            </ng-container>
+
+            <!-- Employee Name Column -->
+            <ng-container matColumnDef="empName">
+              <th mat-header-cell *matHeaderCellDef class="col-emp-name">Name</th>
+              <td mat-cell *matCellDef="let fsr">{{ fsr.firstName }} {{ fsr.lastName }}</td>
+            </ng-container>
+
+            <!-- Cost Column -->
+            <ng-container matColumnDef="cost">
+              <th mat-header-cell *matHeaderCellDef class="col-cost">Cost</th>
+              <td mat-cell *matCellDef="let fsr">{{ fsr.totalCost | currency }}</td>
+            </ng-container>
+
+            <!-- Travel Time Column -->
+            <ng-container matColumnDef="time">
+              <th mat-header-cell *matHeaderCellDef class="col-time">Travel Time</th>
+              <td mat-cell *matCellDef="let fsr">{{ fsr.time }}</td>
+            </ng-container>
+
+            <!-- Toll Column -->
+            <ng-container matColumnDef="toll">
+              <th mat-header-cell *matHeaderCellDef class="col-toll">Toll</th>
+              <td mat-cell *matCellDef="let fsr">{{ fsr.toll | currency }}</td>
+            </ng-container>
+
+            <!-- Phone Column -->
+            <ng-container matColumnDef="phone">
+              <th mat-header-cell *matHeaderCellDef class="col-phone">Phone</th>
+              <td mat-cell *matCellDef="let fsr">{{ fsr.fsrPhoneNum }}</td>
+            </ng-container>
+
+            <!-- Email Column -->
+            <ng-container matColumnDef="email">
+              <th mat-header-cell *matHeaderCellDef class="col-email">Email</th>
+              <td mat-cell *matCellDef="let fsr">
+                <a href="mailto:{{ fsr.email }}" class="email-link">{{ fsr.email }}</a>
+              </td>
+            </ng-container>
+
+            <!-- Action Column -->
+            <ng-container matColumnDef="action">
+              <th mat-header-cell *matHeaderCellDef class="col-action">Action</th>
+              <td mat-cell *matCellDef="let fsr">
+                <button 
+                  mat-stroked-button 
+                  color="primary" 
+                  (click)="assignFromProximity(fsr)"
+                  class="assign-btn"
+                  [disabled]="taskSelection.selected.length === 0">
+                  <mat-icon>person_add</mat-icon>
+                  Assign
+                </button>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="proximityColumns; sticky: true"></tr>
+            <tr mat-row *matRowDef="let row; columns: proximityColumns;"></tr>
+          </table>
+        </div>
+
+        <div *ngIf="!isLoadingProximity && proximityDataSource.data.length === 0" class="no-data">
+          No proximity data available for this store.
+        </div>
+      </div>
+    </mat-expansion-panel>
+
+    <!-- ============================================================ -->
+    <!-- TABLE 2: Current Assignment / Search FSR Table -->
+    <!-- ============================================================ -->
+    <mat-expansion-panel class="accordion-panel">
+      <mat-expansion-panel-header class="accordion-header">
+        <mat-panel-title>
+          <mat-icon>search</mat-icon>
+          Search & Assign FSRs
+        </mat-panel-title>
+      </mat-expansion-panel-header>
+
+      <div class="table-section fsr-section">
+        <!-- Loading Indicator -->
+        <div *ngIf="isLoading" class="loading-container">
+          <mat-spinner diameter="30"></mat-spinner>
+          <span>Loading FSRs...</span>
+        </div>
+
+        <!-- FSR Table -->
+        <div class="table-wrapper" *ngIf="!isLoading">
+          <table mat-table [dataSource]="fsrDataSource" class="fsr-table mat-elevation-z2">
+            
+            <!-- Action Columns (conditional based on mode) -->
+            <ng-container matColumnDef="assign_all" *ngIf="showColumn('assign_all')">
+              <mat-header-cell *matHeaderCellDef class="col-action">Assign</mat-header-cell>
+              <mat-cell *matCellDef="let fsr">
+                <button
+                  mat-stroked-button
+                  color="primary"
+                  (click)="assignTask(fsr, 2)"
+                  class="action-button">
+                  Assign
+                </button>
+              </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="unassign_all" *ngIf="showColumn('unassign_all')">
+              <mat-header-cell *matHeaderCellDef class="col-action">Unassign</mat-header-cell>
+              <mat-cell *matCellDef="let fsr">
+                <button
+                  mat-stroked-button
+                  color="warn"
+                  (click)="assignTask(fsr, 4)"
+                  class="action-button">
+                  Unassign
+                </button>
+              </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="assign" *ngIf="showColumn('assign')">
+              <mat-header-cell *matHeaderCellDef class="col-action">Assign</mat-header-cell>
+              <mat-cell *matCellDef="let fsr">
+                <button
+                  mat-stroked-button
+                  color="primary"
+                  (click)="assignTask(fsr, 1)"
+                  class="action-button">
+                  Assign
+                </button>
+              </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="unassign" *ngIf="showColumn('unassign')">
+              <mat-header-cell *matHeaderCellDef class="col-action">Unassign</mat-header-cell>
+              <mat-cell *matCellDef="let fsr">
+                <button
+                  mat-stroked-button
+                  color="warn"
+                  (click)="assignTask(fsr, 3)"
+                  class="action-button">
+                  Unassign
+                </button>
+              </mat-cell>
+            </ng-container>
+
+            <!-- FSR Information Columns -->
+            <ng-container matColumnDef="name">
+              <mat-header-cell *matHeaderCellDef class="col-name">Name</mat-header-cell>
+              <mat-cell *matCellDef="let fsr" class="col-name">
+                {{ fsr.LastName }}, {{ fsr.FirstName }}
+              </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="address">
+              <mat-header-cell *matHeaderCellDef class="col-address">Address</mat-header-cell>
+              <mat-cell *matCellDef="let fsr" class="col-address">{{ fsr.AddrLine1 }}</mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="assigned_hrs">
+              <mat-header-cell *matHeaderCellDef class="col-assigned-hrs">Assigned Hrs</mat-header-cell>
+              <mat-cell *matCellDef="let fsr" class="col-assigned-hrs">{{ fsr.AssignedHrs }}</mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="max_hrs">
+              <mat-header-cell *matHeaderCellDef class="col-max-hrs">Max Hours</mat-header-cell>
+              <mat-cell *matCellDef="let fsr" class="col-max-hrs">{{ fsr.MaxHrs }}</mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="cluster">
+              <mat-header-cell *matHeaderCellDef class="col-cluster">Cluster</mat-header-cell>
+              <mat-cell *matCellDef="let fsr" class="col-cluster">{{ fsr.PositionName }}</mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="contact">
+              <mat-header-cell *matHeaderCellDef class="col-contact">Contact</mat-header-cell>
+              <mat-cell *matCellDef="let fsr" class="col-contact">
+                <div class="contact-item">{{ fsr.phone }}</div>
+                <div class="contact-item">
+                  <a href="mailto:{{ fsr.Email }}" class="contact-link">{{ fsr.Email }}</a>
+                </div>
+              </mat-cell>
+            </ng-container>
+
+            <mat-header-row *matHeaderRowDef="getDisplayedColumns2(); sticky: true"></mat-header-row>
+            <mat-row *matRowDef="let row; columns: getDisplayedColumns2()"></mat-row>
+          </table>
+
+          <div *ngIf="fsrDataSource.data.length === 0 && !isLoading" class="no-data">
+            No FSRs found. Please adjust your search criteria.
+          </div>
+        </div>
+      </div>
+    </mat-expansion-panel>
+
+    <!-- ============================================================ -->
+    <!-- TABLE 3: Task Assignment Selection Table -->
+    <!-- ============================================================ -->
+    <mat-expansion-panel class="accordion-panel">
+      <mat-expansion-panel-header class="accordion-header">
+        <mat-panel-title>
+          <mat-icon>assignment</mat-icon>
+          Select Tasks to Assign
+        </mat-panel-title>
+      </mat-expansion-panel-header>
+
+      <div class="table-section task-assignment-section">
+        <div *ngIf="isLoadingTaskAssignment" class="loading-container">
+          <mat-spinner diameter="30"></mat-spinner>
+          <span>Loading task data...</span>
+        </div>
+
+        <div class="table-wrapper" *ngIf="!isLoadingTaskAssignment">
+          <table mat-table [dataSource]="taskAssignmentDataSource" class="task-assignment-table mat-elevation-z2">
+            
+            <!-- Checkbox Column -->
+            <ng-container matColumnDef="select">
+              <th mat-header-cell *matHeaderCellDef class="col-checkbox">
+                Action
+              </th>
+              <td mat-cell *matCellDef="let row" class="col-checkbox">
+                <mat-checkbox
+                  (click)="$event.stopPropagation()"
+                  (change)="$event ? taskSelection.toggle(row) : null; onRowSelectionChange(row)"
+                  [checked]="taskSelection.isSelected(row)"
+                  [disabled]="isRowDisabled(row)">
+                </mat-checkbox>
+              </td>
+            </ng-container>
+
+            <!-- Position Column -->
+            <ng-container matColumnDef="position">
+              <th mat-header-cell *matHeaderCellDef class="col-position">Position</th>
+              <td mat-cell *matCellDef="let row">{{ row.positionName ||row.PositionName || 'N/A' }}</td>
+            </ng-container>
+
+            <!-- Store Number Column -->
+            <ng-container matColumnDef="storeNumber">
+              <th mat-header-cell *matHeaderCellDef class="col-store-number">Store #</th>
+              <td mat-cell *matCellDef="let row">{{ row.storeNumber }}</td>
+            </ng-container>
+
+            <!-- Store Name Column -->
+            <ng-container matColumnDef="storeName">
+              <th mat-header-cell *matHeaderCellDef class="col-store-name">Store Name</th>
+              <td mat-cell *matCellDef="let row">{{ row.storeName }}</td>
+            </ng-container>
+
+            <!-- Address Column -->
+            <ng-container matColumnDef="address">
+              <th mat-header-cell *matHeaderCellDef class="col-address">Address</th>
+              <td mat-cell *matCellDef="let row">{{ row.address }}</td>
+            </ng-container>
+
+            <!-- City Column -->
+            <ng-container matColumnDef="city">
+              <th mat-header-cell *matHeaderCellDef class="col-city">City</th>
+              <td mat-cell *matCellDef="let row">{{ row.city }}</td>
+            </ng-container>
+
+            <!-- Assigned To Column -->
+            <ng-container matColumnDef="assignedTo">
+              <th mat-header-cell *matHeaderCellDef class="col-assigned-to">Assigned To</th>
+              <td mat-cell *matCellDef="let row">{{ row.assignedTo || 'Not Assigned' }}</td>
+            </ng-container>
+
+            <!-- Task Column -->
+            <ng-container matColumnDef="task">
+              <th mat-header-cell *matHeaderCellDef class="col-task">Task</th>
+              <td mat-cell *matCellDef="let row" [ngClass]="{'all-task-cell': row.isAllTask}">
+                <strong *ngIf="row.isAllTask">{{ row.taskName }}</strong>
+                <span *ngIf="!row.isAllTask">{{ row.taskName }}</span>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="taskAssignmentColumns; sticky: true"></tr>
+            <tr mat-row 
+                *matRowDef="let row; columns: taskAssignmentColumns;"
+                [ngClass]="{'all-task-row': row.isAllTask, 'disabled-row': isRowDisabled(row)}"
+                (click)="!isRowDisabled(row) ? taskSelection.toggle(row) : null; onRowSelectionChange(row)">
+            </tr>
+          </table>
+
+          <div *ngIf="taskAssignmentDataSource.data.length === 0" class="no-data">
+            No tasks available for assignment.
+          </div>
+        </div>
+
+        <div class="selection-info" *ngIf="taskSelection.selected.length > 0">
+          <mat-icon>info</mat-icon>
+          <span>{{ taskSelection.selected.length }} task(s) selected</span>
+        </div>
+      </div>
+    </mat-expansion-panel>
+
+  </mat-accordion>
+
+</mat-dialog-content>
+
+<mat-dialog-actions align="end" class="dialog-actions">
+  <button mat-button (click)="onClose()">
+    <mat-icon>close</mat-icon>
+    Close
+  </button>
+</mat-dialog-actions>
+
+<footer>
+  <div class="mat-spinner-container">
+      <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
+      <div *ngIf="showSpinner" style="position:relative;left: 10px">Loading...</div>
+  </div>
+</footer>
+
+/* ============================================================ */
+/* Dialog Container & Layout */
+/* ============================================================ */
+.assignment-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  min-width: 900px;
+  max-height: 75vh;
+  overflow-y: auto;
+}
+
+.title-style {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 5px 20px;
+  margin: -16px -16px 0 -16px;
+  cursor: move;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+/* ============================================================ */
+/* Filter Section - Top Position */
+/* ============================================================ */
+.filter-section-container {
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.filter-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-row mat-form-field {
+  flex: 1;
+  min-width: 150px;
+}
+
+.small-field {
+  max-width: 140px;
+  flex: 0 0 auto;
+}
+
+.medium-field {
+  max-width: 200px;
+  flex: 1;
+  min-width: 150px;
+}
+
+.search-btn {
+  height: 44px;
+  min-width: 110px;
+  font-size: 14px;
+  flex: 0 0 auto;
+}
+
+/* ============================================================ */
+/* Accordion Styling */
+/* ============================================================ */
+.tables-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.accordion-panel {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  border-radius: 6px !important;
+}
+
+.accordion-header {
+  background: linear-gradient(135deg, #667eea1a 0%, #764ba21a 100%);
+  padding: 8px 16px !important;
+  min-height: 44px !important;
+}
+
+.accordion-header mat-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  color: #333;
+}
+
+.accordion-header mat-icon {
+  color: #667eea;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+::ng-deep .mat-expansion-panel-header-title,
+::ng-deep .mat-expansion-panel-header-description {
+  display: flex;
+  align-items: center;
+}
+
+/* ============================================================ */
+/* Table Sections */
+/* ============================================================ */
+.table-section {
+  background: transparent;
+  border-radius: 0;
+  padding: 12px 0;
+  box-shadow: none;
+}
+
+/* ============================================================ */
+/* Loading & No Data States */
+/* ============================================================ */
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px 16px;
+  color: #666;
+  font-size: 14px;
+}
+
+.no-data {
+  text-align: center;
+  padding: 20px 16px;
+  color: #999;
+  font-size: 14px;
+  font-style: italic;
+  background: #f9f9f9;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+/* ============================================================ */
+/* Table Common Styles - CONSISTENT ROW HEIGHTS */
+/* ============================================================ */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+table {
+  width: 100%;
+  font-size: 13px;
+}
+
+.mat-header-cell {
+  background: #667eea;
+  color: white !important;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 0 8px;
+  height: 30px;
+  line-height: 30px;
+}
+
+.mat-cell {
+  padding: 0 8px;
+  font-size: 13px;
+  color: #333;
+  height: 30px;
+  line-height: 30px;
+}
+
+.mat-row {
+  height: 30px;
+  transition: background-color 0.2s ease;
+}
+
+.mat-row:hover {
+  background-color: #f5f7ff;
+}
+
+tr.mat-row,
+tr.mat-footer-row {
+  height: 30px;
+}
+
+tr.mat-header-row {
+  height: 30px;
+}
+
+/* ============================================================ */
+/* Proximity Table Specific Styles */
+/* ============================================================ */
+.proximity-table .col-emp-id {
+  width: 110px;
+}
+
+.proximity-table .col-emp-name {
+  width: 160px;
+  font-weight: 500;
+}
+
+.proximity-table .col-cost {
+  width: 90px;
+}
+
+.proximity-table .col-time {
+  width: 100px;
+}
+
+.proximity-table .col-toll {
+  width: 90px;
+}
+
+.proximity-table .col-phone {
+  width: 120px;
+}
+
+.proximity-table .col-email {
+  width: 170px;
+}
+
+.proximity-table .col-action {
+  width: 110px;
+  text-align: center;
+}
+
+.assign-btn {
+  font-size: 12px;
+  padding: 4px 8px;
+  border: none;
+  min-width: 90px;
+  height: 28px;
+  line-height: 28px;
+}
+
+.assign-btn mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  margin-right: 2px;
+}
+
+/* ============================================================ */
+/* FSR Table Specific Styles */
+/* ============================================================ */
+.fsr-table .col-name {
+  min-width: 160px;
+  font-weight: 500;
+}
+
+.fsr-table .col-address {
+  min-width: 180px;
+}
+
+.fsr-table .col-assigned-hrs,
+.fsr-table .col-max-hrs {
+  width: 100px;
+  text-align: right;
+}
+
+.fsr-table .col-cluster {
+  width: 130px;
+}
+
+.fsr-table .col-contact {
+  min-width: 180px;
+}
+
+.fsr-table .col-action {
+  width: 110px;
+  text-align: center;
+}
+
+.action-button {
+  font-size: 12px;
+  padding: 4px 12px;
+  min-width: 90px;
+  height: 28px;
+  line-height: 28px;
+}
+
+.contact-item {
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+  height: 15px;
+  line-height: 15px;
+}
+
+.contact-link,
+.email-link {
+  color: #667eea;
+  text-decoration: none;
+  transition: color 0.2s ease;
+  font-size: 12px;
+}
+
+.contact-link:hover,
+.email-link:hover {
+  color: #764ba2;
+  text-decoration: underline;
+}
+
+/* ============================================================ */
+/* Task Assignment Table Specific Styles */
+/* ============================================================ */
+.task-assignment-table {
+  margin-top: 0;
+}
+
+.task-assignment-table .col-checkbox {
+  width: 50px;
+  text-align: center;
+  padding: 0 4px;
+}
+
+.task-assignment-table .col-position {
+  width: 100px;
+}
+
+.task-assignment-table .col-store-number {
+  width: 80px;
+}
+
+.task-assignment-table .col-store-name {
+  min-width: 160px;
+}
+
+.task-assignment-table .col-address {
+  min-width: 180px;
+}
+
+.task-assignment-table .col-city {
+  width: 120px;
+}
+
+.task-assignment-table .col-assigned-to {
+  width: 140px;
+}
+
+.task-assignment-table .col-task {
+  width: 130px;
+}
+
+/* All Task Row Highlighting */
+.all-task-row {
+  background-color: #fff9e6 !important;
+}
+
+.all-task-row:hover {
+  background-color: #fff4cc !important;
+}
+
+.all-task-cell {
+  color: #f57c00;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Disabled Row Styling */
+.disabled-row {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #f5f5f5 !important;
+}
+
+.disabled-row:hover {
+  background-color: #f5f5f5 !important;
+}
+
+/* Selection Info */
+.selection-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #e3f2fd;
+  border-left: 4px solid #2196f3;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #1976d2;
+}
+
+.selection-info mat-icon {
+  color: #2196f3;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+/* ============================================================ */
+/* Dialog Actions */
+/* ============================================================ */
+.dialog-actions {
+  padding: 12px 16px;
+  border-top: 1px solid #e0e0e0;
+  background: #fafafa;
+}
+
+.dialog-actions button {
+  font-size: 14px;
+  padding: 8px 20px;
+}
+
+.dialog-actions button mat-icon {
+  margin-right: 6px;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+/* ============================================================ */
+/* Spinner Overlay */
+/* ============================================================ */
+.spinner-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 9999;
+}
+
+.spinner-overlay p {
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* ============================================================ */
+/* Material Overrides */
+/* ============================================================ */
+::ng-deep .mat-form-field-appearance-outline .mat-form-field-outline {
+  color: #e0e0e0;
+}
+
+::ng-deep .mat-form-field-appearance-outline.mat-focused .mat-form-field-outline-thick {
+  color: #667eea;
+}
+
+::ng-deep .mat-form-field-appearance-outline .mat-form-field-label {
+  color: #666;
+  font-size: 13px;
+}
+
+::ng-deep .mat-form-field-appearance-outline .mat-input-element {
+  font-size: 13px;
+}
+
+::ng-deep .mat-checkbox-checked.mat-accent .mat-checkbox-background {
+  background-color: #667eea;
+}
+
+::ng-deep .mat-checkbox-disabled {
+  opacity: 0.4;
+}
+
+::ng-deep .mat-expansion-panel-body {
+  padding: 0 !important;
+}
+
+/* ============================================================ */
+/* Responsive Design */
+/* ============================================================ */
+@media (max-width: 1200px) {
+  .assignment-dialog-content {
+    min-width: 100%;
+  }
+  
+  .filter-row {
+    flex-wrap: wrap;
+  }
+  
+  .medium-field {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .filter-row {
+    flex-direction: column;
+  }
+  
+  .filter-row mat-form-field {
+    width: 100%;
+  }
+  
+  .search-btn {
+    width: 100%;
+  }
+  
+  .table-section {
+    padding: 8px 0;
+  }
+  
+  .mat-cell,
+  .mat-header-cell {
+    padding: 0 6px;
+    font-size: 12px;
+  }
+}
+
+/* ============================================================ */
+/* Scrollbar Styling */
+/* ============================================================ */
+.assignment-dialog-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.assignment-dialog-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.assignment-dialog-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.assignment-dialog-content::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* ============================================================ */
+/* Animations */
+/* ============================================================ */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tables-accordion {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* ============================================================ */
+/* Print Styles */
+/* ============================================================ */
+@media print {
+  .dialog-actions,
+  .search-btn,
+  .assign-btn,
+  .action-button {
+    display: none;
+  }
+  
+  .assignment-dialog-content {
+    max-height: none;
+  }
+}
+........................................................................................................
 <h2 mat-dialog-title class="title-style" cdkDrag cdkDragRootElement=".cdk-overlay-pane" cdkDragHandle>
   <span>{{ getDialogTitle() }}</span>
 </h2>
