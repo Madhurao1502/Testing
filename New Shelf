@@ -1,1530 +1,340 @@
-<h2 mat-dialog-title class="title-style" cdkDrag cdkDragRootElement=".cdk-overlay-pane" cdkDragHandle>
-  <span cdkDragHandle>{{ getDialogTitle() }}</span>
-    <button 
-  mat-icon-button
-  aria-label="close dialog"
-  class="header-close-btn"
-  mat-dialog-close
-  >
-    <mat-icon style="vertical-align: sub;">close</mat-icon>
-  </button>
-</h2>
+<!-- ============================================================ -->
+<!-- TABLE 1: Proximity FSR Table (Closest FSRs) -->
+<!-- ============================================================ -->
+<mat-expansion-panel class="accordion-panel" [expanded]="true">
+  <mat-expansion-panel-header class="accordion-header">
+    <mat-panel-title>
+      <mat-icon>location_on</mat-icon>
+      Closest FSRs
+    </mat-panel-title>
+  </mat-expansion-panel-header>
 
-<mat-dialog-content class="assignment-dialog-content">
+  <div class="table-section proximity-section">
+    <div *ngIf="isLoadingProximity" class="loading-container">
+      <mat-spinner diameter="30"></mat-spinner>
+      <span>Loading proximity data...</span>
+    </div>
 
-  <!-- ============================================================ -->
-  <!-- FILTER SECTION - AT TOP -->
-  <!-- ============================================================ -->
-  <div class="filter-section-container" [formGroup]="filterForm">
-    <div class="filter-row">
-      <mat-form-field appearance="outline" class="small-field">
-        <mat-label>IRI Week</mat-label>
-        <input matInput [value]="data.iriWeek" readonly />
-      </mat-form-field>
+    <div class="table-wrapper" *ngIf="!isLoadingProximity && proximityDataSource.data.length > 0">
+      <table mat-table [dataSource]="proximityDataSource" class="proximity-table mat-elevation-z2">
 
-      <mat-form-field appearance="outline" class="medium-field">
-        <mat-label>Territory</mat-label>
-        <mat-select formControlName="territory" (selectionChange)="onTerritoryChange()">
-          <mat-option *ngFor="let territory of territories" [value]="territory.territory_id">
-            {{ territory.territory_name }}
-          </mat-option>
-        </mat-select>
-      </mat-form-field>
+        <!-- ACTION COLUMN - SINGLE BUTTON (Assign or Unassign) -->
+        <ng-container matColumnDef="action">
+          <th mat-header-cell *matHeaderCellDef class="col-action">Action</th>
+          <td mat-cell *matCellDef="let fsr">
+            <!-- ASSIGN BUTTON - Shows only when FSR is NOT assigned -->
+            <button
+              *ngIf="!isAlreadyAssignedProximity(fsr)"
+              mat-stroked-button
+              color="primary"
+              (click)="assignFromProximity(fsr)"
+              class="action-button no-border"
+              [disabled]="taskSelection.selected.length === 0"
+            >
+              <mat-icon>person_add</mat-icon>
+              Assign
+            </button>
 
-      <mat-form-field appearance="outline" class="medium-field">
-        <mat-label>First Name</mat-label>
-        <input
-          matInput
-          formControlName="firstName"
-          placeholder="Search by first name..."
-          [matAutocomplete]="firstNameAuto"
-        />
-        <mat-autocomplete
-          #firstNameAuto="matAutocomplete"
-          (optionSelected)="onFirstNameSelected($event)"
-          [displayWith]="displayFn"
-        >
-          <mat-option *ngFor="let option of filteredFirstNames | async" [value]="option">
-            {{ option.FirstName }} {{ option.LastName }}
-          </mat-option>
-        </mat-autocomplete>
-      </mat-form-field>
+            <!-- UNASSIGN BUTTON - Shows only when FSR IS assigned -->
+            <button
+              *ngIf="isAlreadyAssignedProximity(fsr)"
+              mat-stroked-button
+              color="warn"
+              (click)="unassignFromProximity(fsr)"
+              class="action-button no-border"
+              [disabled]="taskSelection.selected.length === 0"
+            >
+              <mat-icon>person_remove</mat-icon>
+              Unassign
+            </button>
+          </td>
+        </ng-container>
 
-      <mat-form-field appearance="outline" class="medium-field">
-        <mat-label>Last Name</mat-label>
-        <input
-          matInput
-          formControlName="lastName"
-          placeholder="Search by last name..."
-          [matAutocomplete]="lastNameAuto"
-        />
-        <mat-autocomplete
-          #lastNameAuto="matAutocomplete"
-          (optionSelected)="onLastNameSelected($event)"
-          [displayWith]="displayFn"
-        >
-          <mat-option *ngFor="let option of filteredLastNames | async" [value]="option">
-            {{ option.FirstName }} {{ option.LastName }}
-          </mat-option>
-        </mat-autocomplete>
-      </mat-form-field>
+        <!-- Employee ID Column -->
+        <ng-container matColumnDef="empId">
+          <th mat-header-cell *matHeaderCellDef class="col-emp-id">Employee ID</th>
+          <td mat-cell *matCellDef="let fsr">{{ fsr.empId }}</td>
+        </ng-container>
 
-      <button
-        mat-raised-button
-        color="primary"
-        (click)="searchFsrs()"
-        [disabled]="isLoading"
-        class="search-btn"
-      >
-        <mat-icon>search</mat-icon>
-        Search
-      </button>
+        <!-- Employee Name Column -->
+        <ng-container matColumnDef="empName">
+          <th mat-header-cell *matHeaderCellDef class="col-emp-name">Name</th>
+          <td mat-cell *matCellDef="let fsr">{{ fsr.firstName }} {{ fsr.lastName }}</td>
+        </ng-container>
+
+        <!-- Productivity Column -->
+        <ng-container matColumnDef="productivity">
+          <th mat-header-cell *matHeaderCellDef class="col-productivity">Productivity</th>
+          <td mat-cell *matCellDef="let fsr">{{ fsr.productivity }}</td>
+        </ng-container>
+
+        <!-- Cost Column -->
+        <ng-container matColumnDef="cost">
+          <th mat-header-cell *matHeaderCellDef class="col-cost">Cost</th>
+          <td mat-cell *matCellDef="let fsr">{{ fsr.totalCost }}</td>
+        </ng-container>
+
+        <!-- Travel Time Column -->
+        <ng-container matColumnDef="time">
+          <th mat-header-cell *matHeaderCellDef class="col-time">Travel Time</th>
+          <td mat-cell *matCellDef="let fsr">{{ fsr.time }}</td>
+        </ng-container>
+
+        <!-- Toll Column -->
+        <ng-container matColumnDef="toll">
+          <th mat-header-cell *matHeaderCellDef class="col-toll">Toll</th>
+          <td mat-cell *matCellDef="let fsr">{{ fsr.toll }}</td>
+        </ng-container>
+
+        <!-- Phone Column -->
+        <ng-container matColumnDef="phone">
+          <th mat-header-cell *matHeaderCellDef class="col-phone">Phone</th>
+          <td mat-cell *matCellDef="let fsr">{{ fsr.fsrPhoneNum }}</td>
+        </ng-container>
+
+        <!-- Email Column -->
+        <ng-container matColumnDef="email">
+          <th mat-header-cell *matHeaderCellDef class="col-email">Email</th>
+          <td mat-cell *matCellDef="let fsr">
+            <a href="mailto:{{ fsr.email }}" class="email-link">{{ fsr.email }}</a>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="proximityColumns; sticky: true"></tr>
+        <tr mat-row *matRowDef="let row; columns: proximityColumns"></tr>
+      </table>
+    </div>
+
+    <div *ngIf="!isLoadingProximity && proximityDataSource.data.length === 0" class="no-data">
+      No proximity data available for this store.
     </div>
   </div>
+</mat-expansion-panel>
 
-  <!-- ============================================================ -->
-  <!-- ACCORDION CONTAINER FOR ALL TABLES -->
-  <!-- ============================================================ -->
-  <mat-accordion class="tables-accordion" multi>
+<!-- ============================================================ -->
+<!-- TABLE 2: Current Assignment / Search FSR Table -->
+<!-- ============================================================ -->
+<mat-expansion-panel class="accordion-panel" [expanded]="true">
+  <mat-expansion-panel-header class="accordion-header">
+    <mat-panel-title>
+      <mat-icon>search</mat-icon>
+      Search & Assign FSRs
+    </mat-panel-title>
+  </mat-expansion-panel-header>
 
-    <!-- ============================================================ -->
-    <!-- TABLE 1: Proximity FSR Table (Closest FSRs) -->
-    <!-- ============================================================ -->
-    <mat-expansion-panel class="accordion-panel" [expanded]="true">
-      <mat-expansion-panel-header class="accordion-header">
-        <mat-panel-title>
-          <mat-icon>location_on</mat-icon>
-          Closest FSRs
-        </mat-panel-title>
-      </mat-expansion-panel-header>
+  <div class="table-section fsr-section">
+    <!-- Loading Indicator -->
+    <div *ngIf="isLoading" class="loading-container">
+      <mat-spinner diameter="30"></mat-spinner>
+      <span>Loading FSRs...</span>
+    </div>
 
-      <div class="table-section proximity-section">
-        <div *ngIf="isLoadingProximity" class="loading-container">
-          <mat-spinner diameter="30"></mat-spinner>
-          <span>Loading proximity data...</span>
-        </div>
+    <!-- FSR Table -->
+    <div class="table-wrapper" *ngIf="!isLoading">
+      <table mat-table [dataSource]="fsrDataSource" class="fsr-table mat-elevation-z2">
 
-        <div class="table-wrapper" *ngIf="!isLoadingProximity && proximityDataSource.data.length > 0">
-          <table mat-table [dataSource]="proximityDataSource" class="proximity-table mat-elevation-z2">
-
-            <!-- ASSIGN BUTTON COLUMN -->
-            <ng-container matColumnDef="assign">
-              <th mat-header-cell *matHeaderCellDef class="col-action">Assign</th>
-              <td mat-cell *matCellDef="let fsr">
-                <button
-                  mat-stroked-button
-                  color="primary"
-                  (click)="assignFromProximity(fsr)"
-                  class="action-button no-border"
-                  [disabled]="taskSelection.selected.length === 0"
-                >
-                  <!-- <mat-icon>person_add</mat-icon> -->
-                  Assign
-                </button>
-              </td>
-            </ng-container>
-
-            <!-- UNASSIGN BUTTON COLUMN -->
-            <ng-container matColumnDef="unassign">
-              <th mat-header-cell *matHeaderCellDef class="col-action">Unassign</th>
-              <td mat-cell *matCellDef="let fsr">
-                <button
-                  mat-stroked-button
-                  color="warn"
-                  (click)="unassignFromProximity(fsr)"
-                  class="action-button no-border"
-                  [disabled]="taskSelection.selected.length === 0"
-                >
-                  <!-- <mat-icon>person_remove</mat-icon> -->
-                  Unassign
-                </button>
-              </td>
-            </ng-container>
-
-            <!-- Employee ID Column -->
-            <ng-container matColumnDef="empId">
-              <th mat-header-cell *matHeaderCellDef class="col-emp-id">Employee ID</th>
-              <td mat-cell *matCellDef="let fsr">{{ fsr.empId }}</td>
-            </ng-container>
-
-            <!-- Employee Name Column -->
-            <ng-container matColumnDef="empName">
-              <th mat-header-cell *matHeaderCellDef class="col-emp-name">Name</th>
-              <td mat-cell *matCellDef="let fsr">{{ fsr.firstName }} {{ fsr.lastName }}</td>
-            </ng-container>
-
-            <!-- Productivity Column -->
-            <ng-container matColumnDef="productivity">
-              <th mat-header-cell *matHeaderCellDef class="col-productivity">Productivity</th>
-              <td mat-cell *matCellDef="let fsr">{{ fsr.productivity }}</td>
-            </ng-container>
-
-            <!-- Cost Column -->
-            <ng-container matColumnDef="cost">
-              <th mat-header-cell *matHeaderCellDef class="col-cost">Cost</th>
-              <td mat-cell *matCellDef="let fsr">{{ fsr.totalCost  }}</td>
-            </ng-container>
-
-            <!-- Travel Time Column -->
-            <ng-container matColumnDef="time">
-              <th mat-header-cell *matHeaderCellDef class="col-time">Travel Time</th>
-              <td mat-cell *matCellDef="let fsr">{{ fsr.time }}</td>
-            </ng-container>
-
-            <!-- Toll Column -->
-            <ng-container matColumnDef="toll">
-              <th mat-header-cell *matHeaderCellDef class="col-toll">Toll</th>
-              <td mat-cell *matCellDef="let fsr">{{ fsr.toll  }}</td>
-            </ng-container>
-
-            <!-- Phone Column -->
-            <ng-container matColumnDef="phone">
-              <th mat-header-cell *matHeaderCellDef class="col-phone">Phone</th>
-              <td mat-cell *matCellDef="let fsr">{{ fsr.fsrPhoneNum }}</td>
-            </ng-container>
-
-            <!-- Email Column -->
-            <ng-container matColumnDef="email">
-              <th mat-header-cell *matHeaderCellDef class="col-email">Email</th>
-              <td mat-cell *matCellDef="let fsr">
-                <a href="mailto:{{ fsr.email }}" class="email-link">{{ fsr.email }}</a>
-              </td>
-            </ng-container>
-
-            <tr mat-header-row *matHeaderRowDef="proximityColumns; sticky: true"></tr>
-            <tr mat-row *matRowDef="let row; columns: proximityColumns"></tr>
-          </table>
-        </div>
-
-        <div *ngIf="!isLoadingProximity && proximityDataSource.data.length === 0" class="no-data">
-          No proximity data available for this store.
-        </div>
-      </div>
-    </mat-expansion-panel>
-
-    <!-- ============================================================ -->
-    <!-- TABLE 2: Current Assignment / Search FSR Table -->
-    <!-- ============================================================ -->
-    <mat-expansion-panel class="accordion-panel" [expanded]="true">
-      <mat-expansion-panel-header class="accordion-header">
-        <mat-panel-title>
-          <mat-icon>search</mat-icon>
-          Search & Assign FSRs
-        </mat-panel-title>
-      </mat-expansion-panel-header>
-
-      <div class="table-section fsr-section">
-        <!-- Loading Indicator -->
-        <div *ngIf="isLoading" class="loading-container">
-          <mat-spinner diameter="30"></mat-spinner>
-          <span>Loading FSRs...</span>
-        </div>
-
-        <!-- FSR Table -->
-        <div class="table-wrapper" *ngIf="!isLoading">
-          <table mat-table [dataSource]="fsrDataSource" class="fsr-table mat-elevation-z2">
-
-            <!-- ASSIGN ALL BUTTON COLUMN -->
-            <ng-container matColumnDef="assign_all" *ngIf="showColumn('assign_all')">
-              <mat-header-cell *matHeaderCellDef class="col-action">Assign</mat-header-cell>
-              <mat-cell *matCellDef="let fsr">
-                <button
-                  mat-stroked-button
-                  color="primary"
-                  (click)="assignTask(fsr, 2)"
-                  [disabled]="
-                    shouldDisableButton(fsr, 'assign_all') ||
-                    taskSelection.selected.length === 0
-                  "
-                  class="action-button no-border"
-                >
-                  Assign
-                </button>
-              </mat-cell>
-            </ng-container>
-
-            <!-- UNASSIGN ALL BUTTON COLUMN -->
-            <ng-container matColumnDef="unassign_all" *ngIf="showColumn('unassign_all')">
-              <mat-header-cell *matHeaderCellDef class="col-action">Unassign</mat-header-cell>
-              <mat-cell *matCellDef="let fsr">
-                <button
-                  mat-stroked-button
-                  color="warn"
-                  [disabled]="
-                    shouldDisableButton(fsr, 'unassign_all') ||
-                    taskSelection.selected.length === 0
-                  "
-                  (click)="assignTask(fsr, 4)"
-                  class="action-button no-border"
-                >
-                  Unassign
-                </button>
-              </mat-cell>
-            </ng-container>
-
-            <!-- ASSIGN BUTTON (TASK LEVEL) -->
-            <ng-container matColumnDef="assign" *ngIf="showColumn('assign')">
-              <mat-header-cell *matHeaderCellDef class="col-action">Assign</mat-header-cell>
-              <mat-cell *matCellDef="let fsr">
-                <button
-                  mat-stroked-button
-                  color="primary"
-                  (click)="assignTask(fsr, 1)"
-                  [disabled]="
-                    shouldDisableButton(fsr, 'assign') ||
-                    taskSelection.selected.length === 0
-                  "
-                  class="action-button no-border"
-                >
-                  Assign
-                </button>
-              </mat-cell>
-            </ng-container>
-
-            <!-- UNASSIGN BUTTON (TASK LEVEL) -->
-            <ng-container matColumnDef="unassign" *ngIf="showColumn('unassign')">
-              <mat-header-cell *matHeaderCellDef class="col-action">Unassign</mat-header-cell>
-              <mat-cell *matCellDef="let fsr">
-                <button
-                  mat-stroked-button
-                  color="warn"
-                  (click)="assignTask(fsr, 3)"
-                  [disabled]="
-                    shouldDisableButton(fsr, 'unassign') ||
-                    taskSelection.selected.length === 0
-                  "
-                  class="action-button no-border"
-                >
-                  Unassign
-                </button>
-              </mat-cell>
-            </ng-container>
-
-            <!-- FSR Information Columns -->
-            <ng-container matColumnDef="name">
-              <mat-header-cell *matHeaderCellDef class="col-name">Name</mat-header-cell>
-              <mat-cell *matCellDef="let fsr" class="col-name">
-                {{ fsr.LastName }}, {{ fsr.FirstName }}
-              </mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="address">
-              <mat-header-cell *matHeaderCellDef class="col-address">Address</mat-header-cell>
-              <mat-cell *matCellDef="let fsr" class="col-address">{{ fsr.AddrLine1 }}</mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="assigned_hrs">
-              <mat-header-cell *matHeaderCellDef class="col-assigned-hrs">Assigned Hrs</mat-header-cell>
-              <mat-cell *matCellDef="let fsr" class="col-assigned-hrs">{{ fsr.AssignedHrs }}</mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="max_hrs">
-              <mat-header-cell *matHeaderCellDef class="col-max-hrs">Max Hours</mat-header-cell>
-              <mat-cell *matCellDef="let fsr" class="col-max-hrs">{{ fsr.MaxHrs }}</mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="cluster">
-              <mat-header-cell *matHeaderCellDef class="col-cluster">Cluster</mat-header-cell>
-              <mat-cell *matCellDef="let fsr" class="col-cluster">{{ fsr.PositionName }}</mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="contact">
-              <mat-header-cell *matHeaderCellDef class="col-contact">Contact</mat-header-cell>
-              <mat-cell *matCellDef="let fsr" class="col-contact">
-                <div class="contact-item">{{ fsr.FsrPhoneNum }}</div>
-                <div class="contact-item">
-                  <a href="mailto:{{ fsr.FsrEmailID }}" class="contact-link">{{ fsr.FsrEmailID }}</a>
-                </div>
-              </mat-cell>
-            </ng-container>
-
-            <mat-header-row *matHeaderRowDef="getDisplayedColumns2(); sticky: true"></mat-header-row>
-            <mat-row *matRowDef="let row; columns: getDisplayedColumns2()"></mat-row>
-          </table>
-
-          <div *ngIf="fsrDataSource.data.length === 0 && !isLoading" class="no-data">
-            No FSRs found. Please adjust your search criteria.
-          </div>
-        </div>
-      </div>
-    </mat-expansion-panel>
-
-    <!-- ============================================================ -->
-    <!-- TABLE 3: Task Assignment Selection Table -->
-    <!-- ============================================================ -->
-    <mat-expansion-panel class="accordion-panel" [expanded]="true">
-      <mat-expansion-panel-header class="accordion-header">
-        <mat-panel-title>
-          <mat-icon>assignment</mat-icon>
-          Select Tasks to Assign
-        </mat-panel-title>
-      </mat-expansion-panel-header>
-
-      <div class="table-section task-assignment-section">
-        <div *ngIf="isLoadingTaskAssignment" class="loading-container">
-          <mat-spinner diameter="30"></mat-spinner>
-          <span>Loading task data...</span>
-        </div>
-
-        <div class="table-wrapper" *ngIf="!isLoadingTaskAssignment">
-          <table mat-table [dataSource]="taskAssignmentDataSource" class="task-assignment-table mat-elevation-z2">
-
-            <!-- Checkbox Column -->
-            <ng-container matColumnDef="select">
-              <th mat-header-cell *matHeaderCellDef class="col-checkbox">Action</th>
-              <td mat-cell *matCellDef="let row" class="col-checkbox">
-                <mat-checkbox
-                  (click)="$event.stopPropagation()"
-                  (change)="$event ? taskSelection.toggle(row) : null; onRowSelectionChange(row)"
-                  [checked]="taskSelection.isSelected(row)"
-                  [disabled]="isRowDisabled(row)"
-                >
-                </mat-checkbox>
-              </td>
-            </ng-container>
-
-            <!-- Position Column -->
-            <ng-container matColumnDef="position">
-              <th mat-header-cell *matHeaderCellDef class="col-position">Position</th>
-              <td mat-cell *matCellDef="let row">{{ row.positionName || row.PositionName || 'N/A' }}</td>
-            </ng-container>
-
-            <!-- Store Number Column -->
-            <ng-container matColumnDef="storeNumber">
-              <th mat-header-cell *matHeaderCellDef class="col-store-number">Store #</th>
-              <td mat-cell *matCellDef="let row">{{ row.storeNumber }}</td>
-            </ng-container>
-
-            <!-- Store Name Column -->
-            <ng-container matColumnDef="storeName">
-              <th mat-header-cell *matHeaderCellDef class="col-store-name">Store Name</th>
-              <td mat-cell *matCellDef="let row">{{ row.storeName }}</td>
-            </ng-container>
-
-            <!-- Address Column -->
-            <ng-container matColumnDef="address">
-              <th mat-header-cell *matHeaderCellDef class="col-address">Address</th>
-              <td mat-cell *matCellDef="let row">{{ row.address }}</td>
-            </ng-container>
-
-            <!-- City Column -->
-            <ng-container matColumnDef="city">
-              <th mat-header-cell *matHeaderCellDef class="col-city">City</th>
-              <td mat-cell *matCellDef="let row">{{ row.city }}</td>
-            </ng-container>
-
-            <!-- Assigned To Column -->
-            <ng-container matColumnDef="assignedTo">
-              <th mat-header-cell *matHeaderCellDef class="col-assigned-to">Assigned To</th>
-              <td mat-cell *matCellDef="let row">{{ row.assignedTo || 'Not Assigned' }}</td>
-            </ng-container>
-
-            <!-- Task Column -->
-            <ng-container matColumnDef="task">
-              <th mat-header-cell *matHeaderCellDef class="col-task">Task</th>
-              <td mat-cell *matCellDef="let row" [ngClass]="{ 'all-task-cell': row.isAllTask }">
-                <strong *ngIf="row.isAllTask">{{ row.taskName }}</strong>
-                <span *ngIf="!row.isAllTask">{{ row.taskName }}</span>
-              </td>
-            </ng-container>
-
-            <tr mat-header-row *matHeaderRowDef="taskAssignmentColumns; sticky: true"></tr>
-            <tr
-              mat-row
-              *matRowDef="let row; columns: taskAssignmentColumns"
-              [ngClass]="{ 'all-task-row': row.isAllTask, 'disabled-row': isRowDisabled(row) }"
-              (click)="!isRowDisabled(row) ? taskSelection.toggle(row) : null; onRowSelectionChange(row)"
+        <!-- ACTION COLUMN - SINGLE BUTTON (Assign or Unassign) -->
+        <ng-container matColumnDef="action">
+          <mat-header-cell *matHeaderCellDef class="col-action">Action</mat-header-cell>
+          <mat-cell *matCellDef="let fsr">
+            <!-- ASSIGN ALL BUTTON - Shows only when FSR is NOT assigned -->
+            <button
+              *ngIf="!shouldDisableButton(fsr, 'assign_all') && !isAlreadyAssignedFsr(fsr)"
+              mat-stroked-button
+              color="primary"
+              (click)="assignTask(fsr, 2)"
+              [disabled]="taskSelection.selected.length === 0"
+              class="action-button no-border"
             >
-            </tr>
-          </table>
+              <mat-icon>person_add</mat-icon>
+              Assign All
+            </button>
 
-          <div *ngIf="taskAssignmentDataSource.data.length === 0" class="no-data">
-            No tasks available for assignment.
-          </div>
-        </div>
+            <!-- UNASSIGN ALL BUTTON - Shows only when FSR IS assigned -->
+            <button
+              *ngIf="!shouldDisableButton(fsr, 'unassign_all') && isAlreadyAssignedFsr(fsr)"
+              mat-stroked-button
+              color="warn"
+              [disabled]="taskSelection.selected.length === 0"
+              (click)="assignTask(fsr, 4)"
+              class="action-button no-border"
+            >
+              <mat-icon>person_remove</mat-icon>
+              Unassign All
+            </button>
 
-        <!-- <div class="selection-info" *ngIf="taskSelection.selected.length > 0">
-          <mat-icon>info</mat-icon>
-          <span>{{ taskSelection.selected.length }} task(s) selected</span>
-        </div> -->
+            <!-- ASSIGN BUTTON (TASK LEVEL) - Shows only when FSR is NOT assigned -->
+            <button
+              *ngIf="!shouldDisableButton(fsr, 'assign') && !isAlreadyAssignedFsr(fsr)"
+              mat-stroked-button
+              color="primary"
+              (click)="assignTask(fsr, 1)"
+              [disabled]="taskSelection.selected.length === 0"
+              class="action-button no-border"
+            >
+              <mat-icon>person_add</mat-icon>
+              Assign
+            </button>
+
+            <!-- UNASSIGN BUTTON (TASK LEVEL) - Shows only when FSR IS assigned -->
+            <button
+              *ngIf="!shouldDisableButton(fsr, 'unassign') && isAlreadyAssignedFsr(fsr)"
+              mat-stroked-button
+              color="warn"
+              (click)="assignTask(fsr, 3)"
+              [disabled]="taskSelection.selected.length === 0"
+              class="action-button no-border"
+            >
+              <mat-icon>person_remove</mat-icon>
+              Unassign
+            </button>
+          </mat-cell>
+        </ng-container>
+
+        <!-- FSR Information Columns -->
+        <ng-container matColumnDef="name">
+          <mat-header-cell *matHeaderCellDef class="col-name">Name</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-name">
+            {{ fsr.LastName }}, {{ fsr.FirstName }}
+          </mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="address">
+          <mat-header-cell *matHeaderCellDef class="col-address">Address</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-address">{{ fsr.AddrLine1 }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="assigned_hrs">
+          <mat-header-cell *matHeaderCellDef class="col-assigned-hrs">Assigned Hrs</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-assigned-hrs">{{ fsr.AssignedHrs }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="max_hrs">
+          <mat-header-cell *matHeaderCellDef class="col-max-hrs">Max Hours</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-max-hrs">{{ fsr.MaxHrs }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="cluster">
+          <mat-header-cell *matHeaderCellDef class="col-cluster">Cluster</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-cluster">{{ fsr.PositionName }}</mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="contact">
+          <mat-header-cell *matHeaderCellDef class="col-contact">Contact</mat-header-cell>
+          <mat-cell *matCellDef="let fsr" class="col-contact">
+            <div class="contact-item">{{ fsr.FsrPhoneNum }}</div>
+            <div class="contact-item">
+              <a href="mailto:{{ fsr.FsrEmailID }}" class="contact-link">{{ fsr.FsrEmailID }}</a>
+            </div>
+          </mat-cell>
+        </ng-container>
+
+        <mat-header-row *matHeaderRowDef="getDisplayedColumns2(); sticky: true"></mat-header-row>
+        <mat-row *matRowDef="let row; columns: getDisplayedColumns2()"></mat-row>
+      </table>
+
+      <div *ngIf="fsrDataSource.data.length === 0 && !isLoading" class="no-data">
+        No FSRs found. Please adjust your search criteria.
       </div>
-    </mat-expansion-panel>
-
-  </mat-accordion>
-
-</mat-dialog-content>
-
-<!-- <mat-dialog-actions align="end" class="dialog-actions">
-  <button mat-button (click)="onClose()">
-    <mat-icon>close</mat-icon>
-    Close
-  </button>
-</mat-dialog-actions> -->
-
-<footer>
-  <div class="mat-spinner-container">
-    <mat-spinner mode="indeterminate" *ngIf="showSpinner"></mat-spinner>
-    <div *ngIf="showSpinner" style="position: relative; left: 10px">Loading...</div>
+    </div>
   </div>
-</footer>
+</mat-expansion-panel>
 
-import { CommonService } from './../../shared/common.service';
-import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
-import { FormBuilder, FormGroup } from '@angular/forms';
-import { MatDialogRef, MAT_DIALOG_DATA, MatDialog } from '@angular/material/dialog';
-import { HttpClient } from '@angular/common/http';
-import { MatTableDataSource } from '@angular/material/table';
-import { SelectionModel } from '@angular/cdk/collections';
-import {
-  catchError,
-  debounceTime,
-  distinctUntilChanged,
-  firstValueFrom,
-  map,
-  Observable,
-  of,
-  Subject,
-  switchMap,
-  takeUntil,
-} from 'rxjs';
 
-export interface AssignmentDialogData {
-  storeNumber: string;
-  storeName: string;
-  taskNumber?: string;
-  taskName?: string;
-  iriWeek: string;
-  territoryId: string;
-  positionNumber?: string;
-  positionName?: string;
-  city?: string;
-  address?: string;
-  mode: 'StoreLevel' | 'TaskLevel' | 'ClusterLevel';
-}
 
-interface NameOption {
-  emp_name: string;
-  emp_id: string;
-  FirstName: string;
-  LastName: string;
-  value: string;
-  id: string;
-}
+............
 
-export interface DialogResult {
-  hasChanges: boolean;
-  data?: any;
-}
+assignment-component.ts
+// ============================================================
+// ADD THIS METHOD TO YOUR COMPONENT CLASS
+// ============================================================
 
-export interface ProximityFsr {
-  empId: string;
-  firstName: string;
-  lastName: string;
-  time: string;
-  toll: number;
-  totalCost: number;
-  costRank: number;
-  email: string;
-  fsrPhoneNum: string;
-  productivity?: number;
-  assignmentStatus?: 'assigned' | 'unassigned'; // Optional status field
-}
-
-export interface TaskAssignmentRow {
-  storeNumber: string;
-  storeName: string;
-  positionName: string;
-  address: string;
-  city: string;
-  assignedTo: string;
-  taskName: string;
-  taskNumber?: string;
-  isAllTask: boolean;
-  tasks?: any; // Sub-grid task data
-  empId?: string; // NEW - empId of assigned FSR (matches ProximityFsr.empId)
-  empName?: string; // NEW - name of assigned FSR (optional, for display)
-}
-
-export interface FsrSearchRow {
-  EmpId?: string;
-  empid?: string;
-  FirstName: string;
-  LastName: string;
-  AddrLine1: string;
-  AssignedHrs: number;
-  MaxHrs: number;
-  PositionName: string;
-  FsrPhoneNum?: string;
-  phone?: string;
-  FsrEmailID?: string;
-  Email?: string;
-}
-
-@Component({
-  selector: 'app-assignment-dialog',
-  templateUrl: './assignment-dialog.component.html',
-  styleUrls: ['./assignment-dialog.component.css'],
-})
-export class AssignmentDialogComponent implements OnInit, OnDestroy {
-  // Form & Data Management
-  filterForm: FormGroup;
-  territories: any[] = [];
-  private originMode:'StoreLevel'|'TaskLevel'|'ClusterLevel'='StoreLevel'
-  // Three separate tables
-  proximityDataSource = new MatTableDataSource<ProximityFsr>([]);
-  fsrDataSource = new MatTableDataSource<any>([]);
-  taskAssignmentDataSource = new MatTableDataSource<TaskAssignmentRow>([]);
-  
-  // Selection for task assignment table
-  taskSelection = new SelectionModel<TaskAssignmentRow>(true, []);
-
-  // UI State Management
-  isLoading = false;
-  showSpinner = false;
-  isLoadingProximity = false;
-  isLoadingTaskAssignment = false;
-
-  // Autocomplete
-  filteredFirstNames: Observable<NameOption[]>;
-  filteredLastNames: Observable<NameOption[]>;
-
-  // Track Changes
-  private hasChanges = false;
-  private destroy$ = new Subject<void>();
-  selectedFirstNameId: string = '';
-  selectedLastNameId: string = '';
-
-  // Display Columns for three tables
-  proximityColumns: string[] = ['assign','unassign', 'empId','empName','productivity','cost', 'time', 'toll', 'phone', 'email'];
-  displayedColumns: string[] = [];
-  taskAssignmentColumns: string[] = ['select', 'position', 'storeNumber', 'storeName', 'address', 'city', 'assignedTo', 'task'];
-
-  // Task data cache
-  private taskData: any[] = [];
-  constructor(
-    private dialogRef: MatDialogRef<AssignmentDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: AssignmentDialogData,
-    private fb: FormBuilder,
-    private http: HttpClient,
-    private commonService: CommonService,
-    private dialog: MatDialog,
-    @Inject('BASE_URL') private baseUrl: string
+/**
+ * Check if a Proximity FSR is already assigned to any task
+ * This method determines whether to show Assign or Unassign button
+ */
+isAlreadyAssignedProximity(fsr: ProximityFsr): boolean {
+  // Return false if task data not loaded yet
+  if (
+    !this.taskAssignmentDataSource.data ||
+    this.taskAssignmentDataSource.data.length === 0
   ) {
-    this.filterForm = this.fb.group({
-      territory: [data.territoryId],
-      firstName: [''],
-      lastName: [''],
-    });
-  }
-
-  async ngOnInit(): Promise<void> {
-    if(!this.data.iriWeek){
-      const currentFilter = await firstValueFrom(this.commonService.currentFilters$);
-      this.data.iriWeek=currentFilter.iri_week
-    }
-    this.originMode=this.data.mode
-    await this.loadTerritories();
-    this.setupAutocomplete();
-    await this.loadCurrentAssignment();
-    await this.loadProximityData();
-    await this.loadTaskAssignmentData();
-    this.initializeDisplayedColumns();
-    this.autoSelectBasedOnOrigin()
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
-  // ============================================================
-  // DIALOG TITLE
-  // ============================================================
-  getDialogTitle(): string {
-    const location =
-      this.data.mode === 'ClusterLevel'
-        ? `Cluster ${this.data.positionNumber}`
-        : `Store ${this.data.storeName}${this.data.storeNumber}`;
-
-    const task = this.data.taskName ? `Task ${this.data.taskName}` : 'Task ALL';
-
-    return `Assignment for ${location} - ${task}`;
-  }
-
-  // ============================================================
-  // COLUMN MANAGEMENT
-  // ============================================================
-  private initializeDisplayedColumns(): void {
-    this.displayedColumns = this.getDisplayedColumns();
-  }
-
-  private getDisplayedColumns(): string[] {
-    const columns: string[] = [];
-
-    // Add action columns based on mode
-    if (this.data.mode === 'StoreLevel') {
-      columns.push('assign_all', 'unassign_all');
-    } else if (this.data.mode === 'TaskLevel') {
-      columns.push('assign', 'unassign');
-    } else if (this.data.mode === 'ClusterLevel') {
-      columns.push('assigntocluster', 'unassignfromcluster');
-    }
-
-    // Add info columns
-    columns.push('name', 'address', 'assigned_hrs', 'max_hrs', 'cluster', 'contact');
-
-    return columns;
-  }
-
-  showColumn(columnName: string): boolean {
-    return this.displayedColumns.includes(columnName);
-  }
-
-  // ============================================================
-  // TABLE 1: LOAD PROXIMITY DATA
-  // ============================================================
-  private async loadProximityData(): Promise<void> {
-    this.isLoadingProximity = true;
-    try {
-      const response = await firstValueFrom(
-        this.http.post<any>(
-          this.baseUrl + 'api/TaskAssinment/GetClosestFsr',
-          {
-            StoreNumber: this.data.storeNumber,
-            CountryId: this.commonService.getCurrentCountry(),
-            IriWeek: this.data.iriWeek,
-          }
-        )
-      );
-
-      if (response && response.length > 0) {
-        // Check for non-sample C store
-        if (response[0].nonSampleCStore !== 'NON SAMPLE C STORE') {
-          const mappedData = response.map((item: any) => ({
-            empId: item.EmpId || item.empId,
-            firstName: item.FirstName || item.firstName,
-            lastName: item.LastName || item.lastName,
-            productivity: item.fsrProductivityPercentage,
-            time: item.Time || item.time,
-            toll: item.Toll || item.toll,
-            totalCost: item.TotalCost || item.totalCost,
-            costRank: item.CostRank || item.costRank,
-            email: item.fsrEmailID || item.fsrEmailIDPersonal,
-            fsrPhoneNum: item.fsrPhoneNum,
-          }));
-
-          const sortedData = mappedData.sort(
-            (a: ProximityFsr, b: ProximityFsr) =>
-              (a.costRank || 0) - (b.costRank || 0)
-          );
-
-          this.proximityDataSource.data = sortedData;
-        }
-      }
-    } catch (error) {
-      console.error('Error loading proximity data:', error);
-    } finally {
-      this.isLoadingProximity = false;
-    }
-  }
-
-  // ============================================================
-  // TABLE 3: LOAD TASK ASSIGNMENT DATA - UPDATED WITH empId
-  // ============================================================
-  private async loadTaskAssignmentData(): Promise<void> {
-    this.isLoadingTaskAssignment = true;
-    try {
-      await this.loadTaskDataIfNeeded();
-
-      const rows: TaskAssignmentRow[] = [];
-
-      // Add ALL row
-      rows.push({
-        storeNumber: this.data.storeNumber,
-        storeName: this.data.storeName,
-        positionName: this.data.positionName || this.data.positionNumber || '',
-        address: this.data.address || '',
-        city: this.data.city || '',
-        assignedTo: 'ALL',
-        taskName: 'ALL',
-        isAllTask: true,
-        tasks: this.taskData,
-        empId: '', // ALL row has no empId
-        empName: '',
-      });
-
-      // Add individual task rows with empId - UPDATED
-      if (this.taskData && this.taskData.length > 0) {
-        this.taskData.forEach((task: any) => {
-          rows.push({
-            storeNumber: task.storeNumber || this.data.storeNumber,
-            storeName: task.storeName || this.data.storeName,
-            positionName: task.positionName || this.data.positionName || this.data.positionNumber || '',
-            address: task.addrLine1 || this.data.address || '',
-            city: task.city || this.data.city || '',
-            assignedTo: task.assignedTo || task.EmpName || 'Not Assigned',
-            taskName: task.taskName,
-            taskNumber: task.taskNumber,
-            isAllTask: false,
-            empId: task.empId || task.EmpId || '', // NEW - Store empId of assigned FSR
-            empName: task.EmpName || task.empName || '', // NEW - Store name of assigned FSR
-          });
-        });
-      }
-
-      this.taskAssignmentDataSource.data = rows;
-    } catch (error) {
-      console.error('Error loading task assignment data:', error);
-    } finally {
-      this.isLoadingTaskAssignment = false;
-    }
-  }
-
-  private async loadTaskDataIfNeeded(): Promise<void> {
-    try {
-      // For StoreLevel and TaskLevel, we need to fetch task data for the specific store
-      if (
-        this.data.mode === 'StoreLevel' ||
-        this.data.mode === 'TaskLevel'
-      ) {
-        const params = {
-          IriWeek: this.data.iriWeek,
-          StoreNumber: this.data.storeNumber,
-        };
-
-        const response = await firstValueFrom(
-          this.http.post<any>(
-            this.baseUrl + 'api/TaskAssinment/GetSubgridData',
-            params
-          )
-        );
-
-        // Handle both response formats
-        if (response && response.data && Array.isArray(response.data)) {
-          this.taskData = response.data;
-        } else if (Array.isArray(response)) {
-          this.taskData = response;
-        } else {
-          this.taskData = [];
-        }
-      }
-    } catch (error) {
-      console.error('Error loading task data:', error);
-      this.taskData = [];
-    }
-  }
-
-  // ============================================================
-  // CHECKBOX SELECTION LOGIC FOR TABLE 3
-  // ============================================================
-  isAllSelected(): boolean {
-    const numSelected = this.taskSelection.selected.length;
-    const numRows = this.taskAssignmentDataSource.data.length;
-    return numSelected === numRows;
-  }
-
-  masterToggle(): void {
-    if (this.isAllSelected()) {
-      this.taskSelection.clear();
-    } else {
-      this.taskAssignmentDataSource.data.forEach((row) =>
-        this.taskSelection.select(row)
-      );
-    }
-  }
-
-  onRowSelectionChange(row: TaskAssignmentRow): void {
-    // If user selects the ALL row, disable other rows
-    if (row.isAllTask) {
-      this.taskSelection.isSelected(row)
-        ? // Clear all selections except ALL
-          (this.taskSelection.clear(), this.taskSelection.select(row))
-        : this.taskSelection.clear();
-    } else if (!row.isAllTask) {
-      this.taskSelection.isSelected(row)
-        ? // If user selects a task-level row, deselect ALL row
-          (() => {
-            const allRow = this.taskAssignmentDataSource.data.find(
-              (r) => r.isAllTask
-            );
-            if (allRow && this.taskSelection.isSelected(allRow)) {
-              this.taskSelection.deselect(allRow);
-            }
-          })()
-        : null;
-    }
-  }
-
-  isRowDisabled(row: TaskAssignmentRow): boolean {
-    // Disable task-level rows if ALL row is selected
-    const allRow = this.taskAssignmentDataSource.data.find(
-      (r) => r.isAllTask
-    );
-    if (allRow && this.taskSelection.isSelected(allRow)) {
-      return !row.isAllTask;
-    }
     return false;
   }
 
-  // ============================================================
-  // LOAD DATA METHODS
-  // ============================================================
-  private async loadTerritories(): Promise<void> {
-    try {
-      this.territories = await firstValueFrom(
-        this.http.get<any>(this.baseUrl + 'api/TaskAssinment/GetTerritory')
-      );
-    } catch (error) {
-      console.error('Error loading territories:', error);
-    }
-  }
-
-  private async loadCurrentAssignment(): Promise<void> {
-    this.isLoading = true;
-    try {
-      const params = {
-        IriWeek: this.data.iriWeek,
-        StoreNumber: this.data.storeNumber,
-        TaskNumber: this.data.taskNumber || '',
-        AssignmentMode: this.data.mode,
-        PositionNumber: this.data.positionNumber || '',
-        CountryId: this.commonService.getCurrentCountry(),
-      };
-
-      const response = await firstValueFrom(
-        this.http.post<any>(
-          this.baseUrl + 'api/TaskAssinment/GetCurrentAssignment',
-          params
-        )
-      );
-
-      // Properly map data
-      if (response && response.length > 0) {
-        this.fsrDataSource.data = response.map((item: any) => ({
-          ...item,
-          EmpId: item.EmpId || item.empid || '',
-          AssignedHrs: item.AssignedHrs || 0,
-          MaxHrs: item.MaxHrs || 0,
-          FirstName: item.FirstName || '',
-          LastName: item.LastName || '',
-        }));
-        console.log('Loaded assignments:', this.fsrDataSource.data);
-      } else {
-        this.fsrDataSource.data = [];
-      }
-    } catch (error) {
-      console.error('Error loading current assignment:', error);
-      this.fsrDataSource.data = [];
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  async searchFsrs(): Promise<void> {
-    this.isLoading = true;
-    try {
-      const formValue = this.filterForm.value;
-
-      const params = {
-        IriWeek: this.data.iriWeek,
-        TerritoryId: formValue.territory,
-        FirstName: formValue.firstName?.FirstName || '',
-        LastName: formValue.lastName?.FirstName || '',
-        PositionNumber: this.data.positionNumber || '',
-        countryId: this.commonService.getCurrentCountry(),
-        Area: '23',
-      };
-
-      const response = await firstValueFrom(
-        this.http.post<any[]>(
-          this.baseUrl + 'api/TaskAssinment/GetFsrForAssignment',
-          params
-        )
-      );
-
-
-      this.fsrDataSource.data = response || [];
-    } catch (error) {
-      console.error('Error searching FSRs:', error);
-      this.fsrDataSource.data = [];
-      alert('Error searching for FSRs. Please try again.');
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  // ============================================================
-  // TABLE 1: ASSIGN/UNASSIGN METHODS - NEW
-  // ============================================================
-
-  /**
-   * Assign FSR from Proximity Table (Table 1)
-   */
-  async assignFromProximity(fsr: ProximityFsr): Promise<void> {
-    await this.assignTaskWithSelection(fsr, 'proximity');
-  }
-
-  /**
-   * Unassign FSR from Proximity Table (Table 1)
-   */
-  async unassignFromProximity(fsr: ProximityFsr): Promise<void> {
-    const selectedRows = this.taskSelection.selected;
-    if (selectedRows.length === 0) {
-      alert('Please select at least one task to unassign.');
-      return;
-    }
-
-    const fsrName = `${fsr.firstName} ${fsr.lastName}`;
-    const empId = fsr.empId;
-
-    const allSelected = selectedRows.some((row) => row.isAllTask);
-
-    let confirmMessage: string;
-    if (allSelected) {
-      confirmMessage = `Are you sure you want to unassign ${fsrName} from all tasks?`;
-    } else {
-      const taskNames = selectedRows.map((row) => row.taskName).join(', ');
-      confirmMessage = `Are you sure you want to unassign ${fsrName} from ${taskNames}?`;
-    }
-
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
-    this.showSpinner = true;
-    try {
-      if (allSelected) {
-        const params = {
-          iriweek: this.data.iriWeek,
-          territoryid: this.filterForm.get('territory')?.value,
-          storenumber: this.data.storeNumber,
-          empid: empId,
-          tasknumber: '',
-          positionnumber: this.data.positionNumber,
-          action: 4, // Unassign all
-          assignmentmode: 'StoreLevel',
-          countryId: this.commonService.getCurrentCountry(),
-        };
-        await firstValueFrom(
-          this.http.post(
-            this.baseUrl + 'api/TaskAssinment/SaveAssignment',
-            params
-          )
-        );
-      } else {
-        for (const row of selectedRows) {
-          const params = {
-            iriweek: this.data.iriWeek,
-            territoryid: this.filterForm.get('territory')?.value,
-            storenumber: row.storeNumber,
-            empid: empId,
-            tasknumber: row.taskNumber,
-            positionnumber: this.data.positionNumber,
-            action: 3, // Unassign specific task
-            assignmentmode: 'TaskLevel',
-            countryId: this.commonService.getCurrentCountry(),
-          };
-          await firstValueFrom(
-            this.http.post(
-              this.baseUrl + 'api/TaskAssinment/SaveAssignment',
-              params
-            )
-          );
-        }
-      }
-
-      this.hasChanges = true;
-      await this.loadCurrentAssignment();
-      await this.loadTaskAssignmentData();
-      await this.loadProximityData();
-      this.taskSelection.clear();
-      this.filterForm.patchValue({ firstName: '', lastName: '' });
-      alert('Unassignment completed successfully.');
-    } catch (error) {
-      console.error('Error during unassignment:', error);
-      alert('Error while unassigning. Please try again.');
-    } finally {
-      this.showSpinner = false;
-    }
-  }
-
-  // ============================================================
-  // TABLE 2: ASSIGN/UNASSIGN METHODS - UPDATED WITH empId LOGIC
-  // ============================================================
-
-  /**
-   * Check if an FSR (from Proximity table) is already assigned
-   * by looking in taskAssignmentDataSource for matching empId
-   * KEY FIX: Uses task empId instead of AssignedHrs
-   */
-  isAlreadyAssigned(fsr: ProximityFsr): boolean {
-    // Return false if task data not loaded yet
-    if (
-      !this.taskAssignmentDataSource.data ||
-      this.taskAssignmentDataSource.data.length === 0
-    ) {
+  // Search through task rows for matching empId
+  const isAssigned = this.taskAssignmentDataSource.data.some((task) => {
+    // Skip the "ALL" row and disabled rows
+    if (task.isAllTask || !task.assignedTo || task.assignedTo === 'Not Assigned') {
       return false;
     }
 
-    // Search through task rows for matching empId
-    const isAssigned = this.taskAssignmentDataSource.data.some((task) => {
-      // Skip rows without assignment
-      if (
-        task.assignedTo &&
-        task.assignedTo !== 'Not Assigned' &&
-        task.assignedTo !== 'ALL'
-      ) {
-        // Method 1: Direct empId match
-        if (task.empId === fsr.empId) {
-          return true;
-        }
-        // Method 2: Check if assignedTo contains FSR's empId
-        if (task.assignedTo.includes(fsr.empId)) {
-          return true;
-        }
-      }
-      return false;
-    });
-
-    return isAssigned;
-  }
-
-  /**
-   * Check if an FSR (from FSR Search table) is already assigned
-   * by looking in taskAssignmentDataSource for matching empId
-   * KEY FIX: Uses task empId instead of AssignedHrs
-   */
-  isAlreadyAssignedFsr(fsr: any): boolean {
-    // Return false if task data not loaded yet
-    if (
-      !this.taskAssignmentDataSource.data ||
-      this.taskAssignmentDataSource.data.length === 0
-    ) {
-      return false;
+    // Method 1: Direct empId match
+    if (task.empId === fsr.empId) {
+      return true;
     }
 
-    // Get FSR's ID (handle different field name variations)
-    const fsrId = fsr.EmpId || fsr.empid || fsr.empId;
-
-    // Search through task rows for matching empId
-    const isAssigned = this.taskAssignmentDataSource.data.some((task) => {
-      // Skip the "ALL" row
-      if (task.isAllTask) {
-        return false;
-      }
-
-      // Skip rows without assignment
-      if (task.assignedTo && task.assignedTo !== 'Not Assigned') {
-        // Method 1: Direct empId match
-        if (task.empId === fsrId) {
-          return true;
-        }
-        // Method 2: Check if assignedTo contains FSR's ID
-        if (task.assignedTo.includes(fsrId)) {
-          return true;
-        }
-        // Method 3: Check if assignedTo contains FSR's full name
-        const fsrFullName = `${fsr.FirstName} ${fsr.LastName}`;
-        if (task.assignedTo.includes(fsrFullName)) {
-          return true;
-        }
-      }
-
-      return false;
-    });
-
-    return isAssigned;
-  }
-
-  /**
-   * Determine if a button should be disabled based on task assignment status
-   * Uses empId matching against task rows
-   */
-  shouldDisableButton(fsr: any, actionType: string): boolean {
-    const alreadyAssigned = this.isAlreadyAssignedFsr(fsr);
-
-    // Disable Assign buttons if already assigned
-    if (['assign_all', 'assign', 'assigntocluster'].includes(actionType)) {
-      return alreadyAssigned;
-    }
-
-    // Disable Unassign buttons if NOT assigned
-    if (
-      ['unassign_all', 'unassign', 'unassignfromcluster'].includes(actionType)
-    ) {
-      return !alreadyAssigned;
+    // Method 2: Check if assignedTo contains FSR's empId
+    if (task.assignedTo.includes(fsr.empId)) {
+      return true;
     }
 
     return false;
-  }
+  });
 
-  /**
-   * Assign task method (Table 2)
-   */
-  async assignTask(fsr: any, action: number): Promise<void> {
-    const actionNames: { [key: number]: string } = {
-      1: 'assign current task to',
-      2: 'assign all tasks to',
-      3: 'unassign current task from',
-      4: 'unassign all tasks from',
-      5: 'assign to cluster',
-      6: 'unassign from cluster',
-    };
-
-    const selectedRows = this.taskSelection.selected;
-    const allSelected = selectedRows.some((row) => row.isAllTask);
-
-    let actualAction = action;
-    let targetDescription = '';
-
-    if (action === 2 || action === 4) {
-      if (!allSelected && selectedRows.length > 0) {
-        actualAction = action === 2 ? 1 : 3;
-        targetDescription = `${selectedRows.length} task(s)`;
-      } else {
-        targetDescription = 'all tasks';
-      }
-    }
-
-    const message = `Are you sure you want to ${actionNames[actualAction]} ${fsr.FirstName} ${fsr.LastName} to ${targetDescription}?`;
-
-    if (!confirm(message)) {
-      return;
-    }
-
-    this.showSpinner = true;
-    try {
-      if (
-        !allSelected &&
-        selectedRows.length > 0 &&
-        (action === 2 || action === 4)
-      ) {
-        const actualTasks = selectedRows.filter((row) => !row.isAllTask);
-        const taskNumbers = actualTasks
-          ?.map((row) => row.taskNumber)
-          .filter((tn) => tn)
-          .join(',');
-
-        const assignAction = action === 2 ? 1 : 3;
-
-        for (const row of selectedRows) {
-          const params = {
-            iriweek: this.data.iriWeek,
-            territoryid: this.filterForm.get('territory')?.value,
-            storenumber: row.storeNumber,
-            empid: fsr.EmpId,
-            tasknumber: taskNumbers,
-            positionnumber: this.data.positionNumber,
-            action: assignAction,
-            assignmentmode: 'TaskLevel',
-            countryId: this.commonService.getCurrentCountry(),
-          };
-
-          console.log('params:', params);
-
-          await firstValueFrom(
-            this.http.post(
-              this.baseUrl + 'api/TaskAssinment/SaveAssignment',
-              params
-            )
-          );
-        }
-      } else {
-        const params = {
-          iriweek: this.data.iriWeek,
-          territoryid: this.filterForm.get('territory')?.value,
-          storenumber: this.data.storeNumber,
-          empid: fsr.empid,
-          tasknumber: this.data.taskNumber || '',
-          positionnumber: this.data.positionNumber,
-          action: actualAction,
-          assignmentmode: allSelected ? 'StoreLevel' : 'TaskLevel',
-          countryId: this.commonService.getCurrentCountry(),
-        };
-
-        await firstValueFrom(
-          this.http.post(
-            this.baseUrl + 'api/TaskAssinment/SaveAssignment',
-            params
-          )
-        );
-      }
-
-      this.hasChanges = true;
-
-      // Reload all data to refresh button states
-      await this.loadCurrentAssignment();
-      await this.loadTaskAssignmentData();
-      await this.loadProximityData();
-
-      this.filterForm.patchValue({ firstName: '', lastName: '' });
-      alert('Assignment saved successfully.');
-    } catch (error) {
-      console.error('Error saving assignment:', error);
-      alert('Error while saving assignment.');
-    } finally {
-      this.showSpinner = false;
-    }
-  }
-
-  // ============================================================
-  // AUTOCOMPLETE SEARCH
-  // ============================================================
-  private setupAutocomplete(): void {
-    this.filteredFirstNames = this.filterForm
-      .get('firstName')!
-      .valueChanges.pipe(
-        debounceTime(300),
-        distinctUntilChanged((prev, curr) => {
-          if (typeof prev === 'object' && typeof curr === 'object') {
-            return prev?.id === curr?.id;
-          }
-          return prev === curr;
-        }),
-        switchMap((value) => {
-          if (typeof value === 'string' && value.length > 2) {
-            return this.searchFirstNames(value);
-          } else {
-            return of([]);
-          }
-        }),
-        takeUntil(this.destroy$)
-      );
-
-    this.filteredLastNames = this.filterForm
-      .get('lastName')!
-      .valueChanges.pipe(
-        debounceTime(300),
-        distinctUntilChanged((prev, curr) => {
-          if (typeof prev === 'object' && typeof curr === 'object') {
-            return prev?.id === curr?.id;
-          }
-          return prev === curr;
-        }),
-        switchMap((value) => {
-          if (typeof value === 'string' && value.length > 2) {
-            return this.searchLastNames(value);
-          } else {
-            return of([]);
-          }
-        }),
-        takeUntil(this.destroy$)
-      );
-  }
-
-private searchFirstNames(searchText: string): Observable<NameOption[]> {
-    const params = {
-      IriWeek: this.data.iriWeek,
-      TerritoryId: this.filterForm.get('territory')?.value || this.data.territoryId,
-      SearchText: searchText,
-      NameType: 'first_name',
-    };
-
-    return this.http
-      .post<any[]>(this.baseUrl + 'api/TaskAssinment/GetName', params)
-      .pipe(
-        map((response) =>
-          response.map((item) => ({
-            emp_name: item.emp_name,
-            emp_id: item.emp_id,
-            FirstName: item.FirstName,
-            LastName: item.LastName,
-            value: item.emp_name,
-            id: item.emp_id,
-          }))
-        ),
-        catchError((error) => {
-          console.error('Error fetching first names:', error);
-          return of([]);
-        })
-      );
-  }
-
-  private searchLastNames(searchText: string): Observable<NameOption[]> {
-    const params = {
-      IriWeek: this.data.iriWeek,
-      TerritoryId: this.filterForm.get('territory')?.value || this.data.territoryId,
-      SearchText: searchText,
-      NameType: 'last_name',
-    };
-
-    return this.http
-      .post<any[]>(this.baseUrl + 'api/TaskAssinment/GetName', params)
-      .pipe(
-        map((response) =>
-          response.map((item) => ({
-            emp_name: item.emp_name,
-            emp_id: item.emp_id,
-            FirstName: item.FirstName,
-            LastName: item.LastName,
-            value: item.emp_name,
-            id: item.emp_id,
-          }))
-        ),
-        catchError((error) => {
-          console.error('Error fetching last names:', error);
-          return of([]);
-        })
-      );
-  }
-
-  onFirstNameSelected(event: any): void {
-    const selectedOption = event.option.value as NameOption;
-    this.selectedFirstNameId = selectedOption.id;
-    setTimeout(() => this.searchFsrs(), 100);
-  }
-
-  onLastNameSelected(event: any): void {
-    const selectedOption = event.option.value as NameOption;
-    this.selectedLastNameId = selectedOption.id;
-    setTimeout(() => this.searchFsrs(), 100);
-  }
-
-  displayFn(option: NameOption): string {
-    return option && option.FirstName ? option.FirstName : '';
-  }
-
-  onTerritoryChange(): void {
-    this.filterForm.patchValue({
-      firstName: '',
-      lastName: '',
-    });
-    this.selectedFirstNameId = '';
-    this.selectedLastNameId = '';
-    this.fsrDataSource.data = [];
-  }
-
-  // ============================================================
-  // DIALOG CLOSE
-  // ============================================================
-  onClose(): void {
-    const result: DialogResult = {
-      hasChanges: this.hasChanges,
-    };
-    this.dialogRef.close(result);
-  }
-
-  getDisplayedColumns2(): string[] {
-    return this.displayedColumns;
-  }
-
-  private autoSelectBasedOnOrigin(): void {
-  setTimeout(() => {
-    if (this.originMode === 'StoreLevel') {
-      // User came from main grid - auto-select "ALL"
-      const allRow = this.taskAssignmentDataSource.data.find(r => r.isAllTask);
-      if (allRow) {
-        this.taskSelection.select(allRow);
-      }
-    } else if (this.originMode === 'TaskLevel' && this.data.taskNumber) {
-      console.log(this.originMode === 'TaskLevel' && this.data.taskNumber,"bool")
-      // User came from subgrid - auto-select that specific task
-      const taskRow = this.taskAssignmentDataSource.data.find(
-        r => r.taskNumber === this.data.taskNumber && !r.isAllTask
-      );
-      if (taskRow) {
-        this.taskSelection.select(taskRow);
-      }
-    }
-  }, 100);
+  return isAssigned;
 }
-  // ============================================================
-  // HELPER METHOD: Unified Assign Logic
-  // ============================================================
-  private async assignTaskWithSelection(
-    fsr: any,
-    source: 'proximity' | 'fsr'
-  ): Promise<void> {
-    const selectedRows = this.taskSelection.selected;
-    if (selectedRows.length === 0) {
-      alert('Please select at least one task to assign.');
-      return;
-    }
 
-    const fsrName =
-      source === 'proximity'
-        ? `${fsr.firstName} ${fsr.lastName}`
-        : `${fsr.FirstName} ${fsr.LastName}`;
-    const empId = source === 'proximity' ? fsr.empId : fsr.empid;
+// ============================================================
+// UPDATE THE proximityColumns ARRAY
+// ============================================================
 
-    const allSelected = selectedRows.some((row) => row.isAllTask);
+// Change from:
+// proximityColumns: string[] = ['assign','unassign', 'empId','empName','productivity','cost', 'time', 'toll', 'phone', 'email'];
 
-    let confirmMessage: string;
-    if (allSelected) {
-      confirmMessage = `Are you sure you want to assign ${fsrName} to all tasks?`;
-    } else {
-      const taskNames = selectedRows.map((row) => row.taskName).join(', ');
-      confirmMessage = `Are you sure you want to assign ${fsrName} to ${taskNames}?`;
-    }
+// To:
+proximityColumns: string[] = ['action', 'empId', 'empName', 'productivity', 'cost', 'time', 'toll', 'phone', 'email'];
 
-    if (!confirm(confirmMessage)) {
-      return;
-    }
+// ============================================================
+// UPDATE THE getDisplayedColumns() METHOD - FOR TABLE 2
+// ============================================================
 
-    this.showSpinner = true;
-    try {
-      if (allSelected) {
-        // Assign to ALL tasks
-        const params = {
-          iriweek: this.data.iriWeek,
-          territoryid: this.filterForm.get('territory')?.value,
-          storenumber: this.data.storeNumber,
-          empid: empId,
-          tasknumber: '',
-          positionnumber: this.data.positionNumber,
-          action: 2, // Assign all
-          assignmentmode: 'StoreLevel',
-          countryId: this.commonService.getCurrentCountry(),
-        };
+private getDisplayedColumns(): string[] {
+  const columns: string[] = [];
 
-        console.log('params:', params);
+  // Add SINGLE action column based on mode (NOT two separate ones)
+  columns.push('action'); // This replaces 'assign_all', 'unassign_all', 'assign', 'unassign'
 
-        await firstValueFrom(
-          this.http.post(
-            this.baseUrl + 'api/TaskAssinment/SaveAssignment',
-            params
-          )
-        );
-      } else {
-        // Assign to SPECIFIC tasks
-        for (const row of selectedRows) {
-          const params = {
-            iriweek: this.data.iriWeek,
-            territoryid: this.filterForm.get('territory')?.value,
-            storenumber: row.storeNumber,
-            empid: empId,
-            tasknumber: row.taskNumber,
-            positionnumber: this.data.positionNumber,
-            action: 1, // Assign specific task
-            assignmentmode: 'TaskLevel',
-            countryId: this.commonService.getCurrentCountry(),
-          };
+  // Add info columns
+  columns.push('name', 'address', 'assigned_hrs', 'max_hrs', 'cluster', 'contact');
 
-          console.log('params:', params);
-
-          await firstValueFrom(
-            this.http.post(
-              this.baseUrl + 'api/TaskAssinment/SaveAssignment',
-              params
-            )
-          );
-        }
-      }
-
-      this.hasChanges = true;
-
-      await this.loadCurrentAssignment();
-      await this.loadTaskAssignmentData();
-      await this.loadProximityData();
-
-      this.taskSelection.clear();
-      this.filterForm.patchValue({ firstName: '', lastName: '' });
-      alert('Assignment saved successfully.');
-    } catch (error) {
-      console.error('Error saving assignment:', error);
-      alert('Error while saving assignment.');
-    } finally {
-      this.showSpinner = false;
-    }
-  }
+  return columns;
 }
+
+// ============================================================
+// REMOVE THESE OLD COLUMN DEFINITIONS FROM TEMPLATE
+// ============================================================
+
+// DELETE the old ng-container definitions for:
+// - matColumnDef="assign_all"
+// - matColumnDef="unassign_all"  
+// - matColumnDef="assign"
+// - matColumnDef="unassign"
+// - showColumn() method is no longer needed
+
+// These are now replaced with dynamic button logic inside the single "action" column
+
+// ============================================================
+// OPTIONAL: SIMPLIFY THE showColumn() CHECK
+// ============================================================
+
+// The old method:
+// showColumn(columnName: string): boolean {
+//   return this.displayedColumns.includes(columnName);
+// }
+
+// Is no longer needed since all conditional logic is now in the template 
+// with *ngIf statements based on assignment status
+
+
+
