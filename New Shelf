@@ -1,3 +1,293 @@
+
+TABLE 2: CORRECTED SINGLE ACTION COLUMN -->
+<!-- Only ONE button shows: either Assign OR Unassign -->
+<!-- Button changes based on what user selects in Table 3 -->
+
+<ng-container matColumnDef="action">
+  <mat-header-cell *matHeaderCellDef class="col-action">Action</mat-header-cell>
+  <mat-cell *matCellDef="let fsr">
+
+    <!-- CASE 1: ALL ROW SELECTED IN TABLE 3 -->
+    <!-- Show Assign All or Unassign All based on FSR assignment status -->
+    <ng-container *ngIf="isAllTaskSelected()">
+      <!-- Show ASSIGN ALL button if FSR is NOT assigned -->
+      <button
+        *ngIf="!isAlreadyAssignedFsr(fsr)"
+        mat-stroked-button
+        color="primary"
+        (click)="assignTask(fsr, 2)"
+        [disabled]="taskSelection.selected.length === 0"
+        class="action-button no-border"
+      >
+        <mat-icon>person_add</mat-icon>
+        Assign All
+      </button>
+
+      <!-- Show UNASSIGN ALL button if FSR IS assigned -->
+      <button
+        *ngIf="isAlreadyAssignedFsr(fsr)"
+        mat-stroked-button
+        color="warn"
+        (click)="assignTask(fsr, 4)"
+        [disabled]="taskSelection.selected.length === 0"
+        class="action-button no-border"
+      >
+        <mat-icon>person_remove</mat-icon>
+        Unassign All
+      </button>
+    </ng-container>
+
+    <!-- CASE 2: SPECIFIC TASK(S) SELECTED IN TABLE 3 -->
+    <!-- Show Assign or Unassign based on FSR assignment status -->
+    <ng-container *ngIf="!isAllTaskSelected() && taskSelection.selected.length > 0">
+      <!-- Show ASSIGN button if FSR is NOT assigned -->
+      <button
+        *ngIf="!isAlreadyAssignedFsr(fsr)"
+        mat-stroked-button
+        color="primary"
+        (click)="assignTask(fsr, 1)"
+        [disabled]="taskSelection.selected.length === 0"
+        class="action-button no-border"
+      >
+        <mat-icon>person_add</mat-icon>
+        Assign
+      </button>
+
+      <!-- Show UNASSIGN button if FSR IS assigned -->
+      <button
+        *ngIf="isAlreadyAssignedFsr(fsr)"
+        mat-stroked-button
+        color="warn"
+        (click)="assignTask(fsr, 3)"
+        [disabled]="taskSelection.selected.length === 0"
+        class="action-button no-border"
+      >
+        <mat-icon>person_remove</mat-icon>
+        Unassign
+      </button>
+    </ng-container>
+
+    <!-- CASE 3: NO TASK SELECTED IN TABLE 3 -->
+    <!-- Hide all buttons when no selection -->
+    <!-- (Nothing renders) -->
+
+  </mat-cell>
+</ng-container>
+
+
+/ ============================================================
+// ADD THESE HELPER METHODS TO YOUR COMPONENT CLASS
+// ============================================================
+
+/**
+ * Check if the "ALL" task row is currently selected in Table 3
+ * Returns true if user selected the ALL row
+ */
+isAllTaskSelected(): boolean {
+  const allRow = this.taskAssignmentDataSource.data.find((r) => r.isAllTask);
+  
+  if (!allRow) {
+    return false;
+  }
+  
+  return this.taskSelection.isSelected(allRow);
+}
+
+/**
+ * Get count of specific (non-ALL) tasks selected in Table 3
+ */
+getSpecificTasksSelectedCount(): number {
+  return this.taskSelection.selected.filter((row) => !row.isAllTask).length;
+}
+
+/**
+ * Check if any specific task is selected (not ALL row)
+ */
+isAnySpecificTaskSelected(): boolean {
+  return this.getSpecificTasksSelectedCount() > 0;
+}
+
+// ============================================================
+// UPDATE: isAlreadyAssignedFsr() - ALREADY EXISTS, NO CHANGE
+// ============================================================
+// The existing isAlreadyAssignedFsr() method remains the same
+// It checks if an FSR is already assigned to any task by empId match
+
+// ============================================================
+// UPDATE: assignTask() METHOD - IMPORTANT FIX
+// ============================================================
+// The existing assignTask() method should work as-is
+// BUT make sure it handles these action codes correctly:
+
+// Action Code Reference:
+// 1 = Assign specific task (when user selects specific tasks in Table 3)
+// 2 = Assign all tasks (when user selects ALL in Table 3)
+// 3 = Unassign specific task (when user selects specific tasks in Table 3)
+// 4 = Unassign all tasks (when user selects ALL in Table 3)
+
+/**
+ * UPDATED: Improved assignTask() method (Table 2)
+ * Now correctly uses action codes based on Table 3 selection
+ */
+async assignTask(fsr: any, action: number): Promise<void> {
+  const selectedRows = this.taskSelection.selected;
+  
+  // Check if at least one task is selected
+  if (selectedRows.length === 0) {
+    alert('Please select at least one task to perform this action.');
+    return;
+  }
+
+  const fsrName = `${fsr.FirstName} ${fsr.LastName}`;
+  const fsrId = fsr.EmpId || fsr.empid || fsr.empId;
+  
+  // Determine if ALL row is selected
+  const allRowSelected = selectedRows.some((row) => row.isAllTask);
+  
+  // Build confirmation message based on action
+  let confirmMessage = '';
+  let targetDescription = '';
+  
+  if (action === 2) {
+    // Assign all
+    confirmMessage = `Are you sure you want to assign ${fsrName} to ALL tasks?`;
+    targetDescription = 'all tasks';
+  } else if (action === 4) {
+    // Unassign all
+    confirmMessage = `Are you sure you want to unassign ${fsrName} from ALL tasks?`;
+    targetDescription = 'all tasks';
+  } else if (action === 1) {
+    // Assign specific task(s)
+    const specificTasks = selectedRows.filter((row) => !row.isAllTask);
+    const taskNames = specificTasks.map((row) => row.taskName).join(', ');
+    confirmMessage = `Are you sure you want to assign ${fsrName} to ${taskNames}?`;
+    targetDescription = taskNames;
+  } else if (action === 3) {
+    // Unassign specific task(s)
+    const specificTasks = selectedRows.filter((row) => !row.isAllTask);
+    const taskNames = specificTasks.map((row) => row.taskName).join(', ');
+    confirmMessage = `Are you sure you want to unassign ${fsrName} from ${taskNames}?`;
+    targetDescription = taskNames;
+  }
+
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+
+  this.showSpinner = true;
+  try {
+    if (action === 2 || action === 4) {
+      // Assign All or Unassign All
+      const params = {
+        iriweek: this.data.iriWeek,
+        territoryid: this.filterForm.get('territory')?.value,
+        storenumber: this.data.storeNumber,
+        empid: fsrId,
+        tasknumber: '', // Empty for ALL
+        positionnumber: this.data.positionNumber,
+        action: action, // 2 or 4
+        assignmentmode: 'StoreLevel',
+        countryId: this.commonService.getCurrentCountry(),
+      };
+
+      console.log('Saving assignment (ALL):', params);
+
+      await firstValueFrom(
+        this.http.post(
+          this.baseUrl + 'api/TaskAssinment/SaveAssignment',
+          params
+        )
+      );
+    } else if (action === 1 || action === 3) {
+      // Assign or Unassign specific task(s)
+      // Only process non-ALL rows
+      const specificTasks = selectedRows.filter((row) => !row.isAllTask);
+      
+      if (specificTasks.length === 0) {
+        alert('No specific tasks selected.');
+        return;
+      }
+
+      // Process each specific task
+      for (const row of specificTasks) {
+        const params = {
+          iriweek: this.data.iriWeek,
+          territoryid: this.filterForm.get('territory')?.value,
+          storenumber: row.storeNumber,
+          empid: fsrId,
+          tasknumber: row.taskNumber,
+          positionnumber: this.data.positionNumber,
+          action: action, // 1 or 3
+          assignmentmode: 'TaskLevel',
+          countryId: this.commonService.getCurrentCountry(),
+        };
+
+        console.log('Saving assignment (Specific Task):', params);
+
+        await firstValueFrom(
+          this.http.post(
+            this.baseUrl + 'api/TaskAssinment/SaveAssignment',
+            params
+          )
+        );
+      }
+    }
+
+    this.hasChanges = true;
+
+    // Reload all data to refresh the UI and button states
+    await this.loadCurrentAssignment();
+    await this.loadTaskAssignmentData();
+    await this.loadProximityData();
+    
+    // Keep task selection (don't clear it)
+    // so user can see what was just modified
+    
+    this.filterForm.patchValue({ firstName: '', lastName: '' });
+    alert('Assignment saved successfully.');
+  } catch (error) {
+    console.error('Error saving assignment:', error);
+    alert('Error while saving assignment. Please try again.');
+  } finally {
+    this.showSpinner = false;
+  }
+}
+
+// ============================================================
+// EXAMPLE OF HOW THE NEW LOGIC WORKS:
+// ============================================================
+
+/*
+SCENARIO 1: User selects "ALL" row in Table 3
+- isAllTaskSelected() returns TRUE
+- Both buttons check: !isAlreadyAssignedFsr(fsr)
+- If FSR not assigned:
+  * SHOW "Assign All" button (action=2)
+  * HIDE "Unassign All" button
+- If FSR is assigned:
+  * HIDE "Assign All" button
+  * SHOW "Unassign All" button (action=4)
+- Result: Only ONE button visible
+
+SCENARIO 2: User selects specific task (e.g., "Task A", "Task B") in Table 3
+- isAllTaskSelected() returns FALSE
+- taskSelection.selected.length > 0 returns TRUE
+- Both buttons check: !isAlreadyAssignedFsr(fsr)
+- If FSR not assigned:
+  * SHOW "Assign" button (action=1)
+  * HIDE "Unassign" button
+- If FSR is assigned:
+  * HIDE "Assign" button
+  * SHOW "Unassign" button (action=3)
+- Result: Only ONE button visible
+
+SCENARIO 3: User has NOT selected any task in Table 3
+- isAllTaskSelected() returns FALSE
+- taskSelection.selected.length === 0 returns TRUE
+- Both ng-containers have *ngIf that evaluate to FALSE
+- Result: NO buttons visible (clean UI)
+*/
+//////////////////////////////////////////////////////////////////
 <!-- ============================================================ -->
 <!-- TABLE 1: Proximity FSR Table (Closest FSRs) -->
 <!-- ============================================================ -->
