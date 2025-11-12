@@ -464,9 +464,25 @@ async unassignFromProximity(fsr: ProximityFsr): Promise<void> {
  * Check if FSR is already assigned (helper method)
  */
 isAlreadyAssigned(fsr: ProximityFsr): boolean {
-  // Add this to your ProximityFsr interface if needed
-  return fsr.assignmentStatus === 'assigned' || fsr.costRank > 0;
+  if (!this.taskAssignmentDataSource.data || this.taskAssignmentDataSource.data.length === 0) {
+    return false;
+  }
+
+  const isAssigned = this.taskAssignmentDataSource.data.some(task => {
+    if (task.assignedTo && task.assignedTo !== 'Not Assigned' && task.assignedTo !== 'ALL') {
+      if (task.empId === fsr.empId) {
+        return true;
+      }
+      if (task.assignedTo.includes(fsr.empId)) {
+        return true;
+      }
+    }
+    return false;
+  });
+
+  return isAssigned;
 }
+
 
 // ============================================================
 // ISSUE 2: TABLE 2 (FSR SEARCH) - FIXED METHODS
