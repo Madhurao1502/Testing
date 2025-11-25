@@ -1,424 +1,751 @@
-/ ============================================================
-// ADD THESE HELPER METHODS TO YOUR COMPONENT CLASS
-// ============================================================
+import { SnackbarService } from './../../shared/snackbar.service';
+import { trigger, transition, style, animate } from '@angular/animations';
+import { HttpClient } from '@angular/common/http';
+import { Component, ElementRef, EventEmitter, Inject, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
+import { FormBuilder, FormControl, FormGroup } from '@angular/forms';
+import { catchError, debounceTime, distinctUntilChanged, firstValueFrom, map, Observable, of, startWith, Subject, switchMap, takeUntil, tap } from 'rxjs';
+import { StoreFilter, FilterOptions, GetGridDataFilter } from 'src/app/shared/common.model';
+import { CommonService } from 'src/app/shared/common.service';
 
-/**
- * Check if the "ALL" task row is currently selected in Table 3
- * Returns true if user selected the ALL row
- */
-isAllTaskSelected(): boolean {
-  const allRow = this.taskAssignmentDataSource.data.find((r) => r.isAllTask);
-  
-  if (!allRow) {
-    return false;
-  }
-  
-  return this.taskSelection.isSelected(allRow);
-}
+// ,
+//   animations: [
+//   trigger('slideDown', [
+//     transition(':enter', [
+//       style({ height: '0', opacity: '0', overflow: 'hidden' }),
+//       animate('300ms ease-in', style({ height: '*', opacity: '1' }))
+//     ]),
+//     transition(':leave', [
+//       animate('300ms ease-out', style({ height: '0', opacity: '0', overflow: 'hidden' }))
+//     ])
+//   ])
+// ]
 
-/**
- * Get count of specific (non-ALL) tasks selected in Table 3
- */
-getSpecificTasksSelectedCount(): number {
-  return this.taskSelection.selected.filter((row) => !row.isAllTask).length;
-}
-
-/**
- * Check if any specific task is selected (not ALL row)
- */
-isAnySpecificTaskSelected(): boolean {
-  return this.getSpecificTasksSelectedCount() > 0;
-}
-
-// ============================================================
-// UPDATE: isAlreadyAssignedFsr() - ALREADY EXISTS, NO CHANGE
-// ============================================================
-// The existing isAlreadyAssignedFsr() method remains the same
-// It checks if an FSR is already assigned to any task by empId match
-
-// ============================================================
-// UPDATE: assignTask() METHOD - IMPORTANT FIX
-// ============================================================
-// The existing assignTask() method should work as-is
-// BUT make sure it handles these action codes correctly:
-
-// Action Code Reference:
-// 1 = Assign specific task (when user selects specific tasks in Table 3)
-// 2 = Assign all tasks (when user selects ALL in Table 3)
-// 3 = Unassign specific task (when user selects specific tasks in Table 3)
-// 4 = Unassign all tasks (when user selects ALL in Table 3)
-
-/**
- * UPDATED: Improved assignTask() method (Table 2)
- * Now correctly uses action codes based on Table 3 selection
- */
-async assignTask(fsr: any, action: number): Promise<void> {
-  const selectedRows = this.taskSelection.selected;
-  
-  // Check if at least one task is selected
-  if (selectedRows.length === 0) {
-    alert('Please select at least one task to perform this action.');
-    return;
-  }
-
-  const fsrName = `${fsr.FirstName} ${fsr.LastName}`;
-  const fsrId = fsr.EmpId || fsr.empid || fsr.empId;
-  
-  // Determine if ALL row is selected
-  const allRowSelected = selectedRows.some((row) => row.isAllTask);
-  
-  // Build confirmation message based on action
-  let confirmMessage = '';
-  let targetDescription = '';
-  
-  if (action === 2) {
-    // Assign all
-    confirmMessage = `Are you sure you want to assign ${fsrName} to ALL tasks?`;
-    targetDescription = 'all tasks';
-  } else if (action === 4) {
-    // Unassign all
-    confirmMessage = `Are you sure you want to unassign ${fsrName} from ALL tasks?`;
-    targetDescription = 'all tasks';
-  } else if (action === 1) {
-    // Assign specific task(s)
-    const specificTasks = selectedRows.filter((row) => !row.isAllTask);
-    const taskNames = specificTasks.map((row) => row.taskName).join(', ');
-    confirmMessage = `Are you sure you want to assign ${fsrName} to ${taskNames}?`;
-    targetDescription = taskNames;
-  } else if (action === 3) {
-    // Unassign specific task(s)
-    const specificTasks = selectedRows.filter((row) => !row.isAllTask);
-    const taskNames = specificTasks.map((row) => row.taskName).join(', ');
-    confirmMessage = `Are you sure you want to unassign ${fsrName} from ${taskNames}?`;
-    targetDescription = taskNames;
-  }
-
-  if (!confirm(confirmMessage)) {
-    return;
-  }
-
-  this.showSpinner = true;
-  try {
-    if (action === 2 || action === 4) {
-      // Assign All or Unassign All
-      const params = {
-        iriweek: this.data.iriWeek,
-        territoryid: this.filterForm.get('territory')?.value,
-        storenumber: this.data.storeNumber,
-        empid: fsrId,
-        tasknumber: '', // Empty for ALL
-        positionnumber: this.data.positionNumber,
-        action: action, // 2 or 4
-        assignmentmode: 'StoreLevel',
-        countryId: this.commonService.getCurrentCountry(),
-      };
-
-      console.log('Saving assignment (ALL):', params);
-
-      await firstValueFrom(
-        this.http.post(
-          this.baseUrl + 'api/TaskAssinment/SaveAssignment',
-          params
-        )
-      );
-    } else if (action === 1 || action === 3) {
-      // Assign or Unassign specific task(s)
-      // Only process non-ALL rows
-      const specificTasks = selectedRows.filter((row) => !row.isAllTask);
-      
-      if (specificTasks.length === 0) {
-        alert('No specific tasks selected.');
-        return;
-      }
-
-      // Process each specific task
-      for (const row of specificTasks) {
-        const params = {
-          iriweek: this.data.iriWeek,
-          territoryid: this.filterForm.get('territory')?.value,
-          storenumber: row.storeNumber,
-          empid: fsrId,
-          tasknumber: row.taskNumber,
-          positionnumber: this.data.positionNumber,
-          action: action, // 1 or 3
-          assignmentmode: 'TaskLevel',
-          countryId: this.commonService.getCurrentCountry(),
-        };
-
-        console.log('Saving assignment (Specific Task):', params);
-
-        await firstValueFrom(
-          this.http.post(
-            this.baseUrl + 'api/TaskAssinment/SaveAssignment',
-            params
-          )
-        );
-      }
-    }
-
-    this.hasChanges = true;
-
-    // Reload all data to refresh the UI and button states
-    await this.loadCurrentAssignment();
-    await this.loadTaskAssignmentData();
-    await this.loadProximityData();
-    
-    // Keep task selection (don't clear it)
-    // so user can see what was just modified
-    
-    this.filterForm.patchValue({ firstName: '', lastName: '' });
-    alert('Assignment saved successfully.');
-  } catch (error) {
-    console.error('Error saving assignment:', error);
-    alert('Error while saving assignment. Please try again.');
-  } finally {
-    this.showSpinner = false;
-  }
-}
-
-// ============================================================
-// EXAMPLE OF HOW THE NEW LOGIC WORKS:
-// ============================================================
-
-/*
-SCENARIO 1: User selects "ALL" row in Table 3
-- isAllTaskSelected() returns TRUE
-- Both buttons check: !isAlreadyAssignedFsr(fsr)
-- If FSR not assigned:
-  * SHOW "Assign All" button (action=2)
-  * HIDE "Unassign All" button
-- If FSR is assigned:
-  * HIDE "Assign All" button
-  * SHOW "Unassign All" button (action=4)
-- Result: Only ONE button visible
-
-SCENARIO 2: User selects specific task (e.g., "Task A", "Task B") in Table 3
-- isAllTaskSelected() returns FALSE
-- taskSelection.selected.length > 0 returns TRUE
-- Both buttons check: !isAlreadyAssignedFsr(fsr)
-- If FSR not assigned:
-  * SHOW "Assign" button (action=1)
-  * HIDE "Unassign" button
-- If FSR is assigned:
-  * HIDE "Assign" button
-  * SHOW "Unassign" button (action=3)
-- Result: Only ONE button visible
-
-SCENARIO 3: User has NOT selected any task in Table 3
-- isAllTaskSelected() returns FALSE
-- taskSelection.selected.length === 0 returns TRUE
-- Both ng-containers have *ngIf that evaluate to FALSE
-- Result: NO buttons visible (clean UI)
-*/
-
-.............
-
-(click)="element.isChildRow ? openTaskAssignmentDialog2(element) : openAssignmentDialog(element, 'StoreLevel');"
-
-
-// ============================================================
-// AUTO-SELECT based on where user came from
-// ============================================================
-private autoSelectBasedOnOrigin(): void {
-  setTimeout(() => {
-    if (this.originMode === 'StoreLevel') {
-      // User came from main grid - auto-select "ALL"
-      const allRow = this.taskAssignmentDataSource.data.find(r => r.isAllTask);
-      if (allRow) {
-        this.taskSelection.select(allRow);
-      }
-    } else if (this.originMode === 'TaskLevel' && this.data.taskNumber) {
-      // User came from subgrid - auto-select that specific task
-      const taskRow = this.taskAssignmentDataSource.data.find(
-        r => r.taskNumber === this.data.taskNumber && !r.isAllTask
-      );
-      if (taskRow) {
-        this.taskSelection.select(taskRow);
-      }
-    }
-  }, 100);
-}
-
-// ============================================================
-// UNIFIED ASSIGN LOGIC - KEY FIX
-// ============================================================
-private async assignTaskWithSelection(fsr: any, source: 'proximity' | 'fsr'): Promise<void> {
-  const selectedRows = this.taskSelection.selected;
-
-  if (selectedRows.length === 0) {
-    alert('Please select at least one task to assign.');
-    return;
-  }
-
-  const fsrName = source === 'proximity' 
-    ? `${fsr.firstName} ${fsr.lastName}` 
-    : `${fsr.FirstName} ${fsr.LastName}`;
-  const empId = source === 'proximity' ? fsr.empId : fsr.emp_id;
-
-  // Check if "ALL" is selected
-  const allSelected = selectedRows.some((row) => row.isAllTask);
-
-  let confirmMessage = '';
-
-  if (allSelected) {
-    // User selected "ALL" row
-    confirmMessage = `Are you sure you want to assign ${fsrName} to all tasks?`;
-  } else {
-    // User selected specific tasks
-    const taskNames = selectedRows.map((row) => row.taskName).join(', ');
-    confirmMessage = `Are you sure you want to assign ${fsrName} to ${taskNames}?`;
-  }
-
-  if (!confirm(confirmMessage)) return;
-
-  this.showSpinner = true;
-  try {
-    if (allSelected) {
-      // Assign to ALL tasks - Single API call
-      const params = {
-        iri_week: this.data.iriWeek,
-        territory_id: this.filterForm.get('territory')?.value,
-        store_number: this.data.storeNumber,
-        emp_id: empId,
-        task_number: '',
-        position_number: this.data.positionNumber || '',
-        action: 2, // Assign all
-        assignment_mode: 'StoreLevel', // Use StoreLevel for "ALL"
-        countryId: this.commonService.getCurrentCountry(),
-      };
-
-      await firstValueFrom(
-        this.http.post(this.baseUrl + 'api/TaskAssinment/SaveAssignment', params)
-      );
-    } else {
-      // Assign to SPECIFIC tasks - Multiple API calls
-      // 🔑 KEY FIX: Use TaskLevel mode for each specific task
-      for (const row of selectedRows) {
-        const params = {
-          iri_week: this.data.iriWeek,
-          territory_id: this.filterForm.get('territory')?.value,
-          store_number: row.storeNumber,
-          emp_id: empId,
-          task_number: row.taskNumber || '',
-          position_number: this.data.positionNumber || '',
-          action: 1, // Assign specific task
-          assignment_mode: 'TaskLevel', // 🔑 ALWAYS TaskLevel for specific tasks
-          countryId: this.commonService.getCurrentCountry(),
-        };
-
-        await firstValueFrom(
-          this.http.post(this.baseUrl + 'api/TaskAssinment/SaveAssignment', params)
-        );
-      }
-    }
-
-    this.hasChanges = true;
-    await this.loadCurrentAssignment();
-    await this.loadTaskAssignmentData();
-    this.taskSelection.clear();
-    this.filterForm.patchValue({ firstName: '', lastName: '' });
-
-    alert('Assignment saved successfully.');
-  } catch (error) {
-    console.error('Error saving assignment:', error);
-    alert('Error while saving assignment.');
-  } finally {
-    this.showSpinner = false;
-  }
-}
-
-// ============================================================
-// ACTION BUTTONS - Keep labels but logic depends on selection
-// ============================================================
-async assignTask(fsr: any, action: number): Promise<void> {
-  // The action numbers here are for backward compatibility
-  // but the actual logic now depends on task selection
-  
-  const actionNames: { [key: number]: string } = {
-    1: 'assign to',
-    2: 'assign to', // Keep label as "Assign All" even though behavior varies
-    3: 'unassign from',
-    4: 'unassign from',
-    5: 'assign to cluster',
-    6: 'unassign from cluster',
+@Component({
+  selector: 'app-filter-sidebar',
+  templateUrl: './filter-sidebar.component.html',
+  styleUrls: ['./filter-sidebar.component.css']
+})
+export class FilterSidebarComponent implements OnInit, OnDestroy {
+  @Output() filtersChanged = new EventEmitter<GetGridDataFilter>();
+  @Output() clearFilters = new EventEmitter<void>();
+ private allAvailableColumns = {
+    base: [
+      { key: 'store_number', label: 'Store Number', required: true },
+      { key: 'territory', label: 'Territory', required: false },
+      { key: 'store_name', label: 'Store Name', required: true },
+      { key: 'task', label: 'Task', required: true },
+      { key: 'addr_line1', label: 'Address', required: false },
+      { key: 'city', label: 'City', required: false },
+      { key: 'state', label: 'State', required: false },
+      { key: 'zip', label: 'Zip', required: false },
+      { key: 'assigned_to', label: 'Assigned To', required: true },
+      { key: 'user_comment', label: 'Comments', required: true },
+      { key:  'work_order', label: 'Work Order', required: true }
+     
+    ],
+    current: [
+      { key: 'store_number', label: 'Store Number', required: true },
+      { key: 'territory', label: 'Territory', required: false },
+      { key: 'position_number', label: 'Position Number', required: false },
+      { key: 'task', label: 'Task', required: true },
+      { key: 'bdf', label: 'BFD', required: false },
+      { key: 'outlet', label: 'Outlet', required: false },
+      { key: 'store_name', label: 'Store Name', required: true },
+      { key: 'addr_line1', label: 'Address', required: false },
+      { key: 'city', label: 'City', required: false },
+      { key: 'state', label: 'State', required: false },
+      { key: 'assigned_to', label: 'Assigned To', required: true },
+      { key: 'task_completed', label: 'Task Completed', required: false },
+      // { key: 'quality', label: 'Quality', required: false },
+      { key: 'cost_over', label: 'Cost Over', required: false },
+      { key: 'guaranteed_miles', label: 'Miles', required: false },
+      { key: 'user_comment', label: 'Comments', required: true },
+      { key:  'work_order', label: 'Work Order', required: true }
+    ],
+    future: [
+      { key: 'store_number', label: 'Store Number', required: true },
+      { key: 'territory', label: 'Territory', required: false },
+      { key: 'position_number', label: 'Position Number', required: false },
+      { key: 'task', label: 'Task', required: true },
+      { key: 'bdf', label: 'BFD', required: false },
+      { key: 'outlet', label: 'Outlet', required: false },
+      { key: 'store_name', label: 'Store Name', required: true },
+      { key: 'addr_line1', label: 'Address', required: false },
+      { key: 'city', label: 'City', required: false },
+      { key: 'state', label: 'State', required: false },
+      { key: 'assigned_to', label: 'Assigned To', required: true },
+      { key: 'avg_cost', label: 'Avg Cost', required: false },
+      { key: 'guaranteed_miles', label: 'Miles', required: false },
+      { key: 'user_comment', label: 'Comments', required: true },
+      { key:  'work_order', label: 'Work Order', required: true }
+    ],
+    previous: [
+      { key: 'store_number', label: 'Store Number', required: true },
+      { key: 'territory', label: 'Territory', required: false },
+      { key: 'position_number', label: 'Position Number', required: false },
+      { key: 'task', label: 'Task', required: true },
+      { key: 'bdf', label: 'BFD', required: false },
+      { key: 'outlet', label: 'Outlet', required: false },
+      { key: 'store_name', label: 'Store Name', required: true },
+      { key: 'addr_line1', label: 'Address', required: false },
+      { key: 'city', label: 'City', required: false },
+      { key: 'state', label: 'State', required: false },
+      { key: 'assigned_to', label: 'Assigned To', required: true },
+      { key: 'task_completed', label: 'Task Completed', required: false },
+      // { key: 'quality', label: 'Quality', required: false },
+      { key: 'cost_over', label: 'Cost Over', required: false },
+      { key: 'wk1_costs', label: 'WK1 Costs', required: false },
+      { key: 'wk1_travel', label: 'WK1 Travel Cost', required: false },
+      { key: 'wk1_ovg_travel', label: 'WK1 ovg Travel Cost', required: false },     
+      { key: 'wk2_costs', label: 'WK2 Costs', required: false },
+      { key: 'wk2_travel', label: 'WK2 Travel Cost', required: false },
+      { key: 'wk2_ovg_travel', label: 'WK2 ovg Travel Cost', required: false },
+      { key: 'user_comment', label: 'Comments', required: true },
+      { key:  'work_order', label: 'Work Order', required: true }
+    ]
   };
 
-  // Check what user has selected
-  const selectedRows = this.taskSelection.selected;
-  const allSelected = selectedRows.some((row) => row.isAllTask);
+  currentWeekType: 'current' | 'future' | 'previous' = 'current';
+  availableColumns: any[] = [];
+  selectedColumns: string[] = [];
 
-  // Determine the actual action based on selection
-  let actualAction = action;
-  let targetDescription = '';
+  @Output() columnsChanged = new EventEmitter<string[]>();  
+  @Output() filtersApplied = new EventEmitter<void>();
+  filterForm!: FormGroup;
+  showAdvancedFilters = false;
+  showSpinner = false;
+  expandedAdvancedLabel = 'Show Additional Filters';
+   private formInitialized = false;
+  private dataLoaded = {
+    iriWeek: false,
+    territory: false,
+    employee: false
+  };
+  // Data arrays
+  employeedata: any[] = [];
+  iriWeeks: any[] = [];
+  territories: any[] = [];
+  filteredStores: any[] = [];
+  filteredState: any[] = [];
+  filteredCity: any[] = [];
+  filteredCluster: any[] = [];
+  filteredTask: any[] = [];
+  filteredFSR: any[] = [];
+  fsrHourOperators = [
+    { value: 'NA', label: 'NA' },
+    { value: '>', label: '>' },
+    { value: '=', label: '=' },
+    { value: '<', label: '<' }
+  ];
+  // Selected values
+  selectedStoreNumber = '';
+  selectedState = '';
+  selectedCity = '';
+  selectedCluster = '';
+  selectedTask = '';
+  selectedFsrId = '';
+  areaNBRctrl = new FormControl();
+  private unsubscribe$ = new Subject<void>();
+  private loggeduser: string;
 
-  if (action === 2 || action === 4) {
-    // These are "Assign All" / "Unassign All" buttons
-    // But if user selected specific tasks, treat as specific assignment
-    if (!allSelected && selectedRows.length > 0) {
-      actualAction = action === 2 ? 1 : 3; // Convert to task-level action
-      targetDescription = `${selectedRows.length} task(s)`;
-    } else {
-      targetDescription = 'all tasks';
+  constructor(
+    private fb: FormBuilder,
+    private commonService: CommonService,
+    public http: HttpClient,
+    private snackbar: SnackbarService,
+    @Inject('BASE_URL') public baseUrl: string,
+  ) {
+    this.initializeForm();
+    this.loggeduser = localStorage.getItem("loggedUserId") || '';
+  }
+
+  async ngOnInit(): Promise<void> {
+ this.commonService.weekType$
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe(weekType => {
+        this.currentWeekType = weekType;
+        this.updateAvailableColumns();
+        this.resetSelectedColumnsForWeekType();
+      });
+
+    try {
+       this.employeedata = await firstValueFrom(this.commonService.getEmployee(this.loggeduser));
+        this.dataLoaded.employee = true;
+      await this.getIriWeek();
+      this.dataLoaded.iriWeek = true;
+      await this.getTerritory();  
+      this.dataLoaded.territory = true;
+      
+      // Setup form subscriptions after data is loaded
+      this.setupFormSubscriptions();
+      
+      // Mark form as initialized
+      this.formInitialized = true;
+      
+      // NOW apply default filters after everything is ready
+      this.applyDefaultFilters();
+    } catch (error) {
+      console.error('Error initializing filter component:', error);
     }
   }
 
-  const message = `Are you sure you want to ${actionNames[actualAction]} ${fsr.FirstName} ${fsr.LastName} to ${targetDescription}?`;
+  private initializeForm(): void {
+    this.filterForm = this.fb.group({
+      iriWeek: [''],
+      territory: [''],
+      store: [''],
+      state: [''],
+      city: [''],
+      cluster: [''],
+      task: [''],
+      fsr: [''],
+      fsrHour: [''],
+      fsrHourOperator: ['NA'], 
+      storeAssignment: ['all'],
+      sampleType: ['all'],
+      multiFsrStore: [false]
+    });
+  }
 
-  if (!confirm(message)) return;
-
-  this.showSpinner = true;
-  try {
-    if (!allSelected && selectedRows.length > 0 && (action === 2 || action === 4)) {
-      // User selected specific tasks but clicked "Assign All" button
-      // Treat as task-level assignment
-      const assignAction = action === 2 ? 1 : 3;
+    private async getIriWeek(): Promise<void> {
+    try {
+      const response = await firstValueFrom(
+        this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetIriWeek')
+      );
       
-      for (const row of selectedRows) {
-        const params = {
-          iri_week: this.data.iriWeek,
-          territory_id: this.filterForm.get('territory')?.value,
-          store_number: row.storeNumber,
-          emp_id: fsr.emp_id,
-          task_number: row.taskNumber || '',
-          position_number: this.data.positionNumber || '',
-          action: assignAction,
-          assignment_mode: 'TaskLevel', // 🔑 Use TaskLevel for specific
-          countryId: this.commonService.getCurrentCountry(),
-        };
-
-        await firstValueFrom(
-          this.http.post(this.baseUrl + 'api/TaskAssinment/SaveAssignment', params)
+      this.iriWeeks = response;
+      
+      // Set default value
+      if (this.iriWeeks.length > 0) {
+        this.filterForm.get('iriWeek')?.setValue(
+          this.iriWeeks?.[1]?.['iri_week'], 
+          { emitEvent: false }
         );
       }
-    } else {
-      // Original logic for other cases
-      const params = {
-        iri_week: this.data.iriWeek,
-        territory_id: this.filterForm.get('territory')?.value,
-        store_number: this.data.storeNumber,
-        emp_id: fsr.emp_id,
-        task_number: this.data.taskNumber || '',
-        position_number: this.data.positionNumber || '',
-        action: actualAction,
-        assignment_mode: allSelected ? 'StoreLevel' : 'TaskLevel',
-        countryId: this.commonService.getCurrentCountry(),
-      };
+    } catch (error) {
+      console.error('Error fetching IRI weeks:', error);
+      throw error;
+    }
+  }
 
-      await firstValueFrom(
-        this.http.post(this.baseUrl + 'api/TaskAssinment/SaveAssignment', params)
+  private async getTerritory(): Promise<void> {
+    try {
+      this.showSpinner = true;
+      const response = await firstValueFrom(
+        this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetTerritory')
       );
+      
+      this.territories = response;
+      
+      // Set default territory
+      const defaultTerritory = this.getDefaultTerritory();
+      this.filterForm.get('territory')?.setValue(defaultTerritory, { emitEvent: false });
+      
+      if (this.territories.length > 0) {
+        this.areaNBRctrl.setValue(this.territories['area']);
+      }
+      
+    } catch (error) {
+      console.error('Error fetching territories:', error);
+      throw error;
+    } finally {
+      this.showSpinner = false;
+    }
+  }
+
+  private getDefaultTerritory(): string {
+    if (!this.employeedata) return '';
+    
+    return this.employeedata?.['fieldTerritoryNumber'] == 0 || 
+                              !this.employeedata?.['fieldTerritoryNumber']
+                              ? this.territories?.[0]?.['territory_id']
+                              : this.employeedata?.['territory_id'];
+  }
+
+  private setupFormSubscriptions(): void {
+    // Store autocomplete
+    this.filterForm.get('store')?.valueChanges.pipe(
+      debounceTime(300),
+      tap(() => (this.showSpinner = true)),
+      switchMap(searchText => this.getStore(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(stores => {
+      this.filteredStores = stores || [];
+      this.showSpinner = false;
+    });
+
+    // State autocomplete
+    this.filterForm.get('state')?.valueChanges.pipe(
+      debounceTime(300),
+      tap(() => (this.showSpinner = true)),
+      switchMap(searchText => this.getState(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(states => {
+      this.filteredState = states || [];
+      this.showSpinner = false;
+    });
+
+    // City autocomplete
+    this.filterForm.get('city')?.valueChanges.pipe(
+      debounceTime(300),
+      tap(() => (this.showSpinner = true)),
+      switchMap(searchText => this.getCity(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(cities => {
+      this.filteredCity = cities || [];
+      this.showSpinner = false;
+    });
+
+    // Cluster autocomplete
+    this.filterForm.get('cluster')?.valueChanges.pipe(
+      debounceTime(300),
+      tap(() => (this.showSpinner = true)),
+      switchMap(searchText => this.getCluster(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(clusters => {
+      this.filteredCluster = clusters || [];
+      this.showSpinner = false;
+    });
+
+    // Task autocomplete
+    this.filterForm.get('task')?.valueChanges.pipe(
+      debounceTime(300),
+      switchMap(searchText => this.getTask(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(tasks => {
+      this.filteredTask = tasks || [];
+    });
+
+    // FSR autocomplete
+    this.filterForm.get('fsr')?.valueChanges.pipe(
+      debounceTime(300),
+      switchMap(searchText => this.getFsr(searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(fsrs => {
+      this.filteredFSR = fsrs || [];
+    });
+  }
+
+ 
+  getStore(searchText: string) {
+    if (!searchText || searchText.length < 3) {
+      return of([]);
     }
 
-    this.hasChanges = true;
-    await this.loadCurrentAssignment();
-    await this.loadTaskAssignmentData();
-    this.filterForm.patchValue({ firstName: '', lastName: '' });
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetStore', payload)
+      .pipe(catchError(() => of([])));
+  }
 
-    alert('Assignment saved successfully.');
-  } catch (error) {
-    console.error('Error saving assignment:', error);
-    alert('Error while saving assignment.');
-  } finally {
-    this.showSpinner = false;
+  getState(searchText: string) {
+    if (!searchText || searchText.length <= 0) { return of([]); }
+    
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetState', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  getCity(searchText: string) {
+    if (!searchText || searchText.length <= 0) { return of([]); }
+    
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetCity', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  getCluster(searchText: string) {
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetCluster', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  getTask(searchText: string) {
+    if (!searchText || searchText.length <= 0) { return of([]); }
+    
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetTask', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  getFsr(searchText: string) {
+    if (!searchText || searchText.length <= 0) { return of([]); }
+    
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<any[]>(this.baseUrl + 'api/TaskAssinment/GetFsr', payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  // Event handlers for IRI Week and Territory changes
+  onIriWeekChange(): void {
+    // Clear dependent fields when IRI week changes
+    this.filterForm.patchValue({
+      store: '',
+      state: '',
+      city: '',
+      cluster: '',
+      task: '',
+      fsr: ''
+    });
+    this.clearSelectedValues();
+  }
+
+  onTerritoryChange(): void {
+    // this.areaNBRctrl.setValue(ter.area)
+    // Clear dependent fields when territory changes
+    this.filterForm.patchValue({
+      store: '',
+      state: '',
+      city: '',
+      cluster: '',
+      task: '',
+      fsr: ''
+    });
+    this.clearSelectedValues();
+  }
+
+  // Selection event handlers
+  onStoreSelected(event: any) {
+    const selectedStore = this.filteredStores.find(store => store.store_name === event.option.value);
+    this.selectedStoreNumber = selectedStore?.store_number || '';
+  }
+
+  onStateSelected(event: any) {
+    const selectedState = this.filteredState.find(state => state.state === event.option.value);
+    this.selectedState = selectedState?.state || '';
+  }
+
+  onCitySelected(event: any) {
+    const selectedCity = this.filteredCity.find(city => city.city === event.option.value);
+    this.selectedCity = selectedCity?.city || '';
+  }
+
+  onClusterSelected(event: any) {
+    const selectedCluster = this.filteredCluster.find(cluster => cluster.position_name === event.option.value);
+    this.selectedCluster = selectedCluster?.position_number || '';
+  }
+
+  onTaskSelected(event: any) {
+    const selectedTask = this.filteredTask.find(task => task.task_name === event.option.value);
+    this.selectedTask = selectedTask?.task_number || '';
+  }
+
+  onFsrSelected(event: any) {
+    const selectedFsr = this.filteredFSR.find(fsr => fsr.emp_name === event.option.value);
+    this.selectedFsrId = selectedFsr?.emp_id || '';
+  }
+
+  // Control methods
+  toggleAdvancedFilters(): void {
+    this.showAdvancedFilters = !this.showAdvancedFilters;
+    // this.expandedAdvancedLabel = this.showAdvancedFilters ?'Hide Additional Filters':'Show Additional Filters';
+  }
+
+
+  onApplyFilters(): void {
+    this.commonService.show('apply-filters');
+     if (!this.formInitialized) {
+        this.commonService.hide('apply-filters');     
+      return;
+    }
+
+    const currentCountry = this.commonService.getCurrentCountry();
+    if (!currentCountry) {
+      // console.log('Please select a country first');
+      // this.snackbar.openSnackBar("Loading country","warning")
+      // return;
+    }
+
+    // Validate required fields
+    const formValue = this.filterForm.value;
+    if (!formValue.iriWeek || !formValue.territory) {
+        this.commonService.hide('apply-filters');    
+      return;
+    }
+    const filters = new GetGridDataFilter();
+    filters.countryId = currentCountry||'1';
+    filters.lanId = this.loggeduser;
+    filters.iriWeek = formValue.iriWeek || '';
+    filters.territoryId = formValue.territory || '';
+    filters.area = this.areaNBRctrl.value || '23';
+    filters.storeNumber = this.selectedStoreNumber;
+    filters.storeName = formValue.store || '';
+    filters.state = this.selectedState;
+    filters.city = this.selectedCity;
+    filters.positionNumber = this.selectedCluster;
+    filters.taskNumber = this.selectedTask;
+    filters.empId = this.selectedFsrId;
+    filters.fsrHour = formValue.fsrHour || '';
+    filters.fsrHourOperator = formValue.fsrHourOperator || 'NA'; 
+    filters.fsrOver25hrs = 'false';
+    filters.fsrOver6hrs = 'false';
+    filters.temporary = 'false';
+    filters.vacation = 'false';
+    // Handle radio button selections
+    if (formValue.storeAssignment === 'assigned') {
+      filters.assignedStores = 'true';
+      filters.unassignedStores = 'false';
+    } else if (formValue.storeAssignment === 'unassigned') {
+      filters.assignedStores = 'false';
+      filters.unassignedStores = 'true';
+    } else {
+      filters.assignedStores = 'false';
+      filters.unassignedStores = 'false';
+    }
+
+    if (formValue.sampleType === 'sample') {
+      filters.sample = 'true';
+      filters.nonSample = 'false';
+    } else if (formValue.sampleType === 'nonSample') {
+      filters.sample = 'false';
+      filters.nonSample = 'true';
+    } else {
+      filters.sample = 'false';
+      filters.nonSample = 'false';
+    }
+
+    filters.multiFsrStore = formValue.multiFsrStore ? 'true' : 'false';
+  setTimeout(() => this.commonService.hide('apply-filters'), 100);
+    this.filtersChanged.emit(filters);
+    this.filtersApplied.emit();
+  }
+
+  // MISSING FUNCTION: Clear Filters
+  onClearFilters(): void {
+    this.filterForm.reset({
+      iriWeek: this.iriWeeks.length > 1 ? this.iriWeeks?.[0]?.['iri_week'] : '',
+      territory: this.employeedata?.['fieldTerritoryNumber'] == 0 || 
+                              !this.employeedata?.['fieldTerritoryNumber']
+                              ? this.territories?.[0]?.['territory_id']
+                              : this.employeedata?.['territory_id'],
+        storeAssignment: 'all',
+      sampleType: 'all',
+      multiFsrStore: false,
+      fsrHourOperator: 'NA'
+    });
+    this.clearSelectedValues();
+    this.clearFilters.emit();
+  }
+
+  // Apply Default Filters on Load
+  private applyDefaultFilters(): void {
+    if (!this.formInitialized || !this.allDataLoaded()) {
+      // console.log('Form not ready for default filters');
+      this.snackbar.openSnackBar("Loading default filters","warning")
+      return;
+    }
+
+  
+    setTimeout(() => {
+      this.onApplyFilters();
+    }, 500);
+  }
+
+  private allDataLoaded(): boolean {
+    return this.dataLoaded.iriWeek && 
+           this.dataLoaded.territory && 
+           this.dataLoaded.employee;
+  }
+
+  private clearSelectedValues(): void {
+    this.selectedStoreNumber = '';
+    this.selectedState = '';
+    this.selectedCity = '';
+    this.selectedCluster = '';
+    this.selectedTask = '';
+    this.selectedFsrId = '';
+  }
+
+  // Clear individual controls
+  clearStrCtrl() { 
+    this.filterForm.get('store')?.reset(); 
+    this.selectedStoreNumber = '';
+  }
+  clearStaCtrl() { 
+    this.filterForm.get('state')?.reset(); 
+    this.selectedState = '';
+  }
+  clearcityCtrl() { 
+    this.filterForm.get('city')?.reset(); 
+    this.selectedCity = '';
+  }
+  clearTaskCtrl() { 
+    this.filterForm.get('task')?.reset(); 
+    this.selectedTask = '';
+  }
+  clearFsrCtrl() { 
+    this.filterForm.get('fsr')?.reset(); 
+    this.selectedFsrId = '';
+  }
+
+   onFsrHourOperatorChange(): void {
+    const operator = this.filterForm.get('fsrHourOperator')?.value;
+    const fsrHourControl = this.filterForm.get('fsrHour');
+    
+    if (operator === 'NA') {
+      fsrHourControl?.setValue('');
+      fsrHourControl?.disable();
+    } else {
+      fsrHourControl?.enable();
+    }
+  }
+
+  onFsrHourChange(): void {
+    const fsrHour = this.filterForm.get('fsrHour')?.value;
+    if (fsrHour && fsrHour.trim() !== '') {
+      // Reset multi FSR store if user enters FSR hours
+      this.filterForm.get('multiFsrStore')?.setValue(false);
+    }
+  }
+  onMultiFsrStoreChange(): void {
+    const multiFsrStore = this.filterForm.get('multiFsrStore')?.value;
+    if (multiFsrStore) {
+      this.filterForm.get('fsrHourOperator')?.setValue('NA');
+      this.filterForm.get('fsrHour')?.setValue('');
+      this.filterForm.get('fsrHour')?.disable();
+    }
+  }
+
+
+   private async loadAllData(): Promise<void> {
+    try {
+      this.showSpinner = true;
+      
+      // Load all data in parallel
+      const [iriWeeks, territories, employeeData] = await Promise.all([
+        firstValueFrom(this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetIriWeek')),
+        firstValueFrom(this.http.get<any[]>(this.baseUrl + 'api/TaskAssinment/GetTerritory')),
+        firstValueFrom(this.commonService.getEmployee(this.loggeduser))
+      ]);
+
+      this.iriWeeks = iriWeeks;
+      this.territories = territories;
+      this.employeedata = employeeData;
+      
+      this.applyDefaultFilters();
+      this.setupFormSubscriptions();
+      
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      this.showSpinner = false;
+    }
+  }
+
+  // Generic autocomplete method
+  private setupAutocomplete<T>(controlName: string, apiEndpoint: string): void {
+    this.filterForm.get(controlName)?.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      tap(() => this.showSpinner = true),
+      switchMap(searchText => this.genericSearch<T>(apiEndpoint, searchText)),
+      takeUntil(this.unsubscribe$)
+    ).subscribe(results => {
+      this[`filtered${controlName.charAt(0).toUpperCase() + controlName.slice(1)}`] = results;
+      this.showSpinner = false;
+    });
+  }
+
+  // Generic search method
+  private genericSearch<T>(endpoint: string, searchText: string): Observable<T[]> {
+    if (!searchText || searchText.length < 2) return of([]);
+    
+    const payload = {
+      IriWeek: Number(this.filterForm.get('iriWeek')?.value),
+      TerritoryId: Number(this.filterForm.get('territory')?.value),
+      SearchText: searchText
+    };
+    
+    return this.http.post<T[]>(this.baseUrl + endpoint, payload)
+      .pipe(catchError(() => of([])));
+  }
+
+  private updateAvailableColumns(): void {
+    switch (this.currentWeekType) {
+      case 'current':
+        this.availableColumns = this.allAvailableColumns.current;
+        break;
+      case 'future':
+        this.availableColumns = this.allAvailableColumns.future;
+        break;
+      case 'previous':
+        this.availableColumns = this.allAvailableColumns.previous;
+        break;
+      default:
+        this.availableColumns = this.allAvailableColumns.base;
+    }
+  }
+
+ //Reset selected columns when week type changes
+  private resetSelectedColumnsForWeekType(): void {
+    this.selectedColumns = this.availableColumns
+      .filter(col => col.required || this.getDefaultVisibleColumns().includes(col.key))
+      .map(col => col.key);
+    this.columnsChanged.emit(this.selectedColumns);
+  }
+
+ //Get default visible columns based on week type
+  private getDefaultVisibleColumns(): string[] {
+    const common = ['addr_line1', 'city','work_order'];
+    
+    switch (this.currentWeekType) {
+      case 'current':
+        return [...common,'task', 'task_completed','position_number','bdf', 'outlet'];
+      case 'future':
+        return [...common,'task','avg_cost','guaranteed_miles','position_number','bdf', 'outlet'];
+      case 'previous':
+        return [...common, 'task','task_completed', 'wk1_costs','wk1_travel', 'wk1_ovg_travel','wk2_costs', 'wk2_travel','wk2_ovg_travel'];
+      default:
+        return common;
+    }
+  }
+
+ //Column selection change with week type awareness
+  onColumnSelectionChange(): void {
+    const requiredColumns = this.availableColumns
+      .filter(col => col.required)
+      .map(col => col.key);
+      
+    this.selectedColumns = [...new Set([...this.selectedColumns, ...requiredColumns])];
+    this.columnsChanged.emit(this.selectedColumns);
+  }
+
+  isColumnRequired(columnKey: string): boolean {
+    return this.availableColumns.find(col => col.key === columnKey)?.required || false;
+  }
+
+
+  ngOnDestroy(): void {
+    this.unsubscribe$.next();
+    this.unsubscribe$.complete();
   }
 }
